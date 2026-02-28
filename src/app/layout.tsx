@@ -3,10 +3,7 @@
 
 import type { Metadata } from 'next'
 import { Instrument_Serif, Inter } from 'next/font/google'
-import { cookies } from 'next/headers'
 import { Providers } from '@/features/F-workspace/contract/providers'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
 import { color } from '@/features/F-design-system/config'
 
 const instrumentSerif = Instrument_Serif({ subsets: ['latin'], weight: '400', variable: '--font-header', display: 'swap' })
@@ -18,23 +15,6 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let initialSession = null
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(SESSION_CONFIG.cookieName)?.value
-    if (token) {
-      const session = await resolveSession(token)
-      if (session) {
-        initialSession = {
-          userId:    session.userId,
-          sessionId: session.sessionId,
-          email:     session.email,
-          expiresAt: session.expiresAt.toISOString(),
-        }
-      }
-    }
-  } catch {}
-
   return (
     <html lang="en" className={`${instrumentSerif.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
@@ -56,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         `}</style>
       </head>
       <body>
-        <Providers initialSession={initialSession}>{children}</Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

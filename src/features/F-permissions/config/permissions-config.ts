@@ -29,6 +29,7 @@ export const ACTIONS = {
   terminal_connect: 'terminal_connect',
   // topography
   topography_read: 'topography_read',
+  la_run: 'la_run',
 } as const
 
 export type Action = keyof typeof ACTIONS

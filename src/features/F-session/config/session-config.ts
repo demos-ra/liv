@@ -21,6 +21,7 @@ export type SessionStatus = 'active' | 'expired' | 'revoked'
 export type SessionPayload = {
   userId: string
   sessionId: string
+  email: string
   githubAccessToken: string
   issuedAt: number
   expiresAt: number
