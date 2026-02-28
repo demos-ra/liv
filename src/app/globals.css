@@ -1,0 +1,72 @@
+/* LIV — globals.css */
+/* Single source of truth for all design tokens */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap');
+
+/* ── DARK (default) ── */
+:root {
+  --bg:           #0f0f10;
+  --surface:      #151516;
+  --surface-up:   #1b1b1d;
+  --border:       #222226;
+  --divider:      #2f2f33;
+  --text-dis:     #5f5f63;
+  --text-sec:     #8a8a8f;
+  --text:         #e2e2e2;
+  --accent:       #3352FF;
+  --accent-hi:    #5570FF;
+  --accent-lo:    #2240DD;
+  --accent-glow:  #3352FF18;
+  --success:      #34d399;
+  --building:     #A89040;
+  --error:        #f87171;
+  --font-ui:      'DM Sans', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+  --font-serif:   'Instrument Serif', serif;
+  --sp-1: 4px;  --sp-2: 8px;   --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px;  --sp-7: 48px; --sp-8: 64px;
+  --r-sm: 4px;  --r-md: 6px;   --r-lg: 10px;
+  --ease:   cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 120ms;
+  --t-mid:  220ms;
+}
+
+/* ── LIGHT ── */
+[data-theme='light'] {
+  --bg:           #F5F3EF;
+  --surface:      #EFEDE8;
+  --surface-up:   #E8E5DF;
+  --border:       #D8D4CC;
+  --divider:      #C8C4BC;
+  --text-dis:     #A8A49C;
+  --text-sec:     #6B6760;
+  --text:         #1A1915;
+  --accent:       #3352FF;
+  --accent-hi:    #2240DD;
+  --accent-lo:    #1830BB;
+  --accent-glow:  #3352FF14;
+  --success:      #1A9E6E;
+  --building:     #8B6A1A;
+  --error:        #C94040;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCROLLBAR ── */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+/* ── CURSOR BLINK ── */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }

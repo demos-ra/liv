@@ -1,0 +1,51 @@
+{
+  "version": "2.1.0",
+  "format": {
+    "pattern": "F-[a-z][a-z0-9-]*",
+    "description": "Kebab-case, starts with lowercase letter"
+  },
+  "core_infrastructure": {
+    "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
+    "modules": [
+      "src/core/db/client.ts        — Postgres pool singleton",
+      "src/core/api/trpc-setup.ts   — tRPC init",
+      "src/core/api/trpc-client.ts  — tRPC React client",
+      "src/core/api/router.ts       — App router assembly",
+      "src/core/types/primitives.ts — Shared types and ID generation",
+      "src/core/types/state-registry.ts — Namespace registry map"
+    ],
+    "absorbed_from": ["F-types", "F-state-registry", "F-integration"]
+  },
+  "completeness": {
+    "required_layers": ["domain", "contract", "exec"],
+    "optional_layers": ["config", "app"],
+    "exceptions": {
+      "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events."
+    },
+    "description": "A complete feature slice requires domain logic, contract boundary, and execution/I/O."
+  },
+  "declared_slices": [
+    "F-design-system",
+    "F-event-system",
+    "F-la-config",
+    "F-identity",
+    "F-session",
+    "F-permissions",
+    "F-git-connector",
+    "F-terminal-bridge",
+    "F-project",
+    "F-topography",
+    "F-ai-adapter",
+    "F-chat",
+    "F-constitution",
+    "F-notifications",
+    "F-commit-log",
+    "F-user-profile",
+    "F-workspace",
+    "F-dashboard",
+    "F-editor",
+    "F-health-panel",
+    "F-execution-panel",
+    "F-memory"
+  ]
+}
