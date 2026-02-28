@@ -37,7 +37,7 @@ export async function createContext(
 
   const authDeps: AuthWorkflowDeps = {
     db:             createAuthDb(taggedDb(db)),
-    email:          IS_DEV ? devEmailService : devEmailService,
+    email:          IS_DEV ? devEmailService : createProductionEmailService(),
     eventBus:       noopEventBus,
     baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
     checkRateLimit: async (_type, _value, _action) => ({
@@ -69,7 +69,7 @@ export async function createContext(
 
   const setSessionCookie = (token: string) => {
     try {
-      cookieJar.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: IS_PROD })
+      cookieJar.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: false })
     } catch {}
   }
 
@@ -103,3 +103,42 @@ const devEmailService = {
 // ─── No-op event bus ──────────────────────────────────────────────────────────
 
 const noopEventBus = { async emit(_event: unknown) {} }
+
+// ─── Production email service ─────────────────────────────────────────────────
+
+function createProductionEmailService() {
+  const apiKey = process.env.EMAIL_API_KEY
+  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev'
+  const fromName = process.env.EMAIL_FROM_NAME ?? 'LIV'
+
+  return {
+    async sendMagicLink(to: string, content: MagicLinkEmailContent) {
+      if (!apiKey) return devEmailService.sendMagicLink(to, content)
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `${fromName} <${fromAddress}>`,
+            to: [to],
+            subject: content.subject,
+            text: content.text,
+            html: content.html,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.text()
+          console.error(JSON.stringify({ level: 'error', event: 'email.send.failed', to, status: res.status, err }))
+          return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: err } }
+        }
+        return { success: true as const }
+      } catch (err) {
+        console.error(JSON.stringify({ level: 'error', event: 'email.send.failed', to, err: String(err) }))
+        return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: String(err) } }
+      }
+    },
+  }
+}
