@@ -69,7 +69,7 @@ export async function createContext(
 
   const setSessionCookie = (token: string) => {
     try {
-      cookieJar.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: false })
+      cookieJar.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: IS_PROD })
     } catch {}
   }
 
