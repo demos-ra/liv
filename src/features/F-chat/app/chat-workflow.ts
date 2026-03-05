@@ -1,13 +1,13 @@
 // [F-chat/app/chat-workflow.ts]
 // R2 — Chat orchestration with Living Memory integration.
-// Dependency path: R2 → own R4 (lm-io, chat-db) + F-ai-adapter/contract (R3→R3)
 
-import { db, taggedDb } from '@/core/db/client'
-import { createChatDb } from '../exec/chat-db'
+import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { lmWriteEvent, lmRecall, lmRemember, lmSessionEnd } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
+import { remember, recall, onSessionEnd } from '@/features/F-memory/contract/memory-contract'
+import { generateId } from '@/core/types/primitives'
 
-// ── Session State ─────────────────────────────────────────────────────────────
+const memoryDeps = { remember, recall, onSessionEnd }
 
 interface SessionState {
   lmSessionId:   string
@@ -43,8 +43,6 @@ function updateSessionState(state: SessionState): void {
   state.lastMessageAt = now
 }
 
-// ── Send Message ──────────────────────────────────────────────────────────────
-
 export interface SendMessageInput {
   projectId: string
   content:   string
@@ -53,22 +51,19 @@ export interface SendMessageInput {
 }
 
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
-  const chatDb = createChatDb(taggedDb(db))
   const { projectId, content, modelId, userId } = input
 
   const state = getOrCreateSessionState(userId)
   if (shouldRotateSession(state)) {
-    await lmSessionEnd(state.lmSessionId)
+    lmSessionEnd(state.lmSessionId, memoryDeps).catch(() => {})
     state.lmSessionId = crypto.randomUUID()
     state.messageGaps = []
   }
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
-  await lmWriteEvent(content, 'episodic', lmSessionId)
-
-  const isDeepRecall = content.startsWith('/recall')
-  const memoryContext = await lmRecall(content, isDeepRecall)
+  // Recall memory context BEFORE streaming (fast — just diffusion, no embedding)
+  const memoryContext = await lmRecall(content, memoryDeps, content.startsWith('/recall'))
 
   const systemPrompt = memoryContext
     ? `You are Liv, an AI software collaborator.\n\nMemory context:\n${memoryContext}`
@@ -79,6 +74,7 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     { role: 'user'   as const, content },
   ]
 
+  // Stream first — no blocking calls before or during
   let fullResponse = ''
   for await (const chunk of streamAIResponse(messages, modelId)) {
     if (chunk.content) {
@@ -87,13 +83,24 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     }
   }
 
-  await chatDb.saveMessage({ projectId, role: 'user',      content })
-  await chatDb.saveMessage({ projectId, role: 'assistant', content: fullResponse })
-
-  await lmRemember('chat', 'liv', 'said', fullResponse.slice(0, 200), lmSessionId)
+  // Memory + persistence AFTER stream completes — never block the stream
+  const now = Date.now()
+  Promise.all([
+    lmWriteEvent(content, 'episodic', lmSessionId, memoryDeps),
+    lmRemember('chat', 'liv', 'said', fullResponse.slice(0, 200), lmSessionId, memoryDeps),
+    persistMessage({
+      messageId: generateId('msg'), projectId, sessionId: lmSessionId, userId,
+      role: 'user', content, status: 'complete',
+      createdAt: now, completedAt: now, tokenCount: 0, modelId, parentMessageId: null,
+    }),
+    persistMessage({
+      messageId: generateId('msg'), projectId, sessionId: lmSessionId, userId,
+      role: 'assistant', content: fullResponse, status: 'complete',
+      createdAt: now, completedAt: now, tokenCount: 0, modelId, parentMessageId: null,
+    }),
+  ]).catch(err => console.error('[chat] post-stream ops failed', err))
 }
 
-export async function getMessages(projectId: string, limit = 50) {
-  const chatDb = createChatDb(taggedDb(db))
-  return chatDb.getMessages(projectId, limit)
+export async function getMessages(projectId: string, cursor: string | null = null, limit = 50) {
+  return dbGetMessages(projectId, cursor, limit)
 }
