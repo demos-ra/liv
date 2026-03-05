@@ -1,10 +1,11 @@
 // [F-chat/contract/chat-ui.tsx]
 // R3 — Chat UI component. 'use client'.
-// Owns the chat render surface. No business logic — delegates to fetch API.
+// Owns render surface only. Zero fetch logic — delegates to useChatStream hook.
 
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useChatStream } from './chat-hook'
 
 const PROJECT_ID = 'demo'
 const MODEL_ID   = 'deepseek-chat'
@@ -111,68 +112,49 @@ const s = {
 export function ChatUI({ email, signOut }: { email: string; signOut: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput]       = useState('')
-  const [streaming, setStreaming] = useState(false)
+  const asstIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
+
+  // Chunk handler — reads ref at call time, never stale
+  const handleChunk = useCallback((chunk: string) => {
+    const id = asstIdRef.current
+    if (!id) return
+    setMessages(prev => prev.map(m =>
+      m.id === id ? { ...m, content: m.content + chunk } : m
+    ))
+  }, [])
+
+  const { streaming, error, send } = useChatStream(PROJECT_ID, handleChunk)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const send = useCallback(async () => {
+  // Clear streaming flag on messages when stream ends
+  useEffect(() => {
+    if (!streaming && asstIdRef.current) {
+      setMessages(prev => prev.map(m => m.id === asstIdRef.current ? { ...m, streaming: false } : m))
+      asstIdRef.current = null
+      inputRef.current?.focus()
+    }
+  }, [streaming])
+
+  const handleSend = useCallback(async () => {
     const content = input.trim()
     if (!content || streaming) return
     setInput('')
 
-    const userMsg: Msg  = { id: crypto.randomUUID(), role: 'user', content }
-    const asstId        = crypto.randomUUID()
-    const asstMsg: Msg  = { id: asstId, role: 'assistant', content: '', streaming: true }
+    const userMsg: Msg = { id: crypto.randomUUID(), role: 'user', content }
+    const newAsstId    = crypto.randomUUID()
+    const asstMsg: Msg = { id: newAsstId, role: 'assistant', content: '', streaming: true }
 
+    asstIdRef.current = newAsstId  // set BEFORE send() so chunks see it
     setMessages(prev => [...prev, userMsg, asstMsg])
-    setStreaming(true)
 
-    try {
-      const res = await fetch(`/api/chat/${PROJECT_ID}/message`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ content, modelId: MODEL_ID }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-      const reader  = res.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer    = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.chunk) {
-              setMessages(prev => prev.map(m =>
-                m.id === asstId ? { ...m, content: m.content + data.chunk } : m
-              ))
-            }
-          } catch {}
-        }
-      }
-    } catch (err) {
-      setMessages(prev => prev.map(m =>
-        m.id === asstId
-          ? { ...m, content: `error: ${(err as Error).message}`, streaming: false }
-          : m
-      ))
-    } finally {
-      setMessages(prev => prev.map(m => m.id === asstId ? { ...m, streaming: false } : m))
-      setStreaming(false)
-      inputRef.current?.focus()
-    }
-  }, [input, streaming])
+    // Hook owns the fetch + SSE — UI passes onChunk via closure
+    await send(content, MODEL_ID)
+  }, [input, streaming, send])
 
   const today    = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   const initials = email.split('@')[0].slice(0, 1).toUpperCase()
@@ -230,6 +212,11 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
             </div>
           )
         })}
+        {error && (
+          <div style={{ color: 'var(--error)', fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 8 }}>
+            stream error: {error}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -240,7 +227,7 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
           autoFocus
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
           disabled={streaming}
           placeholder="type anything or /build /recall /search"
           style={{
