@@ -1,2 +1,3 @@
-// [F-design-system/domain/index.ts] R1 — re-export all primitives
-export * from './primitives'
+// @liv-standard v1.0
+// [F-design-system/domain/index.ts]
+// Reserved.
