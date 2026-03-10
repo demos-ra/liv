@@ -8,7 +8,7 @@
  * - Imports from R0 only.
  */
 
-import type { Session, AuthSessionPayload, MagicLinkToken } from '../config/auth-types';
+import type { Session, AuthSessionPayload, MagicLinkToken, MagicLinkEmailContent } from '../config/auth-types';
 
 // ─── Expiry Configuration ─────────────────────────────────────────────────────
 
@@ -76,8 +76,7 @@ export function buildMagicLinkUrl(
 
 // ─── Magic Link Email Content ─────────────────────────────────────────────────
 
-// MagicLinkEmailContent declared in R0 auth-types (so R4 can import)
-export type { MagicLinkEmailContent } from '../config/auth-types';
+// MagicLinkEmailContent canonical owner: R0 auth-types.ts — imported above, not re-exported from here
 
 export function buildMagicLinkEmail(
   email: string,

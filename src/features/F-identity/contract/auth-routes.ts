@@ -145,6 +145,8 @@ export const authRouter = createTRPCRouter({
         },
         session: {
           sessionId: ctx.session.sessionId,
+          userId: ctx.session.userId,
+          email: ctx.session.email,
           expiresAt: ctx.session.expiresAt,
         },
       };

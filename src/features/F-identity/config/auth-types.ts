@@ -1,5 +1,6 @@
 // Re-export error types from auth-error-factory (canonical location)
 export type { AuthError, AuthErrorCode } from './auth-error-factory';
+import type { AuthError } from './auth-error-factory'; // local use — Amendment 1: consumer must import atom directly
 
 /**
  * F-identity / R0 / auth-types.ts

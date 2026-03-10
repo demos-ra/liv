@@ -15,8 +15,8 @@ export async function persistProject(project: Project): Promise<void> {
     [
       project.projectId, project.ownerId, project.name, project.description,
       project.status, project.repoOwner, project.repoName, project.defaultBranch,
-      project.createdAt, project.updatedAt,
-    ]
+      project.createdAt, project.updatedAt,  // unix ms — to_timestamp($9/1000) handles conversion
+    ] as unknown[]
   )
 }
 
@@ -30,7 +30,7 @@ export async function updateProject(project: Project): Promise<void> {
     [
       project.projectId, project.name, project.description, project.status,
       project.repoOwner, project.repoName, project.defaultBranch, project.updatedAt,
-    ]
+    ] as unknown[]
   )
 }
 
@@ -75,22 +75,36 @@ export async function getProjectSummaries(
 
   const rows = result.rows
   const hasMore = rows.length > limit
-  const projects: ProjectSummary[] = rows.slice(0, limit).map((r) => ({
-    projectId: r.project_id,
-    name: r.name,
-    description: r.description,
-    status: r.status,
-    createdAt: Number(new Date(r.created_at)),
-    updatedAt: Number(new Date(r.updated_at)),
-    memberCount: Number(r.member_count),
-    lastCommitAt: r.last_commit_at ? Number(new Date(r.last_commit_at)) : null,
-  }))
+  const projects: ProjectSummary[] = rows.slice(0, limit).map((r) => { const row = r as unknown as ProjectSummaryRow; return ({
+    projectId: row.project_id,
+    name: row.name,
+    description: row.description,
+    status: row.status as ProjectSummary['status'],
+    createdAt: Number(new Date(row.created_at)),
+    updatedAt: Number(new Date(row.updated_at)),
+    memberCount: Number(row.member_count),
+    lastCommitAt: row.last_commit_at ? Number(new Date(row.last_commit_at)) : null,
+  })})
 
   return {
     projects,
     hasMore,
     cursor: projects.length > 0 ? String(projects[projects.length - 1].updatedAt) : null,
   }
+}
+
+
+// ─── Row Types (Amendment 1: W-INJECT boundary — DB→domain cast explicit) ─────
+
+interface ProjectSummaryRow {
+  project_id: string
+  name: string
+  description: string | null
+  status: string
+  created_at: string
+  updated_at: string
+  member_count: string  // COUNT returns string in pg
+  last_commit_at: string | null
 }
 
 function rowToProject(row: Record<string, unknown>): Project {

@@ -59,7 +59,7 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
     displayName: r.display_name,
     avatarUrl: r.avatar_url,
     email: r.email,
-    preferredModelId: r.preferred_model_id,
+    preferredModelId: r.preferred_model_id ?? 'claude-sonnet-4-6', // Amendment 1: null→default at DB boundary
     createdAt: Number(new Date(r.created_at)),
     updatedAt: Number(new Date(r.updated_at)),
   }

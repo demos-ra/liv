@@ -71,7 +71,7 @@ export async function purgeExpired(): Promise<number> {
      WHERE created_at < NOW() - INTERVAL '${NOTIFICATIONS_CONFIG.ttlDays} days'
      RETURNING notification_id`
   )
-  return result.rowCount ?? 0
+  return result.rows.length
 }
 
 function rowToNotification(row: Record<string, unknown>): Notification {

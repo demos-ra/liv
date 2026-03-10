@@ -119,6 +119,37 @@ CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON auth_sessions(token_hash);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON auth_sessions(expires_at);
 ` as const;
 
+
+// ─── Row Type Interfaces (Amendment 1: W-INJECT boundary — DB→domain cast explicit) ──
+
+interface UserRow {
+  id: string
+  email: string
+  created_at: Date
+  last_login_at: Date | null
+  is_new?: boolean
+}
+
+interface MagicLinkTokenRow {
+  id: string
+  user_id: string
+  email: string
+  token_hash: string
+  expires_at: Date
+  used_at: Date | null
+  created_at: Date
+}
+
+interface SessionRow {
+  id: string
+  user_id: string
+  token_hash: string
+  expires_at: Date
+  created_at: Date
+  user_agent: string | null
+  ip_address: string | null
+}
+
 // ─── Postgres Implementation ──────────────────────────────────────────────────
 
 /**
@@ -145,7 +176,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.dbError('upsertUser', 'no row returned') };
         }
 
-        const row = rows[0];
+        const row = rows[0] as unknown as UserRow;
         const user: AuthUser = {
           id: row.id,
           email: row.email,
@@ -167,7 +198,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         if (rows.length === 0) {
           return { success: false, error: AuthErrors.userNotFound() };
         }
-        const row = rows[0];
+        const row = rows[0] as unknown as UserRow;
         return {
           success: true,
           data: { id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at },
@@ -185,7 +216,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         if (rows.length === 0) {
           return { success: false, error: AuthErrors.userNotFound(email) };
         }
-        const row = rows[0];
+        const row = rows[0] as unknown as UserRow;
         return {
           success: true,
           data: { id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at },
@@ -243,7 +274,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.tokenInvalid('not found') };
         }
 
-        const row = rows[0];
+        const row = rows[0] as unknown as MagicLinkTokenRow;
         return {
           success: true,
           data: {
@@ -312,7 +343,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           RETURNING *
         `;
 
-        const row = rows[0];
+        const row = rows[0] as unknown as SessionRow;
 
         // Return session with rawToken embedded for cookie setting
         // After this point raw token exists ONLY in the cookie — never stored
@@ -347,7 +378,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.sessionNotFound() };
         }
 
-        const row = rows[0];
+        const row = rows[0] as unknown as SessionRow;
         return {
           success: true,
           data: {

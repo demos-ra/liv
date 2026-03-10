@@ -7,7 +7,9 @@
  * This file re-exports it for R1/R2 convenience and adds the log shape.
  */
 
-export { AuthErrors, AuthError, AuthErrorCode } from '../config/auth-error-factory';
+// Amendment 1: type atoms exported with explicit 'export type' — isolatedModules compliance
+export { AuthErrors } from '../config/auth-error-factory';
+export type { AuthError, AuthErrorCode } from '../config/auth-error-factory';
 import type { AuthError } from '../config/auth-error-factory';
 
 // ─── Error Logging Shape (O5 — structured log format) ────────────────────────

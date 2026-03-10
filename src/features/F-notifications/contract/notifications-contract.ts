@@ -51,7 +51,7 @@ export async function GET_stream(req: NextRequest): Promise<Response> {
   const stream = new ReadableStream({
     start(controller) {
       // Subscribe to notification.created events for this user
-      const unsubscribe = subscribeToEvent(EVENTS.NOTIFICATIONS.CREATED, (event) => {
+      const unsubscribe = subscribeToEvent(EVENTS.NOTIFICATIONS.CREATED, async (event) => {
         if (event.payload.userId !== userId) return
         controller.enqueue(
           encoder.encode(`event: notification\ndata: ${JSON.stringify(event.payload)}\n\n`)

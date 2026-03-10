@@ -32,13 +32,10 @@ export function useNotifications() {
 
     es.addEventListener('notification', (e) => {
       const incoming = JSON.parse(e.data) as Notification
-      write((prev) => {
-        const next = [incoming, ...(prev?.notifications ?? [])]
-        return {
-          ...(prev ?? INITIAL_STATE),
-          notifications: next,
-          unreadCount: countUnread(next),
-        }
+      write((prev): NotificationsState => {
+        const base = prev ?? INITIAL_STATE
+        const next = [incoming, ...base.notifications]
+        return { ...base, notifications: next, unreadCount: countUnread(next) }
       })
     })
 
@@ -54,14 +51,14 @@ export function useNotifications() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds }),
       })
-      write((prev) => {
-        if (!prev) return prev
-        const updated = prev.notifications.map((n) =>
+      write((prev): NotificationsState => {
+        const base = prev ?? INITIAL_STATE
+        const updated = base.notifications.map((n) =>
           notificationIds.includes(n.notificationId)
             ? { ...n, read: true, readAt: Date.now() }
             : n
         )
-        return { ...prev, notifications: updated, unreadCount: countUnread(updated) }
+        return { ...base, notifications: updated, unreadCount: countUnread(updated) }
       })
     },
     [write]

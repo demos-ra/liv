@@ -11,9 +11,12 @@
  *
  * This is the only file that calls both R1 (logic) and R4 (I/O).
  * R3 routes call this. R3 never calls R4 directly.
+ *
+ * Amendment 1 compliance: all wire contracts (IEmailService, IAuthDb, IEventBus)
+ * imported from canonical R0/R4 owners. Mid-file imports removed.
  */
 
-import type { AuthResult, AuthUser, AuthSessionPayload } from '../config/auth-types';
+import type { AuthResult, AuthUser, AuthSessionPayload, MagicLinkEmailContent } from '../config/auth-types';
 import type { IEventBus } from '../config/auth-events';
 import { AUTH_EVENTS } from '../config/auth-events';
 import {
@@ -32,6 +35,9 @@ import {
 } from '../domain/auth-session';
 import { AuthErrors, toErrorLog } from '../domain/auth-errors';
 import type { IAuthDb, IEmailService } from '../exec/auth-db';
+import { createAuthDb } from '../exec/auth-db';
+import { db, taggedDb } from '@/core/db/client';
+
 
 // ─── Structured Logger (O5) ───────────────────────────────────────────────────
 
@@ -359,13 +365,9 @@ export async function validateAndRefreshSession(
     return { success: false, error };
   }
 }
-// APPEND TO: src/features/F-identity/app/auth-workflow.ts
-// Add this function at the end of the file.
-// Provides a lightweight session lookup for cross-slice use via auth-contract.ts (R3).
-// R3 calls this → R2 calls R4. R3 never touches R4 directly.
 
-import { db, taggedDb } from '@/core/db/client'
-import { createAuthDb } from '../exec/auth-db'
+// ─── Session Lookup (cross-slice — called by auth-contract.ts at R3) ─────────
+// R3 calls this → R2 calls R4. R3 never touches R4 directly. (W-INJECT pattern)
 
 export interface ValidatedSession {
   sessionId: string
@@ -381,8 +383,8 @@ export async function lookupSession(rawToken: string): Promise<ValidatedSession 
     userId:    result.data.userId,
   }
 }
-// APPEND TO: src/features/F-identity/app/auth-workflow.ts
-// Factory so trpc-context.ts (R3) never imports exec/auth-db (R4) directly.
+
+// ─── Deps Factory (R3 calls this — never imports exec/ directly) ──────────────
 
 export function createAuthDeps(ipAddress: string): AuthWorkflowDeps {
   return {
@@ -398,15 +400,12 @@ export function createAuthDeps(ipAddress: string): AuthWorkflowDeps {
   }
 }
 
-// ─── Stubs (referenced by factory above — keep in R2) ─────────────────────────
+// ─── Stubs (IEmailService wire contract — Amendment 1: return shape must match exactly) ─
 
 const IS_DEV = process.env.NODE_ENV !== 'production'
-const IS_PROD = process.env.NODE_ENV === 'production'
 
-import type { MagicLinkEmailContent } from '../config/auth-types'
-
-const devEmailServiceStub = {
-  async sendMagicLink(to: string, content: MagicLinkEmailContent) {
+const devEmailServiceStub: IEmailService = {
+  async sendMagicLink(to: string, content: MagicLinkEmailContent): Promise<AuthResult<void>> {
     const urlMatch = content.text.match(/https?:\/\/\S+/)
     const link = urlMatch?.[0] ?? content.text
     console.log(JSON.stringify({
@@ -414,18 +413,18 @@ const devEmailServiceStub = {
       timestamp: new Date().toISOString(),
       note: 'Copy this link to sign in — no email sent in dev',
     }))
-    return { success: true as const }
+    return { success: true, data: undefined }
   },
 }
 
-const noopEventBus = { async emit(_event: unknown) {} }
+const noopEventBus: IEventBus = { async emit(_event: { type: string; payload: Record<string, unknown>; eventKind?: string }) {} }
 
-function createProductionEmailService() {
+function createProductionEmailService(): IEmailService {
   const apiKey      = process.env.EMAIL_API_KEY
   const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev'
   const fromName    = process.env.EMAIL_FROM_NAME ?? 'LIV'
   return {
-    async sendMagicLink(to: string, content: MagicLinkEmailContent) {
+    async sendMagicLink(to: string, content: MagicLinkEmailContent): Promise<AuthResult<void>> {
       if (!apiKey) return devEmailServiceStub.sendMagicLink(to, content)
       try {
         const res = await fetch('https://api.resend.com/emails', {
@@ -438,11 +437,11 @@ function createProductionEmailService() {
         })
         if (!res.ok) {
           const err = await res.text()
-          return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: err } }
+          return { success: false, error: AuthErrors.emailSendFailed(to, err) }
         }
-        return { success: true as const }
+        return { success: true, data: undefined }
       } catch (err) {
-        return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: String(err) } }
+        return { success: false, error: AuthErrors.emailSendFailed(to, err) }
       }
     },
   }

@@ -63,14 +63,18 @@ export function registerNotificationSubscriptions() {
     })
   }
 
-  subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED,             (e) => notify(e, 'session.expired',      (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.GIT.CONNECTED,                       (e) => notify(e, 'git.connected',        (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.GIT.DISCONNECTED,                    (e) => notify(e, 'git.disconnected',     (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.GIT.REPO_SYNCED,                     (e) => notify(e, 'git.repo.synced',      (ev) => ev.payload.userId, (ev) => ({ repo: `${ev.payload.owner}/${ev.payload.repo}` })))
-  subscribeToEvent(EVENTS.HEALTH.VIOLATION_FOUND,              (e) => notify(e, 'health.violation',     (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.EXECUTION.SLICE_FAILED,              (e) => notify(e, 'execution.violation',  (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.COMMIT_LOG.COMMIT_CONFIRMED,         (e) => notify(e, 'commit.confirmed',     (ev) => ev.payload.userId))
-  subscribeToEvent(EVENTS.CONSTITUTION.CONSTITUTION_UPDATED,   (e) => notify(e, 'constitution.updated', (ev) => ev.payload.userId))
+  // Amendment 1: SystemEvent.payload is Record<string,unknown> — cast at consumer boundary
+  const uid = (ev: { payload: Record<string, unknown> }) => ev.payload.userId as string
+  const repoMeta = (ev: { payload: Record<string, unknown> }) => ({ repo: `${ev.payload.owner}/${ev.payload.repo}` })
+
+  subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED,             async (e) => notify(e, 'session.expired',      uid))
+  subscribeToEvent(EVENTS.GIT.CONNECTED,                       async (e) => notify(e, 'git.connected',        uid))
+  subscribeToEvent(EVENTS.GIT.DISCONNECTED,                    async (e) => notify(e, 'git.disconnected',     uid))
+  subscribeToEvent(EVENTS.GIT.REPO_SYNCED,                     async (e) => notify(e, 'git.repo.synced',      uid, repoMeta))
+  subscribeToEvent(EVENTS.HEALTH.VIOLATION_FOUND,              async (e) => notify(e, 'health.violation',     uid))
+  subscribeToEvent(EVENTS.EXECUTION.SLICE_FAILED,              async (e) => notify(e, 'execution.violation',  uid))
+  subscribeToEvent(EVENTS.COMMIT_LOG.COMMIT_CONFIRMED,         async (e) => notify(e, 'commit.confirmed',     uid))
+  subscribeToEvent(EVENTS.CONSTITUTION.CONSTITUTION_UPDATED,   async (e) => notify(e, 'constitution.updated', uid))
 }
 
 // ─── Read functions ───────────────────────────────────────────────────────────

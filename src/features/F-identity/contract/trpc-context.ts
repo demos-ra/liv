@@ -7,8 +7,8 @@ import { type FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import { cookies } from 'next/headers'
 import { validateAndRefreshSession, createAuthDeps } from '../app/auth-workflow'
 import type { AuthWorkflowDeps } from '../app/auth-workflow'
-import type { AuthUser } from '../config/auth-types'
-import type { SessionPayload } from '@/core/types/session'
+import type { AuthUser, AuthSessionPayload } from '../config/auth-types'
+// Amendment 1: SessionPayload (GitHub-auth era) replaced by AuthSessionPayload (magic-link canonical)
 
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? 'liv_session'
 const IS_PROD        = process.env.NODE_ENV === 'production'
@@ -16,7 +16,7 @@ const IS_PROD        = process.env.NODE_ENV === 'production'
 export interface TRPCContext {
   authDeps:           AuthWorkflowDeps
   ipAddress:          string
-  session:            SessionPayload | null
+  session:            AuthSessionPayload | null
   user:               AuthUser | null
   setSessionCookie:   (sessionId: string) => void
   clearSessionCookie: () => void
@@ -37,7 +37,7 @@ export async function createContext(
   // R3 calls R2 factory — never imports exec/ directly
   const authDeps = createAuthDeps(ipAddress)
 
-  let session: SessionPayload | null = null
+  let session: AuthSessionPayload | null = null
   let user: AuthUser | null = null
 
   try {
