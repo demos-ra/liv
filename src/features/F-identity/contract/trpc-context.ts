@@ -1,7 +1,10 @@
+// @liv-standard v1.0
 // [F-identity/contract/trpc-context.ts]
+// Built with LIV · livai.dev
 // R3 — tRPC context factory. Wires auth workflow deps for every request.
-// Pure tRPC init lives in core/api/trpc-setup.ts (R5).
-// R3 owns IAuthDb factory instantiation (A2). R2 depends on the interface only.
+// A2: R3 owns IAuthDb factory instantiation. R2 depends on interface only.
+// A4: Cookie written to resHeaders (Set-Cookie) — cookies().set() does not
+//     work inside tRPC Route Handlers which return plain Response, not NextResponse.
 
 import { type FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import { cookies } from 'next/headers'
@@ -11,19 +14,39 @@ import type { AuthUser, SessionPayload } from '../config/auth-types'
 import { SESSION_COOKIE_NAME } from '../config/auth-types'
 import { createAuthDb } from '../exec/auth-db'
 import { db, taggedDb } from '@/core/db/client'
-// A2: R3 owns factory instantiation. R2 depends on IAuthDb interface only.
 
 const SESSION_COOKIE = SESSION_COOKIE_NAME
 const IS_PROD        = process.env.NODE_ENV === 'production'
+const MAX_AGE        = 60 * 60 * 24 * 30 // 30 days
 
 export interface TRPCContext {
   authDeps:           AuthWorkflowDeps
   ipAddress:          string
   session:            SessionPayload | null
   user:               AuthUser | null
-  setSessionCookie:   (sessionId: string) => void
+  setSessionCookie:   (token: string) => void
   clearSessionCookie: () => void
   resHeaders:         Headers
+}
+
+// ─── Cookie serialiser ────────────────────────────────────────────────────────
+// cookies().set() is not supported inside Route Handlers (plain Response).
+// Must write Set-Cookie header directly onto resHeaders.
+
+function buildSetCookieHeader(name: string, value: string, options: {
+  maxAge: number
+  httpOnly: boolean
+  secure: boolean
+  sameSite: 'lax' | 'strict' | 'none'
+  path: string
+}): string {
+  const parts = [`${name}=${encodeURIComponent(value)}`]
+  parts.push(`Max-Age=${options.maxAge}`)
+  parts.push(`Path=${options.path}`)
+  parts.push(`SameSite=${options.sameSite}`)
+  if (options.httpOnly) parts.push('HttpOnly')
+  if (options.secure)   parts.push('Secure')
+  return parts.join('; ')
 }
 
 export async function createContext(
@@ -37,8 +60,7 @@ export async function createContext(
     req.headers.get('x-real-ip') ??
     'unknown'
 
-  // R3 builds concrete IAuthDb instance (A2: factory at R3, not R2)
-  const authDb  = createAuthDb(taggedDb(db))
+  const authDb   = createAuthDb(taggedDb(db))
   const authDeps = createAuthDeps(ipAddress, authDb)
 
   let session: SessionPayload | null = null
@@ -58,21 +80,25 @@ export async function createContext(
     // Non-blocking — unauthenticated context
   }
 
-  const maxAge    = 60 * 60 * 24 * 30
-  const cookieJar = await cookies()
-
+  // ── Cookie writers — write directly to resHeaders (A4) ───────────────────
   const setSessionCookie = (token: string) => {
-    try {
-      cookieJar.set(SESSION_COOKIE, token, {
-        httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: IS_PROD,
-      })
-    } catch {}
+    resHeaders.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE, token, {
+      maxAge:   MAX_AGE,
+      httpOnly: true,
+      secure:   IS_PROD,
+      sameSite: 'lax',
+      path:     '/',
+    }))
   }
 
   const clearSessionCookie = () => {
-    try {
-      cookieJar.set(SESSION_COOKIE, '', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 0 })
-    } catch {}
+    resHeaders.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE, '', {
+      maxAge:   0,
+      httpOnly: true,
+      secure:   IS_PROD,
+      sameSite: 'lax',
+      path:     '/',
+    }))
   }
 
   return { authDeps, ipAddress, session, user, setSessionCookie, clearSessionCookie, resHeaders }
