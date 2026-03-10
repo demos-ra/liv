@@ -4,9 +4,6 @@
 // remember() is always async after stream — never blocks recall.
 // recall() is on the critical path — embedding fires once here only.
 
-import { readFileSync } from 'fs'
-import { join }         from 'path'
-
 import {
   BACKBONE_CONCEPTS,
   CONCEPT_PROMOTE_AT,
@@ -43,39 +40,14 @@ let _sessionActivation: Map<string, number> | null = null
 
 /**
  * Called once at server start, after DB is verified.
- * 1. Run migration (idempotent)
- * 2. Load graph from Postgres
- * 3. Apply wall-clock decay pass
- * 4. Seed backbone concepts
- * 5. Emit SESSION_STARTED
+ * 1. Load graph from Postgres
+ * 2. Apply wall-clock decay pass
+ * 3. Seed backbone concepts
+ * 4. Emit SESSION_STARTED
  */
 export async function onBoot(): Promise<void> {
-  // 1. Run migration
-  try {
-    const sql = readFileSync(
-      join(process.cwd(), 'src/exec/migrations/001-memory.sql'),
-      'utf-8'
-    )
-    // Execute each statement separately (split on semicolons)
-    const statements = sql
-      .split(';')
-      .map((s) => s.trim())
-      .filter(Boolean)
-
-    const { db } = await import('@/core/db/client')
-    for (const stmt of statements) {
-      await db.query(stmt, [])
-    }
-  } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error', event: 'memory.boot.migration-failed',
-      error: err instanceof Error ? err.message : String(err),
-      timestamp: new Date().toISOString(),
-    }))
-    throw err
-  }
-
-  // 2. Load graph
+  // 1. Load graph
+  // Note: schema migrations run via `npm run migrate` before boot — not here.
   _graph = await repoLoadGraph()
 
   // 3. Apply one decay pass for edges not touched since last session
