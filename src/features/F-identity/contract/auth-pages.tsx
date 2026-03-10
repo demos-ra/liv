@@ -239,7 +239,7 @@ export function AuthVerifyPage() {
     verifyMagicLink(token, email).then(result => {
       if (result.success) {
         setStatus('success')
-        window.location.href = '/'
+        router.replace("/")
       } else {
         setStatus('error')
         setErrorMsg(result.error ?? 'link expired')
