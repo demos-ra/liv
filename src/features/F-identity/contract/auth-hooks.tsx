@@ -56,6 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setState({ ...AUTH_INITIAL_STATE, status: 'unauthenticated' });
       }
+    }).catch(() => {
+      // 401 / network error — session invalid or missing, force unauthenticated
+      setState({ ...AUTH_INITIAL_STATE, status: 'unauthenticated' });
     });
   }, []);
 
@@ -134,12 +137,6 @@ export function useAuth(): AuthContextValue {
 
 // ─── Cross-Slice Read Selectors (other slices import these, never AuthState) ──
 
-/**
- * These are the ONLY exports other slices may use to read auth state.
- * They may not import AuthState, AuthUser, or SessionPayload directly.
- * This enforces the state namespace boundary.
- */
-
 export function useIsAuthenticated(): boolean {
   const { state } = useAuth();
   return authSelectors.isAuthenticated(state);
@@ -166,9 +163,6 @@ export function useAuthStatus(): AuthState['status'] {
 }
 
 // ─── useSession (absorbed from F-session — A1: single owner) ─────────────────
-// Replaces F-session/contract/session-hook.ts useSession.
-// Returns the current session payload or null. Other slices use useIsAuthenticated
-// and useCurrentUserId — only use useSession when full payload is needed.
 
 export function useSession(): SessionPayload | null {
   const { state } = useAuth()

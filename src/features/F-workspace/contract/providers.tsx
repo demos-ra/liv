@@ -1,5 +1,8 @@
-// [F-integration/R3/C2] Root React context providers
-// commit: fix tRPC v11 transformer — superjson goes in link not initTRPC
+// @liv-standard v1.0
+// [F-workspace/contract/providers.tsx]
+// Built with LIV · livai.dev
+// Root React context providers — tRPC, QueryClient, StateRegistry, Auth.
+// A4: credentials: include ensures session cookie sent on all tRPC requests.
 
 'use client'
 
@@ -28,6 +31,8 @@ export function Providers({ children }: ProvidersProps) {
         httpBatchLink({
           url: '/api/trpc',
           transformer: superjson,
+          // A4: credentials: include ensures httpOnly session cookie is sent
+          fetch: (url, options) => fetch(url, { ...options, credentials: 'include' }),
         }),
       ],
     })
