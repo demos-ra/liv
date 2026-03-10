@@ -4,8 +4,7 @@
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadNotifications, readNotifications } from '../app/notifications-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { subscribeToEvent } from '@/features/F-event-system/contract/event-bus'
 
 // --- GET /api/notifications ---
@@ -87,9 +86,9 @@ export async function GET_stream(req: NextRequest): Promise<Response> {
 // --- Internal helper ---
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-  return resolveSession(token)
+  return validateSession(token)
 }
 
 // --- Client hook ---

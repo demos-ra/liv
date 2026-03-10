@@ -4,7 +4,7 @@
 // Adding a new slice = add one import + one line to EVENTS below.
 
 import { IDENTITY_EVENTS }    from '@/features/F-identity/config/auth-events'
-import { SESSION_EVENTS }      from '@/features/F-session/config/session-events'
+import { SESSION_EVENTS }      from '@/features/F-identity/config/auth-events'
 import { PERMISSIONS_EVENTS }  from '@/features/F-permissions/config/permissions-events'
 import { PROJECT_EVENTS }      from '@/features/F-project/config/project-events'
 import { CONSTITUTION_EVENTS } from '@/features/F-constitution/config/constitution-events'

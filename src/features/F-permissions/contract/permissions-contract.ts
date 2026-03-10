@@ -4,8 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Action } from '../config/permissions-config'
 import { requirePermission } from '../app/permissions-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 
 // --- Server guard: wraps any route handler requiring a permission ---
 
@@ -14,10 +13,10 @@ export function withPermission(action: Action, projectIdParam = 'projectId') {
     handler: (req: NextRequest, ctx: { userId: string; projectId: string }) => Promise<NextResponse>
   ) {
     return async (req: NextRequest, { params }: { params: Record<string, string> }) => {
-      const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+      const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
       if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-      const session = await resolveSession(accessToken)
+      const session = await validateSession(accessToken)
       if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
       const projectId = params[projectIdParam]

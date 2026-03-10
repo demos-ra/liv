@@ -3,18 +3,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { initiateOAuth, handleOAuthCallback } from '../app/git-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { requirePermission } from '@/features/F-permissions/app/permissions-workflow'
 
 // --- GET /api/git/oauth/initiate ---
 // Redirects user to GitHub OAuth
 
 export async function GET_initiate(req: NextRequest): Promise<NextResponse> {
-  const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const session = await resolveSession(accessToken)
+  const session = await validateSession(accessToken)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
   const projectId = req.nextUrl.searchParams.get('projectId')
@@ -46,10 +45,10 @@ export async function GET_initiate(req: NextRequest): Promise<NextResponse> {
 // --- GET /api/git/oauth/callback ---
 
 export async function GET_callback(req: NextRequest): Promise<NextResponse> {
-  const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!accessToken) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`)
 
-  const session = await resolveSession(accessToken)
+  const session = await validateSession(accessToken)
   if (!session) return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`)
 
   const code = req.nextUrl.searchParams.get('code')

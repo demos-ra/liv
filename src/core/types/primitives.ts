@@ -30,7 +30,6 @@ export type FSlice =
   | 'F-event-system'
   | 'F-la-config'
   | 'F-identity'
-  | 'F-session'
   | 'F-permissions'
   | 'F-git-connector'
   | 'F-terminal-bridge'

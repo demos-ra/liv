@@ -12,27 +12,30 @@ import { subscribeToEvent } from '../contract/event-bus'
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
 import type { LivEvent } from '@/core/types/primitives'
 
-// ─── F-session subscriptions ──────────────────────────────────────────────────
+// ─── F-identity session lifecycle subscriptions ───────────────────────────────
+// F-session deleted — session lifecycle owned by F-identity (A1).
+// createSessionForUser: no-op for magic-link auth (session row created by verifyMagicLink).
+// destroySessionForUser: deletes auth_sessions row via F-identity R4.
 
-import { createSessionForUser, destroySessionForUser } from '@/features/F-session/contract/session-contract'
-import { resolveSession } from '@/features/F-session/contract/session-contract'
+import { createSessionForUser, destroySessionForUser } from '@/features/F-identity/app/auth-workflow'
+import { createAuthDb } from '@/features/F-identity/exec/auth-db'
+import { db, taggedDb } from '@/core/db/client'
 
 subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
   const { userId, sessionId } = event.payload as { userId: string; sessionId: string }
-  // Session was already created by F-identity R2; this subscription records
-  // session-level lifecycle state in F-session namespace.
   await createSessionForUser(userId, sessionId)
 })
 
 subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_OUT, async (event: LivEvent) => {
   const { userId, sessionId } = event.payload as { userId: string; sessionId: string }
-  await destroySessionForUser(userId, sessionId)
+  const authDb = createAuthDb(taggedDb(db))
+  await destroySessionForUser(userId, sessionId, authDb)
 })
 
 subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED, async (event: LivEvent) => {
   const { userId, sessionId } = event.payload as { userId: string; sessionId: string }
-  // Clean up any session-level resources
-  await destroySessionForUser(userId, sessionId)
+  const authDb = createAuthDb(taggedDb(db))
+  await destroySessionForUser(userId, sessionId, authDb)
 })
 
 // ─── F-permissions subscriptions ─────────────────────────────────────────────

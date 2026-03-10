@@ -12,7 +12,6 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-event-system':    'eventSystem',
   'F-la-config':       'laConfig',
   'F-identity':        'identity',
-  'F-session':         'session',
   'F-permissions':     'permissions',
   'F-git-connector':   'gitConnector',
   'F-terminal-bridge': 'terminalBridge',

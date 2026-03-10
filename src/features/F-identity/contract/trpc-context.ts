@@ -1,22 +1,25 @@
 // [F-identity/contract/trpc-context.ts]
 // R3 — tRPC context factory. Wires auth workflow deps for every request.
 // Pure tRPC init lives in core/api/trpc-setup.ts (R5).
-// R3 rule: never imports exec/. Uses createAuthDeps() from R2 auth-workflow.
+// R3 owns IAuthDb factory instantiation (A2). R2 depends on the interface only.
 
 import { type FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import { cookies } from 'next/headers'
 import { validateAndRefreshSession, createAuthDeps } from '../app/auth-workflow'
 import type { AuthWorkflowDeps } from '../app/auth-workflow'
-import type { AuthUser, AuthSessionPayload } from '../config/auth-types'
-// Amendment 1: SessionPayload (GitHub-auth era) replaced by AuthSessionPayload (magic-link canonical)
+import type { AuthUser, SessionPayload } from '../config/auth-types'
+import { SESSION_COOKIE_NAME } from '../config/auth-types'
+import { createAuthDb } from '../exec/auth-db'
+import { db, taggedDb } from '@/core/db/client'
+// A2: R3 owns factory instantiation. R2 depends on IAuthDb interface only.
 
-const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? 'liv_session'
+const SESSION_COOKIE = SESSION_COOKIE_NAME
 const IS_PROD        = process.env.NODE_ENV === 'production'
 
 export interface TRPCContext {
   authDeps:           AuthWorkflowDeps
   ipAddress:          string
-  session:            AuthSessionPayload | null
+  session:            SessionPayload | null
   user:               AuthUser | null
   setSessionCookie:   (sessionId: string) => void
   clearSessionCookie: () => void
@@ -34,10 +37,11 @@ export async function createContext(
     req.headers.get('x-real-ip') ??
     'unknown'
 
-  // R3 calls R2 factory — never imports exec/ directly
-  const authDeps = createAuthDeps(ipAddress)
+  // R3 builds concrete IAuthDb instance (A2: factory at R3, not R2)
+  const authDb  = createAuthDb(taggedDb(db))
+  const authDeps = createAuthDeps(ipAddress, authDb)
 
-  let session: AuthSessionPayload | null = null
+  let session: SessionPayload | null = null
   let user: AuthUser | null = null
 
   try {

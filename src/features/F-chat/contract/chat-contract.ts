@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sendMessage, getMessages } from '../app/chat-workflow'
-import { SESSION_CONFIG } from '@/core/types/session'
+import { SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { validateSession } from '@/features/F-identity/contract/auth-contract'
 import { CHAT_CONFIG, DEMO_MODE, DEMO_SESSION } from '../config/chat-config'
 import { validateMessageContent } from '../domain/chat-logic'
@@ -19,7 +19,7 @@ export async function POST_message(
   let session: { sessionId: string; userId: string } | null = DEMO_MODE ? DEMO_SESSION : null
 
   if (!DEMO_MODE) {
-    const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+    const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
     if (!accessToken) return new Response('Unauthenticated', { status: 401 })
     session = await validateSession(accessToken)
     if (!session) return new Response('Unauthenticated', { status: 401 })
@@ -77,7 +77,7 @@ export async function GET_messages(
   { params }: { params: { projectId: string } }
 ): Promise<NextResponse> {
   if (!DEMO_MODE) {
-    const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+    const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
     if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
     const session = await validateSession(accessToken)
     if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })

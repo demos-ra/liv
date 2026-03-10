@@ -40,3 +40,14 @@ export const AUTH_EVENTS = IDENTITY_EVENTS
 export interface IEventBus {
   emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void>
 }
+
+// ─── Session Events (absorbed from F-session — A1: single owner) ─────────────
+// SESSION_EVENTS are re-exported by event-schema.ts under EVENTS.SESSION.
+
+export const SESSION_EVENTS = {
+  SESSION_CREATED:   'session.session-created',
+  SESSION_EXPIRED:   'session.session-expired',
+  SESSION_REFRESHED: 'session.session-refreshed',
+} as const
+
+export type SessionEventType = typeof SESSION_EVENTS[keyof typeof SESSION_EVENTS]

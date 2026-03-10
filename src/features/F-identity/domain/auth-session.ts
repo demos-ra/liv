@@ -8,7 +8,7 @@
  * - Imports from R0 only.
  */
 
-import type { Session, AuthSessionPayload, MagicLinkToken, MagicLinkEmailContent } from '../config/auth-types';
+import type { Session, SessionPayload, MagicLinkToken, MagicLinkEmailContent } from '../config/auth-types';
 
 // ─── Expiry Configuration ─────────────────────────────────────────────────────
 
@@ -41,13 +41,13 @@ export function sessionNeedsRefresh(expiresAt: Date, now: Date = new Date()): bo
 // ─── Session Payload Extraction ───────────────────────────────────────────────
 
 /**
- * Derives the client-facing SessionPayload from a full Session + email.
+ * Derives the cross-slice SessionPayload from a full Session + email.
  * Pure function — takes data in, returns data out.
  */
 export function buildSessionPayload(
   session: Session,
   email: string
-): AuthSessionPayload {
+): SessionPayload {
   return {
     sessionId: session.id,
     userId: session.userId,

@@ -5,18 +5,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { triggerValidation } from '../app/la-runner'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/core/types/session'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { requirePermission } from '@/features/F-permissions/app/permissions-workflow'
 
 export async function POST_laRun(
   req: NextRequest,
   { params }: { params: { projectId: string } }
 ): Promise<NextResponse> {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const session = await resolveSession(token)
+  const session = await validateSession(token)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
   await requirePermission(session.userId, params.projectId, 'la_run')

@@ -3,18 +3,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { executeCommand, connectTerminal } from '../app/terminal-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { requirePermission } from '@/features/F-permissions/app/permissions-workflow'
 import { TERMINAL_IS_STUB } from '../config/terminal-config'
 
 // --- POST /api/terminal/execute ---
 
 export async function POST_execute(req: NextRequest): Promise<NextResponse> {
-  const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const session = await resolveSession(accessToken)
+  const session = await validateSession(accessToken)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
   const body = await req.json()
@@ -34,10 +33,10 @@ export async function POST_execute(req: NextRequest): Promise<NextResponse> {
 // --- POST /api/terminal/connect ---
 
 export async function POST_connect(req: NextRequest): Promise<NextResponse> {
-  const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const session = await resolveSession(accessToken)
+  const session = await validateSession(accessToken)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
   const { projectId } = await req.json()

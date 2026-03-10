@@ -12,8 +12,8 @@
 // POST   /api/auth/sign-out          → F-identity: auth-routes.ts
 // GET    /api/auth/me                → F-identity: auth-routes.ts
 //
-// GET    /api/session                → F-session: session-contract.ts
-// DELETE /api/session                → F-session: session-contract.ts
+// GET    /api/session                → F-identity: auth-contract.ts (session routes absorbed)
+// DELETE /api/session                → F-identity: auth-contract.ts (session routes absorbed)
 //
 // GET    /api/permissions/:projectId → F-permissions: permissions-contract.ts
 //

@@ -27,7 +27,7 @@ function eventTypeToSlice(eventType: string): FSlice {
   const prefix = eventType.split('.')[0]
   const map: Record<string, FSlice> = {
     'identity':      'F-identity',
-    'session':       'F-session',
+    'session':       'F-identity',  // session events owned by F-identity (A1)
     'permissions':   'F-permissions',
     'git':           'F-git-connector',
     'terminal':      'F-terminal-bridge',

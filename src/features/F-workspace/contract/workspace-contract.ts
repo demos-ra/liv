@@ -9,8 +9,7 @@ import {
   resizePanelSize,
   toggleSidebarState,
 } from '../app/workspace-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 
 // --- GET /api/workspace/[projectId] ---
 
@@ -58,9 +57,9 @@ export async function PATCH_workspace(
 }
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-  return resolveSession(token)
+  return validateSession(token)
 }
 
 export { useWorkspace } from './workspace-hook'

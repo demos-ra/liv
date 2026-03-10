@@ -3,8 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { recordCommit, confirmAiCommit, loadCommitHistory } from '../app/commit-log-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { requirePermission } from '@/features/F-permissions/app/permissions-workflow'
 
 // --- POST /api/commits/[projectId] ---
@@ -80,9 +79,9 @@ export async function GET_commits(
 // --- Internal ---
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-  return resolveSession(token)
+  return validateSession(token)
 }
 
 // --- Client hook ---

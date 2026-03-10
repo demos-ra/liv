@@ -16,7 +16,7 @@
  * imported from canonical R0/R4 owners. Mid-file imports removed.
  */
 
-import type { AuthResult, AuthUser, AuthSessionPayload, MagicLinkEmailContent } from '../config/auth-types';
+import type { AuthResult, AuthUser, SessionPayload, MagicLinkEmailContent } from '../config/auth-types';
 import type { IEventBus } from '../config/auth-events';
 import { AUTH_EVENTS } from '../config/auth-events';
 import {
@@ -35,8 +35,6 @@ import {
 } from '../domain/auth-session';
 import { AuthErrors, toErrorLog } from '../domain/auth-errors';
 import type { IAuthDb, IEmailService } from '../exec/auth-db';
-import { createAuthDb } from '../exec/auth-db';
-import { db, taggedDb } from '@/core/db/client';
 
 
 // ─── Structured Logger (O5) ───────────────────────────────────────────────────
@@ -165,7 +163,7 @@ export async function requestMagicLink(
 export async function verifyMagicLink(
   input: unknown,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload; rawToken: string }>> {
+): Promise<AuthResult<{ user: AuthUser; session: SessionPayload; rawToken: string }>> {
   // R1: Validate input
   const validation = validateMagicLinkVerifyRequest(input);
   if (!validation.valid) {
@@ -310,7 +308,7 @@ export async function signOut(
 export async function validateAndRefreshSession(
   rawSessionToken: string,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload }>> {
+): Promise<AuthResult<{ user: AuthUser; session: SessionPayload }>> {
   try {
     // R4: Look up session by token hash
     const sessionResult = await deps.db.findSession(rawSessionToken);
@@ -374,8 +372,7 @@ export interface ValidatedSession {
   userId:    string
 }
 
-export async function lookupSession(rawToken: string): Promise<ValidatedSession | null> {
-  const authDb = createAuthDb(taggedDb(db))
+export async function lookupSession(rawToken: string, authDb: IAuthDb): Promise<ValidatedSession | null> {
   const result = await authDb.findSession(rawToken)
   if (!result.success || !result.data) return null
   return {
@@ -384,11 +381,30 @@ export async function lookupSession(rawToken: string): Promise<ValidatedSession 
   }
 }
 
+// ─── Session Lifecycle (absorbed from F-session — A1: single owner) ─────────
+// Called by event-subscriptions.ts on USER_SIGNED_IN / USER_SIGNED_OUT / SESSION_EXPIRED.
+
+export async function createSessionForUser(userId: string, sessionId: string): Promise<void> {
+  // Session row already created by verifyMagicLink above.
+  // This hook is a no-op for magic-link auth — F-identity owns the row.
+  // Kept as explicit lifecycle signal for event-subscriptions wiring.
+  void userId; void sessionId;
+}
+
+export async function destroySessionForUser(userId: string, sessionId: string, authDb: IAuthDb): Promise<void> {
+  try {
+    await authDb.deleteSession(sessionId)
+  } catch {
+    // Non-blocking — session may already be gone
+  }
+  void userId;
+}
+
 // ─── Deps Factory (R3 calls this — never imports exec/ directly) ──────────────
 
-export function createAuthDeps(ipAddress: string): AuthWorkflowDeps {
+export function createAuthDeps(ipAddress: string, authDb: IAuthDb): AuthWorkflowDeps {
   return {
-    db:             createAuthDb(taggedDb(db)),
+    db:             authDb,
     email:          IS_DEV ? devEmailServiceStub : createProductionEmailService(),
     eventBus:       noopEventBus,
     baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',

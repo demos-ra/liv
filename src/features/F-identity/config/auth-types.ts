@@ -42,6 +42,9 @@ export interface MagicLinkVerifyRequest {
 
 // ─── Session ──────────────────────────────────────────────────────────────────
 
+// A6: declared at R0, single source of truth for cookie name.
+export const SESSION_COOKIE_NAME = 'liv_session' as const
+
 export interface Session {
   id: string;
   userId: string;
@@ -52,13 +55,13 @@ export interface Session {
   ipAddress: string | null;
 }
 
-// AuthSessionPayload: F-identity's internal session shape (not the JWT payload).
-// The JWT payload lives in core/types/session.ts (SessionPayload).
-// Named distinctly to prevent collision — both are valid, different types.
-export interface AuthSessionPayload {
+// SessionPayload: the method-agnostic identity contract.
+// 4 fields only — what the user is, not how they authenticated.
+// A1: owned exclusively by F-identity. All other slices import from F-identity/contract/auth-contract.ts.
+export interface SessionPayload {
   sessionId: string;
-  userId: string;
-  email: string;
+  userId:    string;
+  email:     string;
   expiresAt: Date;
 }
 
@@ -66,7 +69,7 @@ export interface AuthSessionPayload {
 
 export interface AuthState {
   user: AuthUser | null;
-  session: AuthSessionPayload | null;
+  session: SessionPayload | null;
   status: AuthStatus;
   error: AuthError | null;
 }

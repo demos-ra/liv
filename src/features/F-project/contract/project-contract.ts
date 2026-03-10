@@ -3,8 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createProject, connectRepo, archive, loadProject, loadUserProjects } from '../app/project-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { requirePermission } from '@/features/F-permissions/app/permissions-workflow'
 
 // --- POST /api/projects ---
@@ -85,9 +84,9 @@ export async function DELETE_project(
 }
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-  return resolveSession(token)
+  return validateSession(token)
 }
 
 export { useProject, useProjectList } from './project-hook'

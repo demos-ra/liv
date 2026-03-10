@@ -3,8 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { loadProfile, setPreferredModel, setDisplayName } from '../app/user-profile-workflow'
-import { resolveSession } from '@/features/F-session/app/session-workflow'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 
 // --- GET /api/profile ---
 
@@ -33,9 +32,9 @@ export async function PATCH_profile(req: NextRequest): Promise<NextResponse> {
 }
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_CONFIG.cookieName)?.value
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
-  return resolveSession(token)
+  return validateSession(token)
 }
 
 export { useUserProfile } from './user-profile-hook'
