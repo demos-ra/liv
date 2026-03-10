@@ -1,9 +1,10 @@
 // @liv-standard v1.0
 // [middleware.ts]
 // Built with LIV · livai.dev
-// Next.js edge middleware entrypoint — delegates to F-identity auth guard.
+// Next.js middleware entrypoint — delegates to F-identity auth guard.
 // A4: I/O at R4 only. Edge registration is pure delegation — no logic here.
-// Note: Next.js requires `config` to be a static literal — cannot be re-exported.
+// Note: config must be a static literal — Turbopack cannot re-export it.
+// Note: runtime nodejs (not edge) — middleware calls Postgres via auth-contract.
 
 export { authMiddleware as middleware } from '@/features/F-identity/contract/auth-middleware'
 

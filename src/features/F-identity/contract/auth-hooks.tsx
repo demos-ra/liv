@@ -1,3 +1,6 @@
+// @liv-standard v1.0
+// [F-identity/R3/auth-hooks.tsx]
+// Built with LIV · livai.dev
 /**
  * F-identity / R3 / auth-hooks.ts
  * [F-identity/R3/C2] React hooks for auth state

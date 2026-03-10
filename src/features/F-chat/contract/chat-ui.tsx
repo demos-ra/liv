@@ -82,6 +82,9 @@ function AccountPanel({
     if (open) panelRef.current?.focus()
   }, [open])
 
+  // Display name: first part of email, fallback to full email if no @
+  const displayName = email.includes('@') ? email.split('@')[0] : email
+
   return (
     <>
       <div
@@ -103,7 +106,7 @@ function AccountPanel({
               fontFamily: 'var(--font-ui)', fontSize: 16, fontWeight: 500,
               color: 'var(--text)', marginBottom: 4,
             }}>
-              {email === 'demo' ? 'demo' : email.split('@')[0]}
+              {displayName}
             </div>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 12,
@@ -195,19 +198,37 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
-  const [theme, setTheme]             = useState<'dark' | 'light'>('dark')
   const [dashOpen, setDashOpen]       = useState(false)
+
+  // ── Theme — initialise from system preference, A6: declared at R0 in future ──
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    return 'dark'
+  })
 
   const asstIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
 
-  const userName = email === 'demo' ? 'demo' : email.split('@')[0]
+  // Display name: first part of email, fallback to full email if no @
+  const userName = email.includes('@') ? email.split('@')[0] : email
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     document.documentElement.style.background = 'var(--bg)'
   }, [theme])
+
+  // ── Track system theme changes ────────────────────────────────────────────
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => {
+      setTheme(e.matches ? 'dark' : 'light')
+    }
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -329,7 +350,7 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
                   color: dashOpen ? 'var(--accent)' : 'var(--text-dis)',
                   background: 'transparent', border: 'none',
                   cursor: 'pointer', padding: 0,
-                  paddingLeft: 4,             // optical correction — glyph sits right-biased
+                  paddingLeft: 4,
                   lineHeight: 1,
                   transition: 'color 0.15s',
                 }}

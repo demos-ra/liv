@@ -2,12 +2,12 @@
 // [app/api/auth/validate-session/route.ts]
 // Built with LIV · livai.dev
 // Internal API route — called by edge middleware to validate session.
-// A4: I/O at R4 only. Not a tRPC route — middleware cannot use tRPC.
-// A1: Session validation logic owned by F-identity/contract/auth-contract.
+// A1: Session validation logic owned exclusively by F-identity.
+// A2: Imports SESSION_COOKIE_NAME via auth-contract (R3 surface), not config directly.
+// A4: I/O at R4 only — this is the R4 HTTP boundary for session validation.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { SESSION_COOKIE_NAME } from '@/features/F-identity/config/auth-types'
-import { validateSession } from '@/features/F-identity/contract/auth-contract'
+import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
