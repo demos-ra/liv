@@ -6,7 +6,7 @@ import { persistProfile, updateProfile, getProfileByUserId } from '../exec/user-
 
 export async function upsertProfileFromGithub(
   userId: string,
-  githubData: { login: string; avatarUrl: string | null; email: string | null }
+  githubData: { login: string | null; avatarUrl: string | null; email: string | null }
 ): Promise<void> {
   const existing = await getProfileByUserId(userId)
   if (existing) {
@@ -46,7 +46,7 @@ export async function loadProfile(userId: string) {
 export async function upsertProfileForUser(userId: string, email: string | null): Promise<void> {
   // Magic link auth: no GitHub data at sign-in. login/avatar null until F-git-connector enriches.
   await upsertProfileFromGithub(userId, {
-    login: null as unknown as string, // Amendment 1: githubLogin is string|null in UserProfile — cast at boundary
+    login: null,
     avatarUrl: null,
     email,
   })

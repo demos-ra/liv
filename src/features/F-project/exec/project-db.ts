@@ -35,7 +35,7 @@ export async function updateProject(project: Project): Promise<void> {
 }
 
 export async function getProjectById(projectId: string): Promise<Project | null> {
-  const result = await db.query(
+  const result = await db.query<ProjectRow>(
     `SELECT * FROM projects WHERE project_id = $1 AND status != 'deleted'`,
     [projectId]
   )
@@ -43,7 +43,7 @@ export async function getProjectById(projectId: string): Promise<Project | null>
 }
 
 export async function getProjectsByOwner(ownerId: string): Promise<Project[]> {
-  const result = await db.query(
+  const result = await db.query<ProjectRow>(
     `SELECT * FROM projects WHERE owner_id = $1 AND status = 'active' ORDER BY updated_at DESC`,
     [ownerId]
   )
@@ -55,7 +55,7 @@ export async function getProjectSummaries(
   cursor: string | null
 ): Promise<{ projects: ProjectSummary[]; hasMore: boolean; cursor: string | null }> {
   const limit = PROJECT_CONFIG.pageSize
-  const result = await db.query(
+  const result = await db.query<ProjectSummaryRow>(
     `SELECT
       p.project_id, p.name, p.description, p.status,
       p.created_at, p.updated_at,
@@ -75,7 +75,7 @@ export async function getProjectSummaries(
 
   const rows = result.rows
   const hasMore = rows.length > limit
-  const projects: ProjectSummary[] = rows.slice(0, limit).map((r) => { const row = r as unknown as ProjectSummaryRow; return ({
+  const projects: ProjectSummary[] = rows.slice(0, limit).map((row) => ({
     projectId: row.project_id,
     name: row.name,
     description: row.description,
@@ -84,7 +84,7 @@ export async function getProjectSummaries(
     updatedAt: Number(new Date(row.updated_at)),
     memberCount: Number(row.member_count),
     lastCommitAt: row.last_commit_at ? Number(new Date(row.last_commit_at)) : null,
-  })})
+  }))
 
   return {
     projects,
@@ -107,16 +107,29 @@ interface ProjectSummaryRow {
   last_commit_at: string | null
 }
 
-function rowToProject(row: Record<string, unknown>): Project {
+interface ProjectRow {
+  project_id: string
+  owner_id: string
+  name: string
+  description: string | null
+  status: string
+  repo_owner: string | null
+  repo_name: string | null
+  default_branch: string | null
+  created_at: string
+  updated_at: string
+}
+
+function rowToProject(row: ProjectRow): Project {
   return {
-    projectId: row.project_id as string,
-    ownerId: row.owner_id as string,
-    name: row.name as string,
-    description: row.description as string | null,
+    projectId: row.project_id,
+    ownerId: row.owner_id,
+    name: row.name,
+    description: row.description,
     status: row.status as Project['status'],
-    repoOwner: row.repo_owner as string | null,
-    repoName: row.repo_name as string | null,
-    defaultBranch: row.default_branch as string | null,
+    repoOwner: row.repo_owner,
+    repoName: row.repo_name,
+    defaultBranch: row.default_branch,
     createdAt: Number(new Date(row.created_at as string)),
     updatedAt: Number(new Date(row.updated_at as string)),
   }

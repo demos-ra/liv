@@ -164,7 +164,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
     async upsertUser(email: string): Promise<UpsertUserResult> {
       try {
         // Atomic upsert — no race condition on concurrent registrations
-        const rows = await sql`
+        const rows = await sql<UserRow>`
           INSERT INTO auth_users (email)
           VALUES (${email})
           ON CONFLICT (email) DO UPDATE
@@ -176,7 +176,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.dbError('upsertUser', 'no row returned') };
         }
 
-        const row = rows[0] as unknown as UserRow;
+        const row = rows[0];
         const user: AuthUser = {
           id: row.id,
           email: row.email,
@@ -192,13 +192,13 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
 
     async findUserById(id: string): Promise<AuthResult<AuthUser>> {
       try {
-        const rows = await sql`
+        const rows = await sql<UserRow>`
           SELECT * FROM auth_users WHERE id = ${id} LIMIT 1
         `;
         if (rows.length === 0) {
           return { success: false, error: AuthErrors.userNotFound() };
         }
-        const row = rows[0] as unknown as UserRow;
+        const row = rows[0];
         return {
           success: true,
           data: { id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at },
@@ -210,13 +210,13 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
 
     async findUserByEmail(email: string): Promise<AuthResult<AuthUser>> {
       try {
-        const rows = await sql`
+        const rows = await sql<UserRow>`
           SELECT * FROM auth_users WHERE email = ${email} LIMIT 1
         `;
         if (rows.length === 0) {
           return { success: false, error: AuthErrors.userNotFound(email) };
         }
-        const row = rows[0] as unknown as UserRow;
+        const row = rows[0];
         return {
           success: true,
           data: { id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at },
@@ -263,7 +263,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
       try {
         const tokenHash = hashToken(rawToken);
 
-        const rows = await sql`
+        const rows = await sql<MagicLinkTokenRow>`
           SELECT * FROM auth_magic_link_tokens
           WHERE token_hash = ${tokenHash}
             AND email = ${email}
@@ -274,7 +274,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.tokenInvalid('not found') };
         }
 
-        const row = rows[0] as unknown as MagicLinkTokenRow;
+        const row = rows[0];
         return {
           success: true,
           data: {
@@ -331,7 +331,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         const rawToken = generateRawToken();
         const tokenHash = hashToken(rawToken);
 
-        const rows = await sql`
+        const rows = await sql<SessionRow>`
           INSERT INTO auth_sessions (user_id, token_hash, expires_at, user_agent, ip_address)
           VALUES (
             ${userId},
@@ -343,7 +343,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           RETURNING *
         `;
 
-        const row = rows[0] as unknown as SessionRow;
+        const row = rows[0];
 
         // Return session with rawToken embedded for cookie setting
         // After this point raw token exists ONLY in the cookie — never stored
@@ -367,7 +367,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
       try {
         const tokenHash = hashToken(rawSessionToken);
 
-        const rows = await sql`
+        const rows = await sql<SessionRow>`
           SELECT * FROM auth_sessions
           WHERE token_hash = ${tokenHash}
             AND expires_at > now()
@@ -378,7 +378,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           return { success: false, error: AuthErrors.sessionNotFound() };
         }
 
-        const row = rows[0] as unknown as SessionRow;
+        const row = rows[0];
         return {
           success: true,
           data: {
@@ -422,7 +422,9 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
 }
 
 // ─── Type stub for postgres.js client (real type comes from 'postgres' package) ─
+// Generic T allows typed row returns at each query site — removes all as unknown as casts.
+// Amendment 1: DB→domain boundary typed at the wire, not patched at the consumer.
 
 type PostgresClient = {
-  (strings: TemplateStringsArray, ...values: unknown[]): Promise<Record<string, unknown>[]>;
+  <T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
 };
