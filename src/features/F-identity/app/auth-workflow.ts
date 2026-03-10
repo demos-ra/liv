@@ -159,7 +159,7 @@ export async function requestMagicLink(
 export async function verifyMagicLink(
   input: unknown,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload }>> {
+): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload; rawToken: string }>> {
   // R1: Validate input
   const validation = validateMagicLinkVerifyRequest(input);
   if (!validation.valid) {
@@ -256,7 +256,7 @@ export async function verifyMagicLink(
 
     return {
       success: true,
-      data: { user, session: { ...sessionPayload, tokenHash: rawSessionToken } },
+      data: { user, session: sessionPayload, rawToken: rawSessionToken },
     };
 
   } catch (err) {

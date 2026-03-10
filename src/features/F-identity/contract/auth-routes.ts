@@ -91,7 +91,7 @@ export const authRouter = createTRPCRouter({
       }
 
       // Set httpOnly session cookie
-      ctx.setSessionCookie(result.data.session.tokenHash);
+      ctx.setSessionCookie(result.data.rawToken);
 
       return {
         user: {
