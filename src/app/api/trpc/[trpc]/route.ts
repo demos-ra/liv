@@ -1,6 +1,9 @@
+// @liv-standard v1.0
 // [app/api/trpc/[trpc]/route.ts]
-// R3 — Next.js App Router handler for tRPC.
-// appRouter sourced from F-identity/contract/router.ts (R3 assembler).
+// Built with LIV · livai.dev
+// R4 — Next.js App Router handler for tRPC.
+// A4: I/O at R4 only. appRouter sourced from F-identity/contract/router (R3).
+// Note: Response.headers is immutable — must reconstruct Response to write Set-Cookie.
 
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter } from '@/features/F-identity/contract/router'
@@ -29,11 +32,17 @@ const handler = async (req: Request) => {
         : undefined,
   })
 
+  // Response.headers is immutable in the Web Fetch API.
+  // Reconstruct the Response to merge in resHeaders (Set-Cookie, etc).
+  const mergedHeaders = new Headers(response.headers)
   resHeaders.forEach((value, key) => {
-    response.headers.append(key, value)
+    mergedHeaders.append(key, value)
   })
 
-  return response
+  return new Response(response.body, {
+    status:  response.status,
+    headers: mergedHeaders,
+  })
 }
 
 export { handler as GET, handler as POST }

@@ -1,12 +1,10 @@
 // @liv-standard v1.0
-// [F-identity/R3/auth-middleware.ts]
+// [F-identity/contract/auth-middleware.ts]
 // Built with LIV · livai.dev
 // Next.js middleware — session guard and cookie management.
 // A1: Session validation owned by F-identity/contract/auth-contract.
 // A4: I/O at R4 only — validateSession calls DB via auth-contract.
-// runtime: nodejs — required for Postgres access (not edge runtime).
-
-export const runtime = 'nodejs'
+// Note: Middleware runs on nodejs runtime (declared in middleware.ts config).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession } from './auth-contract'
@@ -71,7 +69,7 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     return NextResponse.next()
 
   } catch {
-    // Validation failed (DB unavailable) — fail open to avoid lockout on transient errors
+    // DB unavailable — fail open to avoid locking users out on transient errors
     return NextResponse.next()
   }
 }
@@ -99,8 +97,7 @@ export function clearSessionCookie(response: NextResponse): void {
   })
 }
 
-// ─── Matcher config (re-exported for reference — NOT used in middleware.ts) ───
-// middleware.ts must declare config as a static literal, not a re-export.
+// ─── Matcher config (reference only — middleware.ts declares config statically) ─
 
 export const middlewareMatcher = {
   matcher: [
