@@ -1,20 +1,13 @@
-// [F-chat/R3/C2] Chat contract — API routes
-// R3: thin wire. All logic in domain. All config in R0. All I/O in R4.
+// [F-chat/contract/chat-contract.ts]
+// R3 — HTTP contract for chat. Thin wire only.
+// R3 rule: never imports exec/. Delegates all logic to R2 chat-workflow.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
-import { SESSION_CONFIG } from '@/features/F-session/config/session-config'
+import { sendMessage, getMessages } from '../app/chat-workflow'
+import { SESSION_CONFIG } from '@/core/types/session'
 import { validateSession } from '@/features/F-identity/contract/auth-contract'
 import { CHAT_CONFIG, DEMO_MODE, DEMO_SESSION } from '../config/chat-config'
-import {
-  buildUserMessage,
-  buildAssistantMessage,
-  completeAssistantMessage,
-  validateMessageContent,
-  buildMessageContext,
-} from '../domain/chat-logic'
-import { persistMessage, updateMessage, getMessages } from '../exec/chat-db'
-import { lmWriteEvent, lmRecall, lmRemember } from '../exec/lm-io'
+import { validateMessageContent } from '../domain/chat-logic'
 
 // --- POST /api/chat/[projectId]/message ---
 
@@ -23,7 +16,7 @@ export async function POST_message(
   { params }: { params: { projectId: string } }
 ): Promise<Response> {
 
-  let session = DEMO_MODE ? DEMO_SESSION : null
+  let session: { sessionId: string; userId: string } | null = DEMO_MODE ? DEMO_SESSION : null
 
   if (!DEMO_MODE) {
     const accessToken = req.cookies.get(SESSION_CONFIG.cookieName)?.value
@@ -40,7 +33,6 @@ export async function POST_message(
   const validation = validateMessageContent(content)
   if (!validation.valid) return new Response(validation.error, { status: 400 })
 
-  const sessionId = session!.sessionId
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -49,42 +41,15 @@ export async function POST_message(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
 
       try {
-        const userMsg = buildUserMessage(projectId, sessionId, session!.userId, content)
-        await persistMessage(userMsg).catch((e) => console.error('[chat] persistMessage user failed', e))
-
-        const assistantMsg = buildAssistantMessage(projectId, sessionId, session!.userId, modelId, userMsg.messageId)
-        await persistMessage(assistantMsg).catch((e) => console.error('[chat] persistMessage assistant failed', e))
-
-        // ── F-memory: write incoming event, recall context ──────────────────
-        await lmWriteEvent(content, 'episodic', sessionId)
-        const memoryContext = await lmRecall(content, content.startsWith('/recall'))
-        // ───────────────────────────────────────────────────────────────────
-
-        const history = DEMO_MODE
-          ? []
-          : (await getMessages(projectId, null, CHAT_CONFIG.pageSize).catch(() => ({ messages: [] }))).messages
-
-        // Memory context injected into system prompt via buildMessageContext
-        const messages = buildMessageContext(content, history, memoryContext || undefined)
-
-        let fullContent = ''
-        let tokenCount = 0
-
-        for await (const chunk of streamAIResponse(messages, modelId)) {
-          if (chunk.content) {
-            fullContent += chunk.content
-            send({ chunk: chunk.content })
-          }
-          if (chunk.totalTokens) tokenCount = chunk.totalTokens
+        // R3 calls R2 — all DB, memory, and AI logic lives in sendMessage()
+        for await (const chunk of sendMessage({
+          projectId,
+          content,
+          modelId,
+          userId: session!.userId,
+        })) {
+          send({ chunk })
         }
-
-        await updateMessage(completeAssistantMessage(assistantMsg, fullContent, tokenCount))
-          .catch((e) => console.error('[chat] updateMessage failed', e))
-
-        // ── F-memory: write assistant response ──────────────────────────────
-        await lmRemember('chat', 'liv', 'said', fullContent.slice(0, 200), sessionId)
-        // ───────────────────────────────────────────────────────────────────
-
         send({ done: true })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown_error'
@@ -98,9 +63,9 @@ export async function POST_message(
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
+      'Content-Type':  'text/event-stream',
       'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
+      Connection:      'keep-alive',
     },
   })
 }
@@ -119,11 +84,10 @@ export async function GET_messages(
   }
 
   const { projectId } = params
-  const cursor = req.nextUrl.searchParams.get('cursor') ?? null
-  const thread = await getMessages(projectId, cursor, CHAT_CONFIG.pageSize)
-    .catch(() => ({ messages: [], hasMore: false, nextCursor: null }))
+  const limit = parseInt(req.nextUrl.searchParams.get('limit') ?? String(CHAT_CONFIG.pageSize))
+  const messages = await getMessages(projectId, null, limit).catch(() => [])
 
-  return NextResponse.json(thread)
+  return NextResponse.json({ messages })
 }
 
 export { useChat, useChatStream } from './chat-hook'

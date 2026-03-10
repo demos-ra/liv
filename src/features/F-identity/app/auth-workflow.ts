@@ -13,7 +13,7 @@
  * R3 routes call this. R3 never calls R4 directly.
  */
 
-import type { AuthResult, AuthUser, SessionPayload } from '../config/auth-types';
+import type { AuthResult, AuthUser, AuthSessionPayload } from '../config/auth-types';
 import type { IEventBus } from '../config/auth-events';
 import { AUTH_EVENTS } from '../config/auth-events';
 import {
@@ -104,7 +104,7 @@ export async function requestMagicLink(
     }
 
     const user = userResult.data;
-    const isNewUser = userResult.isNew;
+    const isNewUser = userResult.data.isNew;
 
     // R4: Invalidate any existing unused tokens for this email
     await deps.db.invalidatePendingTokens(email);
@@ -159,7 +159,7 @@ export async function requestMagicLink(
 export async function verifyMagicLink(
   input: unknown,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: SessionPayload }>> {
+): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload }>> {
   // R1: Validate input
   const validation = validateMagicLinkVerifyRequest(input);
   if (!validation.valid) {
@@ -304,7 +304,7 @@ export async function signOut(
 export async function validateAndRefreshSession(
   rawSessionToken: string,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: SessionPayload }>> {
+): Promise<AuthResult<{ user: AuthUser; session: AuthSessionPayload }>> {
   try {
     // R4: Look up session by token hash
     const sessionResult = await deps.db.findSession(rawSessionToken);
@@ -357,5 +357,93 @@ export async function validateAndRefreshSession(
     const error = AuthErrors.unknown(err);
     log('error', 'auth.validate-session.unexpected', toErrorLog(error, 'validateAndRefreshSession'));
     return { success: false, error };
+  }
+}
+// APPEND TO: src/features/F-identity/app/auth-workflow.ts
+// Add this function at the end of the file.
+// Provides a lightweight session lookup for cross-slice use via auth-contract.ts (R3).
+// R3 calls this → R2 calls R4. R3 never touches R4 directly.
+
+import { db, taggedDb } from '@/core/db/client'
+import { createAuthDb } from '../exec/auth-db'
+
+export interface ValidatedSession {
+  sessionId: string
+  userId:    string
+}
+
+export async function lookupSession(rawToken: string): Promise<ValidatedSession | null> {
+  const authDb = createAuthDb(taggedDb(db))
+  const result = await authDb.findSession(rawToken)
+  if (!result.success || !result.data) return null
+  return {
+    sessionId: result.data.id,
+    userId:    result.data.userId,
+  }
+}
+// APPEND TO: src/features/F-identity/app/auth-workflow.ts
+// Factory so trpc-context.ts (R3) never imports exec/auth-db (R4) directly.
+
+export function createAuthDeps(ipAddress: string): AuthWorkflowDeps {
+  return {
+    db:             createAuthDb(taggedDb(db)),
+    email:          IS_DEV ? devEmailServiceStub : createProductionEmailService(),
+    eventBus:       noopEventBus,
+    baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
+    checkRateLimit: async (_type, _value, _action) => ({
+      allowed: true,
+      remainingAttempts: 99,
+    }),
+    ipAddress,
+  }
+}
+
+// ─── Stubs (referenced by factory above — keep in R2) ─────────────────────────
+
+const IS_DEV = process.env.NODE_ENV !== 'production'
+const IS_PROD = process.env.NODE_ENV === 'production'
+
+import type { MagicLinkEmailContent } from '../config/auth-types'
+
+const devEmailServiceStub = {
+  async sendMagicLink(to: string, content: MagicLinkEmailContent) {
+    const urlMatch = content.text.match(/https?:\/\/\S+/)
+    const link = urlMatch?.[0] ?? content.text
+    console.log(JSON.stringify({
+      level: 'info', event: 'dev.magic-link', to, link,
+      timestamp: new Date().toISOString(),
+      note: 'Copy this link to sign in — no email sent in dev',
+    }))
+    return { success: true as const }
+  },
+}
+
+const noopEventBus = { async emit(_event: unknown) {} }
+
+function createProductionEmailService() {
+  const apiKey      = process.env.EMAIL_API_KEY
+  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev'
+  const fromName    = process.env.EMAIL_FROM_NAME ?? 'LIV'
+  return {
+    async sendMagicLink(to: string, content: MagicLinkEmailContent) {
+      if (!apiKey) return devEmailServiceStub.sendMagicLink(to, content)
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: `${fromName} <${fromAddress}>`,
+            to: [to], subject: content.subject, text: content.text, html: content.html,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.text()
+          return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: err } }
+        }
+        return { success: true as const }
+      } catch (err) {
+        return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: String(err) } }
+      }
+    },
   }
 }

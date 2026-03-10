@@ -15,7 +15,7 @@ export async function persistGridSnapshot(grid: TopographyGrid): Promise<void> {
 }
 
 export async function loadGridSnapshot(projectId: string): Promise<TopographyGrid | null> {
-  const result = await db.query(
+  const result = await db.query<{ grid: TopographyGrid }>(
     `SELECT grid FROM topography_snapshots WHERE project_id = $1`,
     [projectId]
   )

@@ -85,3 +85,25 @@ async function fetchRepoFromGitHub(token: string, owner: string, repo: string) {
   const { fetchGitHubRepo } = await import('../exec/git-io')
   return fetchGitHubRepo(token, owner, repo)
 }
+// APPEND TO: src/features/F-git-connector/app/git-workflow.ts
+// Expose agent connection management so git-ws-handler.ts (R3) never imports exec/ directly.
+
+import {
+  getAgentTokenByAgentId,
+  recordAgentConnection,
+  recordAgentDisconnection,
+} from '../exec/git-io'
+
+export type { StoredAgentToken } from '../exec/git-io'
+
+export async function lookupAgentToken(agentId: string) {
+  return getAgentTokenByAgentId(agentId)
+}
+
+export async function connectAgent(agentId: string): Promise<void> {
+  return recordAgentConnection(agentId)
+}
+
+export async function disconnectAgent(agentId: string): Promise<void> {
+  return recordAgentDisconnection(agentId)
+}

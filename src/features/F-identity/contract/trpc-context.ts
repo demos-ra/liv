@@ -1,18 +1,17 @@
 // [F-identity/contract/trpc-context.ts]
 // R3 — tRPC context factory. Wires auth workflow deps for every request.
 // Pure tRPC init lives in core/api/trpc-setup.ts (R5).
+// R3 rule: never imports exec/. Uses createAuthDeps() from R2 auth-workflow.
 
 import { type FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
 import { cookies } from 'next/headers'
-import { db, taggedDb } from '@/core/db/client'
-import { createAuthDb } from '../exec/auth-db'
-import { validateAndRefreshSession } from '../app/auth-workflow'
+import { validateAndRefreshSession, createAuthDeps } from '../app/auth-workflow'
 import type { AuthWorkflowDeps } from '../app/auth-workflow'
-import type { AuthUser, SessionPayload, MagicLinkEmailContent } from '../config/auth-types'
+import type { AuthUser } from '../config/auth-types'
+import type { SessionPayload } from '@/core/types/session'
 
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME ?? 'liv_session'
 const IS_PROD        = process.env.NODE_ENV === 'production'
-const IS_DEV         = process.env.NODE_ENV !== 'production'
 
 export interface TRPCContext {
   authDeps:           AuthWorkflowDeps
@@ -35,17 +34,8 @@ export async function createContext(
     req.headers.get('x-real-ip') ??
     'unknown'
 
-  const authDeps: AuthWorkflowDeps = {
-    db:             createAuthDb(taggedDb(db)),
-    email:          IS_DEV ? devEmailService : createProductionEmailService(),
-    eventBus:       noopEventBus,
-    baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
-    checkRateLimit: async (_type, _value, _action) => ({
-      allowed: true,
-      remainingAttempts: 99,
-    }),
-    ipAddress,
-  }
+  // R3 calls R2 factory — never imports exec/ directly
+  const authDeps = createAuthDeps(ipAddress)
 
   let session: SessionPayload | null = null
   let user: AuthUser | null = null
@@ -64,12 +54,14 @@ export async function createContext(
     // Non-blocking — unauthenticated context
   }
 
-  const maxAge   = 60 * 60 * 24 * 30
+  const maxAge    = 60 * 60 * 24 * 30
   const cookieJar = await cookies()
 
   const setSessionCookie = (token: string) => {
     try {
-      cookieJar.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: IS_PROD })
+      cookieJar.set(SESSION_COOKIE, token, {
+        httpOnly: true, sameSite: 'lax', path: '/', maxAge, secure: IS_PROD,
+      })
     } catch {}
   }
 
@@ -80,65 +72,4 @@ export async function createContext(
   }
 
   return { authDeps, ipAddress, session, user, setSessionCookie, clearSessionCookie, resHeaders }
-}
-
-// ─── Dev email service ────────────────────────────────────────────────────────
-
-const devEmailService = {
-  async sendMagicLink(to: string, content: MagicLinkEmailContent) {
-    const urlMatch = content.text.match(/https?:\/\/\S+/)
-    const link = urlMatch?.[0] ?? content.text
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'dev.magic-link',
-      to,
-      link,
-      timestamp: new Date().toISOString(),
-      note: 'Copy this link to sign in — no email sent in dev',
-    }))
-    return { success: true as const }
-  },
-}
-
-// ─── No-op event bus ──────────────────────────────────────────────────────────
-
-const noopEventBus = { async emit(_event: unknown) {} }
-
-// ─── Production email service ─────────────────────────────────────────────────
-
-function createProductionEmailService() {
-  const apiKey = process.env.EMAIL_API_KEY
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev'
-  const fromName = process.env.EMAIL_FROM_NAME ?? 'LIV'
-
-  return {
-    async sendMagicLink(to: string, content: MagicLinkEmailContent) {
-      if (!apiKey) return devEmailService.sendMagicLink(to, content)
-      try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: `${fromName} <${fromAddress}>`,
-            to: [to],
-            subject: content.subject,
-            text: content.text,
-            html: content.html,
-          }),
-        })
-        if (!res.ok) {
-          const err = await res.text()
-          console.error(JSON.stringify({ level: 'error', event: 'email.send.failed', to, status: res.status, err }))
-          return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: err } }
-        }
-        return { success: true as const }
-      } catch (err) {
-        console.error(JSON.stringify({ level: 'error', event: 'email.send.failed', to, err: String(err) }))
-        return { success: false as const, error: { code: 'EMAIL_SEND_FAILED' as const, message: String(err) } }
-      }
-    },
-  }
 }

@@ -1,13 +1,12 @@
-// [F-integration/R3/C3] Next.js App Router handler for tRPC
-// commit: forward resHeaders (Set-Cookie) from context into response
+// [app/api/trpc/[trpc]/route.ts]
+// R3 — Next.js App Router handler for tRPC.
+// appRouter sourced from F-identity/contract/router.ts (R3 assembler).
 
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
-import { appRouter } from '@/core/api/router'
+import { appRouter } from '@/features/F-identity/contract/router'
 import { createContext } from '@/features/F-identity/contract/trpc-context'
 
 const handler = async (req: Request) => {
-  // resHeaders accumulates Set-Cookie and other response headers
-  // from procedures (e.g. setSessionCookie, clearSessionCookie)
   const resHeaders = new Headers()
 
   const response = await fetchRequestHandler({
@@ -30,7 +29,6 @@ const handler = async (req: Request) => {
         : undefined,
   })
 
-  // Merge resHeaders into the response (Set-Cookie etc.)
   resHeaders.forEach((value, key) => {
     response.headers.append(key, value)
   })

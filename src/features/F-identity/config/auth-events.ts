@@ -1,81 +1,42 @@
-/**
- * F-identity / R0 / auth-events.ts
- * [F-identity/R0/C3] Auth event declarations — aligned to canonical event-schema.ts
- *
- * CANONICAL LAW: No local event name strings. All names imported from event-schema.ts.
- * F-identity emits via IEventBus. F-event-system routes. No direct slice calls.
- */
+// [F-identity/R0/C3] Auth event declarations — owned by this slice
+// R0: zero dependencies. Declares only. Never imports from F-event-system.
+// F-event-system/config/event-schema.ts re-exports these. Do not import from there.
 
-import { EVENTS } from '@/features/F-event-system/config/event-schema'
-import type { AuthUser } from './auth-types'
-
-// ─── Re-export canonical auth event names for internal use ────────────────────
-// Use these constants within F-identity. Do not redeclare strings.
-
-export const AUTH_EVENTS = {
-  USER_REGISTERED:    EVENTS.IDENTITY.USER_REGISTERED,
-  USER_AUTHENTICATED: EVENTS.IDENTITY.USER_SIGNED_IN,
-  USER_SIGNED_OUT:    EVENTS.IDENTITY.USER_SIGNED_OUT,
-  TOKEN_REFRESHED:    EVENTS.IDENTITY.TOKEN_REFRESHED,
-  USER_FAILED:        EVENTS.IDENTITY.AUTH_FAILED,
+export const IDENTITY_EVENTS = {
+  USER_SIGNED_IN:    'identity.user-signed-in',
+  USER_SIGNED_OUT:   'identity.user-signed-out',
+  USER_AUTHENTICATED:'identity.user-authenticated',
+  USER_FAILED:       'identity.user-failed',
+  AUTH_FAILED:       'identity.auth-failed',
+  TOKEN_REFRESHED:   'identity.token-refreshed',
+  USER_REGISTERED:   'identity.user-registered',
 } as const
 
-export type AuthEventType = typeof AUTH_EVENTS[keyof typeof AUTH_EVENTS]
+export type IdentityEventType = typeof IDENTITY_EVENTS[keyof typeof IDENTITY_EVENTS]
 
-// ─── Event Payloads ───────────────────────────────────────────────────────────
+// ─── Payload types ────────────────────────────────────────────────────────────
 
 export interface AuthUserRegisteredPayload {
   userId: string
-  email: string
-  timestamp: Date
+  email:  string
 }
 
 export interface AuthUserAuthenticatedPayload {
-  userId: string
-  email: string
+  userId:    string
   sessionId: string
-  timestamp: Date
+  email:     string
 }
 
 export interface AuthUserSignedOutPayload {
-  userId: string
+  userId:    string
   sessionId: string
-  timestamp: Date
 }
 
-export interface AuthTokenRefreshedPayload {
-  userId: string
-  sessionId: string
-  newExpiresAt: Date
-  timestamp: Date
-}
+// Convenience alias for internal use — same strings, named for intent
+export const AUTH_EVENTS = IDENTITY_EVENTS
 
-export interface AuthUserFailedPayload {
-  email: string
-  reason: string
-  timestamp: Date
-  ipAddress?: string
-}
-
-// ─── Discriminated Union ──────────────────────────────────────────────────────
-
-export type AuthEvent =
-  | { type: typeof AUTH_EVENTS.USER_REGISTERED;    payload: AuthUserRegisteredPayload;    eventKind: 'immediate' }
-  | { type: typeof AUTH_EVENTS.USER_AUTHENTICATED; payload: AuthUserAuthenticatedPayload; eventKind: 'immediate' }
-  | { type: typeof AUTH_EVENTS.USER_SIGNED_OUT;    payload: AuthUserSignedOutPayload;     eventKind: 'immediate' }
-  | { type: typeof AUTH_EVENTS.TOKEN_REFRESHED;    payload: AuthTokenRefreshedPayload;    eventKind: 'immediate' }
-  | { type: typeof AUTH_EVENTS.USER_FAILED;        payload: AuthUserFailedPayload;        eventKind: 'immediate' }
-
-// ─── Event Bus Interface (satisfied by F-event-system at Phase 4) ─────────────
-
+// ─── Event bus interface (dep-injection contract for R2) ──────────────────────
+// Declared at R0 so R2 can reference it without importing from R4 or F-event-system.
 export interface IEventBus {
-  emit(event: AuthEvent): Promise<void>
-}
-
-// ─── No-op stub for standalone operation ──────────────────────────────────────
-
-export const noopEventBus: IEventBus = {
-  async emit(event: AuthEvent): Promise<void> {
-    console.log('[event-bus:noop]', event.type, event.payload)
-  },
+  emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void>
 }

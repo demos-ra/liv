@@ -2,16 +2,18 @@
 // R2: orchestration layer, depends R0 + R1 + R4.
 //
 // Called once at server start (Next.js instrumentation hook or app/layout.tsx server init).
-// Wires: db singleton → event bus → dispatch loop → all subscriptions → topography subscriptions.
+// Wires: migrations → db → event bus → dispatch loop → all subscriptions → topography subscriptions.
 //
 // Idempotent guard: will not re-initialize if already bootstrapped.
 // O5: structured JSON log at each boot stage.
+// G4 + G7: runMigrations() ensures fresh clone boots without manual psql.
 
 import { db, closeDb } from '@/core/db/client'
 import { dispatchPending } from './event-dispatch'
 import { registerAllSubscriptions } from './event-subscriptions'
 import { registerTopographySubscriptions } from '@/features/F-topography/contract/topography-contract'
 import { onBoot as memoryOnBoot } from '@/features/F-memory/contract/memory-contract'
+import { runMigrations } from '@/exec/migrations/run-migrations'
 
 let _bootstrapped = false
 let _dispatchInterval: ReturnType<typeof setInterval> | null = null
@@ -28,11 +30,9 @@ export async function bootstrap(): Promise<void> {
     return
   }
 
-  // db imported directly from core/db/client
-
   log('startup.begin')
 
-  // 1. Verify DB connection
+  // 0. Verify DB connection
   try {
     await db.query('SELECT 1')
     log('startup.db.connected')
@@ -46,7 +46,21 @@ export async function bootstrap(): Promise<void> {
     throw err  // Hard failure — server cannot start without DB
   }
 
-  // 2. Boot F-memory (runs migration, loads graph, seeds backbone)
+  // 1. Run migrations (G4/G7: schema in code, no manual psql on fresh deploy)
+  try {
+    await runMigrations(db)
+    log('startup.migrations.complete')
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'startup.migrations.failed',
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    }))
+    throw err  // Hard failure — cannot run without schema
+  }
+
+  // 2. Boot F-memory (loads graph, seeds backbone)
   try {
     await memoryOnBoot()
     log('startup.memory.booted')

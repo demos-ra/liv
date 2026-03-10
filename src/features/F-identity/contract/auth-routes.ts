@@ -18,7 +18,7 @@
 
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { createTRPCRouter, publicProcedure, protectedProcedure } from '@/core/api/trpc-setup';
+import { createTRPCRouter, publicProcedure, protectedProcedure } from './trpc-procedures';
 import {
   requestMagicLink,
   verifyMagicLink,

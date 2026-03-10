@@ -15,7 +15,7 @@ export async function saveLayout(userId: string, layout: WorkspaceLayout): Promi
 }
 
 export async function loadLayout(userId: string, projectId: string): Promise<WorkspaceLayout | null> {
-  const result = await db.query(
+  const result = await db.query<{ layout: WorkspaceLayout }>(
     `SELECT layout FROM workspace_layouts WHERE user_id = $1 AND project_id = $2`,
     [userId, projectId]
   )

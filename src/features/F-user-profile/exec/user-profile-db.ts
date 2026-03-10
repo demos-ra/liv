@@ -35,8 +35,19 @@ export async function updateProfile(profile: UserProfile): Promise<void> {
   )
 }
 
+type UserProfileRow = {
+  user_id: string
+  github_login: string | null
+  display_name: string | null
+  avatar_url: string | null
+  email: string | null
+  preferred_model_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 export async function getProfileByUserId(userId: string): Promise<UserProfile | null> {
-  const result = await db.query(
+  const result = await db.query<UserProfileRow>(
     `SELECT * FROM user_profiles WHERE user_id = $1`,
     [userId]
   )

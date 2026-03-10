@@ -85,15 +85,15 @@ export function registerTopographySubscriptions() {
     recordActivity(projectId, featureTag, rLayer, eventType)
 
   subscribeToEvent(EVENTS.CHAT.MESSAGE_STREAMING, (e) =>
-    pulse('F-chat', 2, 'streaming', e.payload.projectId)
+    pulse('F-chat', 2, 'streaming', (e.payload as { projectId: string }).projectId)
   )
   subscribeToEvent(EVENTS.COMMIT_LOG.COMMIT_CONFIRMED, (e) =>
-    pulse(e.payload.featureTag, 3, 'commit', e.payload.projectId)
+    pulse((e.payload as { featureTag: string; projectId: string }).featureTag, 3, 'commit', (e.payload as { featureTag: string; projectId: string }).projectId)
   )
   subscribeToEvent(EVENTS.CONSTITUTION.SLICE_COMPLETE, (e) =>
-    pulse(e.payload.featureTag, 4, 'complete', e.payload.projectId)
+    pulse((e.payload as { featureTag: string; projectId: string }).featureTag, 4, 'complete', (e.payload as { featureTag: string; projectId: string }).projectId)
   )
   subscribeToEvent(EVENTS.CONSTITUTION.SLICE_BLOCKED, (e) =>
-    pulse(e.payload.featureTag, 3, 'blocked', e.payload.projectId)
+    pulse((e.payload as { featureTag: string; projectId: string }).featureTag, 3, 'blocked', (e.payload as { featureTag: string; projectId: string }).projectId)
   )
 }

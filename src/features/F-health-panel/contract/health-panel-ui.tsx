@@ -7,12 +7,12 @@
 import { useHealthPanel } from './health-panel-hook'
 
 export function HealthPanelUI({ projectId }: { projectId: string }) {
-  const { state } = useHealthPanel(projectId)
-  const count = state?.violations?.length ?? 0
+  const { violations, isClean } = useHealthPanel(projectId)
+  const count = violations.length
 
   return (
     <div style={{ padding: 24, color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-      <span style={{ color: count === 0 ? 'var(--success)' : 'var(--error)' }}>
+      <span style={{ color: isClean ? 'var(--success)' : 'var(--error)' }}>
         health — {count} violation{count !== 1 ? 's' : ''}
       </span>
     </div>

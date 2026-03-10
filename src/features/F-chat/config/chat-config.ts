@@ -5,6 +5,7 @@ export const CHAT_CONFIG = {
   maxMessageLength: 32_000,
   pageSize: 50,
   streamChunkSize: 64,
+  contextWindow: 20,    // max messages sent to AI as context
 } as const
 
 export const CHAT_NAMESPACE = 'chat' as const

@@ -1,11 +1,12 @@
 // [F-git-connector/R3/C2] Git agent WebSocket handler
-// R3: contract layer — manages persistent agent connections
+// R3: contract layer — manages persistent agent connections.
+// R3 rule: never imports exec/. Uses R2 workflow functions only.
 
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
 import { WebSocket, WebSocketServer } from 'ws'
 import { IncomingMessage } from 'http'
 import { parseAgentResponse, buildPingMessage } from '../domain/git-logic'
-import { getAgentTokenByAgentId, recordAgentConnection, recordAgentDisconnection } from '../exec/git-io'
+import { lookupAgentToken, connectAgent, disconnectAgent } from '../app/git-workflow'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import { AGENT_CONFIG } from '../config/git-config'
 
@@ -16,7 +17,6 @@ type PendingCommand = {
 }
 
 // In-memory map: agentId → WebSocket + pending commands
-// Replaced by distributed store at Phase 4 if multi-node
 const connections = new Map<string, {
   ws: WebSocket
   userId: string
@@ -34,7 +34,7 @@ export function createAgentWebSocketHandler(wss: WebSocketServer) {
 
       if (response.type === 'auth_ok') {
         agentId = response.agentId
-        const stored = await getAgentTokenByAgentId(agentId)
+        const stored = await lookupAgentToken(agentId)
         if (!stored) { ws.close(); return }
 
         connections.set(agentId, {
@@ -44,7 +44,7 @@ export function createAgentWebSocketHandler(wss: WebSocketServer) {
           pending: new Map(),
         })
 
-        await recordAgentConnection(agentId)
+        await connectAgent(agentId)
         await emitEvent({ type: EVENTS.GIT.CONNECTED, payload: { userId: stored.userId, projectId: stored.projectId } })
       }
 
@@ -68,13 +68,12 @@ export function createAgentWebSocketHandler(wss: WebSocketServer) {
         const conn = connections.get(agentId)
         connections.delete(agentId)
         if (conn) {
-          await recordAgentDisconnection(agentId)
+          await disconnectAgent(agentId)
           await emitEvent({ type: EVENTS.GIT.DISCONNECTED, payload: { userId: conn.userId, projectId: conn.projectId } })
         }
       }
     })
 
-    // start ping interval
     const pingInterval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(buildPingMessage()))
@@ -84,8 +83,6 @@ export function createAgentWebSocketHandler(wss: WebSocketServer) {
     ws.on('close', () => clearInterval(pingInterval))
   })
 }
-
-// --- Send command to agent, await response ---
 
 export async function sendAgentCommand(
   agentId: string,

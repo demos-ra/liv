@@ -56,13 +56,33 @@ export async function fetchGitHubRepo(token: string, owner: string, repo: string
 
 // --- Agent token persistence ---
 
-type StoredAgentToken = {
+export type StoredAgentToken = {
   userId: string
   projectId: string
   githubAccessToken: string
   githubLogin: string
   githubUserId: string
   connectedAt: Date
+}
+
+type AgentTokenRow = {
+  user_id: string
+  project_id: string
+  github_access_token: string
+  github_login: string
+  github_user_id: string
+  connected_at: Date
+}
+
+function rowToAgentToken(r: AgentTokenRow): StoredAgentToken {
+  return {
+    userId: r.user_id,
+    projectId: r.project_id,
+    githubAccessToken: r.github_access_token,
+    githubLogin: r.github_login,
+    githubUserId: r.github_user_id,
+    connectedAt: r.connected_at,
+  }
 }
 
 export async function storeAgentToken(data: StoredAgentToken): Promise<void> {
@@ -76,39 +96,21 @@ export async function storeAgentToken(data: StoredAgentToken): Promise<void> {
 }
 
 export async function getAgentToken(userId: string, projectId: string): Promise<StoredAgentToken | null> {
-  const result = await db.query(
+  const result = await db.query<AgentTokenRow>(
     `SELECT user_id, project_id, github_access_token, github_login, github_user_id, connected_at
      FROM git_connections WHERE user_id = $1 AND project_id = $2`,
     [userId, projectId]
   )
-  if (!result.rows[0]) return null
-  const r = result.rows[0]
-  return {
-    userId: r.user_id,
-    projectId: r.project_id,
-    githubAccessToken: r.github_access_token,
-    githubLogin: r.github_login,
-    githubUserId: r.github_user_id,
-    connectedAt: r.connected_at,
-  }
+  return result.rows[0] ? rowToAgentToken(result.rows[0]) : null
 }
 
 export async function getAgentTokenByAgentId(agentId: string): Promise<StoredAgentToken | null> {
-  const result = await db.query(
+  const result = await db.query<AgentTokenRow>(
     `SELECT user_id, project_id, github_access_token, github_login, github_user_id, connected_at
      FROM git_connections WHERE agent_id = $1`,
     [agentId]
   )
-  if (!result.rows[0]) return null
-  const r = result.rows[0]
-  return {
-    userId: r.user_id,
-    projectId: r.project_id,
-    githubAccessToken: r.github_access_token,
-    githubLogin: r.github_login,
-    githubUserId: r.github_user_id,
-    connectedAt: r.connected_at,
-  }
+  return result.rows[0] ? rowToAgentToken(result.rows[0]) : null
 }
 
 export async function storeRepoMeta(data: RepoMeta & { userId: string; projectId: string }): Promise<void> {

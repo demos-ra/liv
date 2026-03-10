@@ -8,8 +8,8 @@ import { color, font, fontSize, fontWeight, radius, space, border, duration, eas
 
 // ─── Box ──────────────────────────────────────────────────────────────────────
 
-interface BoxProps extends React.HTMLAttributes<HTMLDivElement> {
-  as?: keyof JSX.IntrinsicElements
+interface BoxProps extends React.HTMLAttributes<HTMLElement> {
+  as?: React.ElementType
 }
 
 export function Box({ as: Tag = 'div', style, ...props }: BoxProps) {
@@ -53,7 +53,7 @@ export function Stack({
 type TextVariant = 'display' | 'heading' | 'subheading' | 'body' | 'caption' | 'label' | 'mono'
 
 interface TextProps extends React.HTMLAttributes<HTMLElement> {
-  as?: keyof JSX.IntrinsicElements
+  as?: React.ElementType
   variant?: TextVariant
   weight?: keyof typeof fontWeight
   muted?: boolean

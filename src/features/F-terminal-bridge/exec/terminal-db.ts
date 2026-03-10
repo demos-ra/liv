@@ -15,7 +15,9 @@ export async function logCommandStub(command: TerminalCommand): Promise<void> {
 }
 
 export async function getCommandLog(projectId: string, limit = 50): Promise<TerminalCommand[]> {
-  const result = await db.query(
+  const result = await db.query<{
+    command_id: string; user_id: string; project_id: string; payload: string; issued_at: string
+  }>(
     `SELECT command_id, user_id, project_id, payload, EXTRACT(EPOCH FROM issued_at) * 1000 as issued_at
      FROM terminal_command_log WHERE project_id = $1 ORDER BY issued_at DESC LIMIT $2`,
     [projectId, limit]

@@ -8,71 +8,53 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from './auth-hooks'
 
-const AUTH_CSS = `
-  @font-face {
-    font-family: 'Geist';
-    src: url('/fonts/geist-regular.otf') format('opentype');
-    font-weight: 400; font-style: normal; font-display: swap;
-  }
-  @font-face {
-    font-family: 'Geist';
-    src: url('/fonts/geist-medium.otf') format('opentype');
-    font-weight: 500; font-style: normal; font-display: swap;
-  }
-  @font-face {
-    font-family: 'Montserrat';
-    src: url('/fonts/montserrat-semibold.ttf') format('truetype');
-    font-weight: 600; font-style: normal; font-display: swap;
-  }
-  @font-face {
-    font-family: 'CommitMono';
-    src: url('/fonts/commitmono-regular.otf') format('opentype');
-    font-weight: 400; font-style: normal; font-display: swap;
-  }
+// ── Shared layout ─────────────────────────────────────────────────────────────
 
-  :root {
-    --bg:        #151517;
-    --surface:   #1F1F22;
-    --border:    #3C3C42;
-    --text:      #E5E5E3;
-    --text-sec:  #81818A;
-    --text-dis:  #6A6A73;
-    --accent:    #8EA4FF;
-    --error:     #F2766D;
-    --font-ui:   'Geist', system-ui, sans-serif;
-    --font-mono: 'CommitMono', monospace;
-    --font-brand:'Montserrat', sans-serif;
-  }
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: '10vh',
+      fontFamily: 'var(--font-ui)',
+      background: 'var(--bg)',
+      color: 'var(--text)',
+    }}>
+      <div style={{ width: '100%', maxWidth: 360, padding: '0 20px' }}>
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); }
+        {/*
+          LIV brand mark — Montserrat 600, 11px, 0.3em tracking, accent, uppercase.
+          Intentionally 11px at 16px base — it is a stamp, not body text.
+          This is the door. Inside the app the header LIV mark takes over.
+        */}
+        <div style={{
+          fontFamily: 'var(--font-brand)',
+          fontWeight: 600,
+          fontSize: 11,
+          letterSpacing: '0.3em',
+          color: 'var(--accent)',
+          textTransform: 'uppercase',
+          marginBottom: 32,
+          userSelect: 'none',
+        }}>
+          LIV
+        </div>
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
-  .fade-in  { animation: fadeIn 0.2s ease forwards; }
-  .error-in { opacity: 0; animation: fadeIn 0.15s ease forwards; }
-`
-
-function StyleInjector() {
-  useEffect(() => {
-    const id = 'liv-auth-styles'
-    if (document.getElementById(id)) return
-    const el = document.createElement('style')
-    el.id = id
-    el.textContent = AUTH_CSS
-    document.head.appendChild(el)
-  }, [])
-  return null
+        {children}
+      </div>
+    </div>
+  )
 }
+
+// ── Login ─────────────────────────────────────────────────────────────────────
 
 export function AuthPage() {
   const [email, setEmail]         = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError]         = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [status, setStatus]       = useState<'idle' | 'loading' | 'sent' | 'error'>('idle')
+  const [errorMsg, setErrorMsg]   = useState<string | null>(null)
   const { requestMagicLink, state } = useAuth()
   const router   = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -82,198 +64,167 @@ export function AuthPage() {
   }, [state.status, router])
 
   const handleSubmit = async () => {
-    if (!email.trim() || isLoading || submitted) return
-    setIsLoading(true)
-    setError(null)
+    if (!email.trim() || status === 'loading' || status === 'sent') return
+    setStatus('loading')
+    setErrorMsg(null)
     const result = await requestMagicLink(email.trim())
-    setIsLoading(false)
     if (result.success) {
+      setStatus('sent')
       setSubmitted(true)
     } else {
-      setError(result.error ?? 'something went wrong')
-      inputRef.current?.focus()
+      setStatus('error')
+      setErrorMsg(result.error ?? 'something went wrong')
+      setTimeout(() => inputRef.current?.focus(), 50)
     }
   }
 
-  const handleResend = async () => {
+  const handleResend = () => {
+    setStatus('idle')
     setSubmitted(false)
-    setError(null)
+    setErrorMsg(null)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
+  const hasInput = email.trim().length > 0
+
   return (
-    <>
-      <StyleInjector />
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingBottom: '10vh',
-        fontFamily: 'var(--font-ui)',
-        background: 'var(--bg)',
-      }}>
-        <div style={{ width: '100%', maxWidth: 360, padding: '0 20px' }}>
+    <AuthShell>
+      <div style={{ position: 'relative' }}>
 
-          <div style={{
-            fontFamily: 'var(--font-brand)',
-            fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.3em',
-            color: 'var(--accent)',
-            textTransform: 'uppercase',
-            marginBottom: 32,
-            userSelect: 'none',
-          }}>
-            LIV
-          </div>
+        {/* Input container — identical dimensions to chat input */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius)',
+          padding: '12px 16px',
+          minHeight: 48,
+        }}>
+          {!submitted ? (
+            <>
+              <input
+                ref={inputRef}
+                autoFocus
+                type="email"
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value)
+                  if (status === 'error') setStatus('idle')
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
+                disabled={status === 'loading'}
+                autoComplete="email"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="Email address"
+                placeholder="email"
+                style={{
+                  flex: 1, background: 'transparent',
+                  border: 'none', outline: 'none',
+                  fontFamily: 'var(--font-ui)', fontSize: 16, fontWeight: 400,
+                  height: '24px', lineHeight: '24px',
+                  color: 'var(--text)', caretColor: 'var(--accent)',
+                  opacity: status === 'loading' ? 0.4 : 1,
+                  transition: 'opacity 0.2s',
+                  minWidth: 0,
+                }}
+              />
 
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 6,
-            padding: '10px 14px',
-            marginBottom: 8,
-          }}>
-            {!submitted ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  ref={inputRef}
-                  autoFocus
-                  type="email"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setError(null) }}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
-                  disabled={isLoading}
-                  autoComplete="email"
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: 14,
-                    fontWeight: 400,
-                    color: 'var(--text)',
-                    caretColor: 'var(--accent)',
-                    opacity: isLoading ? 0.4 : 1,
-                    transition: 'opacity 0.2s',
-                  }}
-                />
-                {email.trim() && !isLoading && (
-                  <button
-                    onClick={handleSubmit}
-                    className="fade-in"
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 14,
-                      color: 'var(--text-dis)',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      lineHeight: 1,
-                      flexShrink: 0,
-                      transition: 'color 0.15s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dis)')}
-                  >
-                    →
-                  </button>
-                )}
-                {isLoading && (
+              {/* → always visible, accent when ready */}
+              <button
+                onClick={handleSubmit}
+                disabled={!hasInput || status === 'loading'}
+                aria-label="Send sign-in link"
+                style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 16,
+                  color: hasInput && status !== 'loading' ? 'var(--accent)' : 'var(--text-dis)',
+                  background: 'transparent', border: 'none',
+                  cursor: hasInput && status !== 'loading' ? 'pointer' : 'default',
+                  padding: 0, lineHeight: 1, flexShrink: 0,
+                  transition: 'color 0.15s',
+                }}
+              >
+                {status === 'loading' ? (
                   <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    color: 'var(--text-dis)',
-                    flexShrink: 0,
-                    letterSpacing: '0.1em',
+                    fontFamily: 'var(--font-mono)', fontSize: 12,
+                    letterSpacing: '0.1em', color: 'var(--text-dis)',
                   }}>
                     ···
                   </span>
-                )}
-              </div>
-            ) : (
-              <div className="fade-in" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                minHeight: 24,
+                ) : '→'}
+              </button>
+            </>
+          ) : (
+            /* Sent — container settles, no layout shift */
+            <div className="liv-fade-in" style={{
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', gap: 12, width: '100%',
+            }}>
+              <span style={{
+                fontFamily: 'var(--font-ui)', fontSize: 16, fontWeight: 400,
+                color: 'var(--text-sec)', overflow: 'hidden',
+                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                <span style={{
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: 14,
-                  fontWeight: 400,
-                  color: 'var(--text-sec)',
-                }}>
-                  {email}
-                </span>
-                <button
-                  onClick={handleResend}
-                  style={{
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: 11,
-                    color: 'var(--text-dis)',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    flexShrink: 0,
-                    transition: 'color 0.15s',
-                    textDecoration: 'underline',
-                    textDecorationColor: 'transparent',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.color = 'var(--text-sec)'
-                    e.currentTarget.style.textDecorationColor = 'var(--border)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.color = 'var(--text-dis)'
-                    e.currentTarget.style.textDecorationColor = 'transparent'
-                  }}
-                >
-                  resend
-                </button>
-              </div>
-            )}
-          </div>
+                {email}
+              </span>
+              <button
+                onClick={handleResend}
+                style={{
+                  fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 400,
+                  color: 'var(--text-dis)', background: 'transparent',
+                  border: 'none', cursor: 'pointer', padding: 0,
+                  flexShrink: 0, transition: 'color 0.15s',
+                  textDecoration: 'underline', textDecorationColor: 'transparent',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--text-sec)'
+                  e.currentTarget.style.textDecorationColor = 'var(--border)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--text-dis)'
+                  e.currentTarget.style.textDecorationColor = 'transparent'
+                }}
+              >
+                resend
+              </button>
+            </div>
+          )}
+        </div>
 
-          {submitted && !error && (
-            <div className="fade-in" style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: 12,
+        {/* Fixed status slot — 24px reserved, no layout shift */}
+        <div style={{ height: 24, paddingTop: 8, paddingLeft: 2 }}>
+          {status === 'sent' && (
+            <span className="liv-fade-in" style={{
+              fontFamily: 'var(--font-ui)', fontSize: 12,
               color: 'var(--text-dis)',
-              paddingLeft: 2,
             }}>
               check your inbox
-            </div>
+            </span>
           )}
-
-          {error && (
-            <div key={error} className="error-in" style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: 12,
+          {status === 'error' && errorMsg && (
+            <span key={errorMsg} className="liv-fade-in" style={{
+              fontFamily: 'var(--font-ui)', fontSize: 12,
               color: 'var(--error)',
-              paddingLeft: 2,
             }}>
-              {error}
-            </div>
+              {errorMsg}
+            </span>
           )}
-
         </div>
+
       </div>
-    </>
+    </AuthShell>
   )
 }
 
+// ── Verify ────────────────────────────────────────────────────────────────────
+
 export function AuthVerifyPage() {
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
-  const [error, setError]   = useState<string | null>(null)
-  const { verifyMagicLink } = useAuth()
-  const router       = useRouter()
-  const searchParams = useSearchParams()
-  const called       = useRef(false)
+  const [status, setStatus]     = useState<'verifying' | 'success' | 'error'>('verifying')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const { verifyMagicLink }     = useAuth()
+  const router                  = useRouter()
+  const searchParams            = useSearchParams()
+  const called                  = useRef(false)
 
   useEffect(() => {
     if (called.current) return
@@ -282,7 +233,7 @@ export function AuthVerifyPage() {
     const email = searchParams.get('email')
     if (!token || !email) {
       setStatus('error')
-      setError('invalid link')
+      setErrorMsg('invalid link')
       return
     }
     verifyMagicLink(token, email).then(result => {
@@ -291,86 +242,76 @@ export function AuthVerifyPage() {
         window.location.href = '/'
       } else {
         setStatus('error')
-        setError(result.error ?? 'link expired')
+        setErrorMsg(result.error ?? 'link expired')
       }
     })
   }, [])
 
   return (
-    <>
-      <StyleInjector />
+    <AuthShell>
+      {/* Container — identical dimensions to login input */}
       <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingBottom: '10vh',
-        fontFamily: 'var(--font-ui)',
-        background: 'var(--bg)',
+        display: 'flex', alignItems: 'center',
+        background: 'var(--surface)',
+        borderRadius: 'var(--radius)',
+        padding: '12px 16px',
+        minHeight: 48,
       }}>
-        <div style={{ width: '100%', maxWidth: 360, padding: '0 20px' }}>
-
-          <div style={{
-            fontFamily: 'var(--font-brand)',
-            fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.3em',
-            color: 'var(--accent)',
-            textTransform: 'uppercase',
-            marginBottom: 32,
-            userSelect: 'none',
+        {status === 'verifying' && (
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 12,
+            color: 'var(--text-dis)', letterSpacing: '0.1em',
           }}>
-            LIV
-          </div>
-
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 6,
-            padding: '10px 14px',
-            marginBottom: 8,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
+            ···
+          </span>
+        )}
+        {status === 'success' && (
+          <span className="liv-fade-in" style={{
+            fontFamily: 'var(--font-ui)', fontSize: 16,
+            color: 'var(--text-sec)',
           }}>
-            {status === 'verifying' && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dis)', letterSpacing: '0.1em' }}>
-                ···
-              </span>
-            )}
-            {status === 'success' && (
-              <span className="fade-in" style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--text-sec)' }}>
-                signing in
-              </span>
-            )}
-            {status === 'error' && (
-              <span className="fade-in" style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--text-sec)' }}>
-                —
-              </span>
-            )}
-          </div>
-
-          {status === 'error' && (
-            <div className="fade-in">
-              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--error)', marginBottom: 10, paddingLeft: 2 }}>
-                {error}
-              </div>
-              <button
-                onClick={() => router.push('/auth/login')}
-                style={{
-                  fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-dis)',
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  padding: 0, paddingLeft: 2, transition: 'color 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-sec)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dis)')}
-              >
-                request new link →
-              </button>
-            </div>
-          )}
-
-        </div>
+            signing in
+          </span>
+        )}
+        {status === 'error' && (
+          <span className="liv-fade-in" style={{
+            fontFamily: 'var(--font-ui)', fontSize: 16,
+            color: 'var(--text-sec)',
+          }}>
+            —
+          </span>
+        )}
       </div>
-    </>
+
+      {/* Fixed status slot */}
+      <div style={{ height: 24, paddingTop: 8, paddingLeft: 2 }}>
+        {status === 'error' && errorMsg && (
+          <span className="liv-fade-in" style={{
+            fontFamily: 'var(--font-ui)', fontSize: 12,
+            color: 'var(--error)',
+          }}>
+            {errorMsg}
+          </span>
+        )}
+      </div>
+
+      {/* Request new link — only on error */}
+      {status === 'error' && (
+        <button
+          className="liv-fade-in"
+          onClick={() => router.push('/auth/login')}
+          style={{
+            fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 400,
+            color: 'var(--text-dis)', background: 'transparent',
+            border: 'none', cursor: 'pointer', padding: 0,
+            paddingLeft: 2, transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-sec)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dis)')}
+        >
+          request new link →
+        </button>
+      )}
+    </AuthShell>
   )
 }

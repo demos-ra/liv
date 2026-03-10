@@ -13,6 +13,7 @@ import type { AuthError } from '../config/auth-error-factory';
 // ─── Error Logging Shape (O5 — structured log format) ────────────────────────
 
 export interface AuthErrorLog {
+  [key: string]: unknown;
   level: 'error' | 'warn';
   event: string;
   code: string;

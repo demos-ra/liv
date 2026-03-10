@@ -5,11 +5,11 @@ import { db } from '@/core/db/client'
 import { Role } from '../config/permissions-config'
 
 export async function getMemberRole(userId: string, projectId: string): Promise<Role | null> {
-  const result = await db.query(
+  const result = await db.query<{ role: Role }>(
     `SELECT role FROM project_members WHERE user_id = $1 AND project_id = $2`,
     [userId, projectId]
   )
-  return (result.rows[0]?.role as Role) ?? null
+  return result.rows[0]?.role ?? null
 }
 
 export async function setMemberRole(userId: string, projectId: string, role: Role): Promise<void> {
@@ -29,9 +29,9 @@ export async function removeMember(userId: string, projectId: string): Promise<v
 }
 
 export async function getProjectMembers(projectId: string): Promise<Array<{ userId: string; role: Role }>> {
-  const result = await db.query(
+  const result = await db.query<{ user_id: string; role: Role }>(
     `SELECT user_id, role FROM project_members WHERE project_id = $1`,
     [projectId]
   )
-  return result.rows.map((r) => ({ userId: r.user_id, role: r.role as Role }))
+  return result.rows.map((r) => ({ userId: r.user_id, role: r.role }))
 }

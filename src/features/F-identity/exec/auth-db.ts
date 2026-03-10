@@ -26,9 +26,7 @@ import { AuthErrors } from '../config/auth-error-factory';
 
 // ─── Database Interface (R2 depends on this, not the implementation) ──────────
 
-export interface UpsertUserResult extends AuthResult<AuthUser> {
-  isNew: boolean;
-}
+export type UpsertUserResult = AuthResult<AuthUser & { isNew: boolean }>
 
 export interface CreateTokenResult {
   success: true;
@@ -144,7 +142,7 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         `;
 
         if (rows.length === 0) {
-          return { success: false, error: AuthErrors.dbError('upsertUser', 'no row returned'), isNew: false };
+          return { success: false, error: AuthErrors.dbError('upsertUser', 'no row returned') };
         }
 
         const row = rows[0];
@@ -155,9 +153,9 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
           lastLoginAt: row.last_login_at,
         };
 
-        return { success: true, data: user, isNew: row.is_new };
+        return { success: true, data: { ...user, isNew: Boolean(row.is_new) } };
       } catch (err) {
-        return { success: false, error: AuthErrors.dbError('upsertUser', err), isNew: false };
+        return { success: false, error: AuthErrors.dbError('upsertUser', err) };
       }
     },
 

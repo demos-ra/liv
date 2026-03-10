@@ -1,14 +1,6 @@
 // [core/api/router.ts]
-// R5 — assembles all slice tRPC routers into the app router.
-// Add new slice routers here as they come online.
+// R5 — re-export shim only. App router assembly lives in F-identity/contract/router.ts.
+// Core never assembles slice routers — that requires knowing which slices exist.
 
-import { createTRPCRouter } from './trpc-setup'
-import { authRouter } from '@/features/F-identity/contract/auth-routes'
-
-export const appRouter = createTRPCRouter({
-  auth: authRouter,
-  // chat:    chatRouter,    ← Phase B
-  // project: projectRouter, ← Phase B
-})
-
-export type AppRouter = typeof appRouter
+export { appRouter } from '@/features/F-identity/contract/router'
+export type { AppRouter } from '@/features/F-identity/contract/router'

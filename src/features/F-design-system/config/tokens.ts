@@ -1,181 +1,58 @@
-// [F-design-system/R0/C2] Design tokens — raw values only
-// R0: zero dependencies. All layers import from here.
-// A theme change is a change in this file. It propagates automatically.
+// @liv-standard v1.0
+// [F-design-system/R0]
+// Built with LIV · livai.dev
+// Typed design constants for use in JS/TS contexts.
+// All CSS tokens live in src/app/globals.css — the single source of truth.
+// Import these when you need token values at runtime (e.g. canvas, charts).
 
-// ─── Color ────────────────────────────────────────────────────────────────────
-
-export const color = {
-  // Neutral scale
-  black:       '#0A0A0A',
-  neutral950:  '#111111',
-  neutral900:  '#1A1A1A',
-  neutral800:  '#2A2A2A',
-  neutral700:  '#3A3A3A',
-  neutral600:  '#555555',
-  neutral500:  '#777777',
-  neutral400:  '#999999',
-  neutral300:  '#BBBBBB',
-  neutral200:  '#DDDDDD',
-  neutral100:  '#F0F0F0',
-  neutral50:   '#F8F8F8',
-  white:       '#FFFFFF',
-
-  // Brand
-  brandPrimary:   '#1A1A2E',
-  brandAccent:    '#4F46E5',
-  brandAccentHover: '#4338CA',
-
-  // Semantic
-  success:  '#16A34A',
-  warning:  '#CA8A04',
-  error:    '#DC2626',
-  info:     '#2563EB',
-
-  // Surface
-  surfaceBase:    '#0A0A0A',
-  surfaceRaised:  '#141414',
-  surfaceSunken:  '#060606',
-  surfaceBorder:  '#2A2A2A',
-
-  // Code/workspace surface
-  workspaceBg:     '#0D0D0D',
-  workspaceBorder: '#222222',
-  workspaceText:   '#E0E0E0',
-} as const
-
-// ─── Typography ───────────────────────────────────────────────────────────────
-// Instrument Serif — headers
-// Inter — body
-// Commit Mono — workspace/code
-
-export const font = {
-  header:    '"Instrument Serif", Georgia, serif',
-  body:      '"Inter", system-ui, sans-serif',
-  workspace: '"Commit Mono", "JetBrains Mono", "Fira Code", monospace',
-} as const
-
-export const fontSize = {
-  xs:   '11px',
-  sm:   '13px',
-  base: '15px',
-  md:   '17px',
-  lg:   '20px',
-  xl:   '24px',
-  '2xl': '30px',
-  '3xl': '36px',
-  '4xl': '48px',
-} as const
-
-export const fontWeight = {
-  regular: '400',
-  medium:  '500',
-  semibold:'600',
-  bold:    '700',
-} as const
-
-export const lineHeight = {
-  tight:  '1.2',
-  snug:   '1.4',
-  normal: '1.6',
-  loose:  '1.8',
-} as const
-
-export const letterSpacing = {
-  tight:  '-0.02em',
-  normal: '0em',
-  wide:   '0.04em',
-  wider:  '0.08em',
-} as const
-
-// ─── Spacing ──────────────────────────────────────────────────────────────────
-// Base unit: 4px
-
-export const space = {
-  0:    '0px',
-  0.5:  '2px',
-  1:    '4px',
-  1.5:  '6px',
-  2:    '8px',
-  2.5:  '10px',
-  3:    '12px',
-  4:    '16px',
-  5:    '20px',
-  6:    '24px',
-  8:    '32px',
-  10:   '40px',
-  12:   '48px',
-  16:   '64px',
-  20:   '80px',
-  24:   '96px',
-  32:   '128px',
-} as const
-
-// ─── Radius ───────────────────────────────────────────────────────────────────
-
-export const radius = {
-  none: '0px',
-  sm:   '3px',
-  md:   '6px',
-  lg:   '10px',
-  xl:   '16px',
-  full: '9999px',
-} as const
-
-// ─── Border ───────────────────────────────────────────────────────────────────
-
-export const border = {
-  width: {
-    thin:   '1px',
-    medium: '2px',
+export const TOKENS = {
+  dark: {
+    bg:       '#141412',
+    surface:  '#1E1D1B',
+    elevated: '#272522',
+    border:   '#363430',
+    text:     '#E8E6E1',
+    textSec:  '#857F76',
+    textDis:  '#5C5850',
+    accent:   '#8EA4FF',
+    error:    '#F2766D',
+    amber:    '#DFAF56',
   },
-  style: 'solid',
-  color: {
-    default: color.surfaceBorder,
-    subtle:  color.neutral800,
-    strong:  color.neutral600,
+  light: {
+    bg:       '#F5F2ED',
+    surface:  '#FDFCF9',
+    elevated: '#F0EDE8',
+    border:   '#D8D4CC',
+    text:     '#1A1917',
+    textSec:  '#6B6560',
+    textDis:  '#9B948C',
+    accent:   '#4F6FD6',
+    error:    '#C85C4E',
+    amber:    '#B98E32',
+  },
+  font: {
+    ui:    "'Geist', system-ui, sans-serif",
+    mono:  "'CommitMono', monospace",
+    brand: "'Montserrat', sans-serif",
+  },
+  grid: {
+    u05: 4,
+    u1:  8,
+    u15: 12,
+    u2:  16,
+    u25: 20,
+    u3:  24,
+    u4:  32,
+    u5:  40,
+    u55: 44,
+  },
+  layout: {
+    col:     640,
+    colPad:  20,
+    radius:  8,
+    headerH: 44,
   },
 } as const
 
-// ─── Shadow ───────────────────────────────────────────────────────────────────
-
-export const shadow = {
-  sm:  '0 1px 2px rgba(0,0,0,0.4)',
-  md:  '0 4px 8px rgba(0,0,0,0.5)',
-  lg:  '0 8px 24px rgba(0,0,0,0.6)',
-  xl:  '0 16px 48px rgba(0,0,0,0.7)',
-} as const
-
-// ─── Motion ───────────────────────────────────────────────────────────────────
-
-export const duration = {
-  instant: '0ms',
-  fast:    '100ms',
-  normal:  '200ms',
-  slow:    '350ms',
-} as const
-
-export const easing = {
-  standard:   'cubic-bezier(0.4, 0, 0.2, 1)',
-  decelerate: 'cubic-bezier(0, 0, 0.2, 1)',
-  accelerate: 'cubic-bezier(0.4, 0, 1, 1)',
-} as const
-
-// ─── Z-index ──────────────────────────────────────────────────────────────────
-
-export const zIndex = {
-  base:    0,
-  raised:  10,
-  overlay: 100,
-  modal:   200,
-  toast:   300,
-} as const
-
-// ─── Breakpoints ──────────────────────────────────────────────────────────────
-
-export const breakpoint = {
-  sm:  '640px',
-  md:  '768px',
-  lg:  '1024px',
-  xl:  '1280px',
-  '2xl': '1536px',
-} as const
+export type ThemeTokens = typeof TOKENS.dark
+export type Theme = 'dark' | 'light'

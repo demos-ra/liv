@@ -7,12 +7,12 @@
 import { useDashboard } from './dashboard-hook'
 
 export function DashboardUI({ projectId }: { projectId: string }) {
-  const { state } = useDashboard(projectId)
+  const { view, isLoading } = useDashboard()
 
   return (
     <div style={{ padding: 24, color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dis)' }}>
-        dashboard — {projectId}
+        dashboard — {projectId} — {view}{isLoading ? ' (loading)' : ''}
       </span>
     </div>
   )

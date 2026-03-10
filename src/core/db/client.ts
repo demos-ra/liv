@@ -54,7 +54,7 @@ function getClient(): DbPool {
 
 export const db: DbPool = new Proxy({} as DbPool, {
   get(_target, prop) {
-    return (getClient() as Record<string, unknown>)[prop as string]
+    return (getClient() as unknown as Record<string, unknown>)[prop as string]
   },
 })
 
@@ -64,7 +64,7 @@ export async function closeDb(): Promise<void> {
 
 // Tagged template adapter — makes db compatible with auth-db's sql`` interface
 export function taggedDb(rawDb: typeof db) {
-  return function sql(strings: TemplateStringsArray, ...values: unknown[]) {
+  return function sql<T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
     let query = ''
     const params: unknown[] = []
     strings.forEach((str, i) => {
@@ -74,6 +74,6 @@ export function taggedDb(rawDb: typeof db) {
         query += `$${params.length}`
       }
     })
-    return rawDb.query(query, params).then((r: { rows: unknown[] }) => r.rows)
+    return rawDb.query<T>(query, params).then((r: { rows: T[] }) => r.rows)
   }
 }

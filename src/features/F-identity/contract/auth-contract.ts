@@ -1,26 +1,10 @@
 // [F-identity/contract/auth-contract.ts]
 // R3 — server-side auth validation for cross-slice use.
-// Other slices (F-chat, F-session, etc.) import from here — never from exec/auth-db directly.
+// Other slices (F-chat, F-session, etc.) import from here.
+// Delegates to R2 auth-workflow — never imports exec/ directly.
 
-import { db, taggedDb } from '@/core/db/client'
-import { createAuthDb } from '../exec/auth-db'
-import type { Session } from '../config/auth-types'
+import { lookupSession } from '../app/auth-workflow'
 
-export interface ValidatedSession {
-  sessionId: string
-  userId:    string
-}
+export type { ValidatedSession } from '../app/auth-workflow'
 
-/**
- * Validates a raw access token and returns the session if valid.
- * Returns null if the token is missing, expired, or invalid.
- */
-export async function validateSession(rawToken: string): Promise<ValidatedSession | null> {
-  const authDb = createAuthDb(taggedDb(db))
-  const result = await authDb.findSession(rawToken)
-  if (!result.success || !result.data) return null
-  return {
-    sessionId: result.data.id,
-    userId:    result.data.userId,
-  }
-}
+export { lookupSession as validateSession }

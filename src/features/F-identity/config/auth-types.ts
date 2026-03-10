@@ -51,7 +51,10 @@ export interface Session {
   ipAddress: string | null;
 }
 
-export interface SessionPayload {
+// AuthSessionPayload: F-identity's internal session shape (not the JWT payload).
+// The JWT payload lives in core/types/session.ts (SessionPayload).
+// Named distinctly to prevent collision — both are valid, different types.
+export interface AuthSessionPayload {
   sessionId: string;
   userId: string;
   email: string;
@@ -62,7 +65,7 @@ export interface SessionPayload {
 
 export interface AuthState {
   user: AuthUser | null;
-  session: SessionPayload | null;
+  session: AuthSessionPayload | null;
   status: AuthStatus;
   error: AuthError | null;
 }

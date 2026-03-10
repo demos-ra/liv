@@ -72,8 +72,8 @@ subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_OUT, async (event: LivEvent) => {
   const { userId } = event.payload as { userId: string }
   await createNotification({
     userId,
-    kind: 'info',
-    severity: 'low',
+    kind: 'session.expired',
+    severity: 'warning',
     title: 'Signed out',
     message: 'You have been signed out successfully.',
   })
@@ -83,8 +83,8 @@ subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED, async (event: LivEvent) => {
   const { userId } = event.payload as { userId: string }
   await createNotification({
     userId,
-    kind: 'warning',
-    severity: 'medium',
+    kind: 'session.expired',
+    severity: 'warning',
     title: 'Session expired',
     message: 'Your session has expired. Please sign in again.',
   })
@@ -96,8 +96,8 @@ subscribeToEvent(EVENTS.GIT.CONNECTED, async (event: LivEvent) => {
   }
   await createNotification({
     userId,
-    kind: 'success',
-    severity: 'low',
+    kind: 'git.connected',
+    severity: 'success',
     title: 'Repository connected',
     message: `${repoName} is now connected to LIV.`,
     projectId,
@@ -110,8 +110,8 @@ subscribeToEvent(EVENTS.GIT.DISCONNECTED, async (event: LivEvent) => {
   }
   await createNotification({
     userId,
-    kind: 'warning',
-    severity: 'medium',
+    kind: 'git.disconnected',
+    severity: 'warning',
     title: 'Repository disconnected',
     message: `${repoName} has disconnected from LIV.`,
     projectId,
@@ -124,8 +124,8 @@ subscribeToEvent(EVENTS.CONSTITUTION.CONSTITUTION_CONFIRMED, async (event: LivEv
   }
   await createNotification({
     userId,
-    kind: 'success',
-    severity: 'low',
+    kind: 'constitution.updated',
+    severity: 'info',
     title: 'Build begins',
     message: `Constitution confirmed. ${sliceCount} slice${sliceCount !== 1 ? 's' : ''} queued for build.`,
     projectId,
@@ -138,8 +138,8 @@ subscribeToEvent(EVENTS.HEALTH.VIOLATION_FOUND, async (event: LivEvent) => {
   }
   await createNotification({
     userId,
-    kind: 'error',
-    severity: 'high',
+    kind: 'health.violation',
+    severity: 'error',
     title: `Health violation — ${featureTag}`,
     message,
     projectId,
@@ -168,7 +168,7 @@ subscribeToEvent(EVENTS.GIT.COMMIT_DETECTED, async (event: LivEvent) => {
     userId: string
     isAi: boolean
   }
-  await recordCommit(projectId, hash, message, userId, isAi ? 'ai' : 'human')
+  await recordCommit(projectId, userId, message, isAi ? 'ai' : 'human', { gitHash: hash })
 })
 
 // ─── F-topography subscriptions ──────────────────────────────────────────────
@@ -216,8 +216,8 @@ subscribeToEvent(EVENTS.COMMIT_LOG.COMMIT_RECORDED, async (event: LivEvent) => {
   }
   await createNotification({
     userId,
-    kind: 'info',
-    severity: 'low',
+    kind: 'commit.confirmed',
+    severity: 'success',
     title: `Commit recorded — ${featureTag}`,
     message: `${authorship === 'ai' ? 'AI-generated' : 'Human'} commit recorded for ${featureTag}.`,
     projectId,

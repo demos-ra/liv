@@ -7,13 +7,13 @@
 import { useExecutionPanel } from './execution-panel-hook'
 
 export function ExecutionPanelUI({ projectId }: { projectId: string }) {
-  const { state } = useExecutionPanel(projectId)
-  const total  = state?.results?.length ?? 0
-  const passed = state?.results?.filter((r: { passed: boolean }) => r.passed).length ?? 0
+  const { results, isClean } = useExecutionPanel(projectId)
+  const total  = results.length
+  const passed = results.filter((r) => r.passed).length
 
   return (
     <div style={{ padding: 24, color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-      <span style={{ color: total === passed ? 'var(--success)' : 'var(--error)' }}>
+      <span style={{ color: isClean ? 'var(--success)' : 'var(--error)' }}>
         execution — {passed}/{total} passed
       </span>
     </div>

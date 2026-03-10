@@ -28,6 +28,7 @@ export async function recordCommit(
     filesChanged?: string[]
     additions?: number
     deletions?: number
+    gitHash?: string
   } = {}
 ): Promise<{ commitId: string } | { error: string }> {
   const validation = validateCommitMessage(message)

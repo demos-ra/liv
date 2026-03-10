@@ -1,72 +1,145 @@
-/* LIV — globals.css */
-/* Single source of truth for all design tokens */
+/* @liv-standard v1.0 */
+/* [core/app/globals.css] */
+/* Built with LIV · livai.dev */
+/* Single source of truth — tokens, fonts, reset, utilities */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap');
+/* ── Local fonts ── */
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist-regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist-medium.otf') format('opentype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/montserrat-semibold.ttf') format('truetype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'CommitMono';
+  src: url('/fonts/commitmono-regular.otf') format('opentype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'CommitMono';
+  src: url('/fonts/commitmono-bold.otf') format('opentype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
 
-/* ── DARK (default) ── */
+/* ── Dark tokens (default) — warm Braun-black ── */
 :root {
-  --bg:           #0f0f10;
-  --surface:      #151516;
-  --surface-up:   #1b1b1d;
-  --border:       #222226;
-  --divider:      #2f2f33;
-  --text-dis:     #5f5f63;
-  --text-sec:     #8a8a8f;
-  --text:         #e2e2e2;
-  --accent:       #3352FF;
-  --accent-hi:    #5570FF;
-  --accent-lo:    #2240DD;
-  --accent-glow:  #3352FF18;
-  --success:      #34d399;
-  --building:     #A89040;
-  --error:        #f87171;
-  --font-ui:      'DM Sans', sans-serif;
-  --font-mono:    'DM Mono', monospace;
-  --font-serif:   'Instrument Serif', serif;
-  --sp-1: 4px;  --sp-2: 8px;   --sp-3: 12px; --sp-4: 16px;
-  --sp-5: 24px; --sp-6: 32px;  --sp-7: 48px; --sp-8: 64px;
-  --r-sm: 4px;  --r-md: 6px;   --r-lg: 10px;
-  --ease:   cubic-bezier(0.16, 1, 0.3, 1);
-  --t-fast: 120ms;
-  --t-mid:  220ms;
+  --bg:         #141412;
+  --surface:    #1E1D1B;
+  --elevated:   #272522;
+  --border:     #363430;
+  --text:       #E8E6E1;
+  --text-sec:   #857F76;
+  --text-dis:   #5C5850;
+  --accent:     #8EA4FF;
+  --error:      #F2766D;
+  --amber:      #DFAF56;
+
+  --font-ui:    'Geist', system-ui, sans-serif;
+  --font-mono:  'CommitMono', monospace;
+  --font-brand: 'Montserrat', sans-serif;
+
+  /* 8px grid */
+  --u05:  4px;
+  --u1:   8px;
+  --u15:  12px;
+  --u2:   16px;
+  --u25:  20px;
+  --u3:   24px;
+  --u4:   32px;
+  --u5:   40px;
+  --u55:  44px;
+  --u6:   48px;
+
+  --col:      680px;
+  --col-pad:  20px;
+  --radius:   8px;
+  --header-h: 48px;
 }
 
-/* ── LIGHT ── */
+/* ── Light tokens — warm cream ── */
 [data-theme='light'] {
-  --bg:           #F5F3EF;
-  --surface:      #EFEDE8;
-  --surface-up:   #E8E5DF;
-  --border:       #D8D4CC;
-  --divider:      #C8C4BC;
-  --text-dis:     #A8A49C;
-  --text-sec:     #6B6760;
-  --text:         #1A1915;
-  --accent:       #3352FF;
-  --accent-hi:    #2240DD;
-  --accent-lo:    #1830BB;
-  --accent-glow:  #3352FF14;
-  --success:      #1A9E6E;
-  --building:     #8B6A1A;
-  --error:        #C94040;
+  --bg:         #F5F2ED;
+  --surface:    #FDFCF9;
+  --elevated:   #F0EDE8;
+  --border:     #D8D4CC;
+  --text:       #1A1917;
+  --text-sec:   #6B6560;
+  --text-dis:   #9B948C;
+  --accent:     #4F6FD6;
+  --error:      #C85C4E;
+  --amber:      #B98E32;
 }
 
-/* ── RESET ── */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.6;
-  letter-spacing: 0.01em;
+  font-size: 16px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── SCROLLBAR ── */
-* { scrollbar-width: none; }
-*::-webkit-scrollbar { display: none; }
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-/* ── CURSOR BLINK ── */
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+/* ── Focus ── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible) { outline: none; }
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 1; }
+}
+
+/* ── Utility classes ── */
+.liv-fade-in { opacity: 0; animation: fadeIn 0.15s ease forwards; }
+.liv-fade-up { opacity: 0; animation: fadeUp 0.12s ease forwards; }
+
+/* ── Account panel ── */
+.liv-account-panel {
+  position: fixed; top: 0; right: 0;
+  width: 240px; height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 24px 20px;
+  transform: translateX(100%);
+  transition: transform 0.15s ease;
+  z-index: 100;
+}
+.liv-account-panel.open { transform: translateX(0); }
+
+.liv-overlay {
+  position: fixed; inset: 0; z-index: 99; pointer-events: none;
+}
+.liv-overlay.open { pointer-events: all; }

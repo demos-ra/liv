@@ -46,19 +46,17 @@ export async function destroySessionForUser(userId: string, sessionId: string): 
 
 // ─── Core session functions ───────────────────────────────────────────────────
 
-export async function createSession(userId: string, githubAccessToken: string) {
+export async function createSession(userId: string, email: string) {
   const sessionId = generateId('ses')
 
   const [accessToken, refreshToken] = await Promise.all([
-    createAccessToken({ userId, sessionId, githubAccessToken, status: 'active' }),
+    createAccessToken({ userId, sessionId, email, githubAccessToken: '', status: 'active' }),
     createRefreshToken({ userId, sessionId }),
   ])
 
   await persistSession({
     sessionId,
     userId,
-    githubAccessToken,
-    refreshToken,
     createdAt: new Date(),
     expiresAt: new Date(Date.now() + SESSION_CONFIG.refreshTokenTTL * 1000),
     status: 'active',
@@ -75,14 +73,14 @@ export async function refreshSession(refreshTokenRaw: string) {
 
   const stored = await getSession(payload.sessionId)
   if (!stored || stored.status !== 'active') return null
-  if (stored.refreshToken !== refreshTokenRaw) return null
 
   const newSessionId = generateId('ses')
   const [accessToken, newRefreshToken] = await Promise.all([
     createAccessToken({
       userId: stored.userId,
       sessionId: newSessionId,
-      githubAccessToken: stored.githubAccessToken,
+      email: '',          // magic-link sessions: email not stored in session row
+      githubAccessToken: '', // magic-link sessions: no OAuth token
       status: 'active',
     }),
     createRefreshToken({ userId: stored.userId, sessionId: newSessionId }),

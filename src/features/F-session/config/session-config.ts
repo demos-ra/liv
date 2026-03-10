@@ -1,36 +1,14 @@
-// [F-session/R0/C2] Session configuration tokens
-// R0: pure config, zero dependencies
+// [F-session/config/session-config.ts]
+// R0 — backwards-compat shim. SESSION_CONFIG lives in core/types/session.ts (R5).
+// Do not add declarations here.
 
-export const SESSION_CONFIG = {
-  accessTokenTTL: 60 * 15,          // 15 minutes (seconds)
-  refreshTokenTTL: 60 * 60 * 24 * 7, // 7 days (seconds)
-  cookieName: 'liv_session',
-  refreshCookieName: 'liv_refresh',
-  cookieOptions: {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax' as const,
-    path: '/',
-  },
-} as const
+export {
+  SESSION_CONFIG,
+  SESSION_NAMESPACE,
+} from '@/core/types/session'
 
-export const SESSION_NAMESPACE = 'session' as const
-
-export type SessionStatus = 'active' | 'expired' | 'revoked'
-
-export type SessionPayload = {
-  userId: string
-  sessionId: string
-  email: string
-  githubAccessToken: string
-  issuedAt: number
-  expiresAt: number
-  status: SessionStatus
-}
-
-export type RefreshPayload = {
-  sessionId: string
-  userId: string
-  issuedAt: number
-  expiresAt: number
-}
+export type {
+  SessionStatus,
+  SessionPayload,
+  RefreshPayload,
+} from '@/core/types/session'

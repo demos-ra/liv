@@ -14,7 +14,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import type { AuthState, AuthUser, SessionPayload } from '../config/auth-types';
+import type { AuthState, AuthUser, AuthSessionPayload } from '../config/auth-types';
 import { AUTH_INITIAL_STATE } from '../config/auth-state';
 import { authSelectors } from '../config/auth-state';
 import { api } from '@/core/api/trpc-client'; // tRPC client — from F-trpc slice (Phase 3)
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (result.data) {
         setState({
           user: result.data.user as AuthUser,
-          session: result.data.session as SessionPayload,
+          session: result.data.session as AuthSessionPayload,
           status: 'authenticated',
           error: null,
         });
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await verifyMagicLinkMutation.mutateAsync({ token, email });
       setState({
         user: result.user as AuthUser,
-        session: result.session as SessionPayload,
+        session: result.session as AuthSessionPayload,
         status: 'authenticated',
         error: null,
       });
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.data) {
       setState(s => ({
         ...s,
-        session: result.data!.session as SessionPayload,
+        session: result.data!.session as AuthSessionPayload,
         status: 'authenticated',
       }));
     }

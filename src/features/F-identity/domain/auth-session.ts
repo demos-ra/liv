@@ -8,7 +8,7 @@
  * - Imports from R0 only.
  */
 
-import type { Session, SessionPayload, MagicLinkToken } from '../config/auth-types';
+import type { Session, AuthSessionPayload, MagicLinkToken } from '../config/auth-types';
 
 // ─── Expiry Configuration ─────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ export function sessionNeedsRefresh(expiresAt: Date, now: Date = new Date()): bo
 export function buildSessionPayload(
   session: Session,
   email: string
-): SessionPayload {
+): AuthSessionPayload {
   return {
     sessionId: session.id,
     userId: session.userId,
