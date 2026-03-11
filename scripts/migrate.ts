@@ -3,6 +3,12 @@
 // Usage: npm run migrate
 // Requires: MIGRATION_DATABASE_URL in environment (livadmin credentials).
 // This script exits after migrations complete — it is NOT imported by the app.
+// A4: tsx does not auto-load .env.local (Next.js does; tsx does not).
+// dotenv loaded here at script entry — never imported by the app.
+
+import { config } from 'dotenv'
+import { resolve } from 'path'
+config({ path: resolve(process.cwd(), '.env.local') })
 
 import { runMigrations } from '../src/exec/migrations/run-migrations'
 
