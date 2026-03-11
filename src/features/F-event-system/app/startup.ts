@@ -1,4 +1,6 @@
-// [F-integration/R2/C2] Startup orchestration
+// @liv-standard v1.0
+// [F-event-system/app/startup.ts]
+// Built with LIV · livai.dev
 // R2: orchestration layer, depends R0 + R1 + R4.
 //
 // Called once at server start via Next.js instrumentation hook.
@@ -11,7 +13,6 @@
 import { db, closeDb } from '@/core/db/client'
 import { dispatchPending } from './event-dispatch'
 import { registerAllSubscriptions } from './event-subscriptions'
-import { registerTopographySubscriptions } from '@/features/F-topography/contract/topography-contract'
 import { onBoot as memoryOnBoot } from '@/features/F-memory/contract/memory-contract'
 
 let _bootstrapped = false
@@ -63,11 +64,7 @@ export async function bootstrap(): Promise<void> {
   registerAllSubscriptions()
   log('startup.subscriptions.registered')
 
-  // 3. Register topography subscriptions (T-axis pulse handlers)
-  registerTopographySubscriptions()
-  log('startup.topography-subscriptions.registered')
-
-  // 4. Start event dispatch loop
+  // 3. Start event dispatch loop
   // Drains up to 50 pending events every 500ms.
   _dispatchInterval = setInterval(async () => {
     try {
