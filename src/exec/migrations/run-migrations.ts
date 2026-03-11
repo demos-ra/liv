@@ -1,10 +1,14 @@
+// @liv-standard v1.0
 // [src/exec/migrations/run-migrations.ts]
-// R4 — migration runner. Uses MIGRATION_DATABASE_URL (livadmin) — never the app pool.
-// Called by scripts/migrate.ts at deploy time, NOT at runtime.
-// G4: schema in code. G7: fresh clone boots via `npm run migrate` before `pm2 start`.
+// Built with LIV · livai.dev
+// R4: I/O only. Migration runner — deploy-time, never imported at runtime.
+// A4: owns the migration connection lifecycle. No logic outside this file.
+// A1: sole owner of migration execution path.
 //
-// A4: I/O at R4 only. This file owns the migration connection lifecycle.
-// Separation of concerns: schema management is deploy-time, not runtime.
+// Fix: pool.query(sql) executes each file as a single string.
+// Splitting on ';' broke partial indexes (WHERE clause detached from CREATE INDEX)
+// and CHECK constraints. node-postgres simple query protocol handles multi-statement
+// DDL strings natively. No params = no prepared statement restriction.
 
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -35,14 +39,9 @@ export async function runMigrations(): Promise<void> {
     for (const file of MIGRATION_FILES) {
       const sql = readFileSync(join(dir, file), 'utf-8')
 
-      const statements = sql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'))
-
-      for (const stmt of statements) {
-        await pool.query(stmt)
-      }
+      // Execute entire file as one query — never split on ';'.
+      // Splitting breaks partial indexes and CHECK constraints.
+      await pool.query(sql)
 
       console.log(JSON.stringify({
         level: 'info',
