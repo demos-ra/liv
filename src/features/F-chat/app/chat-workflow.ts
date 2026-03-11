@@ -1,13 +1,24 @@
+// @liv-standard v1.0
 // [F-chat/app/chat-workflow.ts]
-// R2 — Chat orchestration with Living Memory integration.
+// Built with LIV · livai.dev
+// R2: orchestration, depends R0 + R1 + R4 only.
+// A5: cross-slice AI call goes through F-ai-adapter contract only.
+// Phase 4 change: loads per-user API key from api-key-db before streaming.
+// Key lookup is non-blocking on failure — falls back to env gracefully.
 
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { lmWriteEvent, lmRecall, lmRemember, lmSessionEnd } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
 import { remember, recall, onSessionEnd } from '@/features/F-memory/contract/memory-contract'
+import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
+import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-config'
+import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
+import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import { generateId } from '@/core/types/primitives'
 
 const memoryDeps = { remember, recall, onSessionEnd }
+
+// ── Session state ─────────────────────────────────────────────────────────────
 
 interface SessionState {
   lmSessionId:   string
@@ -43,6 +54,8 @@ function updateSessionState(state: SessionState): void {
   state.lastMessageAt = now
 }
 
+// ── Send message ──────────────────────────────────────────────────────────────
+
 export interface SendMessageInput {
   projectId: string
   content:   string
@@ -53,6 +66,7 @@ export interface SendMessageInput {
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
   const { projectId, content, modelId, userId } = input
 
+  // Session rotation
   const state = getOrCreateSessionState(userId)
   if (shouldRotateSession(state)) {
     lmSessionEnd(state.lmSessionId, memoryDeps).catch(() => {})
@@ -62,7 +76,7 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
-  // Recall memory context BEFORE streaming (fast — just diffusion, no embedding)
+  // Memory context — fast, no embedding
   const memoryContext = await lmRecall(content, memoryDeps, content.startsWith('/recall'))
 
   const systemPrompt = memoryContext
@@ -74,16 +88,26 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     { role: 'user'   as const, content },
   ]
 
-  // Stream first — no blocking calls before or during
+  // Phase 4: load per-user API key for this model's provider.
+  // Non-blocking — null falls back to env var in ai-io.ts.
+  // A4: I/O call isolated here at R2 boundary, never inside R4 stream loop.
+  const provider = providerForModel(modelId)
+  // A3: guard narrows ai-adapter's Provider ('anthropic'|'openai'|'deepseek') to
+  // user-profile's ProviderId ('anthropic'|'deepseek') — openai has no user-key flow.
+  const apiKey = (provider in PROVIDERS)
+    ? await getApiKey(userId, provider as ProviderId).catch(() => null)
+    : null
+
+  // Stream
   let fullResponse = ''
-  for await (const chunk of streamAIResponse(messages, modelId)) {
+  for await (const chunk of streamAIResponse(messages, modelId, apiKey ?? undefined)) {
     if (chunk.content) {
       fullResponse += chunk.content
       yield chunk.content
     }
   }
 
-  // Memory + persistence AFTER stream completes — never block the stream
+  // Post-stream ops — never block the stream
   const now = Date.now()
   Promise.all([
     lmWriteEvent(content, 'episodic', lmSessionId, memoryDeps),
@@ -101,6 +125,10 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   ]).catch(err => console.error('[chat] post-stream ops failed', err))
 }
 
-export async function getMessages(projectId: string, cursor: string | null = null, limit = 50) {
+export async function getMessages(
+  projectId: string,
+  cursor: string | null = null,
+  limit = 50,
+) {
   return dbGetMessages(projectId, cursor, limit)
 }

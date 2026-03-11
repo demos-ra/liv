@@ -1,20 +1,34 @@
 // @liv-standard v1.0
-// [F-chat/R3]
+// [F-chat/contract/chat-ui.tsx]
 // Built with LIV · livai.dev
+// R3: UI contract. Depends R0 + R1 + R2 contracts only. No direct exec imports.
+// Phase 6 changes:
+//   - AccountPanel: display name field + per-provider API key fields (from PROVIDER_ORDER)
+//   - Onboarding: on first send, if no keys set, Liv responds with key prompt instead of calling AI
+//   - Key save/delete wired to /api/profile/api-key endpoint
+//   - Display name save wired to PATCH /api/profile
 
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useChatStream } from './chat-hook'
+import { PROVIDER_ORDER, PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
+import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 
 const PROJECT_ID = 'demo'
 const MODEL_ID   = 'deepseek-chat'
 
 // Liv's opening message — renders on mount, no streaming
 const LIV_OPENING: Msg = {
-  id:   'liv-opening',
-  role: 'assistant',
+  id:      'liv-opening',
+  role:    'assistant',
   content: 'What are we working on?',
+}
+
+const LIV_KEY_PROMPT: Msg = {
+  id:      'liv-key-prompt',
+  role:    'assistant',
+  content: `To get started, paste your API key in account settings — click your name in the top right.\n\nYou can add an Anthropic or DeepSeek key (or both). Once saved, just send your message again.`,
 }
 
 type Msg = {
@@ -68,6 +82,20 @@ function Dashboard() {
   )
 }
 
+// ── Section label — reused in account panel ───────────────────────────────────
+
+function PanelLabel({ children }: { children: string }) {
+  return (
+    <span style={{
+      fontFamily: 'var(--font-mono)', fontSize: 10,
+      color: 'var(--text-dis)', letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+    }}>
+      {children}
+    </span>
+  )
+}
+
 // ── Account panel ─────────────────────────────────────────────────────────────
 
 function AccountPanel({
@@ -78,12 +106,103 @@ function AccountPanel({
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // ── Display name state ─────────────────────────────────────────────────────
+  const defaultName = email.includes('@') ? email.split('@')[0] : email
+  const [displayName, setDisplayName] = useState(defaultName)
+  const [nameSaving, setNameSaving]   = useState(false)
+
+  // ── API key state (one entry per provider) ────────────────────────────────
+  const [keyInputs, setKeyInputs]   = useState<Record<ProviderId, string>>(() =>
+    Object.fromEntries(PROVIDER_ORDER.map(p => [p, ''])) as Record<ProviderId, string>
+  )
+  const [keySet, setKeySet]         = useState<Record<ProviderId, boolean>>(() =>
+    Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
+  )
+  const [keySaving, setKeySaving]   = useState<Record<ProviderId, boolean>>(() =>
+    Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
+  )
+
+  // Check which keys are already set on open
+  useEffect(() => {
+    if (!open) return
+    PROVIDER_ORDER.forEach(async (provider) => {
+      try {
+        const res = await fetch('/api/profile')
+        if (!res.ok) return
+        // hasApiKey check via profile endpoint — we check key presence from a lightweight endpoint
+        const check = await fetch(`/api/profile/api-key?provider=${provider}`, { method: 'GET' })
+        if (check.ok) {
+          const data = await check.json()
+          setKeySet(prev => ({ ...prev, [provider]: data.hasKey ?? false }))
+        }
+      } catch {}
+    })
+  }, [open])
+
   useEffect(() => {
     if (open) panelRef.current?.focus()
   }, [open])
 
-  // Display name: first part of email, fallback to full email if no @
-  const displayName = email.includes('@') ? email.split('@')[0] : email
+  // ── Save display name ──────────────────────────────────────────────────────
+  const saveDisplayName = async () => {
+    if (!displayName.trim()) return
+    setNameSaving(true)
+    try {
+      await fetch('/api/profile', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ displayName: displayName.trim() }),
+      })
+    } catch {} finally {
+      setNameSaving(false)
+    }
+  }
+
+  // ── Save API key ───────────────────────────────────────────────────────────
+  const saveKey = async (provider: ProviderId) => {
+    const key = keyInputs[provider].trim()
+    if (!key) return
+    setKeySaving(prev => ({ ...prev, [provider]: true }))
+    try {
+      const res = await fetch('/api/profile/api-key', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ provider, key }),
+      })
+      if (res.ok) {
+        setKeySet(prev => ({ ...prev, [provider]: true }))
+        setKeyInputs(prev => ({ ...prev, [provider]: '' }))
+      }
+    } catch {} finally {
+      setKeySaving(prev => ({ ...prev, [provider]: false }))
+    }
+  }
+
+  // ── Remove API key ─────────────────────────────────────────────────────────
+  const removeKey = async (provider: ProviderId) => {
+    try {
+      await fetch('/api/profile/api-key', {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ provider }),
+      })
+      setKeySet(prev => ({ ...prev, [provider]: false }))
+    } catch {}
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--surface)', border: '1px solid var(--border)',
+    borderRadius: 6, padding: '7px 10px',
+    fontFamily: 'var(--font-mono)', fontSize: 12,
+    color: 'var(--text)', outline: 'none',
+  }
+
+  const btnStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em',
+    background: 'transparent', border: 'none',
+    cursor: 'pointer', padding: 0,
+  }
 
   return (
     <>
@@ -100,29 +219,49 @@ function AccountPanel({
         aria-label="Account settings"
         tabIndex={-1}
       >
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 28, overflowY: 'auto' }}>
+
+          {/* ── Identity ── */}
           <div>
             <div style={{
-              fontFamily: 'var(--font-ui)', fontSize: 16, fontWeight: 500,
-              color: 'var(--text)', marginBottom: 4,
+              fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 500,
+              color: 'var(--text)', marginBottom: 2,
             }}>
-              {displayName}
+              {defaultName}
             </div>
             <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 12,
+              fontFamily: 'var(--font-mono)', fontSize: 11,
               color: 'var(--text-dis)', wordBreak: 'break-all',
             }}>
               {email}
             </div>
           </div>
 
+          {/* ── Display name ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <PanelLabel>Display name</PanelLabel>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                style={{ ...inputStyle, flex: 1 }}
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveDisplayName() }}
+                placeholder={defaultName}
+                aria-label="Display name"
+              />
+              <button
+                style={{ ...btnStyle, color: nameSaving ? 'var(--text-dis)' : 'var(--accent)' }}
+                onClick={saveDisplayName}
+                disabled={nameSaving}
+              >
+                {nameSaving ? '···' : 'SAVE'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Theme ── */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: 'var(--text-sec)', letterSpacing: '0.1em',
-            }}>
-              {theme === 'dark' ? 'DARK' : 'LIGHT'}
-            </span>
+            <PanelLabel>{theme === 'dark' ? 'DARK' : 'LIGHT'}</PanelLabel>
             <button
               onClick={onToggleTheme}
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -142,6 +281,51 @@ function AccountPanel({
               }} />
             </button>
           </div>
+
+          {/* ── API keys — one section per provider ── */}
+          {PROVIDER_ORDER.map(provider => (
+            <div key={provider} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <PanelLabel>{`${PROVIDERS[provider].label} API key`}</PanelLabel>
+                {keySet[provider] && (
+                  <button
+                    style={{ ...btnStyle, color: 'var(--error)', fontSize: 9 }}
+                    onClick={() => removeKey(provider)}
+                  >
+                    REMOVE
+                  </button>
+                )}
+              </div>
+
+              {keySet[provider] ? (
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11,
+                  color: 'var(--text-dis)', letterSpacing: '0.05em',
+                }}>
+                  ••••••••••••••••
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    type="password"
+                    value={keyInputs[provider]}
+                    onChange={e => setKeyInputs(prev => ({ ...prev, [provider]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') saveKey(provider) }}
+                    placeholder={PROVIDERS[provider].placeholder}
+                    aria-label={`${PROVIDERS[provider].label} API key`}
+                  />
+                  <button
+                    style={{ ...btnStyle, color: keySaving[provider] ? 'var(--text-dis)' : 'var(--accent)' }}
+                    onClick={() => saveKey(provider)}
+                    disabled={keySaving[provider] || !keyInputs[provider].trim()}
+                  >
+                    {keySaving[provider] ? '···' : 'SAVE'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         <button
@@ -149,7 +333,7 @@ function AccountPanel({
           style={{
             fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.08em',
             color: 'var(--error)', background: 'transparent', border: 'none',
-            cursor: 'pointer', padding: 0, textAlign: 'left',
+            cursor: 'pointer', padding: 0, textAlign: 'left', marginTop: 8,
           }}
         >
           SIGN OUT
@@ -173,19 +357,15 @@ function Col({ children, style }: { children: React.ReactNode; style?: React.CSS
   )
 }
 
-// ── Name label — below last message of each consecutive block ─────────────────
+// ── Name label ────────────────────────────────────────────────────────────────
 
 function MsgLabel({ label, align }: { label: string; align: 'left' | 'right' }) {
   return (
     <div style={{
       fontFamily: 'var(--font-ui)',
-      fontSize: 12,
-      fontWeight: 500,
-      letterSpacing: '0.05em',
-      color: 'var(--text-dis)',
-      marginTop: 8,
-      textAlign: align,
-      userSelect: 'none',
+      fontSize: 12, fontWeight: 500, letterSpacing: '0.05em',
+      color: 'var(--text-dis)', marginTop: 8,
+      textAlign: align, userSelect: 'none',
     }}>
       {label}
     </div>
@@ -199,8 +379,9 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
   const [input, setInput]             = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
   const [dashOpen, setDashOpen]       = useState(false)
+  const [hasAnyKey, setHasAnyKey]     = useState<boolean | null>(null) // null = unchecked
 
-  // ── Theme — initialise from system preference, A6: declared at R0 in future ──
+  // ── Theme ──────────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -212,20 +393,38 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
 
-  // Display name: first part of email, fallback to full email if no @
   const userName = email.includes('@') ? email.split('@')[0] : email
+
+  // Check if user has at least one key on mount
+  useEffect(() => {
+    let mounted = true
+    async function checkKeys() {
+      try {
+        const checks = await Promise.all(
+          PROVIDER_ORDER.map(p =>
+            fetch(`/api/profile/api-key?provider=${p}`)
+              .then(r => r.ok ? r.json() : { hasKey: false })
+              .then(d => d.hasKey === true)
+              .catch(() => false)
+          )
+        )
+        if (mounted) setHasAnyKey(checks.some(Boolean))
+      } catch {
+        if (mounted) setHasAnyKey(false)
+      }
+    }
+    checkKeys()
+    return () => { mounted = false }
+  }, [])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     document.documentElement.style.background = 'var(--bg)'
   }, [theme])
 
-  // ── Track system theme changes ────────────────────────────────────────────
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = (e: MediaQueryListEvent) => {
-      setTheme(e.matches ? 'dark' : 'light')
-    }
+    const handler = (e: MediaQueryListEvent) => setTheme(e.matches ? 'dark' : 'light')
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
@@ -266,13 +465,36 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
     const content = input.trim()
     if (!content || streaming) return
     setInput('')
+
     const userMsg: Msg = { id: crypto.randomUUID(), role: 'user', content }
+
+    // Onboarding gate: if key status unknown or no keys, show Liv prompt instead
+    if (hasAnyKey === false) {
+      setMessages(prev => [...prev, userMsg, { ...LIV_KEY_PROMPT, id: crypto.randomUUID() }])
+      setAccountOpen(true) // open panel so they can paste key immediately
+      return
+    }
+
     const newAsstId    = crypto.randomUUID()
     const asstMsg: Msg = { id: newAsstId, role: 'assistant', content: '', streaming: true }
     asstIdRef.current  = newAsstId
     setMessages(prev => [...prev, userMsg, asstMsg])
     await send(content, MODEL_ID)
-  }, [input, streaming, send])
+  }, [input, streaming, send, hasAnyKey])
+
+  // After account panel closes, re-check key status
+  const handleClosePanel = useCallback(() => {
+    setAccountOpen(false)
+    // Re-check in case user just saved a key
+    Promise.all(
+      PROVIDER_ORDER.map(p =>
+        fetch(`/api/profile/api-key?provider=${p}`)
+          .then(r => r.ok ? r.json() : { hasKey: false })
+          .then(d => d.hasKey === true)
+          .catch(() => false)
+      )
+    ).then(checks => setHasAnyKey(checks.some(Boolean))).catch(() => {})
+  }, [])
 
   const isLastInBlock = (i: number) =>
     i === messages.length - 1 || messages[i].role !== messages[i + 1].role
@@ -288,7 +510,7 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
     <>
       <AccountPanel
         open={accountOpen} email={email}
-        onClose={() => setAccountOpen(false)} onSignOut={signOut}
+        onClose={handleClosePanel} onSignOut={signOut}
         theme={theme} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
       />
 
@@ -297,40 +519,27 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
         background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)',
       }}>
 
-        {/* ── HEADER ── 48px, column-aligned, no border */}
+        {/* ── HEADER ── */}
         <header style={{ height: 'var(--header-h)', flexShrink: 0 }}>
-          <Col style={{
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
+          <Col style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
-            {/* Left — LIV brand mark */}
             <span style={{
-              fontFamily: 'var(--font-brand)',
-              fontWeight: 600,
-              fontSize: 11,
-              letterSpacing: '0.3em',
-              color: 'var(--accent)',
-              textTransform: 'uppercase',
-              userSelect: 'none',
+              fontFamily: 'var(--font-brand)', fontWeight: 600, fontSize: 11,
+              letterSpacing: '0.3em', color: 'var(--accent)',
+              textTransform: 'uppercase', userSelect: 'none',
             }}>
               LIV
             </span>
 
-            {/* Right — username then ▤ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <button
                 onClick={() => setAccountOpen(true)}
                 aria-label="Open account settings"
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
+                  fontFamily: 'var(--font-mono)', fontSize: 12,
                   color: 'var(--text-sec)',
                   background: 'transparent', border: 'none',
-                  cursor: 'pointer', padding: 0,
-                  letterSpacing: '0.04em',
+                  cursor: 'pointer', padding: 0, letterSpacing: '0.04em',
                   transition: 'color 0.15s',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
@@ -339,20 +548,16 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
                 {userName}
               </button>
 
-              {/* ▤ — paddingLeft 4px optical correction for glyph right-bias */}
               <button
                 onClick={() => setDashOpen(o => !o)}
                 aria-label="Toggle dashboard"
                 aria-pressed={dashOpen}
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 14,
+                  fontFamily: 'var(--font-mono)', fontSize: 14,
                   color: dashOpen ? 'var(--accent)' : 'var(--text-dis)',
                   background: 'transparent', border: 'none',
-                  cursor: 'pointer', padding: 0,
-                  paddingLeft: 4,
-                  lineHeight: 1,
-                  transition: 'color 0.15s',
+                  cursor: 'pointer', padding: 0, paddingLeft: 4,
+                  lineHeight: 1, transition: 'color 0.15s',
                 }}
               >
                 ▤
@@ -361,7 +566,7 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
           </Col>
         </header>
 
-        {/* ── DASHBOARD ── elevated rounded rect, no border lines */}
+        {/* ── DASHBOARD ── */}
         {dashOpen && (
           <div style={{ flexShrink: 0, padding: '0 0 16px' }}>
             <Col><Dashboard /></Col>
@@ -381,35 +586,25 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
                 {m.role === 'user' ? (
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <div style={{
-                      background: 'var(--surface)',
-                      borderRadius: 'var(--radius)',
-                      padding: '12px 16px',
-                      maxWidth: '75%',
-                      fontSize: 16,
-                      lineHeight: 1.45,
-                      color: 'var(--text)',
-                      fontWeight: 400,
-                      wordBreak: 'break-word',
+                      background: 'var(--surface)', borderRadius: 'var(--radius)',
+                      padding: '12px 16px', maxWidth: '75%',
+                      fontSize: 16, lineHeight: 1.45,
+                      color: 'var(--text)', fontWeight: 400, wordBreak: 'break-word',
                     }}>
                       {m.content}
                     </div>
                   </div>
                 ) : (
                   <div style={{
-                    fontSize: 16,
-                    lineHeight: 1.45,
-                    color: 'var(--text)',
-                    fontWeight: 400,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
+                    fontSize: 16, lineHeight: 1.45,
+                    color: 'var(--text)', fontWeight: 400,
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   }}>
                     {m.content}
                     {m.streaming && m.content === '' && (
                       <span style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 12,
-                        color: 'var(--text-dis)',
-                        letterSpacing: '0.1em',
+                        fontFamily: 'var(--font-mono)', fontSize: 12,
+                        color: 'var(--text-dis)', letterSpacing: '0.1em',
                       }}>
                         ···
                       </span>
@@ -440,21 +635,15 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
         </main>
 
         {/* ── INPUT ── */}
-        <footer style={{
-          flexShrink: 0,
-          padding: '16px 0 24px',
-          background: 'var(--bg)',
-        }}>
+        <footer style={{ flexShrink: 0, padding: '16px 0 24px', background: 'var(--bg)' }}>
           <Col>
             <div
               role="group"
               aria-label="Message input"
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                background: 'var(--surface)',
-                borderRadius: 'var(--radius)',
-                padding: '12px 16px',
-                minHeight: 48,
+                background: 'var(--surface)', borderRadius: 'var(--radius)',
+                padding: '12px 16px', minHeight: 48,
               }}
             >
               <input
@@ -487,8 +676,7 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
                   color: hasInput && !streaming ? 'var(--accent)' : 'var(--text-dis)',
                   background: 'transparent', border: 'none',
                   cursor: hasInput && !streaming ? 'pointer' : 'default',
-                  padding: 0, lineHeight: 1, flexShrink: 0,
-                  transition: 'color 0.15s',
+                  padding: 0, lineHeight: 1, flexShrink: 0, transition: 'color 0.15s',
                 }}
               >
                 ↑
