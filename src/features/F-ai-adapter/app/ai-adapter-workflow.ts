@@ -1,5 +1,9 @@
-// [F-ai-adapter/R2/C3] AI adapter workflow — streaming orchestration + retry
-// R2: orchestration, depends R0 + R1 + R4
+// @liv-standard v1.0
+// [F-ai-adapter/app/ai-adapter-workflow.ts]
+// Built with LIV · livai.dev
+// R2: orchestration, depends R0 + R1 + R4 only.
+// Phase 4 change: apiKey? threaded through streamCompletion → getProviderStream → streamAIResponse.
+// Backward compatible: apiKey is optional — callers that omit it get env fallback.
 
 import { ChatMessage, StreamChunk, AI_ADAPTER_CONFIG } from '../config/ai-adapter-config'
 import {
@@ -11,24 +15,18 @@ import { streamAIResponse } from '../exec/ai-io'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
 
-// --- Main streaming entry point (called by F-chat R2) ---
-
 export async function* streamCompletion(
   messages: ChatMessage[],
-  modelId: string
+  modelId:  string,
+  apiKey?:  string,   // Phase 4: per-user key, optional
 ): AsyncGenerator<StreamChunk> {
-  const model = resolveModel(modelId)
-  let attempt = 0
+  const model   = resolveModel(modelId)
+  let attempt   = 0
 
   while (true) {
     try {
-      const stream = getProviderStream(model.provider, messages, modelId)
-
-      for await (const chunk of stream) {
-        yield chunk
-      }
-
-      return // clean exit
+      yield* streamAIResponse(messages, modelId, apiKey)
+      return
 
     } catch (err) {
       if (shouldRetry(attempt, err)) {
@@ -38,7 +36,7 @@ export async function* streamCompletion(
       }
 
       await emitEvent({
-        type: EVENTS.AI.STREAM_ERROR,
+        type:    EVENTS.AI.STREAM_ERROR,
         payload: { modelId, attempt, error: err instanceof Error ? err.message : 'unknown' },
       })
 
@@ -47,16 +45,6 @@ export async function* streamCompletion(
   }
 }
 
-// --- Route to correct provider stream ---
-
-function getProviderStream(
-  provider: string,
-  messages: ChatMessage[],
-  modelId: string
-): AsyncGenerator<StreamChunk> {
-  return streamAIResponse(messages, modelId)
-}
-
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms))
 }

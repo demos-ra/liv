@@ -1,8 +1,9 @@
 -- [src/exec/migrations/000-schema.sql]
+-- Built with LIV · livai.dev
 -- Consolidated DDL — all tables, idempotent (CREATE TABLE IF NOT EXISTS).
 -- Owned by: core/exec/migrations
 -- Run order: this file FIRST, then 001-memory.sql
--- Source of truth for: F-event-system, F-identity (auth + rate limits)
+-- Source of truth for all slice schemas.
 -- Do NOT modify schema here without amending the owning slice R0.
 -- See: G4 + G7 compliance.
 
@@ -80,6 +81,61 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_limits_identity_action
   ON auth_rate_limits(identity_type, identity_value, action);
+
+-- ─── F-user-profile ───────────────────────────────────────────────────────────
+-- Source: src/features/F-user-profile/exec/user-profile-db.ts
+-- A1: F-user-profile is sole owner of this table.
+-- Note: github_login + avatar_url omitted — deferred to F-git-connector (A7).
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id           UUID        PRIMARY KEY REFERENCES auth_users(id) ON DELETE CASCADE,
+  display_name      TEXT,
+  email             TEXT,
+  preferred_model_id TEXT       NOT NULL DEFAULT 'claude-sonnet-4-6',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── F-user-profile / api keys ────────────────────────────────────────────────
+-- Source: src/features/F-user-profile/exec/api-key-db.ts
+-- One row per (user_id, provider). AES-256-GCM encrypted at rest.
+-- provider values must match PROVIDERS registry in provider-keys-config.ts (A6).
+
+CREATE TABLE IF NOT EXISTS user_api_keys (
+  user_id       UUID        NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+  provider      TEXT        NOT NULL,  -- 'anthropic' | 'deepseek' — from PROVIDERS registry
+  encrypted_key TEXT        NOT NULL,  -- AES-256-GCM: iv:authTag:ciphertext (base64, colon-separated)
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_id ON user_api_keys(user_id);
+
+-- ─── F-permissions / projects ────────────────────────────────────────────────
+-- Source: src/features/F-permissions/exec/permissions-db.ts
+-- A1: F-permissions owns project_members. F-project (when built) will own projects.
+-- projects table added here now so project_members FK resolves.
+
+CREATE TABLE IF NOT EXISTS projects (
+  project_id  TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name        TEXT        NOT NULL,
+  owner_id    UUID        NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_owner_id ON projects(owner_id);
+
+CREATE TABLE IF NOT EXISTS project_members (
+  user_id     UUID        NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+  project_id  TEXT        NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  role        TEXT        NOT NULL DEFAULT 'member' CHECK (role IN ('owner','member','viewer')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, project_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id);
 
 -- ─── F-chat ───────────────────────────────────────────────────────────────────
 -- Source: src/features/F-chat/exec/chat-db.ts

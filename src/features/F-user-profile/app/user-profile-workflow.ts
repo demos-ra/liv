@@ -1,26 +1,31 @@
-// [F-user-profile/R2/C2] User profile workflow
-// R2: orchestration, depends R0 + R1 + R4
+// @liv-standard v1.0
+// [F-user-profile/app/user-profile-workflow.ts]
+// Built with LIV · livai.dev
+// R2: orchestration, depends R0 + R1 + R4 only.
+// A7: removed upsertProfileFromGithub — GitHub enrichment path deferred to F-git-connector.
+// upsertProfileForUser is now the sole bootstrap entry point (magic link auth).
 
 import { buildProfile, updatePreferredModel, updateDisplayName } from '../domain/user-profile-logic'
 import { persistProfile, updateProfile, getProfileByUserId } from '../exec/user-profile-db'
 
-export async function upsertProfileFromGithub(
+// ── Bootstrap — called by event-subscriptions on identity.user-signed-in ─────
+
+export async function upsertProfileForUser(
   userId: string,
-  githubData: { login: string | null; avatarUrl: string | null; email: string | null }
+  email: string | null,
 ): Promise<void> {
   const existing = await getProfileByUserId(userId)
-  if (existing) {
-    // Only update github fields on re-login, preserve user preferences
-    await updateProfile({
-      ...existing,
-      githubLogin: githubData.login,
-      avatarUrl: githubData.avatarUrl,
-      email: githubData.email,
-    })
-    return
-  }
-  await persistProfile(buildProfile(userId, githubData))
+  if (existing) return  // profile already exists — preserve all user preferences
+  await persistProfile(buildProfile(userId, email))
 }
+
+// ── Read ──────────────────────────────────────────────────────────────────────
+
+export async function loadProfile(userId: string) {
+  return getProfileByUserId(userId)
+}
+
+// ── Updates ───────────────────────────────────────────────────────────────────
 
 export async function setPreferredModel(userId: string, modelId: string): Promise<void> {
   const profile = await getProfileByUserId(userId)
@@ -32,22 +37,4 @@ export async function setDisplayName(userId: string, displayName: string): Promi
   const profile = await getProfileByUserId(userId)
   if (!profile) return
   await updateProfile(updateDisplayName(profile, displayName))
-}
-
-export async function loadProfile(userId: string) {
-  return getProfileByUserId(userId)
-}
-
-// ─── Magic link auth profile bootstrap ───────────────────────────────────────
-// Called by Phase 4 event-subscriptions on identity.user-signed-in.
-// Auth method is magic link — no GitHub data at sign-in time.
-// GitHub profile enrichment happens later via F-git-connector if user connects a repo.
-
-export async function upsertProfileForUser(userId: string, email: string | null): Promise<void> {
-  // Magic link auth: no GitHub data at sign-in. login/avatar null until F-git-connector enriches.
-  await upsertProfileFromGithub(userId, {
-    login: null,
-    avatarUrl: null,
-    email,
-  })
 }

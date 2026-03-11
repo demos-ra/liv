@@ -1,21 +1,23 @@
-// [F-ai-adapter/R3/C2] AI adapter contract — single interface for all consumers
-// R3: interface boundary, depends R0 + R1 + R2
-//
-// This is the only import path for AI streaming across all slices.
-// F-chat R2 imports streamAIResponse from here.
+// @liv-standard v1.0
+// [F-ai-adapter/contract/ai-contract.ts]
+// Built with LIV · livai.dev
+// R3: interface boundary, depends R0 + R1 + R2.
+// A5: this is the only import path for AI streaming across all slices.
+// Phase 4 change: streamAIResponse accepts optional apiKey — threaded to R2 + R4.
 
-import { ChatMessage, StreamChunk } from '../config/ai-adapter-config'
+import type { ChatMessage, StreamChunk } from '../config/ai-adapter-config'
 import { streamCompletion } from '../app/ai-adapter-workflow'
 
-// --- Primary export: what F-chat calls ---
+// ── Primary export: what F-chat R2 calls ─────────────────────────────────────
+// apiKey: per-user key loaded by chat-workflow from api-key-db.
+// If absent: ai-io falls back to env var, then mock.
 
 export async function* streamAIResponse(
   messages: ChatMessage[],
-  modelId: string
+  modelId:  string,
+  apiKey?:  string,
 ): AsyncGenerator<StreamChunk> {
-  yield* streamCompletion(messages, modelId)
+  yield* streamCompletion(messages, modelId, apiKey)
 }
-
-// --- Model selector hook ---
 
 export { useModelSelector, useAvailableModels } from './ai-adapter-hook'
