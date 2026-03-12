@@ -28,16 +28,21 @@ import type { ProjectId } from '@/features/F-project/types/project-types'
 
 export const dynamic = 'force-dynamic'
 
-type Params = { params: { projectId: string } }
+// Next.js 15+: params is a Promise. Must be awaited at the route boundary.
+// Unwrap here — pass plain string into contract handlers. Never pass Promise inward.
+type Params = { params: Promise<{ projectId: string }> }
 
-export function GET(req: NextRequest, { params }: Params) {
-  return handleGetProject(req, params.projectId as ProjectId)
+export async function GET(req: NextRequest, { params }: Params) {
+  const { projectId } = await params
+  return handleGetProject(req, projectId as ProjectId)
 }
 
-export function PATCH(req: NextRequest, { params }: Params) {
-  return handleUpdateProject(req, params.projectId as ProjectId)
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { projectId } = await params
+  return handleUpdateProject(req, projectId as ProjectId)
 }
 
-export function DELETE(req: NextRequest, { params }: Params) {
-  return handleDeleteProject(req, params.projectId as ProjectId)
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { projectId } = await params
+  return handleDeleteProject(req, projectId as ProjectId)
 }

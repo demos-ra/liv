@@ -25,6 +25,8 @@ import { CHAT_CONFIG } from '../config/chat-config'
 import { validateMessageContent } from '../domain/chat-logic'
 
 // --- POST /api/chat/[projectId]/message ---
+// params is already resolved by the route handler before calling here.
+// Route boundary owns the await — contract handlers receive plain strings only.
 
 export async function POST_message(
   req: NextRequest,
@@ -80,6 +82,7 @@ export async function POST_message(
 }
 
 // --- GET /api/chat/[projectId]/messages ---
+// params is already resolved by the route handler before calling here.
 
 export async function GET_messages(
   req: NextRequest,
