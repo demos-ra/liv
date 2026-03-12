@@ -10,15 +10,6 @@ export const CHAT_CONFIG = {
 
 export const CHAT_NAMESPACE = 'chat' as const
 
-// Demo mode — bypasses auth and DB for local development and demos.
-// Controlled by env var at boot time. Never mutated at runtime.
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-
-export const DEMO_SESSION = {
-  sessionId: 'demo-session',
-  userId:    'demo-user',
-} as const
-
 // System prompt — defines Liv's identity and language contract.
 // Owned at R0 so it can be evolved without touching contract logic.
 export const SYSTEM_PROMPT =
