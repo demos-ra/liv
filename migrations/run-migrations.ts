@@ -31,6 +31,8 @@ import { Pool }         from 'pg'
 const MIGRATION_FILES = [
   '000-schema.sql',
   '001-memory.sql',
+  '002-planner.sql',
+  '003-output.sql',
 ]
 
 function getMigrationUrl(): string {

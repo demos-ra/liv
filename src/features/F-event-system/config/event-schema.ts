@@ -13,6 +13,7 @@ import { CHAT_EVENTS }        from '@/features/F-chat/config/chat-events'
 import { MEMORY_EVENTS }      from '@/features/F-memory/config/memory-events'
 import { PROJECT_EVENTS }     from '@/features/F-project/types/project-events'
 import { PLANNER_EVENTS }     from '@/features/F-planner/types/planner-events'
+import { OUTPUT_EVENTS }      from '@/features/F-output/types/output-events'
 
 export const EVENTS = {
   IDENTITY:    IDENTITY_EVENTS,
@@ -23,6 +24,7 @@ export const EVENTS = {
   MEMORY:      MEMORY_EVENTS,
   PROJECT:     PROJECT_EVENTS,
   PLANNER:     PLANNER_EVENTS,
+  OUTPUT:      OUTPUT_EVENTS,
 } as const
 
 type EventNameValues<T> = T extends Record<string, string>

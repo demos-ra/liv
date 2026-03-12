@@ -14,7 +14,7 @@
 //   W-ATOM  PipelineStatus  ../types/planner-types
 //   W-ATOM  IfContract      ../types/planner-types
 // wires-out:
-//   W-HOOK  usePlanner  →  F-workspace/R3
+//   W-HOOK  usePlanner  →  F-workspace/R3, F-intake/R3
 // deps:
 //   R0  ../types/planner-types
 //   R5  react

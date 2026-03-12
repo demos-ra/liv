@@ -15,7 +15,7 @@
 //   W-ATOM  ProjectDelta         ../types/project-types
 //   W-ATOM  AppError             @/core/types/primitives
 // wires-out:
-//   W-HOOK  useProject  →  F-chat/R3, F-workspace/R3
+//   W-HOOK  useProject  →  F-chat/R3, F-workspace/R3, F-intake/R3
 // deps:
 //   R0  ../types/project-types
 //   R5  react
