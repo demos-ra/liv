@@ -28,6 +28,8 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-editor':          'editor',
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
+  'F-memory':          'memory',
+  'F-planner':         'planner',
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

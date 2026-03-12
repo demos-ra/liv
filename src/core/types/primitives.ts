@@ -77,6 +77,8 @@ export type FSlice =
   | 'F-editor'
   | 'F-health-panel'
   | 'F-execution-panel'
+  | 'F-memory'
+  | 'F-planner'
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

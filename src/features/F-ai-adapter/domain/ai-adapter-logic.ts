@@ -1,15 +1,44 @@
-// [F-ai-adapter/R1/C2] AI adapter domain logic — provider selection + message formatting
-// R1: pure functions, no I/O, depends R0 only
+// @liv-standard v1.3
+// [F-ai-adapter/domain/ai-adapter-logic.ts]
+// Built with LIV · livai.dev
+
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-ai-adapter
+// layer:      R1
+// wires-in:
+//   W-ATOM  ProviderId       @/features/F-ai-adapter/config/ai-adapter-config
+//   W-ATOM  ModelConfig      @/features/F-ai-adapter/config/ai-adapter-config
+//   W-ATOM  MODELS           @/features/F-ai-adapter/config/ai-adapter-config
+//   W-ATOM  ChatMessage      @/features/F-ai-adapter/config/ai-adapter-config
+//   W-ATOM  AI_ADAPTER_CONFIG @/features/F-ai-adapter/config/ai-adapter-config
+// wires-out:
+//   W-ATOM  resolveModel         →  F-ai-adapter/R3
+//   W-ATOM  getDefaultModel      →  F-ai-adapter/R3
+//   W-ATOM  getAvailableModels   →  F-ai-adapter/R3
+//   W-ATOM  supportsStreaming     →  F-ai-adapter/R3
+//   W-ATOM  formatMessagesForAnthropic →  F-ai-adapter/R4
+//   W-ATOM  formatMessagesForOpenAI   →  F-ai-adapter/R4
+//   W-ATOM  shouldRetry          →  F-ai-adapter/R4
+//   W-ATOM  retryDelay           →  F-ai-adapter/R4
+// deps:
+//   R0  @/features/F-ai-adapter/config/ai-adapter-config
+// validated:  2026-03-12
+
+// R1: pure functions only — no I/O, no side effects.
+// formatMessages* functions normalize per-provider message shape here, never in R4.
+// Gemini removed — not a declared provider in PROVIDERS.
 
 import {
-  Provider,
-  ModelConfig,
+  type ProviderId,
+  type ModelConfig,
+  type ChatMessage,
   MODELS,
-  ChatMessage,
   AI_ADAPTER_CONFIG,
 } from '../config/ai-adapter-config'
 
-// --- Model resolution ---
+// ── Model resolution ──────────────────────────────────────────────────────────
 
 export function resolveModel(modelId: string): ModelConfig {
   const model = MODELS[modelId]
@@ -29,45 +58,29 @@ export function supportsStreaming(modelId: string): boolean {
   return resolveModel(modelId).supportsStreaming
 }
 
-// --- Message formatting per provider ---
-// Each provider has slightly different expected formats.
-// All normalization happens here in R1, never in R4.
+// ── Message formatting per provider ──────────────────────────────────────────
 
 export function formatMessagesForAnthropic(
   messages: ChatMessage[]
 ): { system: string | undefined; messages: Array<{ role: string; content: string }> } {
-  const systemMessages = messages.filter((m) => m.role === 'system')
-  const conversationMessages = messages.filter((m) => m.role !== 'system')
-
+  const systemMessages      = messages.filter(m => m.role === 'system')
+  const conversationMessages = messages.filter(m => m.role !== 'system')
   return {
-    system: systemMessages.map((m) => m.content).join('\n') || undefined,
-    messages: conversationMessages.map((m) => ({ role: m.role, content: m.content })),
+    system:   systemMessages.map(m => m.content).join('\n') || undefined,
+    messages: conversationMessages.map(m => ({ role: m.role, content: m.content })),
   }
 }
 
 export function formatMessagesForOpenAI(
   messages: ChatMessage[]
 ): Array<{ role: string; content: string }> {
-  return messages.map((m) => ({ role: m.role, content: m.content }))
+  return messages.map(m => ({ role: m.role, content: m.content }))
 }
 
-export function formatMessagesForGemini(
-  messages: ChatMessage[]
-): Array<{ role: string; parts: Array<{ text: string }> }> {
-  // Gemini uses 'user'/'model' roles, no 'system'
-  return messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }))
-}
-
-// --- Retry logic (pure: returns whether to retry) ---
+// ── Retry logic ───────────────────────────────────────────────────────────────
 
 export function shouldRetry(attempt: number, error: unknown): boolean {
   if (attempt >= AI_ADAPTER_CONFIG.maxRetries) return false
-  // Don't retry on auth errors or invalid model errors
   if (error instanceof Error) {
     if (error.message.includes('401') || error.message.includes('invalid_model')) return false
   }
@@ -75,5 +88,8 @@ export function shouldRetry(attempt: number, error: unknown): boolean {
 }
 
 export function retryDelay(attempt: number): number {
-  return AI_ADAPTER_CONFIG.retryDelayMs * Math.pow(2, attempt) // exponential backoff
+  return AI_ADAPTER_CONFIG.retryDelayMs * Math.pow(2, attempt)
 }
+
+export type { ProviderId, ModelConfig, ChatMessage }
+

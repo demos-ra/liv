@@ -12,6 +12,7 @@ import { AI_EVENTS }          from '@/features/F-ai-adapter/config/ai-events'
 import { CHAT_EVENTS }        from '@/features/F-chat/config/chat-events'
 import { MEMORY_EVENTS }      from '@/features/F-memory/config/memory-events'
 import { PROJECT_EVENTS }     from '@/features/F-project/types/project-events'
+import { PLANNER_EVENTS }     from '@/features/F-planner/types/planner-events'
 
 export const EVENTS = {
   IDENTITY:    IDENTITY_EVENTS,
@@ -21,6 +22,7 @@ export const EVENTS = {
   CHAT:        CHAT_EVENTS,
   MEMORY:      MEMORY_EVENTS,
   PROJECT:     PROJECT_EVENTS,
+  PLANNER:     PLANNER_EVENTS,
 } as const
 
 type EventNameValues<T> = T extends Record<string, string>
