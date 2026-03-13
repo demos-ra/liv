@@ -1,4 +1,4 @@
-// @liv-standard v1.0
+// @liv-standard v1.3
 // [F-workspace/contract/providers.tsx]
 // Built with LIV · livai.dev
 // Root React context providers — tRPC, QueryClient, StateRegistry, Auth.

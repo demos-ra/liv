@@ -20,7 +20,10 @@
     "required_layers": ["domain", "contract", "exec"],
     "optional_layers": ["config", "app"],
     "exceptions": {
-      "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events."
+      "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events.",
+      "F-dashboard":     "Pure client UI orchestration. No server ops, no DB, no events — no exec/ needed. Wires F-intake, F-planner, F-output hooks.",
+      "F-intake":        "Client-only intake form. No server ops beyond calling F-planner/F-project contracts.",
+      "F-output":        "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/."
     },
     "description": "A complete feature slice requires domain logic, contract boundary, and execution/I/O."
   },
