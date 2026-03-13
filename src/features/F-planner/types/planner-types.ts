@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step3-executor
 // slice:      F-planner
 // layer:      R0
 // wires-in:   none
@@ -16,8 +16,13 @@
 //   W-ATOM  StageLogEntry     →  F-planner/R1, F-planner/R2, F-planner/R4
 //   W-ATOM  PlannerResult     →  F-planner/R1, F-planner/R2, F-planner/R4
 //   W-ATOM  PlannerJobId      →  F-planner/R2, F-planner/R3, F-planner/R4
+//   W-ATOM  AdvanceStagePayload.files  →  F-planner/R2 (executor gate), F-planner/R4 (route handler)
 // deps:       none
-// validated:  2026-03-12
+// validated:  2026-03-13
+//
+// step3-executor: AdvanceStagePayload.files? added — typed file array passed
+// from route handler through to IExecutor.run() at IN_COMPILE gate.
+// Axiom cite: A6 — declared at R0 of owner.
 
 // ── AK-REF ────────────────────────────────────────────────────────────────────
 export type PlannerJobId = string & { _brand: 'PlannerJobId' }
@@ -163,6 +168,9 @@ export type StartPipelinePayload = {
 export type AdvanceStagePayload = {
   jobId:   PlannerJobId
   message: string | null
+  // step3-executor: typed file array for IN_COMPILE execution gate.
+  // Optional — absent on all stages except IN_COMPILE. Declared at R0 (A6).
+  files?:  Array<{ path: string; content: string }>
 }
 
 export type FailStagePayload = {

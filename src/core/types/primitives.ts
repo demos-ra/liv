@@ -57,7 +57,9 @@ export type RLayer = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 // Step 4: F-types, F-state-registry absorbed into core/types/.
 //         F-workspace deferred to Phase 2 (IDE surface) — not yet built.
 //         Axiom cite: A7 — deletability. Phantom slices removed.
+// Step 3: F-executor added — Docker execution slice. FSlice count +1; STATE_NAMESPACES parity maintained.
 export type FSlice =
+  | 'F-executor'      // Step 3 — Docker code execution
   | 'F-design-system'
   | 'F-event-system'
   | 'F-la-config'

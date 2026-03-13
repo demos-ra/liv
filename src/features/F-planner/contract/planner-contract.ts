@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step3-executor
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -21,7 +21,10 @@
 //   R0  ../types/planner-types
 //   R2  ../workflow/planner-workflow
 //   R3  ./planner-inject
-// validated:  2026-03-12
+// validated:  2026-03-13
+//
+// step3-executor: createExecutor() added to advanceStage deps.
+// F-executor is accessed only via planner-inject → executor-contract (A5).
 
 import { NextRequest, NextResponse }           from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
@@ -32,7 +35,7 @@ import {
   freezeContract,
   getPipelineStatus,
 } from '../workflow/planner-workflow'
-import { createPlannerDb } from './planner-inject'
+import { createPlannerDb, createAiAdapter, createExecutor } from './planner-inject'
 import type {
   PlannerJobId,
   StartPipelinePayload,
@@ -114,10 +117,12 @@ export async function handleAdvanceStage(
   const input: AdvanceStagePayload = {
     jobId,
     message: (body as Record<string, unknown>)?.message as string | null ?? null,
+    files:   (body as Record<string, unknown>)?.files   as Array<{ path: string; content: string }> | undefined,
   }
 
-  const db     = createPlannerDb()
-  const result = await advanceStage({ db }, input)
+  const db       = createPlannerDb()
+  const executor = createExecutor()
+  const result   = await advanceStage({ db, executor }, input)
 
   if (!result.ok) {
     const status = result.error.code === 'NOT_FOUND'     ? 404

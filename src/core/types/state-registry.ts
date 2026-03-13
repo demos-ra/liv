@@ -9,7 +9,9 @@ import type { FSlice } from './primitives'
 
 // Step 4: F-types, F-state-registry removed (absorbed into core/types/).
 //         F-workspace reserved for Phase 2 (IDE surface).
+// Step 3: F-executor added — Docker code execution. Count parity with FSlice maintained.
 export const STATE_NAMESPACES: Record<FSlice, string> = {
+  'F-executor':        'executor',      // Step 3
   'F-design-system':   'designSystem',
   'F-event-system':    'eventSystem',
   'F-la-config':       'laConfig',
