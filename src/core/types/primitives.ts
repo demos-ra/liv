@@ -54,10 +54,11 @@ export type CommitId    = string
 
 export type RLayer = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 
+// Step 4: F-types, F-state-registry absorbed into core/types/.
+//         F-workspace deferred to Phase 2 (IDE surface) — not yet built.
+//         Axiom cite: A7 — deletability. Phantom slices removed.
 export type FSlice =
-  | 'F-types'
   | 'F-design-system'
-  | 'F-state-registry'
   | 'F-event-system'
   | 'F-la-config'
   | 'F-identity'
@@ -72,7 +73,6 @@ export type FSlice =
   | 'F-notifications'
   | 'F-commit-log'
   | 'F-user-profile'
-  | 'F-workspace'
   | 'F-dashboard'
   | 'F-editor'
   | 'F-health-panel'
@@ -81,6 +81,7 @@ export type FSlice =
   | 'F-planner'     // Phase 4 — pipeline orchestration
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
+  | 'F-workspace'   // Phase 2 (IDE surface) — reserved, not yet built
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

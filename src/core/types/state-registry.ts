@@ -1,14 +1,16 @@
+// @liv-standard v1.3
 // [core/types/state-registry.ts]
+// Built with LIV · livai.dev
 // R5 — pure namespace declaration. Zero dependencies.
 // Enforcement logic lives in F-la-config/domain/state-enforce.ts (R1).
 // React hook lives in F-la-config/contract/registry-hook.tsx (R3).
 
 import type { FSlice } from './primitives'
 
+// Step 4: F-types, F-state-registry removed (absorbed into core/types/).
+//         F-workspace reserved for Phase 2 (IDE surface).
 export const STATE_NAMESPACES: Record<FSlice, string> = {
-  'F-types':           'types',
   'F-design-system':   'designSystem',
-  'F-state-registry':  'stateRegistry',
   'F-event-system':    'eventSystem',
   'F-la-config':       'laConfig',
   'F-identity':        'identity',
@@ -23,7 +25,6 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-notifications':   'notifications',
   'F-commit-log':      'commitLog',
   'F-user-profile':    'userProfile',
-  'F-workspace':       'workspace',
   'F-dashboard':       'dashboard',
   'F-editor':          'editor',
   'F-health-panel':    'healthPanel',
@@ -32,6 +33,7 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-planner':         'planner',    // Phase 4
   'F-intake':          'intake',     // Phase 5
   'F-output':          'output',     // Phase 6
+  'F-workspace':       'workspace',  // Phase 2 — reserved
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

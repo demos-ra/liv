@@ -1,5 +1,5 @@
 // @liv-standard v1.3
-// [F-dashboard/R0]
+// [F-dashboard/types/dashboard-wires.ts]
 // Built with LIV · livai.dev
 
 // @manifest
@@ -8,51 +8,72 @@
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:   none
-// wires-out:  (this file IS the wire contract registry)
+// wires-out:  (registry only — no runtime exports)
 // deps:       none
-// validated:  2026-03-12
+// validated:  2026-03-13
+//
+// Wire registry for F-dashboard R0 atoms.
+// Every W-ATOM declared in dashboard-types.ts is registered here.
+// Rule: a wire is declared the same commit it is created. No undeclared wires.
+// Axiom cite: A6 — declare at origin. A1 — F-dashboard owns these declarations.
 
-// @wire
-// type:    W-ATOM
-// id:      W-ATOM-dashboard-view
-// payload: DashboardView
-// version: 1
-// status:  active
+export const DASHBOARD_WIRES = [
+  {
+    wireId:   'W-DASH-001',
+    atom:     'DashboardPanel',
+    emitsTo:  ['F-dashboard/R1', 'F-dashboard/R3'],
+    status:   'active',
+    notes:    'Panel enum: intake | pipeline | output.',
+  },
+  {
+    wireId:   'W-DASH-002',
+    atom:     'ActiveProgram',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'Core readable state atom. null until project selected. Passed as prop to all panels.',
+  },
+  {
+    wireId:   'W-DASH-003',
+    atom:     'PlannerActions',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'Callable fns only. No state fields.',
+  },
+  {
+    wireId:   'W-DASH-004',
+    atom:     'OutputActions',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'Callable fns only. No state fields.',
+  },
+  {
+    wireId:   'W-DASH-005',
+    atom:     'ProjectActions',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'Callable fns only. No state fields.',
+  },
+  {
+    wireId:   'W-DASH-006',
+    atom:     'OutputState',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'Output panel read state. Separate from ActiveProgram — conditional on pipeline completion.',
+  },
+  {
+    wireId:   'W-DASH-007',
+    atom:     'WorkspaceHook',
+    emitsTo:  ['F-dashboard/R3', 'src/app/page.tsx'],
+    status:   'active',
+    notes:    'Full return type of useWorkspace(). page.tsx spreads this to DashboardUI.',
+  },
+  {
+    wireId:   'W-DASH-008',
+    atom:     'PipelineView',
+    emitsTo:  ['F-dashboard/R3'],
+    status:   'active',
+    notes:    'PipelinePanel-specific read state. currentStage, stageStatus, pipelineLog. null until pipeline started.',
+  },
+] as const
 
-// @wire
-// type:    W-ATOM
-// id:      W-ATOM-dashboard-panel
-// payload: DashboardPanel
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
-// id:      W-HOOK-use-dashboard
-// payload: DashboardHook (see contract/dashboard-hook.ts)
-//          consumed: app/page.tsx (F-workspace shell)
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
-// id:      W-HOOK-use-planner  (consumed — declared at F-planner)
-// payload: PlannerHook
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
-// id:      W-HOOK-use-project  (consumed — declared at F-project)
-// payload: ProjectHook
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
-// id:      W-HOOK-use-output  (consumed — declared at F-output)
-// payload: OutputHook
-// version: 1
-// status:  active
-
-export {}
+export type DashboardWireId = typeof DASHBOARD_WIRES[number]['wireId']

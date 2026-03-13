@@ -1,5 +1,5 @@
 // @liv-standard v1.3
-// [F-dashboard/R1]
+// [F-dashboard/domain/dashboard-logic.ts]
 // Built with LIV · livai.dev
 
 // @manifest
@@ -8,53 +8,50 @@
 // slice:      F-dashboard
 // layer:      R1
 // wires-in:
-//   W-ATOM  DashboardView   ../types/dashboard-types
 //   W-ATOM  DashboardPanel  ../types/dashboard-types
 //   W-ATOM  PipelineStatus  @/features/F-planner/types/planner-types
 // wires-out:
-//   W-ATOM  activePanel     →  F-dashboard/R3
+//   W-FN    deriveActivePanel  →  F-dashboard/contract/dashboard-hook (re-exported at R3)
+//   W-FN    panelVisible       →  F-dashboard/R3 (internal)
+//   W-FN    panelLabel         →  F-dashboard/R3 (internal)
+//   W-FN    panelIndex         →  F-dashboard/R3 (internal)
 // deps:
 //   R0  ../types/dashboard-types
-//   R0  @/features/F-planner/types/planner-types (R0 atom only — A5 compliant)
-// validated:  2026-03-12
+//   R0  @/features/F-planner/types/planner-types  (R0 atoms only — A5)
+// validated:  2026-03-13
+//
+// Step 4: DashboardView removed from wires-in — no longer exists in dashboard-types.ts.
+// deriveActivePanel now takes (jobId, pipelineStatus) directly — callers pass
+// resolved scalar values rather than the old DashboardView struct.
+// All other fns unchanged.
 
-import type { DashboardView, DashboardPanel } from '../types/dashboard-types'
-import type { PipelineStatus }                from '@/features/F-planner/types/planner-types'
+import type { DashboardPanel }  from '../types/dashboard-types'
+import type { PipelineStatus }  from '@/features/F-planner/types/planner-types'
 
 // ── Panel progression logic ───────────────────────────────────────────────────
-// Pure: given current state, derive which panel should be shown.
-// Called by dashboard-hook to compute activePanel on each render.
+// Pure: given current program state, derive which panel should show.
+// Called by useWorkspace on each render — O(1), no side effects.
 
 export function deriveActivePanel(
-  view:           DashboardView,
+  jobId:          string | null,
   pipelineStatus: PipelineStatus | null,
 ): DashboardPanel {
-  // No job started → always intake
-  if (!view.pipelineJobId) return 'intake'
+  if (!jobId) return 'intake'
 
-  // Pipeline complete → output
-  if (pipelineStatus === 'complete') return 'output'
+  if (pipelineStatus === 'complete')                                   return 'output'
+  if (pipelineStatus === 'running' || pipelineStatus === 'pending')    return 'pipeline'
+  if (pipelineStatus === 'failed'  || pipelineStatus === 'cancelled')  return 'pipeline'
 
-  // Pipeline running or pending → pipeline status view
-  if (pipelineStatus === 'running' || pipelineStatus === 'pending') return 'pipeline'
-
-  // Pipeline failed → stay on pipeline (shows error)
-  if (pipelineStatus === 'failed' || pipelineStatus === 'cancelled') return 'pipeline'
-
-  // Default — intake
   return 'intake'
 }
 
 // ── Panel visibility ──────────────────────────────────────────────────────────
-// Which panels should render vs be hidden. Panels mount eagerly to preserve
-// state; visibility is toggled via CSS not unmounting.
 
 export function panelVisible(panel: DashboardPanel, activePanel: DashboardPanel): boolean {
   return panel === activePanel
 }
 
-// ── Step indicator label ──────────────────────────────────────────────────────
-// Returns the human label for each panel step.
+// ── Panel label ───────────────────────────────────────────────────────────────
 
 export function panelLabel(panel: DashboardPanel): string {
   switch (panel) {
@@ -64,7 +61,7 @@ export function panelLabel(panel: DashboardPanel): string {
   }
 }
 
-// ── Step index (0-based) ──────────────────────────────────────────────────────
+// ── Panel index (0-based) ─────────────────────────────────────────────────────
 
 export function panelIndex(panel: DashboardPanel): number {
   const order: DashboardPanel[] = ['intake', 'pipeline', 'output']

@@ -1,12 +1,14 @@
-// @liv-standard v1.0
+// @liv-standard v1.3
 // [core/app/layout.tsx]
 // Built with LIV · livai.dev
 // Root layout — thin shell. No business logic. No fonts. No inline styles.
 // globals.css owns all tokens, fonts, reset, animations.
+//
+// Step 4: Providers import updated F-workspace → F-dashboard (A1).
 
 import type { Metadata } from 'next'
 import './globals.css'
-import { Providers } from '@/features/F-workspace/contract/providers'
+import { Providers } from '@/features/F-dashboard/contract/providers'
 
 export const metadata: Metadata = {
   title: 'LIV',

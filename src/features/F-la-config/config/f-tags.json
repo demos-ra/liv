@@ -21,7 +21,7 @@
     "optional_layers": ["config", "app"],
     "exceptions": {
       "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events.",
-      "F-dashboard":     "Pure client UI orchestration. No server ops, no DB, no events — no exec/ needed. Wires F-intake, F-planner, F-output hooks.",
+      "F-dashboard":     "Composition root and render surface owner. No server ops, no DB, no events — no exec/ needed. Orchestrates F-intake, F-planner, F-output hooks. providers.tsx lives here.",
       "F-intake":        "Client-only intake form. No server ops beyond calling F-planner/F-project contracts.",
       "F-output":        "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/."
     },
@@ -44,11 +44,19 @@
     "F-notifications",
     "F-commit-log",
     "F-user-profile",
-    "F-workspace",
     "F-dashboard",
     "F-editor",
     "F-health-panel",
     "F-execution-panel",
-    "F-memory"
-  ]
+    "F-memory",
+    "F-planner",
+    "F-intake",
+    "F-output"
+  ],
+  "reserved_slices": [
+    "F-workspace"
+  ],
+  "_reserved_notes": {
+    "F-workspace": "Phase 2 — IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only."
+  }
 }
