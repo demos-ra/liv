@@ -1,11 +1,18 @@
+// @liv-standard v1.3
 // [F-identity/contract/auth-contract.ts]
+// Built with LIV · livai.dev
 // R3 — the single session contract surface for all other slices.
 // Import from here only. Never import from F-identity internals directly.
 // A1: F-identity is sole owner of SessionPayload and session validation.
 // A2: R3 owns IAuthDb factory instantiation. R2 depends on interface only.
 // A6: SESSION_COOKIE_NAME re-exported from R0 canonical declaration.
+//
+// Step 1 — D5a fix (A5):
+//   destroySessionForUser exposed here so event-subscriptions.ts never
+//   imports F-identity/app or F-identity/exec directly.
+//   Axiom cite: A5 — cross-slice calls via contract only.
 
-import { lookupSession as _lookupSession } from '../app/auth-workflow'
+import { lookupSession as _lookupSession, destroySessionForUser as _destroySessionForUser } from '../app/auth-workflow'
 import { createAuthDb } from '../exec/auth-db'
 import { db, taggedDb } from '@/core/db/client'
 
@@ -18,4 +25,13 @@ export { SESSION_COOKIE_NAME } from '../config/auth-types'
 export async function validateSession(rawToken: string) {
   const authDb = createAuthDb(taggedDb(db))
   return _lookupSession(rawToken, authDb)
+}
+
+// ─── Session destruction (D5a fix — was imported cross-slice from app/) ───────
+// event-subscriptions.ts calls this on USER_SIGNED_OUT and SESSION_EXPIRED.
+// R3 owns the authDb instantiation — R2 never touches it directly.
+// Axiom cite: A5 cross-slice via contract only; A2 R3 wires R4.
+export async function destroySessionForUser(userId: string, sessionId: string): Promise<void> {
+  const authDb = createAuthDb(taggedDb(db))
+  return _destroySessionForUser(userId, sessionId, authDb)
 }

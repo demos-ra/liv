@@ -1,31 +1,34 @@
 // @liv-standard v1.3
-// [F-planner/R4]
+// [F-planner/exec/ai-adapter-io.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    A2-r4-io-delegation
+// amended:    none
 // slice:      F-planner
 // layer:      R4
 // wires-in:
-//   W-ATOM  streamAIResponse  F-ai-adapter/exec/ai-io  (A2-r4-io-delegation — see below)
+//   W-ATOM  streamAIResponse  F-ai-adapter/contract/ai-contract  (R3 surface — A5 compliant)
 //   W-ATOM  ChatMessage       F-ai-adapter/config/ai-adapter-config  (R0 — permitted)
 //   W-ATOM  PlannerResult     ../types/planner-types
 // wires-out:  none  (R4 never imported — bound via IAiAdapter at R3)
 // deps:
 //   R0  ../types/planner-types
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
-//   R4  @/features/F-ai-adapter/exec/ai-io
+//   R3  @/features/F-ai-adapter/contract/ai-contract
 // validated:  2026-03-12
 //
-// A2-r4-io-delegation amendment:
-//   R4 imports one cross-slice R4 function (streamAIResponse) for pure I/O delegation.
-//   No types, no logic, no state cross the boundary — only an async generator call.
-//   getApiKey resolution moved to planner-inject (R3) and threaded as apiKey? string.
-//   This is the minimal viable amendment: one import, one call, zero logic bleed.
+// Step 1 — R4→R4 fix (A5):
+//   Previously imported streamAIResponse from F-ai-adapter/exec/ai-io (R4).
+//   Now imports from F-ai-adapter/contract/ai-contract (R3) — the declared
+//   cross-slice surface for AI streaming. No behaviour change: ai-contract
+//   delegates to ai-adapter-workflow (R2) → ai-io (R4) unchanged.
+//   Prior self-declared A2-r4-io-delegation amendment is hereby retired.
+//   Axiom cite: A5 — cross-slice I/O via R3 contract only.
 
-import { streamAIResponse, type ChatMessage } from '@/features/F-ai-adapter/exec/ai-io'
-import type { PlannerResult }                 from '../types/planner-types'
+import { streamAIResponse }  from '@/features/F-ai-adapter/contract/ai-contract'
+import type { ChatMessage }  from '@/features/F-ai-adapter/config/ai-adapter-config'
+import type { PlannerResult } from '../types/planner-types'
 
 // apiKey is pre-resolved by planner-inject.ts (R3) via F-user-profile/contract.
 // R4 never resolves identity — it only executes I/O with supplied credentials.

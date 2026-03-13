@@ -1,12 +1,37 @@
-// [F-permissions/R3/C2] Permission contract — server guard + client hook
-// R3: interface boundary, depends R0 + R1 + R2
+// @liv-standard v1.3
+// [F-permissions/contract/permissions-contract.ts]
+// Built with LIV · livai.dev
+// R3 — permission contract surface for all other slices.
+// Import from here only. Never import from F-permissions/app directly.
+// A5: requirePermission exposed here so F-la-config and any future
+//     slice never cross into F-permissions/app/permissions-workflow.
+// Axiom cite: A5 — cross-slice calls via contract only.
+//
+// Step 1 — D6 fix:
+//   requirePermission re-exported from this R3 surface.
+//   F-la-config/contract/la-contract.ts updated to import from here.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Action } from '../config/permissions-config'
-import { requirePermission } from '../app/permissions-workflow'
+import { requirePermission as _requirePermission, assignDefaultRole as _assignDefaultRole, setMemberRole as _setMemberRole } from '../app/permissions-workflow'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 
-// --- Server guard: wraps any route handler requiring a permission ---
+// ─── requirePermission (D6 fix — cross-slice contract surface) ────────────────
+// Any slice needing permission checks imports this, not permissions-workflow.
+// Axiom cite: A5.
+export async function requirePermission(
+  userId: string,
+  projectId: string,
+  action: Action
+): Promise<void> {
+  await _requirePermission(userId, projectId, action)
+}
+
+// ─── assignDefaultRole / setMemberRole ────────────────────────────────────────
+// Called by event-subscriptions.ts — already correctly imported from here.
+export { assignDefaultRole, setMemberRole } from '../app/permissions-workflow'
+
+// ─── Server route guard ───────────────────────────────────────────────────────
 
 export function withPermission(action: Action, projectIdParam = 'projectId') {
   return function guard(
@@ -23,7 +48,7 @@ export function withPermission(action: Action, projectIdParam = 'projectId') {
       if (!projectId) return NextResponse.json({ error: 'missing_project_id' }, { status: 400 })
 
       try {
-        await requirePermission(session.userId, projectId, action)
+        await _requirePermission(session.userId, projectId, action)
       } catch {
         return NextResponse.json({ error: 'forbidden' }, { status: 403 })
       }
@@ -33,8 +58,5 @@ export function withPermission(action: Action, projectIdParam = 'projectId') {
   }
 }
 
-// --- Client hook ---
-
+// ─── Client hook ──────────────────────────────────────────────────────────────
 export { usePermissions } from './permissions-hook'
-
-export { assignDefaultRole, setMemberRole } from "../app/permissions-workflow"
