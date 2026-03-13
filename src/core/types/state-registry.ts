@@ -33,7 +33,6 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-planner':         'planner',    // Phase 4
   'F-intake':          'intake',     // Phase 5
   'F-output':          'output',     // Phase 6
-  'F-workspace':       'workspace',  // Phase 2 — reserved
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

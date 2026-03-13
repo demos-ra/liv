@@ -81,7 +81,6 @@ export type FSlice =
   | 'F-planner'     // Phase 4 — pipeline orchestration
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
-  | 'F-workspace'   // Phase 2 (IDE surface) — reserved, not yet built
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 
