@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step2-chat-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -13,26 +13,34 @@
 //   W-ATOM  PipelineView    ../types/dashboard-types
 //   W-ATOM  OutputState     ../types/dashboard-types
 //   W-ATOM  DashboardPanel  ../types/dashboard-types
+//   W-ATOM  ChatSurface     ../types/dashboard-types
 // wires-out:  none  (leaf UI surface)
 // deps:
 //   R0  ../types/dashboard-types
 //   R0  @/features/F-planner/types/planner-types  (PipelineStage — A5)
 //   R3  @/features/F-intake/contract/intake-ui
+//   R3  @/features/F-chat/contract/chat-ui        (A5: contract surface only)
 //   R5  react
 // validated:  2026-03-13
 //
-// Step 4 (A1, A3):
-//   DashboardUI is a pure display component. Receives WorkspaceHook from
-//   page.tsx and distributes typed atoms to panel sub-components as props.
-//   No panel calls any slice hook directly. A3 enforced by type.
+// Step 2 (A1, A3, A5):
+//   DashboardUI now renders ChatUI permanently at the bottom of the page.
+//   Pipeline panels occupy the remaining height above via flex layout.
+//   ChatUI is imported exclusively from its contract surface — no internal
+//   F-chat imports exist anywhere in F-dashboard (A5).
+//   ChatUI receives email and signOut from workspace.chat (A3 typed boundary).
+//   The vertical split: flex column, pipeline area flex:1 overflow:auto,
+//   chat panel fixed height at bottom (border-top separator).
 //   Axiom cite:
 //     A1 — F-dashboard owns display surface. No other slice renders here.
-//     A3 — WorkspaceHook is the declared typed boundary atom at this surface.
+//     A3 — WorkspaceHook + ChatSurface are the declared typed boundary atoms.
+//     A5 — ChatUI imported only via F-chat/contract/chat-ui.
 
 'use client'
 
 import { useState }      from 'react'
 import { IntakePanel }   from '@/features/F-intake/contract/intake-ui'
+import { ChatUI }        from '@/features/F-chat/contract/chat-ui'
 import type {
   WorkspaceHook,
   ActiveProgram,
@@ -57,6 +65,9 @@ const PANEL_LABELS: Record<DashboardPanel, string> = {
 const STAGE_ORDER: PipelineStage[] = [
   'IN_MAIN', 'IN_BUILD', 'IN_RESOLVE', 'IN_AUDIT', 'IN_COMPILE', 'IN_QA',
 ]
+
+// ── Chat panel height — fixed, always visible ─────────────────────────────────
+const CHAT_PANEL_H = 320
 
 // ── StepBar ───────────────────────────────────────────────────────────────────
 
@@ -327,10 +338,24 @@ const inputStyle: React.CSSProperties = { width: '100%', padding: 'var(--u1) var
 const centeredStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: 'var(--u6)' }
 
 // ── DashboardUI ───────────────────────────────────────────────────────────────
+// Vertical layout:
+//   ┌─────────────────────────────┐  ← ProjectBar (shrink)
+//   ├─────────────────────────────┤  ← StepBar    (shrink)
+//   │                             │
+//   │   pipeline panels (flex:1)  │  ← overflow:auto, scrollable
+//   │                             │
+//   ├─────────────────────────────┤  ← border-top separator
+//   │   chat panel (fixed 320px)  │  ← always visible, overflow:hidden
+//   └─────────────────────────────┘
+//
+// ChatUI renders inside a clipped container — its internal scroll and input
+// are fully contained. No page-level scroll bleed.
 
 export function DashboardUI(props: WorkspaceHook) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+
+      {/* ── top chrome ── */}
       <ProjectBar
         projects={props.projects}
         program={props.program}
@@ -341,6 +366,8 @@ export function DashboardUI(props: WorkspaceHook) {
         program={props.program}
         goToPanel={props.goToPanel}
       />
+
+      {/* ── pipeline panels — fill remaining height above chat ── */}
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center' }}>
         {props.activePanel === 'intake'   && (
           <IntakePanel />
@@ -356,6 +383,24 @@ export function DashboardUI(props: WorkspaceHook) {
           />
         )}
       </div>
+
+      {/* ── chat panel — permanent, fixed height, always at bottom ── */}
+      <div style={{
+        height:      CHAT_PANEL_H,
+        flexShrink:  0,
+        borderTop:   '1px solid var(--border)',
+        overflow:    'hidden',
+        background:  'var(--bg)',
+        // ChatUI renders its own internal scroll + input within this container.
+        // position:relative gives ChatUI a containing block for any absolute children.
+        position:    'relative',
+      }}>
+        <ChatUI
+          email={props.chat.email}
+          signOut={props.chat.signOut}
+        />
+      </div>
+
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }

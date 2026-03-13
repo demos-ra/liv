@@ -5,13 +5,14 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step2-chat-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
 //   W-HOOK  useWorkspace  @/features/F-dashboard/contract/dashboard-hook
 //   W-HOOK  useAuth       @/features/F-identity/contract/auth-hooks
 //   W-ATOM  WorkspaceHook @/features/F-dashboard/types/dashboard-types
+//   W-ATOM  ChatSurface   @/features/F-dashboard/types/dashboard-types
 // wires-out:  none  (mount point — top of render tree)
 // deps:
 //   R3  @/features/F-dashboard/contract/dashboard-hook   (A5)
@@ -20,14 +21,15 @@
 //   R3  @/features/F-identity/contract/auth-pages        (A5)
 // validated:  2026-03-13
 //
-// Step 4 (A1, A3, A5):
-//   F-dashboard is the declared composition root and render surface owner.
-//   page.tsx calls useWorkspace() — the single orchestration entry point —
-//   and spreads WorkspaceHook as props to DashboardUI.
-//   No F-workspace imports remain. F-workspace is a Phase 2 (IDE) concern.
+// Step 2 (A1, A3, A5):
+//   page.tsx now constructs a ChatSurface atom from auth state and passes it
+//   to useWorkspace(). This is the only place where identity props (email,
+//   signOut) enter the chat surface — they flow downward through the typed
+//   WorkspaceHook boundary and are never re-imported elsewhere.
+//   F-chat has zero imports in page.tsx — contact surface is F-dashboard only.
 //   Axiom cite:
 //     A1 — useWorkspace is sole orchestration owner; page.tsx is mount point.
-//     A3 — WorkspaceHook is the typed boundary atom at this surface.
+//     A3 — ChatSurface is the typed boundary atom threading identity to chat.
 //     A5 — all imports via declared contract surfaces only.
 
 'use client'
@@ -39,9 +41,18 @@ import { DashboardUI }  from '@/features/F-dashboard/contract/dashboard-ui'
 
 export default function Home() {
   const { state, signOut } = useAuth()
+
+  // Construct ChatSurface atom from identity — passed as input to useWorkspace.
+  // email falls back to empty string pre-auth; useWorkspace is called
+  // unconditionally to satisfy Rules of Hooks.
+  const chatSurface = {
+    email:   state.status === 'authenticated' ? (state.user?.email ?? '') : '',
+    signOut,
+  }
+
   // Composition root — always called unconditionally (Rules of Hooks).
   // WorkspaceHook assembled here; DashboardUI only renders it.
-  const workspace = useWorkspace()
+  const workspace = useWorkspace(chatSurface)
 
   if (state.status === 'loading')       return null
   if (state.status !== 'authenticated') return <AuthPage />

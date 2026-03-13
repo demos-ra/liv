@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step2-chat-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -15,6 +15,7 @@
 //   W-ATOM  OutputActions    ../types/dashboard-types
 //   W-ATOM  ProjectActions   ../types/dashboard-types
 //   W-ATOM  OutputState      ../types/dashboard-types
+//   W-ATOM  ChatSurface      ../types/dashboard-types
 //   W-ATOM  DashboardPanel   ../types/dashboard-types
 //   W-FN    deriveActivePanel ../domain/dashboard-logic
 //   W-HOOK  usePlanner       @/features/F-planner/contract/planner-hook
@@ -32,14 +33,16 @@
 //   R5  react
 // validated:  2026-03-13
 //
-// Step 4 — F-dashboard is the composition root (A1, A3, A5, A6).
-//   useWorkspace() calls usePlanner, useProject, useOutput and derives
-//   all typed read atoms. Panels receive atoms as props — never hooks.
+// Step 2 (A1, A3, A5, A6):
+//   useWorkspace() now accepts ChatSurface props (email, signOut) from page.tsx
+//   and threads them through as workspace.chat. F-dashboard does not call any
+//   F-chat hooks — identity props only. This keeps F-chat's state fully internal
+//   while satisfying the typed boundary requirement at DashboardUI.
 //   Axiom cite:
 //     A1 — F-dashboard is sole orchestration + render surface owner.
-//     A3 — ActiveProgram, PipelineView, OutputState enforce typed boundary.
-//     A5 — all cross-slice calls via declared contract surfaces only.
-//     A6 — WorkspaceHook declared at R0 (dashboard-types.ts).
+//     A3 — ChatSurface enforces typed boundary; no F-chat internals leak.
+//     A5 — F-chat accessed only via declared contract surfaces.
+//     A6 — ChatSurface declared at R0 (dashboard-types.ts).
 
 'use client'
 
@@ -57,10 +60,11 @@ import type {
   OutputActions,
   ProjectActions,
   OutputState,
+  ChatSurface,
 } from '../types/dashboard-types'
 import type { PlannerJobId } from '@/features/F-planner/types/planner-types'
 
-export function useWorkspace(): WorkspaceHook {
+export function useWorkspace(chat: ChatSurface): WorkspaceHook {
   const [jobId,       setJobId]       = useState<string | null>(null)
   const [activePanel, setActivePanel] = useState<DashboardPanel>('intake')
 
@@ -152,6 +156,7 @@ export function useWorkspace(): WorkspaceHook {
     projects:    project.projects,
     activePanel,
     goToPanel,
+    chat,
   }
 }
 

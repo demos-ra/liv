@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step2-chat-dashboard
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:   none
@@ -16,6 +16,7 @@
 //   W-ATOM  OutputActions    →  F-dashboard/R3
 //   W-ATOM  ProjectActions   →  F-dashboard/R3
 //   W-ATOM  OutputState      →  F-dashboard/R3
+//   W-ATOM  ChatSurface      →  F-dashboard/R3 (ChatUI props atom — A3)
 //   W-ATOM  WorkspaceHook    →  F-dashboard/R3, src/app/page.tsx
 // deps:
 //   R0  @/features/F-planner/types/planner-types   (R0 atoms only — A5)
@@ -23,11 +24,11 @@
 //   R0  @/features/F-output/types/output-types     (R0 atoms only — A5)
 // validated:  2026-03-13
 //
-// Step 4 (A3, A6):
-//   ActiveProgram carries core readable state for all panel components.
-//   PipelineView carries PipelinePanel-specific read state not in ActiveProgram.
-//   Action surfaces expose only callable fns — no state fields.
-//   A3 boundary enforced by type: panels cannot reach hook internals.
+// Step 2 (A3, A6):
+//   ChatSurface is the typed boundary atom for chat at F-dashboard's R3.
+//   It carries only the props ChatUI requires — email and signOut —
+//   threaded from page.tsx through useWorkspace() to DashboardUI.
+//   No F-chat internals cross the boundary. A3 enforced by type.
 //   Axiom cite: A3 — typed boundaries. A6 — declared at R0 of owner.
 
 import type {
@@ -106,9 +107,21 @@ export type OutputState = {
   pushError:   { code: string; message: string } | null
 }
 
+// ── ChatSurface — typed boundary atom for chat composition (A3) ───────────────
+// Carries only the props ChatUI requires at its contract surface.
+// email and signOut are identity concerns, threaded from page.tsx.
+// useWorkspace() receives them as inputs and passes through unchanged —
+// no chat state is held in F-dashboard. F-chat owns all chat state internally.
+// Axiom cite: A3 — typed boundary. A5 — F-chat accessed via contract surface only.
+export type ChatSurface = {
+  email:   string
+  signOut: () => void
+}
+
 // ── WorkspaceHook — full return type of useWorkspace() ───────────────────────
 // program null until project selected.
 // projects kept separate — UI list concern, not program identity.
+// chat threaded through for vertical composition (step2).
 export type WorkspaceHook = {
   program:        ActiveProgram
   pipelineView:   PipelineView
@@ -119,4 +132,5 @@ export type WorkspaceHook = {
   projects:       ProjectSummary[]
   activePanel:    DashboardPanel
   goToPanel:      (panel: DashboardPanel) => void
+  chat:           ChatSurface
 }
