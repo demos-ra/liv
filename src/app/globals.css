@@ -1,7 +1,20 @@
-/* @liv-standard v1.0 */
-/* [core/app/globals.css] */
+/* @liv-standard v1.3 */
+/* [core/R5] */
 /* Built with LIV · livai.dev */
-/* Single source of truth — tokens, fonts, reset, utilities */
+
+/* @manifest
+   standard:   LIV-Standard v1.3
+   amended:    none
+   slice:      core
+   layer:      R5
+   wires-in:   none
+   wires-out:  none
+   deps:       none
+   validated:  pending
+*/
+
+/* Google Fonts — Montserrat 700 only */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap');
 
 /* ── Local fonts ── */
 @font-face {
@@ -16,8 +29,8 @@
 }
 @font-face {
   font-family: 'Montserrat';
-  src: url('/fonts/montserrat-semibold.ttf') format('truetype');
-  font-weight: 600; font-style: normal; font-display: swap;
+  src: url('/fonts/montserrat-bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'CommitMono';
@@ -30,56 +43,116 @@
   font-weight: 700; font-style: normal; font-display: swap;
 }
 
-/* ── Dark tokens (default) — warm Braun-black ── */
 :root {
-  --bg:         #141412;
-  --surface:    #1E1D1B;
-  --elevated:   #272522;
-  --border:     #363430;
-  --text:       #E8E6E1;
-  --text-sec:   #857F76;
-  --text-dis:   #5C5850;
-  --accent:     #8EA4FF;
-  --error:      #F2766D;
-  --amber:      #DFAF56;
+  /* ── Spatial ── */
+  --u05: 4px;
+  --u1: 8px;
+  --u15: 12px;
+  --u2: 16px;
+  --u25: 20px;
+  --u3: 24px;
+  --u4: 32px;
+  --u5: 40px;
+  --u55: 44px;
+  --u6: 48px;
 
-  --font-ui:    'Geist', system-ui, sans-serif;
-  --font-mono:  'CommitMono', monospace;
+  --header-h: var(--u6);
+  --input-h: var(--u55);
+  --input-h-sm: var(--u4);
+  --radius-pill: 22px;
+  --radius-surface: 12px;
+  --radius-bubble: 18px;
+
+  /* ── Type ── */
+  --type-xs: 11px;
+  --type-sm: 13px;
+  --type-base: 16px;
+  --type-lg: 19px;
+  --type-xl: 23px;
+
+  --font-ui: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'CommitMono', monospace;
   --font-brand: 'Montserrat', sans-serif;
 
-  /* 8px grid */
-  --u05:  4px;
-  --u1:   8px;
-  --u15:  12px;
-  --u2:   16px;
-  --u25:  20px;
-  --u3:   24px;
-  --u4:   32px;
-  --u5:   40px;
-  --u55:  44px;
-  --u6:   48px;
+  /* ── Motion ── */
+  --dur-fast: 120ms;
+  --dur-normal: 180ms;
+  --dur-slow: 300ms;
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.35, 1);
+  --ease-exit: cubic-bezier(0.45, 0, 1, 1);
+  --ease-float: cubic-bezier(0.16, 0.6, 0.36, 1);
 
-  --col:      680px;
-  --col-pad:  20px;
-  --radius:   8px;
-  --header-h: 48px;
+  /* ── Glow ── */
+  --glow-radius: 24px;
+  --glow-lg: 32px;
 }
 
-/* ── Light tokens — warm cream ── */
-[data-theme='light'] {
-  --bg:         #F5F2ED;
-  --surface:    #FDFCF9;
-  --elevated:   #F0EDE8;
-  --border:     #D8D4CC;
-  --text:       #1A1917;
-  --text-sec:   #6B6560;
-  --text-dis:   #9B948C;
-  --accent:     #4F6FD6;
-  --error:      #C85C4E;
-  --amber:      #B98E32;
+/* ── Dark (home — dusk) ── */
+:root, [data-theme="dark"] {
+  --bg: #111110;
+  --surface: #1F1E1C;
+  --border: #2A2825;
+  --text: #E8E6E1;
+  --text-sec: #857F76;
+  --text-dis: #6B655C;
+  /* Luminous electric blue — EVE's eyes, self-lit, not painted */
+  --accent: #6B9FFF;
+  --error: #E8695F;
+  --caution: #D4A84B;
+
+  /* Canvas: extended falloff to 80% for fuller atmosphere */
+  --canvas-grad: radial-gradient(in oklch, ellipse at 50% 38%, #171715 0%, #111110 80%);
+
+  --glow-accent: 0 0 var(--glow-radius) color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-accent-strong: 0 0 var(--glow-lg) color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-accent-rest: 0 0 12px color-mix(in srgb, var(--accent) 6%, transparent);
+  --glow-accent-subtle: 0 0 16px color-mix(in srgb, var(--accent) 12%, transparent);
+  --glow-error: 0 0 var(--glow-radius) color-mix(in srgb, var(--error) 25%, transparent);
+  --glow-toast-entry: 0 0 20px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  --surface-treatment: linear-gradient(180deg,
+    color-mix(in srgb, var(--surface) 94%, #3a3832) 0%, var(--surface) 100%);
+  --surface-msg: #1F1E1C;
+  --shadow-surface: none;
+  --shadow-panel: -6px 0 20px color-mix(in srgb, #000000 30%, transparent);
+  --overlay-bg: color-mix(in srgb, var(--bg) 65%, transparent);
+  --input-panel-bg: var(--bg);
 }
 
-/* ── Reset ── */
+/* ── Light (midday overcast) ── */
+[data-theme="light"] {
+  --bg: #F4F1EC;
+  --surface: #F8F6F2;
+  --border: #E2DED6;
+  --text: #1A1917;
+  --text-sec: #6B6560;
+  --text-dis: #8A837A;
+  --accent: #6B9FFF;
+  --error: #C4564A;
+  --caution: #B58A2E;
+
+  --canvas-grad: radial-gradient(in oklch, ellipse at 50% 38%, #FAF8F4 0%, #F4F1EC 80%);
+
+  --glow-accent: 0 0 var(--glow-radius) color-mix(in srgb, var(--accent) 14%, transparent);
+  --glow-accent-strong: 0 0 var(--glow-lg) color-mix(in srgb, var(--accent) 22%, transparent);
+  --glow-accent-rest: 0 0 10px color-mix(in srgb, var(--accent) 4%, transparent);
+  --glow-accent-subtle: 0 0 12px color-mix(in srgb, var(--accent) 7%, transparent);
+  --glow-error: 0 0 var(--glow-radius) color-mix(in srgb, var(--error) 12%, transparent);
+  --glow-toast-entry: 0 0 16px color-mix(in srgb, var(--accent) 18%, transparent);
+
+  --surface-treatment: none;
+  --surface-msg: #F8F6F2;
+  --shadow-surface: 0 1px 8px color-mix(in srgb, #1A1917 8%, transparent);
+  --shadow-panel: -4px 0 16px color-mix(in srgb, #1A1917 8%, transparent);
+  --overlay-bg: color-mix(in srgb, var(--bg) 70%, transparent);
+  --input-panel-bg: #EDEAE4;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RESET
+   ══════════════════════════════════════════════════════════════════════════════ */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -87,59 +160,497 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--type-base);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+body { background: var(--canvas-grad); min-height: 100vh; }
 
-/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--text-dis); border-radius: 2px; }
 
-/* ── Focus ── */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-button:focus:not(:focus-visible),
-input:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: none; }
 
-/* ── Animations ── */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.col { max-width: 680px; width: 100%; margin: 0 auto; padding: 0 var(--u25); }
+@media (max-width: 480px) { .col { max-width: 100%; padding: 0 16px; } }
+@media (min-width: 1281px) { .col { max-width: 720px; padding: 0 24px; } }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-@keyframes pulse {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Brand glow: wide range, asymmetric — dormant then alive (Eggleston) */
+@keyframes brandGlow {
+  0%   { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 5%, transparent); }
+  30%  { text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 35%, transparent); }
+  55%  { text-shadow: 0 0 16px color-mix(in srgb, var(--accent) 12%, transparent); }
+  100% { text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 5%, transparent); }
 }
 
-/* ── Utility classes ── */
-.liv-fade-in { opacity: 0; animation: fadeIn 0.15s ease forwards; }
-.liv-fade-up { opacity: 0; animation: fadeUp 0.12s ease forwards; }
+/* Streaming dots: subtle alive pulse (Eggleston) */
+@keyframes streamPulse {
+  0%, 100% { opacity: 0.3; }
+  45% { opacity: 0.8; }
+  65% { opacity: 0.5; }
+}
 
-/* ── Account panel ── */
-.liv-account-panel {
-  position: fixed; top: 0; right: 0;
-  width: 240px; height: 100vh;
+/* Toast entry glow that fades (Eggleston) */
+@keyframes toastIn {
+  0% { opacity: 0; transform: translateY(8px) scale(0.98); box-shadow: var(--glow-toast-entry); }
+  60% { opacity: 1; transform: translateY(0) scale(1); box-shadow: var(--glow-toast-entry); }
+  100% { opacity: 1; transform: translateY(0) scale(1); box-shadow: var(--glow-accent-subtle), var(--shadow-surface); }
+}
+
+/* Login brand glow: stronger baseline — the door always glows (Eggleston/Rams) */
+@keyframes brandGlowLogin {
+  0%   { text-shadow: 0 0 20px color-mix(in srgb, var(--accent) 18%, transparent); }
+  30%  { text-shadow: 0 0 36px color-mix(in srgb, var(--accent) 40%, transparent); }
+  55%  { text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 22%, transparent); }
+  100% { text-shadow: 0 0 20px color-mix(in srgb, var(--accent) 18%, transparent); }
+}
+/* Light mode: push glow higher — bright canvas absorbs more light */
+@keyframes brandGlowLoginLight {
+  0%   { text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 28%, transparent); }
+  30%  { text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 55%, transparent); }
+  55%  { text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 32%, transparent); }
+  100% { text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 28%, transparent); }
+}
+[data-theme="light"] .login-brand .brand {
+  animation-name: brandGlowLoginLight;
+}
+/* Header brand light mode: slightly higher intensity than dark (invisible at 5%) */
+[data-theme="light"] .brand {
+  animation: brandGlow 5.5s ease-in-out infinite;
+}
+@keyframes brandGlowLight {
+  0%   { text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 12%, transparent); }
+  30%  { text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 25%, transparent); }
+  55%  { text-shadow: 0 0 16px color-mix(in srgb, var(--accent) 15%, transparent); }
+  100% { text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 12%, transparent); }
+}
+[data-theme="light"] .chat-header .brand {
+  animation: brandGlowLight 5.5s ease-in-out infinite;
+}
+
+/* Resend delayed appearance (Rams: 3s delay) */
+@keyframes delayedFade {
+  0%, 80% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.fade-in { opacity: 0; animation: fadeIn var(--dur-normal) var(--ease-enter) forwards; }
+.fade-up { opacity: 0; animation: fadeUp var(--dur-normal) var(--ease-float) forwards; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SVG ICONS (unified send arrow — Ive/Rams: one symbol, one weight)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.icon-send {
+  width: 18px; height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PRIMITIVES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Brand Mark ── */
+.brand {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: var(--type-xs);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--accent);
+  user-select: none;
+  animation: brandGlow 5.5s ease-in-out infinite;
+}
+
+/* ── Button ── */
+.btn {
+  height: var(--input-h);
+  padding: 0 var(--u3);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: var(--type-sm);
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default),
+    box-shadow var(--dur-normal) var(--ease-float),
+    transform var(--dur-fast) var(--ease-default);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--u1);
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: var(--glow-accent-rest);
+}
+.btn-accent:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+  box-shadow: var(--glow-accent-strong);
+}
+.btn-accent:focus-visible { box-shadow: var(--glow-accent-strong); }
+
+.btn-ghost { background: transparent; color: var(--text-sec); }
+.btn-ghost:hover { background: color-mix(in srgb, var(--surface) 50%, transparent); color: var(--text); }
+
+.btn-danger { background: transparent; color: var(--error); }
+.btn-danger:hover { background: color-mix(in srgb, var(--error) 6%, transparent); }
+
+/* Text buttons */
+.btn-text {
+  height: auto; padding: 0; border: none; background: transparent;
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  letter-spacing: 0.08em; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-default);
+}
+.btn-text-accent { color: var(--accent); }
+.btn-text-accent:hover { color: color-mix(in srgb, var(--accent) 75%, white); }
+.btn-text-danger { color: var(--error); }
+.btn-text-danger:hover { color: color-mix(in srgb, var(--error) 75%, white); }
+
+/* Resend link — CSS-only hover, no inline JS (Rams) */
+.btn-resend {
+  height: auto; padding: 0; border: none; background: transparent;
+  font-family: var(--font-ui); font-size: var(--type-sm);
+  color: var(--text-dis); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-default);
+  animation: delayedFade 3.5s var(--ease-enter) forwards;
+}
+.btn-resend:hover { color: var(--text-sec); }
+
+/* Icon button */
+.btn-icon {
+  height: auto; padding: 0; border: none; background: transparent;
+  line-height: 1; cursor: pointer; display: flex; align-items: center;
+  transition: color var(--dur-fast) var(--ease-default);
+  color: var(--text-dis);
+}
+.btn-icon:hover { color: var(--text-sec); }
+.btn-icon.active { color: var(--accent); }
+
+/* ── Input Container (monoform pill) ── */
+/* Resting glow at near-zero — focus intensifies, not appears (Eggleston) */
+/* Equal padding both sides (Ive) */
+.input-container {
+  display: flex;
+  align-items: center;
+  gap: var(--u15);
   background: var(--surface);
-  border-left: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  padding: 24px 20px;
-  transform: translateX(100%);
-  transition: transform 0.15s ease;
-  z-index: 100;
+  background-image: var(--surface-treatment);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 0 var(--u25);
+  height: var(--input-h);
+  box-shadow: var(--glow-accent-rest), var(--shadow-surface);
+  transition: box-shadow var(--dur-normal) var(--ease-float);
 }
-.liv-account-panel.open { transform: translateX(0); }
+.input-container:focus-within {
+  box-shadow: var(--glow-accent), var(--shadow-surface);
+}
+.input-container .input-bare {
+  flex: 1;
+  background: transparent; border: none; outline: none;
+  font-family: var(--font-ui); font-size: var(--type-base);
+  font-weight: 400; color: var(--text);
+  caret-color: var(--accent);
+  height: 100%; min-width: 0;
+}
+.input-container .input-bare::placeholder { color: var(--text-dis); }
+.input-container .input-bare:disabled { opacity: 0.4; }
 
-.liv-overlay {
-  position: fixed; inset: 0; z-index: 99; pointer-events: none;
+/* ── Standalone Input (panel fields) ── */
+/* Uses --input-h-sm token, not ad-hoc (D7) */
+.input {
+  height: var(--input-h-sm);
+  padding: 0 var(--u15);
+  background: var(--input-panel-bg);
+  border: none;
+  border-radius: var(--u1);
+  font-family: var(--font-ui); font-size: var(--type-sm);
+  font-weight: 400; color: var(--text); outline: none;
+  transition: box-shadow var(--dur-fast) var(--ease-default);
+  caret-color: var(--accent);
 }
-.liv-overlay.open { pointer-events: all; }
+.input::placeholder { color: var(--text-dis); }
+.input:focus { box-shadow: inset 0 1px 4px color-mix(in srgb, #000000 12%, transparent); }
+
+/* ── Label ── */
+.label {
+  font-family: var(--font-mono); font-size: var(--type-xs); font-weight: 400;
+  color: var(--text-dis); letter-spacing: 0.08em;
+  text-transform: uppercase; user-select: none;
+}
+
+/* ── Text ── */
+.text-body { font-family: var(--font-ui); font-size: var(--type-base); color: var(--text); }
+.text-sec { font-family: var(--font-ui); font-size: var(--type-sm); color: var(--text-sec); }
+.text-dis { font-family: var(--font-ui); font-size: var(--type-sm); color: var(--text-dis); }
+.text-error { font-family: var(--font-ui); font-size: var(--type-sm); color: var(--error); }
+
+/* ── Spinner ── */
+.spinner {
+  width: 14px; height: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+  flex-shrink: 0;
+  box-shadow: var(--glow-accent-subtle);
+}
+.spinner-sm { width: 12px; height: 12px; }
+
+/* ── StatusDot ── */
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot-accent { background: var(--accent); }
+
+/* ── Surface ── */
+.surface {
+  background: var(--surface);
+  background-image: var(--surface-treatment);
+  border: none;
+  border-radius: var(--radius-surface);
+  padding: var(--u3);
+  box-shadow: var(--shadow-surface);
+}
+
+/* ── Overlay — less blur, more dim (Eggleston/Ive/Rams) ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99;
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-normal) var(--ease-enter);
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+
+/* ── SlidePanel — shadow edge, no border (Eggleston) ── */
+.slide-panel {
+  position: fixed; top: 0; right: 0;
+  width: 320px; height: 100vh; height: 100dvh;
+  background: var(--surface);
+  background-image: var(--surface-treatment);
+  border: none;
+  box-shadow: var(--shadow-panel);
+  display: flex; flex-direction: column;
+  padding: var(--u3);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform var(--dur-slow) var(--ease-float);
+  overflow-y: auto;
+}
+.slide-panel.open { transform: translateX(0); }
+@media (max-width: 480px) { .slide-panel { width: 100%; } }
+
+/* ── Toast — entry glow, left accent edge, shorter dismiss (panel notes) ── */
+.toast-container {
+  position: fixed;
+  bottom: calc(var(--u3) + env(safe-area-inset-bottom, 0px));
+  left: 50%; transform: translateX(-50%);
+  z-index: 200;
+  display: flex; flex-direction: column-reverse; gap: var(--u1);
+  pointer-events: none;
+}
+.toast {
+  min-height: var(--u5);
+  padding: var(--u1) var(--u2);
+  background: var(--surface);
+  background-image: var(--surface-treatment);
+  border: none;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui); font-size: var(--type-sm); color: var(--text);
+  display: flex; align-items: center; gap: var(--u1);
+  animation: toastIn var(--dur-slow) var(--ease-float) forwards;
+  box-shadow: inset 2px 0 0 var(--accent), var(--shadow-surface);
+  pointer-events: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LOGIN PAGE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.login-page {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  padding-bottom: 10vh;
+}
+.login-content { width: 100%; max-width: 360px; padding: 0 var(--u25); }
+.login-brand { margin-bottom: var(--u4); text-align: center; }
+/* Login brand mark: larger — it's the door, it should own the space (Ive) */
+.login-brand .brand {
+  font-size: var(--type-lg);
+  animation: brandGlowLogin 5.5s ease-in-out infinite;
+}
+/* Status text: --text-sec not --text-dis for visibility (Ive) */
+.login-status {
+  height: 24px; padding-top: var(--u1); text-align: center;
+}
+.login-status-text {
+  font-family: var(--font-ui); font-size: var(--type-sm); color: var(--text-sec);
+}
+
+@media (max-width: 480px) {
+  .login-page { padding-bottom: 15vh; }
+  .login-content { padding: 0 16px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CHAT PAGE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.chat-page {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+}
+
+/* Header — dissolves into canvas (Ive) */
+.chat-header {
+  height: var(--header-h); flex-shrink: 0;
+  display: flex; align-items: center;
+  position: relative; z-index: 10;
+}
+.chat-header-inner {
+  display: flex; align-items: center;
+  justify-content: space-between; height: 100%;
+}
+
+/* Scroll area with top fade mask (Eggleston/Ive) */
+.chat-main {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  position: relative;
+}
+.chat-main::before {
+  content: '';
+  position: sticky; top: 0; left: 0; right: 0;
+  display: block; height: var(--u2);
+  background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%);
+  z-index: 5; pointer-events: none;
+  margin-bottom: calc(-1 * var(--u2));
+}
+
+.chat-messages { padding-top: var(--u4); padding-bottom: var(--u2); }
+
+/* User message — symmetric radius, no tail (Eggleston/Ive/Jobs/Rams) */
+.msg-user { display: flex; justify-content: flex-end; }
+.msg-user-bubble {
+  background: var(--surface-msg);
+  background-image: var(--surface-treatment);
+  border: none;
+  border-radius: var(--radius-bubble);
+  padding: var(--u15) var(--u2);
+  max-width: 75%;
+  font-size: var(--type-base); line-height: 1.45;
+  color: var(--text); word-break: break-word;
+  box-shadow: var(--shadow-surface);
+}
+
+/* Assistant message — the space itself */
+.msg-asst {
+  font-size: var(--type-base); line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* Streaming: animated pulse (Eggleston) */
+.msg-streaming {
+  font-family: var(--font-mono); font-size: var(--type-sm);
+  color: var(--text-dis); letter-spacing: 0.1em;
+  animation: streamPulse 1.8s ease-in-out infinite;
+}
+
+/* Message labels: 11px from type scale, not 10px (D7/Eggleston) */
+.msg-label {
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  font-weight: 400; color: var(--text-dis);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-top: var(--u1); user-select: none;
+}
+
+.chat-footer {
+  flex-shrink: 0;
+  padding: var(--u2) 0 var(--u3);
+  padding-bottom: calc(var(--u3) + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Account Panel ── */
+.account-name {
+  font-family: var(--font-ui); font-size: var(--type-base);
+  font-weight: 500; color: var(--text);
+}
+.account-email {
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  color: var(--text-dis); word-break: break-all;
+}
+.toggle-track {
+  width: 32px; height: 16px; border-radius: 8px; border: none;
+  cursor: pointer; position: relative;
+  transition: background var(--dur-fast) var(--ease-default);
+  flex-shrink: 0;
+}
+.toggle-thumb {
+  position: absolute; top: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--bg);
+  transition: left var(--dur-fast) var(--ease-default);
+}
+.key-dots {
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  color: var(--text-dis); letter-spacing: 0.05em;
+}
+
+/* Panel action buttons — slightly larger than labels for visual distinction (Rams) */
+.slide-panel .btn-text {
+  font-size: var(--type-sm);
+}
+
+/* Header username */
+.header-username {
+  font-family: var(--font-mono); font-size: var(--type-xs);
+  color: var(--text-sec); background: transparent; border: none;
+  cursor: pointer; padding: 0; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease-default);
+}
+.header-username:hover { color: var(--text); }
+
+/* Responsive message widths */
+@media (max-width: 480px) { .msg-user-bubble { max-width: 85%; } }
+@media (min-width: 481px) and (max-width: 768px) { .msg-user-bubble { max-width: 80%; } }
+@media (min-width: 1281px) { .msg-user-bubble { max-width: 70%; } }
