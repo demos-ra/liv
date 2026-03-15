@@ -1,11 +1,46 @@
-// @liv-standard v1.0
-// [F-chat/app/chat-workflow.ts]
+// @liv-standard v1.3
+// [F-chat/R2]
 // Built with LIV · livai.dev
-// R2: orchestration, depends R0 + R1 + R4 only.
-// A5: cross-slice AI call goes through F-ai-adapter contract only.
-// Phase 4 change: loads per-user API key from api-key-db before streaming.
-// Key lookup is non-blocking on failure — falls back to env gracefully.
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-chat
+// layer:      R2
+// wires-in:
+//   W-ATOM    LIV_ANCHOR       F-chat/R0
+//   W-ATOM    LIV_SPEC         F-chat/R0
+//   W-INJECT  persistMessage   F-chat/R4 (chat-db)
+//   W-INJECT  getMessages      F-chat/R4 (chat-db)
+//   W-INJECT  lmWriteEvent     F-chat/R4 (lm-io)
+//   W-INJECT  lmRecall         F-chat/R4 (lm-io)
+//   W-INJECT  lmRemember       F-chat/R4 (lm-io)
+//   W-INJECT  lmSessionEnd     F-chat/R4 (lm-io)
+//   W-INJECT  streamAIResponse F-ai-adapter/R3
+//   W-INJECT  remember         F-memory/R3
+//   W-INJECT  recall           F-memory/R3
+//   W-INJECT  onSessionEnd     F-memory/R3
+//   W-INJECT  getApiKey        F-user-profile/R3
+//   W-ATOM    providerForModel F-ai-adapter/R0
+//   W-ATOM    PROVIDERS        F-user-profile/R0
+//   W-ATOM    ProviderId       F-user-profile/R0
+//   W-ATOM    generateId       core/R5
+// wires-out:
+//   W-ATOM  SendMessageInput  →  F-chat/R3
+//   W-ATOM  sendMessage       →  F-chat/R3
+//   W-ATOM  getMessages       →  F-chat/R3
+// deps:
+//   R0  ../config/chat-config
+//   R4  ../exec/chat-db
+//   R4  ../exec/lm-io
+//   R3  @/features/F-ai-adapter/contract/ai-contract
+//   R3  @/features/F-memory/contract/memory-contract
+//   R3  @/features/F-user-profile/contract/user-profile-contract
+//   R0  @/features/F-ai-adapter/config/ai-adapter-config
+//   R0  @/features/F-user-profile/config/provider-keys-config
+//   R5  @/core/types/primitives
+// validated:  pending
 
+import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { lmWriteEvent, lmRecall, lmRemember, lmSessionEnd } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
@@ -73,15 +108,26 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     state.lmSessionId = crypto.randomUUID()
     state.messageGaps = []
   }
+  // isFirstMessage captured before updateSessionState mutates messageGaps.
+  // Zero gaps = no message has been processed in this session yet.
+  const isFirstMessage = state.messageGaps.length === 0
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
   // Memory context — fast, no embedding
   const memoryContext = await lmRecall(content, memoryDeps, content.startsWith('/recall'))
 
-  const systemPrompt = memoryContext
-    ? `You are Liv, an AI software collaborator.\n\nMemory context:\n${memoryContext}`
-    : `You are Liv, an AI software collaborator.`
+  // Session-aware system prompt assembly.
+  // Anchor (identity) sent on every call.
+  // Spec (reasoning framework) sent on first message only — lives in history thereafter.
+  // After session rotation, messageGaps resets to [] so spec re-injects on first message of new session.
+
+  const systemParts: string[] = [LIV_ANCHOR]
+  if (isFirstMessage) systemParts.push(LIV_SPEC)
+  if (memoryContext) systemParts.push(`Memory context:
+${memoryContext}`)
+
+  const systemPrompt = systemParts.join('\n\n')
 
   const messages = [
     { role: 'system' as const, content: systemPrompt },

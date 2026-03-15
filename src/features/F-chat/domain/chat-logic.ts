@@ -1,8 +1,28 @@
-// [F-chat/R1/C2] Chat domain logic
-// R1: pure functions only. No I/O, no side effects, no imports from R2/R3/R4.
+// @liv-standard v1.3
+// [F-chat/R1]
+// Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-chat
+// layer:      R1
+// wires-in:
+//   W-ATOM  CHAT_CONFIG   F-chat/R0
+//   W-ATOM  ChatMessage   F-chat/R0
+// wires-out:
+//   W-ATOM  buildUserMessage          →  F-chat/R1 (internal)
+//   W-ATOM  buildAssistantMessage     →  F-chat/R1 (internal)
+//   W-ATOM  completeAssistantMessage  →  F-chat/R1 (internal)
+//   W-ATOM  validateMessageContent    →  F-chat/R3
+//   W-ATOM  buildCursor               →  F-chat/R4
+//   W-ATOM  parseCursor               →  F-chat/R4
+// deps:
+//   R0  ../config/chat-config
+//   R5  crypto
+// validated:  pending
 
-import { CHAT_CONFIG, SYSTEM_PROMPT } from '../config/chat-config'
-import type { ChatMessage, MessageRole } from '../config/chat-config'
+import { CHAT_CONFIG } from '../config/chat-config'
+import type { ChatMessage } from '../config/chat-config'
 import { randomUUID } from 'crypto'
 
 // --- Message builders ---
@@ -75,39 +95,6 @@ export function validateMessageContent(content: unknown): { valid: boolean; erro
   if (content.trim().length === 0) return { valid: false, error: 'content is empty' }
   if (content.length > CHAT_CONFIG.maxMessageLength) return { valid: false, error: 'content too long' }
   return { valid: true }
-}
-
-// --- Thread formatter ---
-
-function formatThreadForContext(
-  history: ChatMessage[]
-): Array<{ role: MessageRole; content: string }> {
-  return history
-    .slice(-CHAT_CONFIG.contextWindow)
-    .map((m) => ({ role: m.role, content: m.content }))
-}
-
-// --- Full context builder for AI request ---
-// Prepends system prompt (with optional memory context injected),
-// appends history, then current user message.
-// History is optional — safe to pass empty array in demo mode.
-
-export function buildMessageContext(
-  currentContent: string,
-  history: ChatMessage[] = [],
-  memoryContext?: string
-): Array<{ role: MessageRole; content: string }> {
-  const thread = formatThreadForContext(history)
-
-  const systemContent = memoryContext
-    ? `${SYSTEM_PROMPT}\n\nMemory context:\n${memoryContext}`
-    : SYSTEM_PROMPT
-
-  return [
-    { role: 'system', content: systemContent },
-    ...thread,
-    { role: 'user', content: currentContent },
-  ]
 }
 
 // --- Cursor pagination ---
