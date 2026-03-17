@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b1-layout-restore
+// amended:    step4b2-corrective
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -21,7 +21,7 @@
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
 //   W-HOOK  useChatStream   ./chat-hook
 // wires-out:
-//   W-ATOM  ChatUI          → src/app/page.tsx
+//   W-ATOM  ChatUI  → src/app/page.tsx
 // deps:
 //   R3  ./chat-hook
 //   R3  @/features/F-design-system/contract/primitives
@@ -29,19 +29,16 @@
 //   R5  react
 // validated:  pending
 //
-// step4b1 (A1, A3):
-//   Internal <header className="chat-header"> removed — header is now owned
-//   by page.tsx (A1: one owner per construct).
-//   ChatUI renders messages + footer only. AccountPanel remains fully internal
-//   (API keys, display name, theme — chat concerns).
-//   onOpenAccount prop pattern: ChatUI accepts onOpenAccount as a prop and calls
-//   it on mount to register its internal setAccountOpen(true) with page.tsx.
-//   page.tsx stores the registration via useRef and calls it from the header
-//   username button. accountOpen state never leaves ChatUI (A1). The typed prop
-//   boundary is the registration callback (A3).
-//   Axiom cite:
-//     A1 — header ownership moved to page.tsx. ChatUI owns messages + panel only.
-//     A3 — onOpenAccount is the typed prop boundary; no accountOpen state crosses.
+// step4b1 (A1, A3): (unchanged)
+//
+// step4b2-phase-d (A1, A3): Models section added to AccountPanel.
+//
+// step4b2-corrective (A5):
+//   Removed PLANNER_CONST import from @/features/F-planner/types/planner-const.
+//   Cross-slice imports of another slice's R0 config must go through that slice's
+//   R3 contract surface (A5). Model strings are display-only UI constants — inlined
+//   directly as PROVIDER_MODELS. When model strings change in PLANNER_CONST, this
+//   file is updated manually. Same pattern as provider labels in PROVIDERS.
 
 'use client'
 
@@ -82,6 +79,27 @@ type Msg = {
   streaming?: boolean
 }
 
+// ── Model preferences local type (step4b2-phase-d) ────────────────────────────
+// Mirrors ModelTierPreference from F-user-profile/types/profile-types.ts.
+// R3 cannot import from F-user-profile/types/ (not yet on A5 export surface).
+// Local type — structural compatibility guaranteed at PUT /api/profile/models.
+type TierPref = { provider: ProviderId; model: string } | null
+type ModelPrefs = { largest: TierPref; medium: TierPref; smallest: TierPref }
+
+// ── Inlined model options per provider (step4b2-corrective) ──────────────────
+// Display-only UI constants. Replaces PLANNER_CONST.MODEL_TIER_MAP dependency
+// per A5: cross-slice R0 config belongs behind that slice's R3 contract surface.
+// Update manually when model strings change in PLANNER_CONST.
+const PROVIDER_MODELS: Record<ProviderId, string[]> = {
+  anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
+  deepseek:  ['deepseek-chat'],
+  openai:    [],
+}
+
+function modelsForProvider(provider: ProviderId): string[] {
+  return [...new Set(PROVIDER_MODELS[provider] ?? [])]
+}
+
 // ── Account panel ─────────────────────────────────────────────────────────────
 
 function AccountPanel({
@@ -106,12 +124,15 @@ function AccountPanel({
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
 
+  // ── Model preferences state (step4b2-phase-d) ─────────────────────────────
+  const [modelPrefs, setModelPrefs]     = useState<ModelPrefs>({ largest: null, medium: null, smallest: null })
+  const [prefsSaving, setPrefsSaving]   = useState(false)
+  const [prefsLoaded, setPrefsLoaded]   = useState(false)
+
   useEffect(() => {
     if (!open) return
     PROVIDER_ORDER.forEach(async (provider) => {
       try {
-        const res = await fetch('/api/profile')
-        if (!res.ok) return
         const check = await fetch(`/api/profile/api-key?provider=${provider}`, { method: 'GET' })
         if (check.ok) {
           const data = await check.json()
@@ -119,7 +140,17 @@ function AccountPanel({
         }
       } catch {}
     })
-  }, [open])
+    // Load model preferences on open
+    if (!prefsLoaded) {
+      fetch('/api/profile/models')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.data) setModelPrefs(d.data)
+          setPrefsLoaded(true)
+        })
+        .catch(() => setPrefsLoaded(true))
+    }
+  }, [open, prefsLoaded])
 
   useEffect(() => {
     if (open) panelRef.current?.focus()
@@ -166,7 +197,60 @@ function AccountPanel({
         body:    JSON.stringify({ provider }),
       })
       setKeySet(prev => ({ ...prev, [provider]: false }))
+      // Clear preferences that depended on this provider
+      setModelPrefs(prev => ({
+        largest:  prev.largest?.provider  === provider ? null : prev.largest,
+        medium:   prev.medium?.provider   === provider ? null : prev.medium,
+        smallest: prev.smallest?.provider === provider ? null : prev.smallest,
+      }))
     } catch {}
+  }
+
+  // ── Save model preference for one tier (step4b2-phase-d) ──────────────────
+  // Optimistic: update local state immediately, revert on server error.
+  const saveTierPref = async (
+    tier:  'largest' | 'medium' | 'smallest',
+    value: string   // empty string = "Default" (null)
+  ) => {
+    const prev = modelPrefs
+
+    let newPref: TierPref = null
+    if (value) {
+      // Look up provider from uniqueModels — avoids fragile model-string heuristics.
+      // uniqueModels carries { provider, model } pairs built from keySet + PROVIDER_MODELS.
+      const entry = uniqueModels.find(m => m.model === value)
+      const provider: ProviderId = entry?.provider ?? (value.startsWith('claude') ? 'anthropic' : 'deepseek')
+      newPref = { provider, model: value }
+    }
+
+    const next: ModelPrefs = { ...modelPrefs, [tier]: newPref }
+    setModelPrefs(next)   // optimistic
+    setPrefsSaving(true)
+
+    try {
+      const res = await fetch('/api/profile/models', {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(next),
+      })
+      if (!res.ok) setModelPrefs(prev)   // revert
+    } catch {
+      setModelPrefs(prev)
+    } finally {
+      setPrefsSaving(false)
+    }
+  }
+
+  // Derive available models from saved keys
+  const availableModels = PROVIDER_ORDER
+    .filter(p => keySet[p])
+    .flatMap(p => modelsForProvider(p).map(m => ({ provider: p, model: m })))
+  const uniqueModels = [...new Map(availableModels.map(m => [m.model, m])).values()]
+
+  const tierLabel: Record<string, string> = {
+    largest:  'Largest (IN-MAIN, IN-RESOLVE, IN-QA)',
+    medium:   'Medium (IN-AUDIT, IN-COMPILE)',
+    smallest: 'Smallest (IN-BUILD)',
   }
 
   return (
@@ -196,7 +280,8 @@ function AccountPanel({
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)' }}>
+        {/* ── API Keys ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginBottom: 'var(--u4)' }}>
           {PROVIDER_ORDER.map(provider => (
             <div key={provider} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -231,6 +316,39 @@ function AccountPanel({
           ))}
         </div>
 
+        {/* ── Models (step4b2-phase-d) ── */}
+        {uniqueModels.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginBottom: 'var(--u4)' }}>
+            <Label>Models{prefsSaving ? ' ···' : ''}</Label>
+            {(['largest', 'medium', 'smallest'] as const).map(tier => (
+              <div key={tier} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-sub)' }}>
+                  {tierLabel[tier]}
+                </span>
+                <select
+                  value={modelPrefs[tier]?.model ?? ''}
+                  disabled={prefsSaving}
+                  onChange={e => saveTierPref(tier, e.target.value)}
+                  style={{
+                    background:   'var(--surface)',
+                    color:        'var(--text)',
+                    border:       '1px solid var(--border)',
+                    borderRadius: 'var(--r1)',
+                    padding:      'var(--u05) var(--u1)',
+                    fontSize:     'var(--text-sm)',
+                    cursor:       prefsSaving ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <option value="">Default</option>
+                  {uniqueModels.map(({ model }) => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--u3)', paddingTop: 'var(--u4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
@@ -252,13 +370,7 @@ function AccountPanel({
   )
 }
 
-// ── ChatUI — messages + footer only. Header owned by page.tsx (A1). ───────────
-//
-// onOpenAccount prop: page.tsx passes a registration callback. ChatUI calls it
-// on mount with () => setAccountOpen(true). page.tsx stores the registered fn
-// in a ref and calls it when the header username button is clicked.
-// accountOpen state never leaves ChatUI — A1 preserved. A3: typed boundary
-// is the () => void signature of the registration callback.
+// ── ChatUI ─────────────────────────────────────────────────────────────────────
 
 export function ChatUI({
   email,
@@ -287,9 +399,6 @@ export function ChatUI({
 
   const userName = email.includes('@') ? email.split('@')[0] : email
 
-  // ── Register open fn with page.tsx on mount ───────────────────────────────
-  // Called once. page.tsx stores the fn; header button calls it directly.
-  // No state leaves ChatUI — accountOpen is private (A1, A3).
   useEffect(() => {
     onOpenAccount(() => setAccountOpen(true))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -410,7 +519,6 @@ export function ChatUI({
         theme={theme} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
       />
 
-      {/* ── MESSAGES ── */}
       <main className="chat-main">
         <div className="col chat-messages">
 
@@ -454,7 +562,6 @@ export function ChatUI({
         </div>
       </main>
 
-      {/* ── FOOTER ── */}
       <footer className="chat-footer">
         <div className="col">
           <InputContainer

@@ -1,34 +1,64 @@
 // @liv-standard v1.3
-// [F-planner/R0]
+// [F-planner/types/planner-types.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step3-executor
+// amended:    step4b2-corrective
 // slice:      F-planner
 // layer:      R0
-// wires-in:   none
+// wires-in:
+//   W-ATOM  CanonicalIfContract  @/core/constants/liv-standard.types
+//   W-ATOM  AtomDecl             @/core/constants/liv-standard.types
+//   W-ATOM  WireEntry            @/core/constants/liv-standard.types
+//   W-ATOM  EventContract        @/core/constants/liv-standard.types
+//   W-ATOM  MigrationDelta       @/core/constants/liv-standard.types
+//   W-ATOM  FlowId               @/core/constants/liv-standard.types
+//   W-ATOM  InstanceId           @/core/constants/liv-standard.types
 // wires-out:
-//   W-ATOM  PipelineStage     →  F-planner/R1, F-planner/R2, F-planner/R3, F-planner/R4
-//   W-ATOM  StageStatus       →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  PlannerJob        →  F-planner/R2, F-planner/R3, F-planner/R4
-//   W-ATOM  IfContract        →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  StageLogEntry     →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  PlannerResult     →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  PlannerJobId      →  F-planner/R2, F-planner/R3, F-planner/R4
-//   W-ATOM  AdvanceStagePayload.files  →  F-planner/R2 (executor gate), F-planner/R4 (route handler)
-// deps:       none
-// validated:  2026-03-13
+//   W-ATOM  PipelineStage          →  F-planner/R1, F-planner/R2, F-planner/R3, F-planner/R4
+//   W-ATOM  StageStatus            →  F-planner/R1, F-planner/R2, F-planner/R4
+//   W-ATOM  PipelineStatus         →  F-planner/R2, F-planner/R4
+//   W-ATOM  PlannerJob             →  F-planner/R2, F-planner/R3, F-planner/R4
+//   W-ATOM  IfContract             →  F-planner/R1, F-planner/R2, F-planner/R4
+//   W-ATOM  StageLogEntry          →  F-planner/R1, F-planner/R2, F-planner/R4
+//   W-ATOM  PlannerResult          →  F-planner/R1, F-planner/R2, F-planner/R4
+//   W-ATOM  PlannerJobId           →  F-planner/R2, F-planner/R3, F-planner/R4
+//   W-ATOM  PipelineReport         →  F-planner/R2, F-planner/R4
+//   W-ATOM  StageReportEntry       →  F-planner/R2, F-planner/R4
+//   W-ATOM  BuildRequestPayload    →  F-planner/R3, src/app/api/chat
+//   W-ATOM  FileEntry              →  F-planner/R1, F-planner/R2
+//   W-ATOM  ParsedInstanceResponse →  F-planner/R1, F-planner/R2
+//   W-ATOM  InstanceCallResult     →  F-planner/R2
+//   W-ATOM  ErrorRecord            →  F-planner/R1, F-planner/R2
+//   W-ATOM  AdvanceStagePayload.files →  F-planner/R2, F-planner/R4
+// deps:
+//   R0  @/core/constants/liv-standard.types  (canonical IF contract types — A1)
+// validated:  pending
 //
-// step3-executor: AdvanceStagePayload.files? added — typed file array passed
-// from route handler through to IExecutor.run() at IN_COMPILE gate.
-// Axiom cite: A6 — declared at R0 of owner.
+// step3-executor: AdvanceStagePayload.files? added.
+// step4b2-phase-a through phase-d: (unchanged in substance)
+//
+// step4b2-corrective (A1, A3, A6):
+//   Removes 7 locally declared IF contract sub-types that duplicated the canonical
+//   types in liv-standard.types.ts with different field names. Duplicate ownership
+//   was an A1 violation — one concept, two owners.
+//   IfContract is now: CanonicalIfContract & { frozenAt: number; frozenBy: string }.
+//   The extension fields (frozenAt, frozenBy) are F-planner's pipeline gate metadata
+//   — not part of the standard's IfContract definition. The intersection is the
+//   correct structural pattern: canonical type + planner-specific extension.
+//   Removed types: AtomDeclaration, BundleScope, WireMapEntry, EventContractEntry,
+//   MigrationDelta, TableDelta. All consumers now use canonical field shapes.
+//   Axiom cite: A1 — single owner per type. A3 — typed atoms. A6 — declared at R0.
+
+import type {
+  IfContract as CanonicalIfContract,
+} from '@/core/constants/liv-standard.types'
 
 // ── AK-REF ────────────────────────────────────────────────────────────────────
 export type PlannerJobId = string & { _brand: 'PlannerJobId' }
 
 // ── AK-ENUM ───────────────────────────────────────────────────────────────────
-// Stage order matches PLANNER_CONST.STAGE_ORDER — never reorder independently.
 export type PipelineStage =
   | 'IN_MAIN'
   | 'IN_BUILD'
@@ -38,125 +68,126 @@ export type PipelineStage =
   | 'IN_QA'
 
 export type StageStatus =
-  | 'pending'     // not yet started
-  | 'running'     // currently executing
-  | 'complete'    // passed — next stage may begin
-  | 'failed'      // terminal failure — pipeline stops
-  | 'skipped'     // bypassed per flow variant
-
-export type PipelineStatus =
   | 'pending'
   | 'running'
   | 'complete'
   | 'failed'
+  | 'skipped'
+
+export type PipelineStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'running'
+  | 'complete'
+  | 'failed'
   | 'cancelled'
+  | 'escalated'
+
+// ── IF Contract — canonical extension ─────────────────────────────────────────
+// CanonicalIfContract: from liv-standard.types.ts (R5). Single source of truth
+// for all IF contract field names and sub-type shapes (A1).
+// Extension fields: frozenAt + frozenBy are F-planner pipeline gate metadata —
+// set when IN-MAIN confirms and freezes the contract. Not part of the standard.
+// liv-api.ts functions ignore these extension fields (structural typing).
+export type IfContract = CanonicalIfContract & {
+  frozenAt: number   // epoch ms — set by IN-MAIN gate on confirmation
+  frozenBy: string   // userId
+}
 
 // ── AK-ENT ────────────────────────────────────────────────────────────────────
-// PlannerJob is the F-planner view of a Build. One PlannerJob per Build.
-// Stored in builds table — F-project owns the row. F-planner writes
-// pipeline_log, current_stage, stage_status, and if_contract fields only.
 export type PlannerJob = {
-  jobId:          PlannerJobId   // same as buildId — shared key
-  projectId:      string
-  userId:         string
-  pipelineStatus: PipelineStatus
-  currentStage:   PipelineStage | null
-  stageStatus:    StageStatus
-  ifContract:     IfContract | null
-  pipelineLog:    StageLogEntry[]
-  source:         'CONTINUOUS' | 'REENTRY'
-  createdAt:      number         // epoch ms
-  updatedAt:      number         // epoch ms
-}
-
-// ── IF Contract ───────────────────────────────────────────────────────────────
-// Frozen after IN-MAIN gate. Immutable once set. (T6.2)
-// All fields typed — no unknown values cross the R4 boundary. (A3)
-export type IfContract = {
-  // IF.01 — Feature intent (one sentence)
-  featureIntent:     string
-  // IF.02 — Atom declarations: new types, enums, payload types
-  atomDeclarations:  AtomDeclaration[]
-  // IF.03 — Bundle scope: which slices are new vs modified
-  bundleScope:       BundleScope[]
-  // IF.04 — Flow selection: FL-IDs this feature implements
-  flowIds:           string[]
-  // IF.05 — Wire map: how bundles connect
-  wireMap:           WireMapEntry[]
-  // IF.06 — Event contracts: emitted/consumed events with payloads
-  eventContracts:    EventContractEntry[]
-  // IF.07 — Migration delta (optional)
-  migrationDelta:    MigrationDelta | null
-  // IF.08 — Acceptance criteria
-  acceptanceCriteria: string[]
-  // IF.09 — LIV-Standard version
-  standardVersion:   string
-  // IF.10 — LIV-Procedure version
-  procedureVersion:  string
-  // Freeze metadata
-  frozenAt:          number   // epoch ms — set by IN-MAIN gate
-  frozenBy:          string   // userId
-}
-
-export type AtomDeclaration = {
-  name:    string
-  kind:    'type' | 'enum' | 'const' | 'interface'
-  owner:   string   // slice name
-  layer:   string   // R0
-}
-
-export type BundleScope = {
-  slice:  string
-  action: 'new' | 'modified' | 'deleted'
-  layers: string[]   // which R-layers are touched
-}
-
-export type WireMapEntry = {
-  wireType:  'W-ATOM' | 'W-EVENT' | 'W-HOOK' | 'W-INJECT'
-  id:        string
-  from:      string   // slice/layer
-  to:        string   // slice/layer
-  payload:   string   // type name
-  version:   number
-}
-
-export type EventContractEntry = {
-  eventName:   string
-  direction:   'emits' | 'consumes'
-  slice:       string
-  payloadType: string
-}
-
-export type MigrationDelta = {
-  tables:  TableDelta[]
-  indexes: string[]   // descriptive — not executable SQL
-}
-
-export type TableDelta = {
-  table:   string
-  action:  'create' | 'alter' | 'drop'
-  columns: string[]   // descriptive
+  jobId:           PlannerJobId
+  projectId:       string
+  userId:          string
+  pipelineStatus:  PipelineStatus
+  currentStage:    PipelineStage | null
+  stageStatus:     StageStatus
+  ifContract:      IfContract | null
+  pipelineLog:     StageLogEntry[]
+  source:          'CONTINUOUS' | 'REENTRY'
+  transitionCount: number
+  pipelineReport:  PipelineReport | null
+  reentryCount:    number
+  createdAt:       number
+  updatedAt:       number
 }
 
 // ── Stage log ─────────────────────────────────────────────────────────────────
-// One entry per stage transition. Immutable once appended.
 export type StageLogEntry = {
   stage:       PipelineStage
   status:      StageStatus
-  startedAt:   number          // epoch ms
-  completedAt: number | null   // null while running
-  message:     string | null   // summary or error reason
-  axiomCite:   string | null   // A1–A7 citation on failure
+  startedAt:   number
+  completedAt: number | null
+  message:     string | null
+  axiomCite:   string | null
   retryCount:  number
 }
 
+// ── AK-SUM — Error record ─────────────────────────────────────────────────────
+export type ErrorRecord = {
+  class:      1 | 2 | 3
+  message:    string
+  resolution: 'retried' | 'reentry' | 'escalated' | 'fixed'
+}
+
+// ── AK-ENT — Pipeline report ──────────────────────────────────────────────────
+export type PipelineReport = {
+  buildId:          string
+  userId:           string
+  stages:           StageReportEntry[]
+  totalTransitions: number
+  reentries:        number
+  outcome:          'complete' | 'failed' | 'escalated' | null
+  failureReason?:   string
+  startedAt:        number
+  completedAt?:     number
+}
+
+export type StageReportEntry = {
+  instanceId:   PipelineStage
+  model:        string
+  startedAt:    number
+  completedAt:  number
+  tokenCount:   number
+  handoffValid: boolean
+  retries:      number
+  errors:       ErrorRecord[]
+  error?:       { message: string }
+}
+
+// ── AK-ENT — File atom ────────────────────────────────────────────────────────
+export type FileEntry = {
+  path:     string
+  content:  string
+  encoding: 'utf8' | 'base64'
+}
+
+// ── AK-RES — Parsed instance response ────────────────────────────────────────
+export type ParsedInstanceResponse = {
+  files:     FileEntry[]
+  report?:   string
+  errorLog?: string
+  raw:       string
+}
+
+// ── AK-SUM — Instance call result ────────────────────────────────────────────
+export type InstanceCallResult = {
+  instanceId:   PipelineStage
+  model:        string
+  response:     ParsedInstanceResponse
+  tokenCount:   number
+  durationMs:   number
+  handoffValid: boolean
+  startedAt:    number
+  completedAt:  number
+}
+
 // ── AK-RES ────────────────────────────────────────────────────────────────────
-// Scoped alias — shape matches core Result<T>.
 export type PlannerResult<T> =
   | { ok: true;  data: T }
   | { ok: false; error: { code: string; message: string; context?: Record<string, unknown> } }
 
-// ── Payloads ──────────────────────────────────────────────────────────────────
+// ── AK-PAY — Payloads ─────────────────────────────────────────────────────────
 export type StartPipelinePayload = {
   buildId:     string
   projectId:   string
@@ -168,8 +199,6 @@ export type StartPipelinePayload = {
 export type AdvanceStagePayload = {
   jobId:   PlannerJobId
   message: string | null
-  // step3-executor: typed file array for IN_COMPILE execution gate.
-  // Optional — absent on all stages except IN_COMPILE. Declared at R0 (A6).
   files?:  Array<{ path: string; content: string }>
 }
 
@@ -182,4 +211,11 @@ export type FailStagePayload = {
 export type FreezeContractPayload = {
   jobId:      PlannerJobId
   ifContract: IfContract
+}
+
+export type BuildRequestPayload = {
+  projectId: string
+  userId:    string
+  message:   string
+  modelId:   string
 }

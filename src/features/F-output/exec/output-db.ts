@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step4b2-phase-b
 // slice:      F-output
 // layer:      R4
 // wires-in:
@@ -12,13 +12,18 @@
 //   W-ATOM  OutputFiles   ../types/output-types
 //   W-ATOM  OutputResult  ../types/output-types
 //   W-ATOM  OutputJobId   ../types/output-types
-// wires-out:  none  (R4 is never imported — injected via IOutputDb at R3)
-//   dbAppendOutputFile, dbReplaceOutputFiles: unexported — reserved for pipeline stages
-//   Add to IOutputDb and output-inject when IN_BUILD/IN_COMPILE phases are wired.
+// wires-out:
+//   W-FN  dbReplaceOutputFiles  →  F-planner/R3 (planner-inject.ts — step4b2-phase-b)
 // deps:
 //   R0  ../types/output-types
 //   R5  @/core/db/client
-// validated:  2026-03-12
+// validated:  pending
+//
+// step4b2-phase-b:
+//   dbReplaceOutputFiles exported — was previously private, reserved for pipeline
+//   stages per original comment. Claimed here for F-planner pipeline write path.
+//   F-planner/contract/planner-inject.ts imports this under A2-r3-output-write
+//   structural exception. No other change to this file.
 
 // A2: R4 never imports R2 or R3. IOutputDb declared at R2, wired at R3.
 // A4: all DB I/O lives here. Row mapping only — no logic beyond column extraction.
@@ -143,9 +148,11 @@ async function dbAppendOutputFile(
 
 // ── dbReplaceOutputFiles ───────────────────────────────────────────────────────
 // Replaces the entire output_files array atomically.
-// Used by IN_QA stage if a post-processing pass modifies the file tree.
+// Exported for F-planner pipeline use (step4b2-phase-b). Previously unexported —
+// comment in original reserved this for pipeline stages. Now claimed.
+// Called by F-planner/contract/planner-inject.ts (A2-r3-output-write amendment).
 
-async function dbReplaceOutputFiles(
+export async function dbReplaceOutputFiles(
   jobId: OutputJobId,
   files: OutputFiles,
 ): Promise<OutputResult<void>> {
