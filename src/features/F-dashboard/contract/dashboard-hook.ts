@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b1-layout-restore
+// amended:    step4b3-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -16,49 +16,41 @@
 //   W-ATOM  ProjectActions        ../types/dashboard-types
 //   W-ATOM  OutputState           ../types/dashboard-types
 //   W-ATOM  DashboardSectionState ../types/dashboard-types
-//   W-ATOM  DashboardPanel        ../types/dashboard-types
-//   W-FN    deriveActivePanel     ../domain/dashboard-logic
 //   W-HOOK  usePlanner            @/features/F-planner/contract/planner-hook
 //   W-HOOK  useProject            @/features/F-project/contract/project-hook
 //   W-HOOK  useOutput             @/features/F-output/contract/output-hook
 // wires-out:
-//   W-HOOK  useWorkspace      →  F-dashboard/R3 (dashboard-ui.tsx), src/app/page.tsx
-//   W-FN    deriveActivePanel →  re-exported at contract surface (A5)
+//   W-HOOK  useWorkspace  →  F-dashboard/R3 (dashboard-ui.tsx), src/app/page.tsx
 // deps:
 //   R0  ../types/dashboard-types
-//   R0  @/features/F-planner/types/planner-types   (PlannerJobId — A5)
-//   R1  ../domain/dashboard-logic
-//   R3  @/features/F-planner/contract/planner-hook   (A5: contract surface)
-//   R3  @/features/F-project/contract/project-hook   (A5: contract surface)
-//   R3  @/features/F-output/contract/output-hook     (A5: contract surface)
+//   R0  @/features/F-planner/types/planner-types  (PlannerJobId — A5)
+//   R3  @/features/F-planner/contract/planner-hook  (A5)
+//   R3  @/features/F-project/contract/project-hook  (A5)
+//   R3  @/features/F-output/contract/output-hook    (A5)
 //   R5  react
 // validated:  pending
 //
-// step4b1 (A1, A3, A6):
-//   useWorkspace() now takes no arguments. ChatSurface param removed —
-//   F-dashboard has no dependency on chat identity. page.tsx reads email/signOut
-//   directly from useAuth() and passes them to ChatUI independently.
-//   DashboardSectionState atom assembled here: isExpanded (default: false,
-//   collapsed) + toggleExpanded callback. Returned as dashboardSection field
-//   on WorkspaceHook — typed boundary atom crosses into page.tsx and DashboardUI
-//   without raw booleans escaping the atom boundary (A3).
-//   Axiom cite:
-//     A1 — useWorkspace is sole orchestration owner for F-dashboard state.
-//     A3 — DashboardSectionState is the typed atom; no raw state crosses boundary.
-//     A6 — DashboardSectionState declared at R0 (dashboard-types.ts).
+// step4b1 (A1, A3, A6): (unchanged in substance)
+//
+// step4b3-dashboard (A7):
+//   Removed: activePanel, setActivePanel, goToPanel, DashboardPanel import.
+//   Removed: deriveActivePanel import and re-export (dashboard-logic.ts deleted).
+//   Auto-advance panel useEffect removed — no panels to advance to.
+//   WorkspaceHook return slimmed to match new type definition.
+//   Status strip state is derived purely in dashboard-ui.tsx from
+//   program.pipelineStatus + pipelineView.currentStage — no hook state needed.
+//   Axiom cite: A7 — removed all dead code with zero consumers.
 
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { usePlanner }        from '@/features/F-planner/contract/planner-hook'
-import { useProject }        from '@/features/F-project/contract/project-hook'
-import { useOutput }         from '@/features/F-output/contract/output-hook'
-import { deriveActivePanel } from '../domain/dashboard-logic'
+import { usePlanner }   from '@/features/F-planner/contract/planner-hook'
+import { useProject }   from '@/features/F-project/contract/project-hook'
+import { useOutput }    from '@/features/F-output/contract/output-hook'
 import type {
   WorkspaceHook,
   ActiveProgram,
   PipelineView,
-  DashboardPanel,
   DashboardSectionState,
   PlannerActions,
   OutputActions,
@@ -68,9 +60,8 @@ import type {
 import type { PlannerJobId } from '@/features/F-planner/types/planner-types'
 
 export function useWorkspace(): WorkspaceHook {
-  const [jobId,       setJobId]       = useState<string | null>(null)
-  const [activePanel, setActivePanel] = useState<DashboardPanel>('intake')
-  const [isExpanded,  setIsExpanded]  = useState<boolean>(false)
+  const [jobId,      setJobId]      = useState<string | null>(null)
+  const [isExpanded, setIsExpanded] = useState<boolean>(false)
 
   // ── Slice hooks (A5: via contract only) ───────────────────────────────────
   const project        = useProject()
@@ -85,23 +76,11 @@ export function useWorkspace(): WorkspaceHook {
     }
   }, [planner.job?.jobId, jobId])
 
-  // ── Auto-advance panel from pipeline state (R1 pure fn) ──────────────────
-  const derivedPanel = deriveActivePanel(jobId, planner.job?.pipelineStatus ?? null)
-  useEffect(() => {
-    if (derivedPanel !== activePanel) {
-      setActivePanel(derivedPanel)
-    }
-  }, [derivedPanel, activePanel])
-
-  const goToPanel = useCallback((panel: DashboardPanel) => {
-    setActivePanel(panel)
-  }, [])
-
   const toggleExpanded = useCallback(() => {
     setIsExpanded(prev => !prev)
   }, [])
 
-  // ── ActiveProgram — core readable state atom (A3) ─────────────────────────
+  // ── ActiveProgram (A3) ────────────────────────────────────────────────────
   const program: ActiveProgram = project.activeProject
     ? {
         projectId:      project.activeProject.projectId,
@@ -112,7 +91,7 @@ export function useWorkspace(): WorkspaceHook {
       }
     : null
 
-  // ── PipelineView — PipelinePanel read state (A3) ──────────────────────────
+  // ── PipelineView (A3) ─────────────────────────────────────────────────────
   const pipelineView: PipelineView = planner.job
     ? {
         jobId:        planner.job.jobId,
@@ -122,7 +101,7 @@ export function useWorkspace(): WorkspaceHook {
       }
     : null
 
-  // ── OutputState — output panel read state (A3) ────────────────────────────
+  // ── OutputState (A3) ─────────────────────────────────────────────────────
   const outputState: OutputState = {
     files:       output.files,
     filesStatus: output.filesStatus,
@@ -132,7 +111,7 @@ export function useWorkspace(): WorkspaceHook {
     pushError:   output.pushError,
   }
 
-  // ── Action surfaces — callable fns only, no state (A3) ───────────────────
+  // ── Action surfaces (A3) ──────────────────────────────────────────────────
   const plannerActions: PlannerActions = {
     startPipeline:  planner.startPipeline,
     advanceStage:   planner.advanceStage,
@@ -154,7 +133,7 @@ export function useWorkspace(): WorkspaceHook {
     setActive: project.setActive,
   }
 
-  // ── DashboardSectionState — collapsible panel atom (A3) ───────────────────
+  // ── DashboardSectionState (A3) ────────────────────────────────────────────
   const dashboardSection: DashboardSectionState = {
     isExpanded,
     toggleExpanded,
@@ -168,10 +147,6 @@ export function useWorkspace(): WorkspaceHook {
     outputActions,
     projectActions,
     projects:         project.projects,
-    activePanel,
-    goToPanel,
     dashboardSection,
   }
 }
-
-export { deriveActivePanel } from '../domain/dashboard-logic'

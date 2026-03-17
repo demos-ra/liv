@@ -437,7 +437,19 @@ body { background: var(--canvas-grad); min-height: 100vh; }
 
 /* ── StatusDot ── */
 .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.dot-accent { background: var(--accent); }
+.dot-accent  { background: var(--accent); }
+.dot-error   { background: var(--error); }
+.dot-caution { background: var(--caution, #E8A64A); }
+.dot-dis     { background: var(--text-dis); }
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: 0;
+  flex-shrink: 0;
+}
 
 /* ── Surface ── */
 .surface {

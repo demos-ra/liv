@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b1-layout-restore
+// amended:    step4b3-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -14,34 +14,29 @@
 //   W-ATOM  DashboardUI   @/features/F-dashboard/contract/dashboard-ui
 //   W-ATOM  ChatUI        @/features/F-chat/contract/chat-ui
 //   W-ATOM  AuthPage      @/features/F-identity/contract/auth-pages
-// wires-out:  none  (mount point — top of render tree)
+// wires-out:  none  (mount point)
 // deps:
-//   R3  @/features/F-dashboard/contract/dashboard-hook   (A5)
-//   R3  @/features/F-dashboard/contract/dashboard-ui     (A5)
-//   R3  @/features/F-chat/contract/chat-ui               (A5)
-//   R3  @/features/F-identity/contract/auth-hooks        (A5)
-//   R3  @/features/F-identity/contract/auth-pages        (A5)
-//   R3  @/features/F-design-system/contract/primitives   (A5)
+//   R3  @/features/F-dashboard/contract/dashboard-hook  (A5)
+//   R3  @/features/F-dashboard/contract/dashboard-ui    (A5)
+//   R3  @/features/F-chat/contract/chat-ui              (A5)
+//   R3  @/features/F-identity/contract/auth-hooks       (A5)
+//   R3  @/features/F-identity/contract/auth-pages       (A5)
+//   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R5  react
 // validated:  pending
 //
-// step4b1 (A1, A2, A3, A5):
-//   page.tsx is the layout owner. Three independent children — header,
-//   DashboardUI, ChatUI — are siblings in a flex column, not nested.
-//   Header: .chat-header class from mockup. Brand glow from design system.
-//   username button calls openAccountRef.current() — fn registered by ChatUI
-//   on mount via onOpenAccount prop. accountOpen state stays in ChatUI (A1).
-//   DashboardUI: receives WorkspaceHook spread. dashboardSection atom carries
-//   collapse state — no raw booleans cross the boundary (A3).
-//   ChatUI: receives email + signOut from useAuth() directly — no ChatSurface
-//   intermediary. F-dashboard has zero chat imports (A2, A5, A7).
-//   useWorkspace() called unconditionally (Rules of Hooks). No args — chat
-//   identity no longer threads through F-dashboard (A1 clean break).
-//   Axiom cite:
-//     A1 — page.tsx is layout owner. Header, dashboard, chat each own their surface.
-//     A2 — no cross-slice imports. ChatUI imported at F-chat contract only.
-//     A3 — DashboardSectionState typed atom crosses boundary. No raw state.
-//     A5 — all imports via declared contract surfaces only.
+// step4b1 (A1, A2, A3, A5): (see prior history)
+//
+// step4b3-dashboard (A1, A3, A7):
+//   Removed: second header row, ToggleBar component, grid+chevron SVG (A7).
+//   Added: single dashboard icon button in .chat-header-inner between Brand
+//   and username. Uses .btn-icon class. 14×14 SVG, currentColor, 1.5px stroke.
+//   Icon color: text-dis when collapsed, text-sec when expanded — no rotation,
+//   no animation, just color transition via dur-fast.
+//   dashboardSection.toggleExpanded wired to icon onClick.
+//   dashboardSection.isExpanded wired to icon color.
+//   DashboardUI no longer needs a ToggleBar — it renders null when collapsed.
+//   Axiom cite: A1 — header owns the toggle icon. A7 — ToggleBar deleted.
 
 'use client'
 
@@ -53,17 +48,27 @@ import { DashboardUI }   from '@/features/F-dashboard/contract/dashboard-ui'
 import { ChatUI }        from '@/features/F-chat/contract/chat-ui'
 import { Brand }         from '@/features/F-design-system/contract/primitives'
 
+// ── DashboardIcon — 14×14 horizontal lines glyph ─────────────────────────────
+// Three lines suggesting a panel/list. currentColor — inherits from parent.
+function DashboardIcon() {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 14 14"
+      fill="none" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <line x1="1" y1="3.5"  x2="13" y2="3.5"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="1" y1="7"    x2="13" y2="7"    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="1" y1="10.5" x2="13" y2="10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function Home() {
   const { state, signOut } = useAuth()
-
-  // ── Workspace — no args. Chat identity is independent (A1). ──────────────
-  // Called unconditionally to satisfy Rules of Hooks.
   const workspace = useWorkspace()
 
   // ── Account panel bridge ──────────────────────────────────────────────────
-  // ChatUI registers its internal setAccountOpen(true) here on mount.
-  // Header username button calls openAccountRef.current?.() — no state lifted,
-  // accountOpen stays in ChatUI (A1). Typed boundary: (openFn: () => void) => void (A3).
   const openAccountRef = useRef<(() => void) | null>(null)
   const handleRegisterOpen = useCallback((openFn: () => void) => {
     openAccountRef.current = openFn
@@ -74,16 +79,32 @@ export default function Home() {
 
   const email    = state.user?.email ?? ''
   const userName = email.includes('@') ? email.split('@')[0] : email
+  const { isExpanded, toggleExpanded } = workspace.dashboardSection
 
   return (
-    // .chat-page: display:flex flex-direction:column height:100dvh — from mockup/globals.css
     <div className="chat-page">
 
-      {/* ── HEADER — .chat-header from mockup ── */}
-      {/* Brand glow, username button. Matches mockup exactly. */}
+      {/* ── HEADER ── */}
       <header className="chat-header">
         <div className="col chat-header-inner">
           <Brand variant="header" />
+
+          {/* Dashboard toggle icon — between Brand and username */}
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={toggleExpanded}
+            aria-label={isExpanded ? 'Collapse dashboard' : 'Expand dashboard'}
+            style={{
+              color:      isExpanded ? 'var(--text-sec)' : 'var(--text-dis)',
+              transition: `color var(--dur-fast)`,
+              marginLeft: 'auto',
+              marginRight: 'var(--u2)',
+            }}
+          >
+            <DashboardIcon />
+          </button>
+
           <button
             type="button"
             className="header-username"
@@ -95,19 +116,12 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── DASHBOARD — collapsible, collapsed by default ── */}
-      {/* DashboardSectionState atom (isExpanded, toggleExpanded) lives in   */}
-      {/* workspace.dashboardSection — no raw booleans cross the boundary.   */}
-      {/* flex-shrink:0 — dashboard takes only its intrinsic height.          */}
-      {/* When expanded, chat-main below shrinks via flex layout naturally.   */}
+      {/* ── DASHBOARD — flexShrink:0, renders null when collapsed ── */}
       <div style={{ flexShrink: 0 }}>
         <DashboardUI {...workspace} />
       </div>
 
-      {/* ── CHAT — flex:1, fills all remaining vertical space ── */}
-      {/* ChatUI renders chat-main (flex:1 overflow:auto) + chat-footer.      */}
-      {/* display:flex flex-direction:column so main + footer stack cleanly.  */}
-      {/* overflow:hidden clips ChatUI within its flex cell.                   */}
+      {/* ── CHAT ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
         <ChatUI
           email={email}

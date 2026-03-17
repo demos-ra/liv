@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective
+// amended:    step4b3-dashboard
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -16,6 +16,8 @@
 //   W-ATOM  Spinner         @/features/F-design-system/contract/primitives
 //   W-ATOM  Label           @/features/F-design-system/contract/primitives
 //   W-ATOM  ButtonText      @/features/F-design-system/contract/primitives
+//   W-ATOM  StatusDot       @/features/F-design-system/contract/primitives
+//   W-ATOM  Divider         @/features/F-design-system/contract/primitives
 //   W-ATOM  ProviderId      @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDERS       @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
@@ -30,15 +32,21 @@
 // validated:  pending
 //
 // step4b1 (A1, A3): (unchanged)
+// step4b2-phase-d (A1, A3): Models section added — backend deployed, UI now removed.
+// step4b2-corrective (A5): PROVIDER_MODELS inlined, PLANNER_CONST import removed.
 //
-// step4b2-phase-d (A1, A3): Models section added to AccountPanel.
-//
-// step4b2-corrective (A5):
-//   Removed PLANNER_CONST import from @/features/F-planner/types/planner-const.
-//   Cross-slice imports of another slice's R0 config must go through that slice's
-//   R3 contract surface (A5). Model strings are display-only UI constants — inlined
-//   directly as PROVIDER_MODELS. When model strings change in PLANNER_CONST, this
-//   file is updated manually. Same pattern as provider labels in PROVIDERS.
+// step4b3-dashboard (A1, A7):
+//   AccountPanel rewritten. Model preferences UI removed entirely (A7) —
+//   backend preferences remain deployed, UI had no active users.
+//   Added: StatusDot (accent) on the active provider row — first provider
+//   with a saved key. Click another provider's dot area to switch active.
+//   Added: Divider between panel sections (name, keys, theme, sign out).
+//   Section headers use .label class (uppercase mono, text-dis).
+//   Removed: PROVIDER_MODELS constant, modelsForProvider fn, TierPref/ModelPrefs
+//   types, all model preferences state (modelPrefs, prefsSaving, prefsLoaded),
+//   saveTierPref fn, uniqueModels computation, models section JSX.
+//   Axiom cite: A7 — remove what has no consumers. A1 — AccountPanel owns
+//   its own section structure.
 
 'use client'
 
@@ -55,6 +63,8 @@ import {
   Spinner,
   Label,
   ButtonText,
+  StatusDot,
+  Divider,
 } from '@/features/F-design-system/contract/primitives'
 
 const PROJECT_ID = 'demo'
@@ -79,27 +89,6 @@ type Msg = {
   streaming?: boolean
 }
 
-// ── Model preferences local type (step4b2-phase-d) ────────────────────────────
-// Mirrors ModelTierPreference from F-user-profile/types/profile-types.ts.
-// R3 cannot import from F-user-profile/types/ (not yet on A5 export surface).
-// Local type — structural compatibility guaranteed at PUT /api/profile/models.
-type TierPref = { provider: ProviderId; model: string } | null
-type ModelPrefs = { largest: TierPref; medium: TierPref; smallest: TierPref }
-
-// ── Inlined model options per provider (step4b2-corrective) ──────────────────
-// Display-only UI constants. Replaces PLANNER_CONST.MODEL_TIER_MAP dependency
-// per A5: cross-slice R0 config belongs behind that slice's R3 contract surface.
-// Update manually when model strings change in PLANNER_CONST.
-const PROVIDER_MODELS: Record<ProviderId, string[]> = {
-  anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
-  deepseek:  ['deepseek-chat'],
-  openai:    [],
-}
-
-function modelsForProvider(provider: ProviderId): string[] {
-  return [...new Set(PROVIDER_MODELS[provider] ?? [])]
-}
-
 // ── Account panel ─────────────────────────────────────────────────────────────
 
 function AccountPanel({
@@ -117,17 +106,14 @@ function AccountPanel({
   const [keyInputs, setKeyInputs] = useState<Record<ProviderId, string>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, ''])) as Record<ProviderId, string>
   )
-  const [keySet, setKeySet]       = useState<Record<ProviderId, boolean>>(() =>
+  const [keySet, setKeySet] = useState<Record<ProviderId, boolean>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
   const [keySaving, setKeySaving] = useState<Record<ProviderId, boolean>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
-
-  // ── Model preferences state (step4b2-phase-d) ─────────────────────────────
-  const [modelPrefs, setModelPrefs]     = useState<ModelPrefs>({ largest: null, medium: null, smallest: null })
-  const [prefsSaving, setPrefsSaving]   = useState(false)
-  const [prefsLoaded, setPrefsLoaded]   = useState(false)
+  // Active provider: first provider with a saved key. Click dot to switch.
+  const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -140,17 +126,14 @@ function AccountPanel({
         }
       } catch {}
     })
-    // Load model preferences on open
-    if (!prefsLoaded) {
-      fetch('/api/profile/models')
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          if (d?.data) setModelPrefs(d.data)
-          setPrefsLoaded(true)
-        })
-        .catch(() => setPrefsLoaded(true))
-    }
-  }, [open, prefsLoaded])
+  }, [open])
+
+  // Set active provider to first with a key when keySet changes
+  useEffect(() => {
+    if (activeProvider && keySet[activeProvider]) return
+    const first = PROVIDER_ORDER.find(p => keySet[p]) ?? null
+    setActiveProvider(first)
+  }, [keySet, activeProvider])
 
   useEffect(() => {
     if (open) panelRef.current?.focus()
@@ -197,60 +180,11 @@ function AccountPanel({
         body:    JSON.stringify({ provider }),
       })
       setKeySet(prev => ({ ...prev, [provider]: false }))
-      // Clear preferences that depended on this provider
-      setModelPrefs(prev => ({
-        largest:  prev.largest?.provider  === provider ? null : prev.largest,
-        medium:   prev.medium?.provider   === provider ? null : prev.medium,
-        smallest: prev.smallest?.provider === provider ? null : prev.smallest,
-      }))
+      if (activeProvider === provider) {
+        const next = PROVIDER_ORDER.find(p => p !== provider && keySet[p]) ?? null
+        setActiveProvider(next)
+      }
     } catch {}
-  }
-
-  // ── Save model preference for one tier (step4b2-phase-d) ──────────────────
-  // Optimistic: update local state immediately, revert on server error.
-  const saveTierPref = async (
-    tier:  'largest' | 'medium' | 'smallest',
-    value: string   // empty string = "Default" (null)
-  ) => {
-    const prev = modelPrefs
-
-    let newPref: TierPref = null
-    if (value) {
-      // Look up provider from uniqueModels — avoids fragile model-string heuristics.
-      // uniqueModels carries { provider, model } pairs built from keySet + PROVIDER_MODELS.
-      const entry = uniqueModels.find(m => m.model === value)
-      const provider: ProviderId = entry?.provider ?? (value.startsWith('claude') ? 'anthropic' : 'deepseek')
-      newPref = { provider, model: value }
-    }
-
-    const next: ModelPrefs = { ...modelPrefs, [tier]: newPref }
-    setModelPrefs(next)   // optimistic
-    setPrefsSaving(true)
-
-    try {
-      const res = await fetch('/api/profile/models', {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(next),
-      })
-      if (!res.ok) setModelPrefs(prev)   // revert
-    } catch {
-      setModelPrefs(prev)
-    } finally {
-      setPrefsSaving(false)
-    }
-  }
-
-  // Derive available models from saved keys
-  const availableModels = PROVIDER_ORDER
-    .filter(p => keySet[p])
-    .flatMap(p => modelsForProvider(p).map(m => ({ provider: p, model: m })))
-  const uniqueModels = [...new Map(availableModels.map(m => [m.model, m])).values()]
-
-  const tierLabel: Record<string, string> = {
-    largest:  'Largest (IN-MAIN, IN-RESOLVE, IN-QA)',
-    medium:   'Medium (IN-AUDIT, IN-COMPILE)',
-    smallest: 'Smallest (IN-BUILD)',
   }
 
   return (
@@ -258,6 +192,7 @@ function AccountPanel({
       <Overlay open={open} onClose={onClose} />
       <SlidePanel open={open} panelRef={panelRef}>
 
+        {/* ── Identity ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)', marginBottom: 'var(--u3)' }}>
           <span className="account-name">{defaultName}</span>
           <span className="account-email">{email}</span>
@@ -280,12 +215,29 @@ function AccountPanel({
           </div>
         </div>
 
+        <Divider />
+
         {/* ── API Keys ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginBottom: 'var(--u4)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginTop: 'var(--u3)', marginBottom: 'var(--u3)' }}>
+          <Label>API Keys</Label>
           {PROVIDER_ORDER.map(provider => (
             <div key={provider} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Label>{`${PROVIDERS[provider].label} API key`}</Label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', justifyContent: 'space-between' }}>
+                {/* Provider label + active dot */}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', cursor: keySet[provider] ? 'pointer' : 'default' }}
+                  onClick={() => { if (keySet[provider]) setActiveProvider(provider) }}
+                  title={keySet[provider] ? `Use ${PROVIDERS[provider].label} as active provider` : undefined}
+                >
+                  <StatusDot status={activeProvider === provider ? 'accent' : 'dis'} />
+                  <span style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize:   'var(--type-sm)',
+                    color:      activeProvider === provider ? 'var(--text)' : 'var(--text-sec)',
+                  }}>
+                    {PROVIDERS[provider].label}
+                  </span>
+                </div>
                 {keySet[provider] && (
                   <ButtonText variant="danger" onClick={() => removeKey(provider)}>REMOVE</ButtonText>
                 )}
@@ -316,52 +268,26 @@ function AccountPanel({
           ))}
         </div>
 
-        {/* ── Models (step4b2-phase-d) ── */}
-        {uniqueModels.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginBottom: 'var(--u4)' }}>
-            <Label>Models{prefsSaving ? ' ···' : ''}</Label>
-            {(['largest', 'medium', 'smallest'] as const).map(tier => (
-              <div key={tier} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)' }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-sub)' }}>
-                  {tierLabel[tier]}
-                </span>
-                <select
-                  value={modelPrefs[tier]?.model ?? ''}
-                  disabled={prefsSaving}
-                  onChange={e => saveTierPref(tier, e.target.value)}
-                  style={{
-                    background:   'var(--surface)',
-                    color:        'var(--text)',
-                    border:       '1px solid var(--border)',
-                    borderRadius: 'var(--r1)',
-                    padding:      'var(--u05) var(--u1)',
-                    fontSize:     'var(--text-sm)',
-                    cursor:       prefsSaving ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  <option value="">Default</option>
-                  {uniqueModels.map(({ model }) => (
-                    <option key={model} value={model}>{model}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        )}
+        <Divider />
 
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--u3)', paddingTop: 'var(--u4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
-            <button
-              type="button"
-              className="toggle-track"
-              onClick={onToggleTheme}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              style={{ background: theme === 'dark' ? 'var(--accent)' : 'var(--text-dis)' }}
-            >
-              <div className="toggle-thumb" style={{ left: theme === 'dark' ? 18 : 2 }} />
-            </button>
-          </div>
+        {/* ── Theme ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--u3)', marginBottom: 'var(--u3)' }}>
+          <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
+          <button
+            type="button"
+            className="toggle-track"
+            onClick={onToggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            style={{ background: theme === 'dark' ? 'var(--accent)' : 'var(--text-dis)' }}
+          >
+            <div className="toggle-thumb" style={{ left: theme === 'dark' ? 18 : 2 }} />
+          </button>
+        </div>
+
+        <Divider />
+
+        {/* ── Sign out ── */}
+        <div style={{ marginTop: 'var(--u3)' }}>
           <ButtonText variant="danger" onClick={onSignOut}>SIGN OUT</ButtonText>
         </div>
 

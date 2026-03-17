@@ -4,488 +4,338 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b1-layout-restore
+// amended:    step4b3-dashboard
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook         ../types/dashboard-types
 //   W-ATOM  ActiveProgram         ../types/dashboard-types
 //   W-ATOM  PipelineView          ../types/dashboard-types
-//   W-ATOM  OutputState           ../types/dashboard-types
 //   W-ATOM  OutputActions         ../types/dashboard-types
 //   W-ATOM  ProjectActions        ../types/dashboard-types
-//   W-ATOM  DashboardPanel        ../types/dashboard-types
-// wires-out:  none  (leaf UI surface)
+//   W-ATOM  Surface               @/features/F-design-system/contract/primitives
+//   W-ATOM  StatusDot             @/features/F-design-system/contract/primitives
+//   W-ATOM  ButtonText            @/features/F-design-system/contract/primitives
+// wires-out:
+//   W-ATOM  DashboardUI  →  src/app/page.tsx
 // deps:
 //   R0  ../types/dashboard-types
-//   R0  @/features/F-planner/types/planner-types  (PipelineStage — A5)
-//   R0  @/features/F-output/types/output-types    (PushPayload — A5)
-//   R3  @/features/F-intake/contract/intake-ui
+//   R0  @/features/F-planner/types/planner-types  (PipelineStatus, PipelineStage — A5)
+//   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R5  react
 // validated:  pending
 //
-// step4b1 (A1, A2, A5, A7):
-//   ChatUI import and 320px chat panel removed entirely — F-dashboard no longer
-//   owns or renders any chat surface. DashboardUI is now a collapsible panel
-//   renderer only: collapsed = thin toggle bar (icon only, no text label);
-//   expanded = ProjectBar + StepBar + active panel content in a Surface container.
-//   Collapse/expand controlled by dashboardSection atom from WorkspaceHook (A3).
-//   Transition uses --dur-normal + --ease-default per design system (no new
-//   CSS primitives). Toggle uses existing btn-icon class.
-//   F-chat has zero imports in this file — A5 enforced by deletion.
-//   Axiom cite:
-//     A1 — DashboardUI owns dashboard panel surface only. Chat is F-chat's concern.
-//     A2 — No upward or lateral imports. ChatUI import removed.
-//     A5 — Cross-slice notification via event bus only. No direct F-chat call.
-//     A7 — ChatUI deletion breaks nothing in this file. No residual dependency.
+// step4b3-dashboard (A1, A3, A7):
+//   Full rewrite. Replaced ToggleBar/StepBar/ProjectBar/panel system with a
+//   single .surface card: project dropdown row + 5-node status strip.
+//   No IntakePanel — build creation happens via chat.
+//   StatusDot, Label, ButtonText, Surface — all from design system (no new primitives).
+//   Status strip derives state purely from program.pipelineStatus +
+//   pipelineView.currentStage — no local state needed.
+//   Download button only when pipelineStatus === 'complete'.
+//   Failure reason shown as one-line text below strip on 'failed'/'escalated'.
+//   Info tooltip via title attribute — no custom component.
+//   Axiom cite: A1 — DashboardUI owns dashboard surface only.
+//   A7 — all dead panel code removed (IntakePanel, ToggleBar, StepBar, OutputPanel).
 
 'use client'
 
-import { useState }      from 'react'
-import { IntakePanel }   from '@/features/F-intake/contract/intake-ui'
+import {
+  Surface,
+  StatusDot,
+  ButtonText,
+} from '@/features/F-design-system/contract/primitives'
 import type {
   WorkspaceHook,
-  ActiveProgram,
-  PipelineView,
-  OutputState,
-  OutputActions,
-  ProjectActions,
-  DashboardPanel,
 } from '../types/dashboard-types'
-import type { PipelineStage } from '@/features/F-planner/types/planner-types'
-import type { PushPayload }   from '@/features/F-output/types/output-types'
+import type { PipelineStatus, PipelineStage } from '@/features/F-planner/types/planner-types'
+import type { ProjectSummary, ProjectId } from '@/features/F-project/types/project-types'
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Stage node definitions ─────────────────────────────────────────────────────
+// Five-node status strip. Maps pipeline state → which node is active.
 
-const PANELS: DashboardPanel[] = ['intake', 'pipeline', 'output']
-const PANEL_LABELS: Record<DashboardPanel, string> = {
-  intake:   'Intake',
-  pipeline: 'Pipeline',
-  output:   'Output',
+type StageNodeDef = {
+  id:    string
+  label: string
 }
-const STAGE_ORDER: PipelineStage[] = [
-  'IN_MAIN', 'IN_BUILD', 'IN_RESOLVE', 'IN_AUDIT', 'IN_COMPILE', 'IN_QA',
+
+const STAGE_NODES: StageNodeDef[] = [
+  { id: 'specs',      label: 'Specs'      },
+  { id: 'confirmed',  label: 'Confirmed'  },
+  { id: 'building',   label: 'Building'   },
+  { id: 'compiling',  label: 'Compiling'  },
+  { id: 'done',       label: 'Done'       },
 ]
 
-// ── ToggleBar — collapsed state: icon only, single line ───────────────────────
-// btn-icon class from design system. No text label — zero-border atmospheric.
-// Chevron rotates to signal state without adding visual weight.
+type NodeState = 'pending' | 'active' | 'complete' | 'failed'
 
-function ToggleBar({ onToggle }: { onToggle: () => void }) {
-  return (
-    <div style={{
-      height:          'var(--header-h)',
-      flexShrink:      0,
-      display:         'flex',
-      alignItems:      'center',
-      padding:         '0 var(--u4)',
-      borderBottom:    '1px solid var(--border)',
-      background:      'var(--bg)',
-    }}>
-      <button
-        type="button"
-        className="btn-icon"
-        onClick={onToggle}
-        aria-label="Expand build panel"
-        aria-expanded={false}
-        style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}
-      >
-        {/* Grid icon — 2×2 squares, minimal SVG */}
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
-          <rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
-          <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
-          <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
-        </svg>
-        {/* Chevron — points right when collapsed */}
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-    </div>
-  )
-}
+// ── deriveNodeStates — pure: maps pipeline state to 5 node states ──────────────
+function deriveNodeStates(
+  pipelineStatus: PipelineStatus | null,
+  currentStage:   PipelineStage | null,
+  failureReason?: string
+): { states: NodeState[]; failureText: string | null } {
+  const none: NodeState[] = ['pending', 'pending', 'pending', 'pending', 'pending']
 
-// ── StepBar ───────────────────────────────────────────────────────────────────
+  if (!pipelineStatus) return { states: none, failureText: null }
 
-function StepBar({
-  activePanel, program, goToPanel,
-}: {
-  activePanel:  DashboardPanel
-  program:      ActiveProgram
-  goToPanel:    (p: DashboardPanel) => void
-}) {
-  const activeIdx    = PANELS.indexOf(activePanel)
-  const hasJob       = !!program?.jobId
-  const pipelineDone = !!program?.isPipelineDone
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 'var(--u1)',
-      padding: 'var(--u15) var(--u4)',
-      borderBottom: '1px solid var(--border)', background: 'var(--surface)',
-    }}>
-      {PANELS.map((panel, i) => {
-        const done      = i < activeIdx || (panel === 'output' && pipelineDone)
-        const active    = panel === activePanel
-        const reachable = i === 0 || (i === 1 && hasJob) || (i === 2 && pipelineDone)
-        return (
-          <div key={panel} style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', flex: i < PANELS.length - 1 ? 1 : 'none' }}>
-            <button
-              onClick={() => reachable && goToPanel(panel)}
-              disabled={!reachable}
-              style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', background: 'transparent', border: 'none', cursor: reachable ? 'pointer' : 'default', padding: 0, opacity: reachable ? 1 : 0.4 }}
-            >
-              <div style={{
-                width: 22, height: 22, borderRadius: '50%',
-                background: done ? 'var(--accent)' : active ? 'var(--amber)' : 'var(--elevated)',
-                border: `1px solid ${done || active ? 'transparent' : 'var(--border)'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, color: done || active ? 'var(--bg)' : 'var(--text-dis)',
-                fontFamily: 'var(--font-mono)', flexShrink: 0, transition: 'background 0.2s ease',
-              }}>
-                {done ? '✓' : i + 1}
-              </div>
-              <span style={{ fontSize: 13, fontFamily: 'var(--font-ui)', color: active ? 'var(--text)' : 'var(--text-sec)', fontWeight: active ? 500 : 400 }}>
-                {PANEL_LABELS[panel]}
-              </span>
-            </button>
-            {i < PANELS.length - 1 && (
-              <div style={{ flex: 1, height: 1, background: done ? 'var(--accent)' : 'var(--border)', transition: 'background 0.2s ease' }} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── ProjectBar ────────────────────────────────────────────────────────────────
-
-function ProjectBar({
-  projects, program, projectActions,
-}: {
-  projects:       WorkspaceHook['projects']
-  program:        ActiveProgram
-  projectActions: ProjectActions
-}) {
-  const [creating, setCreating] = useState(false)
-  const [name,     setName]     = useState('')
-
-  const handleCreate = () => {
-    if (!name.trim()) return
-    projectActions.create({ name: name.trim(), description: null })
-    setCreating(false)
-    setName('')
+  if (pipelineStatus === 'pending' && currentStage === 'IN_MAIN') {
+    return { states: ['active', 'pending', 'pending', 'pending', 'pending'], failureText: null }
   }
 
+  if (pipelineStatus === 'confirmed') {
+    return { states: ['complete', 'active', 'pending', 'pending', 'pending'], failureText: null }
+  }
+
+  if (pipelineStatus === 'running') {
+    if (currentStage === 'IN_BUILD' || currentStage === 'IN_RESOLVE' || currentStage === 'IN_AUDIT') {
+      return { states: ['complete', 'complete', 'active', 'pending', 'pending'], failureText: null }
+    }
+    if (currentStage === 'IN_COMPILE') {
+      return { states: ['complete', 'complete', 'complete', 'active', 'pending'], failureText: null }
+    }
+    if (currentStage === 'IN_QA') {
+      return { states: ['complete', 'complete', 'complete', 'complete', 'active'], failureText: null }
+    }
+    return { states: ['complete', 'complete', 'active', 'pending', 'pending'], failureText: null }
+  }
+
+  if (pipelineStatus === 'complete') {
+    return { states: ['complete', 'complete', 'complete', 'complete', 'complete'], failureText: null }
+  }
+
+  if (pipelineStatus === 'failed' || pipelineStatus === 'escalated') {
+    const stageToIndex: Partial<Record<PipelineStage, number>> = {
+      IN_MAIN:    0,
+      IN_BUILD:   2,
+      IN_RESOLVE: 2,
+      IN_AUDIT:   2,
+      IN_COMPILE: 3,
+      IN_QA:      4,
+    }
+    const failIdx = currentStage ? (stageToIndex[currentStage] ?? 2) : 2
+    const states: NodeState[] = STAGE_NODES.map((_, i) =>
+      i < failIdx ? 'complete' : i === failIdx ? 'failed' : 'pending'
+    )
+    const text = pipelineStatus === 'escalated'
+      ? 'Escalated — pipeline could not recover. Check build log.'
+      : failureReason ?? 'Build failed — check build log.'
+    return { states, failureText: text }
+  }
+
+  return { states: none, failureText: null }
+}
+
+// ── NodeDot — dot + label for one status strip node ───────────────────────────
+function NodeDot({ label, state }: { label: string; state: NodeState }) {
+  const dotStatus = state === 'active'   ? 'accent'
+                  : state === 'complete' ? 'accent'
+                  : state === 'failed'   ? 'error'
+                  : 'dis'
+
+  const labelColor = state === 'active'   ? 'var(--text)'
+                   : state === 'complete' ? 'var(--text-sec)'
+                   : state === 'failed'   ? 'var(--error)'
+                   : 'var(--text-dis)'
+
+  const glowStyle = state === 'active'
+    ? { boxShadow: 'var(--glow-accent-subtle)' }
+    : state === 'failed'
+    ? { boxShadow: 'var(--glow-error)' }
+    : {}
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u2)', padding: 'var(--u15) var(--u4)', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-      <span style={{ fontSize: 12, color: 'var(--text-sec)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-        project
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--u05)', position: 'relative' }}>
+      <div style={{ ...glowStyle, borderRadius: '50%' }}>
+        <StatusDot status={dotStatus} />
+      </div>
+      <span style={{
+        fontFamily:    'var(--font-mono)',
+        fontSize:      'var(--type-xs)',
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color:         labelColor,
+        whiteSpace:    'nowrap',
+        transition:    `color var(--dur-fast)`,
+      }}>
+        {label}
       </span>
-      {creating ? (
-        <div style={{ display: 'flex', gap: 'var(--u1)', flex: 1 }}>
-          <input
-            autoFocus
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setCreating(false) }}
-            placeholder="project name"
-            style={{ flex: 1, padding: 'var(--u05) var(--u15)', background: 'var(--elevated)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none' }}
-          />
-          <button onClick={handleCreate} style={btnStyle('accent')}>Create</button>
-          <button onClick={() => setCreating(false)} style={btnStyle('ghost')}>Cancel</button>
+    </div>
+  )
+}
+
+// ── ConnectorLine — line between nodes ────────────────────────────────────────
+function ConnectorLine({ complete }: { complete: boolean }) {
+  return (
+    <div style={{
+      flex:            1,
+      height:          '1px',
+      background:      complete ? 'var(--accent)' : 'var(--border)',
+      marginBottom:    '10px', // aligns with dot vertical center
+      transition:      `background var(--dur-fast)`,
+      minWidth:        'var(--u2)',
+    }} />
+  )
+}
+
+// ── StatusStrip — 5-node horizontal strip ─────────────────────────────────────
+function StatusStrip({
+  states,
+}: {
+  states: NodeState[]
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, width: '100%' }}>
+      {STAGE_NODES.map((node, i) => (
+        <div key={node.id} style={{ display: 'flex', alignItems: 'center', flex: i < STAGE_NODES.length - 1 ? '1' : 'none' }}>
+          <NodeDot label={node.label} state={states[i]} />
+          {i < STAGE_NODES.length - 1 && (
+            <ConnectorLine complete={states[i] === 'complete' && states[i + 1] !== 'pending'} />
+          )}
         </div>
-      ) : (
-        <>
+      ))}
+      {/* Info tooltip */}
+      <div
+        title="Complex builds work best with a strong reasoning model. If builds fail, try a more capable model."
+        style={{
+          marginLeft:  'var(--u1)',
+          marginBottom: '10px',
+          color:        'var(--text-dis)',
+          fontSize:     'var(--type-xs)',
+          cursor:       'default',
+          userSelect:   'none',
+          lineHeight:   1,
+        }}
+        aria-label="Model capability tip"
+      >
+        ⓘ
+      </div>
+    </div>
+  )
+}
+
+// ── DashboardCard — the surface card ──────────────────────────────────────────
+function DashboardCard({
+  program,
+  pipelineView,
+  projects,
+  projectActions,
+  outputActions,
+}: {
+  program:        WorkspaceHook['program']
+  pipelineView:   WorkspaceHook['pipelineView']
+  projects:       ProjectSummary[]
+  projectActions: WorkspaceHook['projectActions']
+  outputActions:  WorkspaceHook['outputActions']
+}) {
+  const pipelineStatus = program?.pipelineStatus ?? null
+  const currentStage   = pipelineView?.currentStage ?? null
+  const isPipelineDone = program?.isPipelineDone ?? false
+  const jobId          = program?.jobId ?? null
+
+  // Derive failure reason from pipeline log if available
+  const failureReason = pipelineView?.pipelineLog
+    .filter(e => e.status === 'failed')
+    .map(e => e.message)
+    .filter(Boolean)
+    .at(-1) ?? undefined
+
+  const { states, failureText } = deriveNodeStates(pipelineStatus, currentStage, failureReason ?? undefined)
+
+  return (
+    <Surface>
+      {/* ── Row 1: Project dropdown + Download ── */}
+      <div style={{
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        marginBottom:   'var(--u3)',
+        gap:            'var(--u2)',
+      }}>
+        {/* Project selector */}
+        {projects.length > 0 ? (
           <select
             value={program?.projectId ?? ''}
-            onChange={e => projectActions.setActive(e.target.value as any)}
-            style={{ flex: 1, maxWidth: 280, padding: 'var(--u05) var(--u15)', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: program ? 'var(--text)' : 'var(--text-dis)', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', cursor: 'pointer' }}
+            onChange={e => projectActions.setActive(e.target.value as ProjectId)}
+            style={{
+              fontFamily:  'var(--font-mono)',
+              fontSize:    'var(--type-sm)',
+              color:       'var(--text-sec)',
+              background:  'var(--input-panel-bg)',
+              border:      '1px solid var(--border)',
+              borderRadius:'var(--u1)',
+              height:      'var(--input-h-sm)',
+              padding:     '0 var(--u1)',
+              cursor:      'pointer',
+              outline:     'none',
+              maxWidth:    '240px',
+            }}
+            aria-label="Select project"
           >
-            {projects.length === 0 && <option value="" disabled>No projects yet</option>}
-            {projects.map(p => <option key={p.projectId} value={p.projectId}>{p.name}</option>)}
+            {projects.map(p => (
+              <option key={p.projectId} value={p.projectId}>{p.name}</option>
+            ))}
           </select>
-          <button onClick={() => setCreating(true)} style={btnStyle('ghost')}>+ New</button>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ── PipelinePanel ─────────────────────────────────────────────────────────────
-
-function PipelinePanel({ pipelineView }: { pipelineView: PipelineView }) {
-  if (!pipelineView) {
-    return (
-      <div style={centeredStyle}>
-        <span style={{ color: 'var(--text-dis)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>No pipeline running</span>
-      </div>
-    )
-  }
-  const { currentStage, stageStatus, pipelineLog } = pipelineView
-  const currentIdx = currentStage ? STAGE_ORDER.indexOf(currentStage) : -1
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', padding: 'var(--u4)', maxWidth: 640, width: '100%', animation: 'fadeUp 0.15s ease forwards' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)' }}>
-        <h2 style={{ fontFamily: 'var(--font-brand)', fontWeight: 600, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.01em' }}>Pipeline</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}>
-          <StatusDot status={stageStatus} />
-          <span style={{ fontSize: 13, color: 'var(--text-sec)', fontFamily: 'var(--font-mono)' }}>{stageStatus}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-dis)', fontFamily: 'var(--font-mono)' }}>· {pipelineView.jobId.slice(0, 8)}</span>
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
-        {STAGE_ORDER.map((stage, i) => {
-          const logEntry    = pipelineLog.find(l => l.stage === stage)
-          const stageStatus = i < currentIdx ? 'complete' : i === currentIdx ? pipelineView.stageStatus : 'pending'
-          return (
-            <div key={stage} style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--u2)', padding: 'var(--u15) var(--u2)', background: stageStatus === 'running' ? 'color-mix(in srgb, var(--amber) 6%, transparent)' : 'var(--elevated)', border: `1px solid ${stageStatus === 'running' ? 'color-mix(in srgb, var(--amber) 25%, transparent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', transition: 'all 0.2s ease' }}>
-              <StageIcon status={stageStatus} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{stage}</span>
-                {logEntry?.message && <span style={{ fontSize: 12, color: 'var(--text-sec)', fontFamily: 'var(--font-ui)' }}>{logEntry.message}</span>}
-                {logEntry?.axiomCite && stageStatus === 'failed' && <span style={{ fontSize: 11, color: 'var(--error)', fontFamily: 'var(--font-mono)' }}>cite: {logEntry.axiomCite}</span>}
-              </div>
-              {stageStatus === 'running' && <Spinner />}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── OutputPanel ───────────────────────────────────────────────────────────────
-
-function OutputPanel({
-  program, outputState, outputActions,
-}: {
-  program:       ActiveProgram
-  outputState:   OutputState
-  outputActions: OutputActions
-}) {
-  const [pushOpen,  setPushOpen]  = useState(false)
-  const [remoteUrl, setRemoteUrl] = useState('')
-  const [token,     setToken]     = useState('')
-  const [branch,    setBranch]    = useState('main')
-  const [message,   setMessage]   = useState('chore: LIV output')
-
-  if (!program?.jobId) return null
-
-  const { jobId } = program
-
-  const handlePush = () => {
-    if (!remoteUrl.trim() || !token.trim()) return
-    outputActions.push(jobId, {
-      remoteUrl: remoteUrl.trim(),
-      token:     token.trim(),
-      branch:    branch.trim() || 'main',
-      message:   message.trim() || 'chore: LIV output',
-    } as Omit<PushPayload, 'jobId'>)
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', padding: 'var(--u4)', maxWidth: 640, width: '100%', animation: 'fadeUp 0.15s ease forwards' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)' }}>
-        <h2 style={{ fontFamily: 'var(--font-brand)', fontWeight: 600, fontSize: 18, color: 'var(--text)', letterSpacing: '-0.01em' }}>Output</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-sec)', fontFamily: 'var(--font-ui)' }}>Pipeline complete. Download the generated files or push to a repository.</p>
-      </div>
-
-      {outputState.filesStatus === 'loading' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', color: 'var(--text-sec)', fontSize: 13, fontFamily: 'var(--font-ui)' }}>
-          <Spinner /> Loading files…
-        </div>
-      )}
-
-      {outputState.files && (
-        <div style={{ padding: 'var(--u2)', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 14, color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>{outputState.files.length} file{outputState.files.length !== 1 ? 's' : ''} generated</span>
-            <span style={{ fontSize: 12, color: 'var(--text-sec)', fontFamily: 'var(--font-mono)' }}>job {jobId.slice(0, 8)}</span>
-          </div>
-          <button onClick={() => outputActions.download(jobId)} style={btnStyle('accent')}>↓ Download .zip</button>
-        </div>
-      )}
-
-      {!pushOpen && (
-        <button onClick={() => setPushOpen(true)} style={btnStyle('ghost')}>Push to GitHub / GitLab</button>
-      )}
-
-      {pushOpen && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u2)', padding: 'var(--u3)', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', animation: 'fadeUp 0.1s ease forwards' }}>
-          <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'var(--font-ui)', fontWeight: 500 }}>Push to repository</span>
-          {[
-            { label: 'Remote URL', value: remoteUrl, set: setRemoteUrl, placeholder: 'https://github.com/org/repo', type: 'text' },
-            { label: 'Token',      value: token,     set: setToken,     placeholder: 'ghp_… or glpat-…',           type: 'password' },
-            { label: 'Branch',     value: branch,    set: setBranch,    placeholder: 'main',                       type: 'text' },
-            { label: 'Message',    value: message,   set: setMessage,   placeholder: 'commit message',             type: 'text' },
-          ].map(({ label, value, set, placeholder, type }) => (
-            <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)' }}>
-              <label style={{ fontSize: 11, color: 'var(--text-sec)', fontFamily: 'var(--font-mono)' }}>{label}</label>
-              <input type={type} value={value} onChange={e => set(e.target.value)} placeholder={placeholder} style={inputStyle} />
-            </div>
-          ))}
-          {outputState.pushError && <span style={{ fontSize: 12, color: 'var(--error)', fontFamily: 'var(--font-ui)' }}>{outputState.pushError.message}</span>}
-          {outputState.pushResult && (
-            <div style={{ padding: 'var(--u15)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)', borderRadius: 'var(--radius)' }}>
-              <span style={{ fontSize: 13, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>✓ Pushed · {outputState.pushResult.commitSha.slice(0, 7)} → {outputState.pushResult.branch}</span>
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 'var(--u1)', marginTop: 'var(--u1)' }}>
-            <button onClick={handlePush} disabled={outputState.pushStatus === 'loading'} style={btnStyle('accent')}>
-              {outputState.pushStatus === 'loading' ? 'Pushing…' : 'Push'}
-            </button>
-            <button onClick={() => { setPushOpen(false); outputActions.resetPush() }} style={btnStyle('ghost')}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Primitives ────────────────────────────────────────────────────────────────
-
-function StatusDot({ status }: { status: string }) {
-  const color = status === 'complete' ? 'var(--accent)' : status === 'running' ? 'var(--amber)' : status === 'failed' ? 'var(--error)' : 'var(--text-dis)'
-  return <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, animation: status === 'running' ? 'pulse 1.5s ease-in-out infinite' : 'none' }} />
-}
-
-function StageIcon({ status }: { status: string }) {
-  const color = status === 'complete' ? 'var(--accent)' : status === 'running' ? 'var(--amber)' : status === 'failed' ? 'var(--error)' : 'var(--text-dis)'
-  const char  = status === 'complete' ? '✓' : status === 'failed' ? '✗' : '·'
-  return (
-    <div style={{ width: 20, height: 20, borderRadius: '50%', background: status === 'pending' ? 'transparent' : `color-mix(in srgb, ${color} 12%, transparent)`, border: `1px solid ${status === 'pending' ? 'var(--border)' : color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color, fontFamily: 'var(--font-mono)', flexShrink: 0, marginTop: 2 }}>
-      {char}
-    </div>
-  )
-}
-
-function Spinner() {
-  return <div style={{ width: 14, height: 14, border: '1.5px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-}
-
-function btnStyle(variant: 'accent' | 'ghost'): React.CSSProperties {
-  return { padding: 'var(--u1) var(--u2)', background: variant === 'accent' ? 'var(--accent)' : 'transparent', border: `1px solid ${variant === 'accent' ? 'transparent' : 'var(--border)'}`, borderRadius: 'var(--radius)', color: variant === 'accent' ? 'var(--bg)' : 'var(--text-sec)', fontSize: 13, fontFamily: 'var(--font-ui)', fontWeight: variant === 'accent' ? 500 : 400, cursor: 'pointer', transition: 'all 0.1s ease', whiteSpace: 'nowrap' }
-}
-
-const inputStyle: React.CSSProperties = { width: '100%', padding: 'var(--u1) var(--u15)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--text)', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none' }
-const centeredStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: 'var(--u6)' }
-
-// ── DashboardUI ───────────────────────────────────────────────────────────────
-// Renders in two states controlled by dashboardSection.isExpanded:
-//
-// Collapsed (default):
-//   ┌─────────────────────────────┐  ← ToggleBar: icon only, header-h height
-//   └─────────────────────────────┘
-//
-// Expanded:
-//   ┌─────────────────────────────┐  ← ExpandedBar: icon + collapse chevron
-//   ├─────────────────────────────┤  ← ProjectBar
-//   ├─────────────────────────────┤  ← StepBar
-//   │   panel content (flex:1)    │  ← overflow:auto, scrollable
-//   └─────────────────────────────┘
-//
-// Height is intrinsic in expanded state — page.tsx flex layout pushes chat down.
-// Transition on the panel container: max-height + opacity, --dur-normal + --ease-default.
-// No new CSS primitives. No new design system tokens.
-
-export function DashboardUI(props: WorkspaceHook) {
-  const { isExpanded, toggleExpanded } = props.dashboardSection
-
-  if (!isExpanded) {
-    return (
-      <>
-        <ToggleBar onToggle={toggleExpanded} />
-        <style>{`
-          @keyframes spin   { to { transform: rotate(360deg); } }
-          @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        `}</style>
-      </>
-    )
-  }
-
-  return (
-    <div style={{
-      display:        'flex',
-      flexDirection:  'column',
-      background:     'var(--bg)',
-      borderBottom:   '1px solid var(--border)',
-      // Intrinsic height — flex children in page.tsx will push chat down naturally.
-      // Max-height caps expanded panel so chat always has minimum visible space.
-      maxHeight:      '55vh',
-      transition:     `max-height var(--dur-normal) var(--ease-default)`,
-    }}>
-
-      {/* ── expanded toggle bar — icon + collapse chevron ── */}
-      <div style={{
-        height:       'var(--header-h)',
-        flexShrink:   0,
-        display:      'flex',
-        alignItems:   'center',
-        padding:      '0 var(--u4)',
-        borderBottom: '1px solid var(--border)',
-        background:   'var(--bg)',
-      }}>
-        <button
-          type="button"
-          className="btn-icon"
-          onClick={toggleExpanded}
-          aria-label="Collapse build panel"
-          aria-expanded={true}
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}
-        >
-          {/* Grid icon */}
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
-            <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
-          </svg>
-          {/* Chevron — points down when expanded */}
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      </div>
-
-      {/* ── top chrome ── */}
-      <ProjectBar
-        projects={props.projects}
-        program={props.program}
-        projectActions={props.projectActions}
-      />
-      <StepBar
-        activePanel={props.activePanel}
-        program={props.program}
-        goToPanel={props.goToPanel}
-      />
-
-      {/* ── panel content — scrollable, fills remaining expanded height ── */}
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center' }}>
-        {props.activePanel === 'intake' && (
-          <IntakePanel />
+        ) : (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-sm)', color: 'var(--text-dis)' }}>
+            No projects yet
+          </span>
         )}
-        {props.activePanel === 'pipeline' && (
-          <PipelinePanel pipelineView={props.pipelineView} />
-        )}
-        {props.activePanel === 'output' && props.program?.jobId && (
-          <OutputPanel
-            program={props.program}
-            outputState={props.outputState}
-            outputActions={props.outputActions}
-          />
+
+        {/* Download — only when complete */}
+        {isPipelineDone && jobId && (
+          <ButtonText
+            variant="accent"
+            onClick={() => outputActions.download(jobId)}
+          >
+            ↓ Download
+          </ButtonText>
         )}
       </div>
 
-      <style>{`
-        @keyframes spin   { to { transform: rotate(360deg); } }
-        @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      {/* ── Row 2: Status strip ── */}
+      <StatusStrip states={states} />
+
+      {/* ── Failure reason ── */}
+      {failureText && (
+        <div style={{
+          marginTop:  'var(--u2)',
+          fontSize:   'var(--type-xs)',
+          color:      'var(--error)',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          {failureText}
+        </div>
+      )}
+    </Surface>
+  )
+}
+
+// ── DashboardUI — exported root component ─────────────────────────────────────
+// Receives full WorkspaceHook spread from page.tsx.
+// Renders nothing when dashboardSection.isExpanded is false.
+
+export function DashboardUI({
+  program,
+  pipelineView,
+  projects,
+  projectActions,
+  outputActions,
+  dashboardSection,
+}: WorkspaceHook) {
+  if (!dashboardSection.isExpanded) return null
+
+  return (
+    <div style={{ marginTop: 'var(--u2)', marginBottom: 'var(--u2)', flexShrink: 0 }}>
+      <div className="col">
+        <DashboardCard
+          program={program}
+          pipelineView={pipelineView}
+          projects={projects}
+          projectActions={projectActions}
+          outputActions={outputActions}
+        />
+      </div>
     </div>
   )
 }
