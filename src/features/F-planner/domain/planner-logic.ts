@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective
+// amended:    step4b4-handoff
 // slice:      F-planner
 // layer:      R1
 // wires-in:
@@ -35,8 +35,7 @@
 //   buildInstancePrompt() assembles the system prompt for any pipeline instance.
 //   parseInstanceResponse() extracts FileEntry[] from AI response code blocks.
 //     Conservative: malformed → files empty, raw always preserved.
-//   validateHandoffShape() checks that output files satisfy the declared handoff
-//     format. expectedFormat passed by R2 from getHandoff(from, to).format.
+//   W-FN  validateHandoffShape   →  (deleted step4b4-handoff — A7, zero consumers)
 //   Axiom cite: A2 — R1 imports R0 only. A4 — pure, no I/O. A6 — local types.
 
 import type {
@@ -303,7 +302,6 @@ export function parseIfFieldsFromResponse(
   }
 
   // Mutable working copy — canonical IfContract fields are readonly.
-  // Built as Record<string, unknown>, returned as Partial<IfContract>.
   const merged: Record<string, unknown> = { ...existingContract }
 
   const stringFields: (keyof IfContract)[] = [
@@ -610,51 +608,6 @@ export function parseInstanceResponse(
   const errorLog   = errorMatch ? errorMatch[1].trim() : undefined
 
   return { files, report, errorLog, raw }
-}
-
-// ── Pipeline: handoff shape validation (step4b2-phase-b) ─────────────────────
-// Checks that the output of one instance satisfies the declared handoff format.
-// expectedFormat comes from getHandoff(from, to).format passed by R2.
-// Pure shape check — no I/O (A4).
-//
-// Format rules (from HANDOFFS in liv-procedure.ts):
-//   HO-FILES   — files[] must be non-empty
-//   HO-PACKET  — packet fields sufficient; files[] may be empty (IN-MAIN→IN-BUILD)
-//   HO-REPORT  — report field must be present and non-empty
-//   HO-FILES+LOG — files[] non-empty AND errorLog present
-
-export function validateHandoffShape(
-  fromId:         string,
-  toId:           string,
-  output:         ParsedInstanceResponse,
-  expectedFormat: string
-): { valid: boolean; reason?: string } {
-  switch (expectedFormat) {
-    case 'HO-FILES':
-      if (output.files.length === 0)
-        return { valid: false, reason: `${fromId}→${toId}: HO-FILES requires at least one file; got 0` }
-      return { valid: true }
-
-    case 'HO-PACKET':
-      // Packet handoff — files are optional; the packet itself is assembled by R2
-      // from getPacketForInstance() before the AI call. Shape check passes vacuously.
-      return { valid: true }
-
-    case 'HO-REPORT':
-      if (!output.report || !output.report.trim())
-        return { valid: false, reason: `${fromId}→${toId}: HO-REPORT requires a report block; none found` }
-      return { valid: true }
-
-    case 'HO-FILES+LOG':
-      if (output.files.length === 0)
-        return { valid: false, reason: `${fromId}→${toId}: HO-FILES+LOG requires files; got 0` }
-      // errorLog is informational — present on fail path, absent on pass path.
-      // Not a hard failure if missing.
-      return { valid: true }
-
-    default:
-      return { valid: false, reason: `${fromId}→${toId}: unknown handoff format '${expectedFormat}'` }
-  }
 }
 
 // ── Error classification (step4b2-phase-c) ────────────────────────────────────

@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.3
-// amended: none
+// amended: step4b4-handoff
 // slice: core
 // layer: R5
 // wires-in:
@@ -23,6 +23,7 @@
 //   W-ATOM getTemplatesForFlow   → F-planner/R2
 //   W-ATOM getTemplate           → F-planner/R2
 //   W-ATOM getHandoff            → F-planner/R2
+//   W-FN   validateHandoff       → F-planner/R2 (step4b4-handoff — 12th public fn)
 //   W-ATOM getBuildSequence      → F-planner/R2
 //   W-ATOM validateIfContract    → F-planner/R2
 //   W-ATOM validateSlotsFilled   → F-planner/R2
@@ -42,7 +43,7 @@ import { LIV_STANDARD } from './liv-standard'
 import type {
   InstanceId, InstanceProfile, IfContract, JobPacket, IFFieldId,
   FlowId, FlowTemplateEntry, TemplateId, Template, HandoffSpec, BuildStep,
-  PacketSlicingRule,
+  PacketSlicingRule, HandoffValidationResult,
 } from './liv-standard.types'
 
 // ═══════════════════════════════════════════════════════════════
@@ -202,4 +203,57 @@ export function validateSlotsFilled(body: string, slots: readonly string[]): { v
     }
   }
   return { valid: unfilled.length === 0, unfilled }
+}
+
+// ─── Handoff validation (step4b4-handoff — 12th public function) ──────────────
+// Validates that AI output satisfies the declared handoff spec for the given
+// instance pair. Looks up the HandoffSpec internally — caller does not need
+// to call getHandoff() separately.
+//
+// Format rules (from HANDOFFS in liv-procedure.ts):
+//   HO-FILES     — output.files must be non-empty
+//   HO-PACKET    — always valid (packet assembled by R2 before the AI call)
+//   HO-REPORT    — output.report must be present and non-empty
+//   HO-FILES+LOG — output.files must be non-empty (errorLog is informational)
+// If no HandoffSpec is defined for the pair, returns { valid: false, reason }.
+//
+// CC.10: F-planner imports this via liv-api.ts only — never from liv-procedure.
+export function validateHandoff(
+  from:   InstanceId | 'Human',
+  to:     InstanceId,
+  output: { files: readonly { path: string; content: string }[]; report?: string; errorLog?: string }
+): HandoffValidationResult {
+  const spec = getHandoff(from, to)
+
+  if (!spec) {
+    return { valid: false, reason: `No handoff spec defined for ${from}→${to}` }
+  }
+
+  switch (spec.format) {
+    case 'HO-FILES':
+      if (output.files.length === 0)
+        return { valid: false, reason: `${from}→${to}: HO-FILES requires at least one file; got 0` }
+      return { valid: true }
+
+    case 'HO-PACKET':
+      return { valid: true }
+
+    case 'HO-REPORT':
+      if (!output.report || !output.report.trim())
+        return { valid: false, reason: `${from}→${to}: HO-REPORT requires a report block; none found` }
+      return { valid: true }
+
+    case 'HO-FILES+LOG':
+      if (output.files.length === 0)
+        return { valid: false, reason: `${from}→${to}: HO-FILES+LOG requires files; got 0` }
+      return { valid: true }
+
+    default: {
+      // Exhaustive guard — unreachable with current HandoffFormat union (4 members).
+      // If a new format is added to HandoffFormat without updating this switch,
+      // TypeScript will narrow here to never and this return surfaces the gap.
+      const _exhaustive: never = spec.format
+      return { valid: false, reason: `${from}→${to}: unknown handoff format '${String(_exhaustive)}'` }
+    }
+  }
 }

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-3
+// amended:    step4b4-handoff
 // slice:      F-planner
 // layer:      R2
 // wires-in:
@@ -32,6 +32,8 @@
 //   W-ATOM    getTemplatesForFlow    @/core/constants/liv-api
 //   W-ATOM    getTemplate            @/core/constants/liv-api
 //   W-ATOM    getHandoff             @/core/constants/liv-api
+//   W-FN      validateHandoff        @/core/constants/liv-api  (step4b4-handoff — replaces validateHandoffShape)
+//   W-ATOM    InstanceId             @/core/constants/liv-standard.types  (step4b4-handoff — type import for cast)
 // wires-out:
 //   W-INJECT  IPlannerDb   →  F-planner/R3 (planner-inject.ts binds, planner-contract.ts consumes)
 //   W-INJECT  IAiAdapter   →  F-planner/R3
@@ -65,6 +67,14 @@
 //   and prepends failure context via buildInMainPrompt reentryContext param.
 //   handleInMainTurn extended: re-entry detection and context injection.
 //   Axiom cite: A2 — no new R4 imports. A4 — all I/O via injected interfaces.
+//
+// step4b4-handoff (A2, A7):
+//   validateHandoffShape (R1) + getHandoff two-step replaced with single
+//   validateHandoff() from @/core/constants/liv-api (R5) at both call sites.
+//   getHandoff removed from imports — validateHandoff looks it up internally.
+//   validateHandoffShape deleted from planner-logic.ts (A7 — zero consumers).
+//   InstanceId imported from liv-standard.types for toId cast in runRetryStage.
+//   Axiom cite: A2 — R2 uses canonical R5 fn. A7 — dead R1 helper removed.
 
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
@@ -73,8 +83,9 @@ import {
   getPacketForInstance,
   getTemplatesForFlow,
   getTemplate,
-  getHandoff,
+  validateHandoff,
 } from '@/core/constants/liv-api'
+import type { InstanceId } from '@/core/constants/liv-standard.types'
 import type {
   PlannerJob,
   PlannerJobId,
@@ -114,7 +125,6 @@ import {
   resolveModel,
   buildInstancePrompt,
   parseInstanceResponse,
-  validateHandoffShape,
   classifyError,
   detectStall,
   checkFailsafes,
@@ -384,9 +394,8 @@ export async function runPipeline(
       }
       tokenCount = aiResult.data.totalTokens
 
-      const parsed = parseInstanceResponse(fullResponse, 'IN-BUILD')
-      const handoff = getHandoff('IN-BUILD', 'IN-RESOLVE')
-      const shapeCheck = validateHandoffShape('IN-BUILD', 'IN-RESOLVE', parsed, handoff?.format ?? 'HO-FILES')
+      const parsed     = parseInstanceResponse(fullResponse, 'IN-BUILD')
+      const shapeCheck = validateHandoff('IN-BUILD', 'IN-RESOLVE', parsed)
 
       if (!shapeCheck.valid) {
         buildErrorCtx = shapeCheck.reason
@@ -578,10 +587,9 @@ async function runRetryStage(
     }
     tokenCount = aiResult.data.totalTokens
 
-    const parsed = parseInstanceResponse(fullResponse, stage)
-    const toId   = nextId ? nextId as Parameters<typeof getHandoff>[1] : 'IN-MAIN'
-    const handoff = getHandoff(stageId, toId)
-    const shapeCheck = validateHandoffShape(stage, nextId ?? 'done', parsed, handoff?.format ?? 'HO-FILES')
+    const parsed     = parseInstanceResponse(fullResponse, stage)
+    const toId       = (nextId ?? 'IN-MAIN') as InstanceId
+    const shapeCheck = validateHandoff(stageId, toId, parsed)
 
     if (!shapeCheck.valid) {
       errorCtx = shapeCheck.reason

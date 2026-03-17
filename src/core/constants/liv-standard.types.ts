@@ -3,12 +3,13 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.3
-// amended: none
+// amended: step4b4-handoff
 // slice: core
 // layer: R5
 // wires-in: none
 // wires-out:
 //   W-ATOM LivStandardTypes → core/R5 liv-standard, core/R5 liv-renderer, core/R5 liv-procedure, core/R5 liv-templates, core/R5 liv-api
+//   W-ATOM HandoffValidationResult → core/R5 liv-api (step4b4-handoff)
 // deps: none
 // validated: 2026-03-16
 
@@ -246,6 +247,14 @@ export type HandoffSpec = {
   readonly to: InstanceId
   readonly format: HandoffFormat
   readonly content: string
+}
+
+// ─── Handoff Validation ───
+// Result type for validateHandoff() in liv-api.ts (12th public function).
+// Declared at R5 alongside HandoffSpec — same concept family (step4b4-handoff).
+export type HandoffValidationResult = {
+  readonly valid:   boolean
+  readonly reason?: string
 }
 
 // ─── Packet Slicing ───
