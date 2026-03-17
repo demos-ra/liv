@@ -4,43 +4,45 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step2-chat-dashboard
+// amended:    step4b1-layout-restore
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
-//   W-ATOM  WorkspaceHook   ./dashboard-hook
-//   W-ATOM  ActiveProgram   ../types/dashboard-types
-//   W-ATOM  PipelineView    ../types/dashboard-types
-//   W-ATOM  OutputState     ../types/dashboard-types
-//   W-ATOM  DashboardPanel  ../types/dashboard-types
-//   W-ATOM  ChatSurface     ../types/dashboard-types
+//   W-ATOM  WorkspaceHook         ../types/dashboard-types
+//   W-ATOM  ActiveProgram         ../types/dashboard-types
+//   W-ATOM  PipelineView          ../types/dashboard-types
+//   W-ATOM  OutputState           ../types/dashboard-types
+//   W-ATOM  OutputActions         ../types/dashboard-types
+//   W-ATOM  ProjectActions        ../types/dashboard-types
+//   W-ATOM  DashboardPanel        ../types/dashboard-types
 // wires-out:  none  (leaf UI surface)
 // deps:
 //   R0  ../types/dashboard-types
 //   R0  @/features/F-planner/types/planner-types  (PipelineStage — A5)
+//   R0  @/features/F-output/types/output-types    (PushPayload — A5)
 //   R3  @/features/F-intake/contract/intake-ui
-//   R3  @/features/F-chat/contract/chat-ui        (A5: contract surface only)
 //   R5  react
-// validated:  2026-03-13
+// validated:  pending
 //
-// Step 2 (A1, A3, A5):
-//   DashboardUI now renders ChatUI permanently at the bottom of the page.
-//   Pipeline panels occupy the remaining height above via flex layout.
-//   ChatUI is imported exclusively from its contract surface — no internal
-//   F-chat imports exist anywhere in F-dashboard (A5).
-//   ChatUI receives email and signOut from workspace.chat (A3 typed boundary).
-//   The vertical split: flex column, pipeline area flex:1 overflow:auto,
-//   chat panel fixed height at bottom (border-top separator).
+// step4b1 (A1, A2, A5, A7):
+//   ChatUI import and 320px chat panel removed entirely — F-dashboard no longer
+//   owns or renders any chat surface. DashboardUI is now a collapsible panel
+//   renderer only: collapsed = thin toggle bar (icon only, no text label);
+//   expanded = ProjectBar + StepBar + active panel content in a Surface container.
+//   Collapse/expand controlled by dashboardSection atom from WorkspaceHook (A3).
+//   Transition uses --dur-normal + --ease-default per design system (no new
+//   CSS primitives). Toggle uses existing btn-icon class.
+//   F-chat has zero imports in this file — A5 enforced by deletion.
 //   Axiom cite:
-//     A1 — F-dashboard owns display surface. No other slice renders here.
-//     A3 — WorkspaceHook + ChatSurface are the declared typed boundary atoms.
-//     A5 — ChatUI imported only via F-chat/contract/chat-ui.
+//     A1 — DashboardUI owns dashboard panel surface only. Chat is F-chat's concern.
+//     A2 — No upward or lateral imports. ChatUI import removed.
+//     A5 — Cross-slice notification via event bus only. No direct F-chat call.
+//     A7 — ChatUI deletion breaks nothing in this file. No residual dependency.
 
 'use client'
 
 import { useState }      from 'react'
 import { IntakePanel }   from '@/features/F-intake/contract/intake-ui'
-import { ChatUI }        from '@/features/F-chat/contract/chat-ui'
 import type {
   WorkspaceHook,
   ActiveProgram,
@@ -48,7 +50,6 @@ import type {
   OutputState,
   OutputActions,
   ProjectActions,
-  PlannerActions,
   DashboardPanel,
 } from '../types/dashboard-types'
 import type { PipelineStage } from '@/features/F-planner/types/planner-types'
@@ -66,8 +67,44 @@ const STAGE_ORDER: PipelineStage[] = [
   'IN_MAIN', 'IN_BUILD', 'IN_RESOLVE', 'IN_AUDIT', 'IN_COMPILE', 'IN_QA',
 ]
 
-// ── Chat panel height — fixed, always visible ─────────────────────────────────
-const CHAT_PANEL_H = 320
+// ── ToggleBar — collapsed state: icon only, single line ───────────────────────
+// btn-icon class from design system. No text label — zero-border atmospheric.
+// Chevron rotates to signal state without adding visual weight.
+
+function ToggleBar({ onToggle }: { onToggle: () => void }) {
+  return (
+    <div style={{
+      height:          'var(--header-h)',
+      flexShrink:      0,
+      display:         'flex',
+      alignItems:      'center',
+      padding:         '0 var(--u4)',
+      borderBottom:    '1px solid var(--border)',
+      background:      'var(--bg)',
+    }}>
+      <button
+        type="button"
+        className="btn-icon"
+        onClick={onToggle}
+        aria-label="Expand build panel"
+        aria-expanded={false}
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}
+      >
+        {/* Grid icon — 2×2 squares, minimal SVG */}
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
+          <rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
+          <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+          <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+        </svg>
+        {/* Chevron — points right when collapsed */}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 // ── StepBar ───────────────────────────────────────────────────────────────────
 
@@ -338,22 +375,82 @@ const inputStyle: React.CSSProperties = { width: '100%', padding: 'var(--u1) var
 const centeredStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: 'var(--u6)' }
 
 // ── DashboardUI ───────────────────────────────────────────────────────────────
-// Vertical layout:
-//   ┌─────────────────────────────┐  ← ProjectBar (shrink)
-//   ├─────────────────────────────┤  ← StepBar    (shrink)
-//   │                             │
-//   │   pipeline panels (flex:1)  │  ← overflow:auto, scrollable
-//   │                             │
-//   ├─────────────────────────────┤  ← border-top separator
-//   │   chat panel (fixed 320px)  │  ← always visible, overflow:hidden
+// Renders in two states controlled by dashboardSection.isExpanded:
+//
+// Collapsed (default):
+//   ┌─────────────────────────────┐  ← ToggleBar: icon only, header-h height
 //   └─────────────────────────────┘
 //
-// ChatUI renders inside a clipped container — its internal scroll and input
-// are fully contained. No page-level scroll bleed.
+// Expanded:
+//   ┌─────────────────────────────┐  ← ExpandedBar: icon + collapse chevron
+//   ├─────────────────────────────┤  ← ProjectBar
+//   ├─────────────────────────────┤  ← StepBar
+//   │   panel content (flex:1)    │  ← overflow:auto, scrollable
+//   └─────────────────────────────┘
+//
+// Height is intrinsic in expanded state — page.tsx flex layout pushes chat down.
+// Transition on the panel container: max-height + opacity, --dur-normal + --ease-default.
+// No new CSS primitives. No new design system tokens.
 
 export function DashboardUI(props: WorkspaceHook) {
+  const { isExpanded, toggleExpanded } = props.dashboardSection
+
+  if (!isExpanded) {
+    return (
+      <>
+        <ToggleBar onToggle={toggleExpanded} />
+        <style>{`
+          @keyframes spin   { to { transform: rotate(360deg); } }
+          @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+          @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
+      </>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
+    <div style={{
+      display:        'flex',
+      flexDirection:  'column',
+      background:     'var(--bg)',
+      borderBottom:   '1px solid var(--border)',
+      // Intrinsic height — flex children in page.tsx will push chat down naturally.
+      // Max-height caps expanded panel so chat always has minimum visible space.
+      maxHeight:      '55vh',
+      transition:     `max-height var(--dur-normal) var(--ease-default)`,
+    }}>
+
+      {/* ── expanded toggle bar — icon + collapse chevron ── */}
+      <div style={{
+        height:       'var(--header-h)',
+        flexShrink:   0,
+        display:      'flex',
+        alignItems:   'center',
+        padding:      '0 var(--u4)',
+        borderBottom: '1px solid var(--border)',
+        background:   'var(--bg)',
+      }}>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={toggleExpanded}
+          aria-label="Collapse build panel"
+          aria-expanded={true}
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}
+        >
+          {/* Grid icon */}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
+            <rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7"/>
+            <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+            <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+          </svg>
+          {/* Chevron — points down when expanded */}
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </div>
 
       {/* ── top chrome ── */}
       <ProjectBar
@@ -367,9 +464,9 @@ export function DashboardUI(props: WorkspaceHook) {
         goToPanel={props.goToPanel}
       />
 
-      {/* ── pipeline panels — fill remaining height above chat ── */}
+      {/* ── panel content — scrollable, fills remaining expanded height ── */}
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center' }}>
-        {props.activePanel === 'intake'   && (
+        {props.activePanel === 'intake' && (
           <IntakePanel />
         )}
         {props.activePanel === 'pipeline' && (
@@ -384,27 +481,10 @@ export function DashboardUI(props: WorkspaceHook) {
         )}
       </div>
 
-      {/* ── chat panel — permanent, fixed height, always at bottom ── */}
-      <div style={{
-        height:      CHAT_PANEL_H,
-        flexShrink:  0,
-        borderTop:   '1px solid var(--border)',
-        overflow:    'hidden',
-        background:  'var(--bg)',
-        // ChatUI renders its own internal scroll + input within this container.
-        // position:relative gives ChatUI a containing block for any absolute children.
-        position:    'relative',
-      }}>
-        <ChatUI
-          email={props.chat.email}
-          signOut={props.chat.signOut}
-        />
-      </div>
-
       <style>{`
-        @keyframes spin    { to { transform: rotate(360deg); } }
-        @keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes fadeUp  { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin   { to { transform: rotate(360deg); } }
+        @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   )

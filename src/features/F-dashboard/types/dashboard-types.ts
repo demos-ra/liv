@@ -4,32 +4,37 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step2-chat-dashboard
+// amended:    step4b1-layout-restore
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:   none
 // wires-out:
-//   W-ATOM  DashboardPanel   →  F-dashboard/R1, F-dashboard/R3
-//   W-ATOM  ActiveProgram    →  F-dashboard/R3 (panel components via prop)
-//   W-ATOM  PipelineView     →  F-dashboard/R3 (PipelinePanel prop)
-//   W-ATOM  PlannerActions   →  F-dashboard/R3
-//   W-ATOM  OutputActions    →  F-dashboard/R3
-//   W-ATOM  ProjectActions   →  F-dashboard/R3
-//   W-ATOM  OutputState      →  F-dashboard/R3
-//   W-ATOM  ChatSurface      →  F-dashboard/R3 (ChatUI props atom — A3)
-//   W-ATOM  WorkspaceHook    →  F-dashboard/R3, src/app/page.tsx
+//   W-ATOM  DashboardPanel        →  F-dashboard/R1, F-dashboard/R3
+//   W-ATOM  ActiveProgram         →  F-dashboard/R3 (panel components via prop)
+//   W-ATOM  PipelineView          →  F-dashboard/R3 (PipelinePanel prop)
+//   W-ATOM  PlannerActions        →  F-dashboard/R3
+//   W-ATOM  OutputActions         →  F-dashboard/R3
+//   W-ATOM  ProjectActions        →  F-dashboard/R3
+//   W-ATOM  OutputState           →  F-dashboard/R3
+//   W-ATOM  DashboardSectionState →  F-dashboard/R3, src/app/page.tsx
+//   W-ATOM  WorkspaceHook         →  F-dashboard/R3, src/app/page.tsx
 // deps:
 //   R0  @/features/F-planner/types/planner-types   (R0 atoms only — A5)
 //   R0  @/features/F-project/types/project-types   (R0 atoms only — A5)
 //   R0  @/features/F-output/types/output-types     (R0 atoms only — A5)
-// validated:  2026-03-13
+// validated:  pending
 //
-// Step 2 (A3, A6):
-//   ChatSurface is the typed boundary atom for chat at F-dashboard's R3.
-//   It carries only the props ChatUI requires — email and signOut —
-//   threaded from page.tsx through useWorkspace() to DashboardUI.
-//   No F-chat internals cross the boundary. A3 enforced by type.
-//   Axiom cite: A3 — typed boundaries. A6 — declared at R0 of owner.
+// step4b1 (A1, A3, A6, A7):
+//   ChatSurface removed — F-dashboard no longer threads chat identity.
+//   chat field removed from WorkspaceHook — clean break, zero consumers remain.
+//   DashboardSectionState added as typed boundary atom (A3) for collapsible
+//   dashboard section. isExpanded + toggle declared here at R0 (A6) so the
+//   atom can grow (panel size, active program ID) without reshaping WorkspaceHook.
+//   Axiom cite:
+//     A1 — one owner per construct. ChatSurface owned by F-chat, not F-dashboard.
+//     A3 — DashboardSectionState is the typed boundary; raw boolean never crosses.
+//     A6 — declared at R0 of F-dashboard, the owning slice.
+//     A7 — ChatSurface deletion breaks nothing outside F-dashboard.
 
 import type {
   PipelineStatus,
@@ -107,30 +112,29 @@ export type OutputState = {
   pushError:   { code: string; message: string } | null
 }
 
-// ── ChatSurface — typed boundary atom for chat composition (A3) ───────────────
-// Carries only the props ChatUI requires at its contract surface.
-// email and signOut are identity concerns, threaded from page.tsx.
-// useWorkspace() receives them as inputs and passes through unchanged —
-// no chat state is held in F-dashboard. F-chat owns all chat state internally.
-// Axiom cite: A3 — typed boundary. A5 — F-chat accessed via contract surface only.
-export type ChatSurface = {
-  email:   string
-  signOut: () => void
+// ── DashboardSectionState — typed boundary atom for collapsible section (A3) ──
+// Owns the expand/collapse state of the dashboard panel above chat.
+// Declared here at R0 (A6) so the atom can grow without reshaping WorkspaceHook.
+// Candidate future fields: activeProgramId, panelHeight, pinnedPanel.
+// Axiom cite: A3 — typed boundary atom. A6 — declared at R0 of owning slice.
+export type DashboardSectionState = {
+  isExpanded:     boolean
+  toggleExpanded: () => void
 }
 
 // ── WorkspaceHook — full return type of useWorkspace() ───────────────────────
 // program null until project selected.
 // projects kept separate — UI list concern, not program identity.
-// chat threaded through for vertical composition (step2).
+// dashboardSection carries collapse state as typed atom (A3).
 export type WorkspaceHook = {
-  program:        ActiveProgram
-  pipelineView:   PipelineView
-  outputState:    OutputState
-  plannerActions: PlannerActions
-  outputActions:  OutputActions
-  projectActions: ProjectActions
-  projects:       ProjectSummary[]
-  activePanel:    DashboardPanel
-  goToPanel:      (panel: DashboardPanel) => void
-  chat:           ChatSurface
+  program:          ActiveProgram
+  pipelineView:     PipelineView
+  outputState:      OutputState
+  plannerActions:   PlannerActions
+  outputActions:    OutputActions
+  projectActions:   ProjectActions
+  projects:         ProjectSummary[]
+  activePanel:      DashboardPanel
+  goToPanel:        (panel: DashboardPanel) => void
+  dashboardSection: DashboardSectionState
 }

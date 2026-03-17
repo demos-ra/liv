@@ -4,45 +4,48 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step2-chat-dashboard
+// amended:    step4b1-layout-restore
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
-//   W-ATOM  WorkspaceHook    ../types/dashboard-types
-//   W-ATOM  ActiveProgram    ../types/dashboard-types
-//   W-ATOM  PipelineView     ../types/dashboard-types
-//   W-ATOM  PlannerActions   ../types/dashboard-types
-//   W-ATOM  OutputActions    ../types/dashboard-types
-//   W-ATOM  ProjectActions   ../types/dashboard-types
-//   W-ATOM  OutputState      ../types/dashboard-types
-//   W-ATOM  ChatSurface      ../types/dashboard-types
-//   W-ATOM  DashboardPanel   ../types/dashboard-types
-//   W-FN    deriveActivePanel ../domain/dashboard-logic
-//   W-HOOK  usePlanner       @/features/F-planner/contract/planner-hook
-//   W-HOOK  useProject       @/features/F-project/contract/project-hook
-//   W-HOOK  useOutput        @/features/F-output/contract/output-hook
+//   W-ATOM  WorkspaceHook         ../types/dashboard-types
+//   W-ATOM  ActiveProgram         ../types/dashboard-types
+//   W-ATOM  PipelineView          ../types/dashboard-types
+//   W-ATOM  PlannerActions        ../types/dashboard-types
+//   W-ATOM  OutputActions         ../types/dashboard-types
+//   W-ATOM  ProjectActions        ../types/dashboard-types
+//   W-ATOM  OutputState           ../types/dashboard-types
+//   W-ATOM  DashboardSectionState ../types/dashboard-types
+//   W-ATOM  DashboardPanel        ../types/dashboard-types
+//   W-FN    deriveActivePanel     ../domain/dashboard-logic
+//   W-HOOK  usePlanner            @/features/F-planner/contract/planner-hook
+//   W-HOOK  useProject            @/features/F-project/contract/project-hook
+//   W-HOOK  useOutput             @/features/F-output/contract/output-hook
 // wires-out:
 //   W-HOOK  useWorkspace      →  F-dashboard/R3 (dashboard-ui.tsx), src/app/page.tsx
 //   W-FN    deriveActivePanel →  re-exported at contract surface (A5)
 // deps:
 //   R0  ../types/dashboard-types
+//   R0  @/features/F-planner/types/planner-types   (PlannerJobId — A5)
 //   R1  ../domain/dashboard-logic
 //   R3  @/features/F-planner/contract/planner-hook   (A5: contract surface)
 //   R3  @/features/F-project/contract/project-hook   (A5: contract surface)
 //   R3  @/features/F-output/contract/output-hook     (A5: contract surface)
 //   R5  react
-// validated:  2026-03-13
+// validated:  pending
 //
-// Step 2 (A1, A3, A5, A6):
-//   useWorkspace() now accepts ChatSurface props (email, signOut) from page.tsx
-//   and threads them through as workspace.chat. F-dashboard does not call any
-//   F-chat hooks — identity props only. This keeps F-chat's state fully internal
-//   while satisfying the typed boundary requirement at DashboardUI.
+// step4b1 (A1, A3, A6):
+//   useWorkspace() now takes no arguments. ChatSurface param removed —
+//   F-dashboard has no dependency on chat identity. page.tsx reads email/signOut
+//   directly from useAuth() and passes them to ChatUI independently.
+//   DashboardSectionState atom assembled here: isExpanded (default: false,
+//   collapsed) + toggleExpanded callback. Returned as dashboardSection field
+//   on WorkspaceHook — typed boundary atom crosses into page.tsx and DashboardUI
+//   without raw booleans escaping the atom boundary (A3).
 //   Axiom cite:
-//     A1 — F-dashboard is sole orchestration + render surface owner.
-//     A3 — ChatSurface enforces typed boundary; no F-chat internals leak.
-//     A5 — F-chat accessed only via declared contract surfaces.
-//     A6 — ChatSurface declared at R0 (dashboard-types.ts).
+//     A1 — useWorkspace is sole orchestration owner for F-dashboard state.
+//     A3 — DashboardSectionState is the typed atom; no raw state crosses boundary.
+//     A6 — DashboardSectionState declared at R0 (dashboard-types.ts).
 
 'use client'
 
@@ -56,17 +59,18 @@ import type {
   ActiveProgram,
   PipelineView,
   DashboardPanel,
+  DashboardSectionState,
   PlannerActions,
   OutputActions,
   ProjectActions,
   OutputState,
-  ChatSurface,
 } from '../types/dashboard-types'
 import type { PlannerJobId } from '@/features/F-planner/types/planner-types'
 
-export function useWorkspace(chat: ChatSurface): WorkspaceHook {
+export function useWorkspace(): WorkspaceHook {
   const [jobId,       setJobId]       = useState<string | null>(null)
   const [activePanel, setActivePanel] = useState<DashboardPanel>('intake')
+  const [isExpanded,  setIsExpanded]  = useState<boolean>(false)
 
   // ── Slice hooks (A5: via contract only) ───────────────────────────────────
   const project        = useProject()
@@ -91,6 +95,10 @@ export function useWorkspace(chat: ChatSurface): WorkspaceHook {
 
   const goToPanel = useCallback((panel: DashboardPanel) => {
     setActivePanel(panel)
+  }, [])
+
+  const toggleExpanded = useCallback(() => {
+    setIsExpanded(prev => !prev)
   }, [])
 
   // ── ActiveProgram — core readable state atom (A3) ─────────────────────────
@@ -146,6 +154,12 @@ export function useWorkspace(chat: ChatSurface): WorkspaceHook {
     setActive: project.setActive,
   }
 
+  // ── DashboardSectionState — collapsible panel atom (A3) ───────────────────
+  const dashboardSection: DashboardSectionState = {
+    isExpanded,
+    toggleExpanded,
+  }
+
   return {
     program,
     pipelineView,
@@ -153,10 +167,10 @@ export function useWorkspace(chat: ChatSurface): WorkspaceHook {
     plannerActions,
     outputActions,
     projectActions,
-    projects:    project.projects,
+    projects:         project.projects,
     activePanel,
     goToPanel,
-    chat,
+    dashboardSection,
   }
 }
 

@@ -1,14 +1,13 @@
 // @liv-standard v1.3
-// [F-chat/R3]
+// [F-chat/contract/chat-ui.tsx]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step4b1-layout-restore
 // slice:      F-chat
 // layer:      R3
 // wires-in:
-//   W-ATOM  Brand           @/features/F-design-system/contract/primitives
 //   W-ATOM  InputContainer  @/features/F-design-system/contract/primitives
 //   W-ATOM  Input           @/features/F-design-system/contract/primitives
 //   W-ATOM  SendIcon        @/features/F-design-system/contract/primitives
@@ -22,11 +21,27 @@
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
 //   W-HOOK  useChatStream   ./chat-hook
 // wires-out:
-//   W-ATOM  ChatUI          → core/app (Next.js route consumer)
+//   W-ATOM  ChatUI          → src/app/page.tsx
 // deps:
 //   R3  ./chat-hook
+//   R3  @/features/F-design-system/contract/primitives
+//   R3  @/features/F-user-profile/config/provider-keys-config
 //   R5  react
-// validated: pending
+// validated:  pending
+//
+// step4b1 (A1, A3):
+//   Internal <header className="chat-header"> removed — header is now owned
+//   by page.tsx (A1: one owner per construct).
+//   ChatUI renders messages + footer only. AccountPanel remains fully internal
+//   (API keys, display name, theme — chat concerns).
+//   onOpenAccount prop pattern: ChatUI accepts onOpenAccount as a prop and calls
+//   it on mount to register its internal setAccountOpen(true) with page.tsx.
+//   page.tsx stores the registration via useRef and calls it from the header
+//   username button. accountOpen state never leaves ChatUI (A1). The typed prop
+//   boundary is the registration callback (A3).
+//   Axiom cite:
+//     A1 — header ownership moved to page.tsx. ChatUI owns messages + panel only.
+//     A3 — onOpenAccount is the typed prop boundary; no accountOpen state crosses.
 
 'use client'
 
@@ -35,7 +50,6 @@ import { useChatStream } from './chat-hook'
 import { PROVIDER_ORDER, PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import {
-  Brand,
   InputContainer,
   Input,
   SendIcon,
@@ -49,7 +63,6 @@ import {
 const PROJECT_ID = 'demo'
 const MODEL_ID   = 'deepseek-chat'
 
-// Liv's opening message — renders on mount, no streaming
 const LIV_OPENING: Msg = {
   id:      'liv-opening',
   role:    'assistant',
@@ -79,12 +92,10 @@ function AccountPanel({
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // ── Display name state ─────────────────────────────────────────────────────
   const defaultName = email.includes('@') ? email.split('@')[0] : email
   const [displayName, setDisplayName] = useState(defaultName)
   const [nameSaving, setNameSaving]   = useState(false)
 
-  // ── API key state (one entry per provider) ─────────────────────────────────
   const [keyInputs, setKeyInputs] = useState<Record<ProviderId, string>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, ''])) as Record<ProviderId, string>
   )
@@ -95,7 +106,6 @@ function AccountPanel({
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
 
-  // Check which keys are already set on open
   useEffect(() => {
     if (!open) return
     PROVIDER_ORDER.forEach(async (provider) => {
@@ -115,7 +125,6 @@ function AccountPanel({
     if (open) panelRef.current?.focus()
   }, [open])
 
-  // ── Save display name ──────────────────────────────────────────────────────
   const saveDisplayName = async () => {
     if (!displayName.trim()) return
     setNameSaving(true)
@@ -130,7 +139,6 @@ function AccountPanel({
     }
   }
 
-  // ── Save API key ───────────────────────────────────────────────────────────
   const saveKey = async (provider: ProviderId) => {
     const key = keyInputs[provider].trim()
     if (!key) return
@@ -150,7 +158,6 @@ function AccountPanel({
     }
   }
 
-  // ── Remove API key ─────────────────────────────────────────────────────────
   const removeKey = async (provider: ProviderId) => {
     try {
       await fetch('/api/profile/api-key', {
@@ -167,13 +174,11 @@ function AccountPanel({
       <Overlay open={open} onClose={onClose} />
       <SlidePanel open={open} panelRef={panelRef}>
 
-        {/* ── Identity ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)', marginBottom: 'var(--u3)' }}>
           <span className="account-name">{defaultName}</span>
           <span className="account-email">{email}</span>
         </div>
 
-        {/* ── Display name ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)', marginBottom: 'var(--u3)' }}>
           <Label>Display name</Label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}>
@@ -185,29 +190,21 @@ function AccountPanel({
               disabled={nameSaving}
               style={{ flex: 1 }}
             />
-            <ButtonText
-              variant="accent"
-              onClick={saveDisplayName}
-              disabled={nameSaving}
-            >
+            <ButtonText variant="accent" onClick={saveDisplayName} disabled={nameSaving}>
               {nameSaving ? '···' : 'SAVE'}
             </ButtonText>
           </div>
         </div>
 
-        {/* ── API keys — one section per provider ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)' }}>
           {PROVIDER_ORDER.map(provider => (
             <div key={provider} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Label>{`${PROVIDERS[provider].label} API key`}</Label>
                 {keySet[provider] && (
-                  <ButtonText variant="danger" onClick={() => removeKey(provider)}>
-                    REMOVE
-                  </ButtonText>
+                  <ButtonText variant="danger" onClick={() => removeKey(provider)}>REMOVE</ButtonText>
                 )}
               </div>
-
               {keySet[provider] ? (
                 <span className="key-dots">••••••••••••••••</span>
               ) : (
@@ -234,7 +231,6 @@ function AccountPanel({
           ))}
         </div>
 
-        {/* ── Theme + sign out — pushed to bottom ── */}
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--u3)', paddingTop: 'var(--u4)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
@@ -245,16 +241,10 @@ function AccountPanel({
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
               style={{ background: theme === 'dark' ? 'var(--accent)' : 'var(--text-dis)' }}
             >
-              <div
-                className="toggle-thumb"
-                style={{ left: theme === 'dark' ? 18 : 2 }}
-              />
+              <div className="toggle-thumb" style={{ left: theme === 'dark' ? 18 : 2 }} />
             </button>
           </div>
-
-          <ButtonText variant="danger" onClick={onSignOut}>
-            SIGN OUT
-          </ButtonText>
+          <ButtonText variant="danger" onClick={onSignOut}>SIGN OUT</ButtonText>
         </div>
 
       </SlidePanel>
@@ -262,15 +252,28 @@ function AccountPanel({
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── ChatUI — messages + footer only. Header owned by page.tsx (A1). ───────────
+//
+// onOpenAccount prop: page.tsx passes a registration callback. ChatUI calls it
+// on mount with () => setAccountOpen(true). page.tsx stores the registered fn
+// in a ref and calls it when the header username button is clicked.
+// accountOpen state never leaves ChatUI — A1 preserved. A3: typed boundary
+// is the () => void signature of the registration callback.
 
-export function ChatUI({ email, signOut }: { email: string; signOut: () => void }) {
+export function ChatUI({
+  email,
+  signOut,
+  onOpenAccount,
+}: {
+  email:         string
+  signOut:       () => void
+  onOpenAccount: (openFn: () => void) => void
+}) {
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
   const [hasAnyKey, setHasAnyKey]     = useState<boolean | null>(null)
 
-  // ── Theme ──────────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -284,7 +287,14 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
 
   const userName = email.includes('@') ? email.split('@')[0] : email
 
-  // Check if user has at least one key on mount
+  // ── Register open fn with page.tsx on mount ───────────────────────────────
+  // Called once. page.tsx stores the fn; header button calls it directly.
+  // No state leaves ChatUI — accountOpen is private (A1, A3).
+  useEffect(() => {
+    onOpenAccount(() => setAccountOpen(true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     let mounted = true
     async function checkKeys() {
@@ -357,7 +367,6 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
 
     const userMsg: Msg = { id: crypto.randomUUID(), role: 'user', content }
 
-    // Onboarding gate: if no keys, show Liv prompt and open panel
     if (hasAnyKey === false) {
       setMessages(prev => [...prev, userMsg, { ...LIV_KEY_PROMPT, id: crypto.randomUUID() }])
       setAccountOpen(true)
@@ -371,7 +380,6 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
     await send(content, MODEL_ID)
   }, [input, streaming, send, hasAnyKey])
 
-  // After account panel closes, re-check key status
   const handleClosePanel = useCallback(() => {
     setAccountOpen(false)
     Promise.all(
@@ -402,101 +410,82 @@ export function ChatUI({ email, signOut }: { email: string; signOut: () => void 
         theme={theme} onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
       />
 
-      <div className="chat-page">
+      {/* ── MESSAGES ── */}
+      <main className="chat-main">
+        <div className="col chat-messages">
 
-        {/* ── HEADER ── */}
-        <header className="chat-header">
-          <div className="col chat-header-inner">
-            <Brand variant="header" />
-            <button
-              type="button"
-              className="header-username"
-              onClick={() => setAccountOpen(true)}
-              aria-label="Open account settings"
+          {messages.map((m, i) => (
+            <div
+              key={m.id}
+              className={m.id === 'liv-opening' ? undefined : 'fade-up'}
+              style={{ marginBottom: gapAfter(i) }}
             >
-              {userName}
-            </button>
-          </div>
-        </header>
+              {m.role === 'user' ? (
+                <div className="msg-user">
+                  <div className="msg-user-bubble">{m.content}</div>
+                </div>
+              ) : (
+                <div className="msg-asst">
+                  {m.content}
+                  {m.streaming && m.content === '' && (
+                    <span className="msg-streaming">···</span>
+                  )}
+                </div>
+              )}
 
-        {/* ── MESSAGES ── */}
-        <main className="chat-main">
-          <div className="col chat-messages">
+              {isLastInBlock(i) && (
+                <div
+                  className="msg-label"
+                  style={{ textAlign: m.role === 'user' ? 'right' : 'left' }}
+                >
+                  {m.role === 'assistant' ? 'Liv' : userName}
+                </div>
+              )}
+            </div>
+          ))}
 
-            {messages.map((m, i) => (
-              <div
-                key={m.id}
-                className={m.id === 'liv-opening' ? undefined : 'fade-up'}
-                style={{ marginBottom: gapAfter(i) }}
-              >
-                {m.role === 'user' ? (
-                  <div className="msg-user">
-                    <div className="msg-user-bubble">{m.content}</div>
-                  </div>
-                ) : (
-                  <div className="msg-asst">
-                    {m.content}
-                    {m.streaming && m.content === '' && (
-                      <span className="msg-streaming">···</span>
-                    )}
-                  </div>
-                )}
+          {error && (
+            <div className="text-error fade-in" style={{ marginTop: 'var(--u1)' }}>
+              {error}
+            </div>
+          )}
 
-                {isLastInBlock(i) && (
-                  <div
-                    className="msg-label"
-                    style={{ textAlign: m.role === 'user' ? 'right' : 'left' }}
-                  >
-                    {m.role === 'assistant' ? 'Liv' : userName}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div ref={bottomRef} />
+        </div>
+      </main>
 
-            {error && (
-              <div className="text-error fade-in" style={{ marginTop: 'var(--u1)' }}>
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </main>
-
-        {/* ── FOOTER ── */}
-        <footer className="chat-footer">
-          <div className="col">
-            <InputContainer
-              inputRef={inputRef}
-              autoFocus
-              aria-label="Type a message"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-              }}
-              disabled={streaming}
-              placeholder="Message"
-              icon={
-                streaming ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <button
-                    type="button"
-                    className="btn-icon"
-                    onClick={handleSend}
-                    disabled={!hasInput}
-                    aria-label="Send message"
-                  >
-                    <SendIcon />
-                  </button>
-                )
-              }
-            />
-          </div>
-        </footer>
-
-      </div>
+      {/* ── FOOTER ── */}
+      <footer className="chat-footer">
+        <div className="col">
+          <InputContainer
+            inputRef={inputRef}
+            autoFocus
+            aria-label="Type a message"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+            }}
+            disabled={streaming}
+            placeholder="Message"
+            icon={
+              streaming ? (
+                <Spinner size="sm" />
+              ) : (
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={handleSend}
+                  disabled={!hasInput}
+                  aria-label="Send message"
+                >
+                  <SendIcon />
+                </button>
+              )
+            }
+          />
+        </div>
+      </footer>
     </>
   )
 }
