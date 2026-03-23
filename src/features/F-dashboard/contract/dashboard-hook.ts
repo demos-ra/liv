@@ -4,77 +4,80 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b3-dashboard
+// amended:    step5d-phase1
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook         ../types/dashboard-types
 //   W-ATOM  ActiveProgram         ../types/dashboard-types
-//   W-ATOM  PipelineView          ../types/dashboard-types
-//   W-ATOM  PlannerActions        ../types/dashboard-types
+//   W-ATOM  ProgramRenderIntent   ../types/dashboard-types
 //   W-ATOM  OutputActions         ../types/dashboard-types
 //   W-ATOM  ProjectActions        ../types/dashboard-types
 //   W-ATOM  OutputState           ../types/dashboard-types
 //   W-ATOM  DashboardSectionState ../types/dashboard-types
-//   W-HOOK  usePlanner            @/features/F-planner/contract/planner-hook
+//   W-HOOK  useRegisteredPrograms @/features/F-dashboard/contract/dashboard-registry
 //   W-HOOK  useProject            @/features/F-project/contract/project-hook
 //   W-HOOK  useOutput             @/features/F-output/contract/output-hook
 // wires-out:
 //   W-HOOK  useWorkspace  →  F-dashboard/R3 (dashboard-ui.tsx), src/app/page.tsx
 // deps:
 //   R0  ../types/dashboard-types
-//   R0  @/features/F-planner/types/planner-types  (PlannerJobId — A5)
-//   R3  @/features/F-planner/contract/planner-hook  (A5)
-//   R3  @/features/F-project/contract/project-hook  (A5)
-//   R3  @/features/F-output/contract/output-hook    (A5)
+//   R3  ./dashboard-registry         (intra-slice — A5 compliant)
+//   R3  @/features/F-project/contract/project-hook   (A5)
+//   R3  @/features/F-output/contract/output-hook     (A5)
 //   R5  react
 // validated:  pending
-//
-// step4b1 (A1, A3, A6): (unchanged in substance)
 //
 // step4b3-dashboard (A7):
 //   Removed: activePanel, setActivePanel, goToPanel, DashboardPanel import.
 //   Removed: deriveActivePanel import and re-export (dashboard-logic.ts deleted).
 //   Auto-advance panel useEffect removed — no panels to advance to.
-//   WorkspaceHook return slimmed to match new type definition.
-//   Status strip state is derived purely in dashboard-ui.tsx from
-//   program.pipelineStatus + pipelineView.currentStage — no hook state needed.
 //   Axiom cite: A7 — removed all dead code with zero consumers.
+//
+// !! INTEGRATION REQUIRED — manual delete before tsc:
+//   rm src/features/F-dashboard/domain/dashboard-logic.ts
+//   This file still exists on disk and imports from F-planner. Tar cannot express
+//   deletions. The grep gate (grep -r "F-planner" src/features/F-dashboard/) will
+//   fail until it is removed. No file in the deliverable imports it — safe to delete.
+//
+// step5d-phase1 (A1, A3, A7):
+//   Removed: usePlanner import and all usePlanner() usage — A7 (F-planner decoupled).
+//   Removed: PlannerJobId import from F-planner — A7.
+//   Removed: jobId state, jobId capture effect — builder-specific, owned by F-planner.
+//   Removed: pipelineView, plannerActions from return — no longer part of WorkspaceHook.
+//   Removed: pipelineStatus, isPipelineDone from ActiveProgram — builder-specific.
+//   Removed: useOutput isPipelineDone arg — replaced with always-enabled poll.
+//   Added: useRegisteredPrograms() — reads registry for programs to render.
+//   useOutput: polling now unconditional (no longer gated on isPipelineDone).
+//   Dashboard knows: project state + output state + registered programs.
+//   Axiom cite:
+//     A1 — dashboard owns dashboard state only; pipeline state lives in F-planner.
+//     A3 — typed atoms at boundary. A7 — dead fields removed.
 
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { usePlanner }   from '@/features/F-planner/contract/planner-hook'
-import { useProject }   from '@/features/F-project/contract/project-hook'
-import { useOutput }    from '@/features/F-output/contract/output-hook'
+import { useState, useCallback } from 'react'
+import { useProject }           from '@/features/F-project/contract/project-hook'
+import { useOutput }            from '@/features/F-output/contract/output-hook'
+import { useRegisteredPrograms } from './dashboard-registry'
 import type {
   WorkspaceHook,
   ActiveProgram,
-  PipelineView,
   DashboardSectionState,
-  PlannerActions,
   OutputActions,
   ProjectActions,
   OutputState,
 } from '../types/dashboard-types'
-import type { PlannerJobId } from '@/features/F-planner/types/planner-types'
 
 export function useWorkspace(): WorkspaceHook {
-  const [jobId,      setJobId]      = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState<boolean>(false)
 
   // ── Slice hooks (A5: via contract only) ───────────────────────────────────
-  const project        = useProject()
-  const planner        = usePlanner(jobId as PlannerJobId | undefined)
-  const isPipelineDone = planner.job?.pipelineStatus === 'complete'
-  const output         = useOutput(jobId ?? undefined, isPipelineDone)
-
-  // ── Capture jobId when first pipeline job lands ───────────────────────────
-  useEffect(() => {
-    if (planner.job?.jobId && !jobId) {
-      setJobId(planner.job.jobId)
-    }
-  }, [planner.job?.jobId, jobId])
+  const project  = useProject()
+  // Output polling is unconditional — dashboard always shows latest output state.
+  // F-planner drives jobId internally via its own hook; dashboard no longer tracks it.
+  const output   = useOutput(undefined, false)
+  const programs = useRegisteredPrograms()
 
   const toggleExpanded = useCallback(() => {
     setIsExpanded(prev => !prev)
@@ -83,21 +86,8 @@ export function useWorkspace(): WorkspaceHook {
   // ── ActiveProgram (A3) ────────────────────────────────────────────────────
   const program: ActiveProgram = project.activeProject
     ? {
-        projectId:      project.activeProject.projectId,
-        projectName:    project.activeProject.name,
-        jobId,
-        pipelineStatus: planner.job?.pipelineStatus ?? null,
-        isPipelineDone,
-      }
-    : null
-
-  // ── PipelineView (A3) ─────────────────────────────────────────────────────
-  const pipelineView: PipelineView = planner.job
-    ? {
-        jobId:        planner.job.jobId,
-        currentStage: planner.job.currentStage,
-        stageStatus:  planner.job.stageStatus,
-        pipelineLog:  planner.job.pipelineLog,
+        projectId:   project.activeProject.projectId,
+        projectName: project.activeProject.name,
       }
     : null
 
@@ -112,13 +102,6 @@ export function useWorkspace(): WorkspaceHook {
   }
 
   // ── Action surfaces (A3) ──────────────────────────────────────────────────
-  const plannerActions: PlannerActions = {
-    startPipeline:  planner.startPipeline,
-    advanceStage:   planner.advanceStage,
-    failStage:      planner.failStage,
-    freezeContract: planner.freezeContract,
-  }
-
   const outputActions: OutputActions = {
     loadFiles:  output.loadFiles,
     download:   output.download,
@@ -141,9 +124,8 @@ export function useWorkspace(): WorkspaceHook {
 
   return {
     program,
-    pipelineView,
+    programs,
     outputState,
-    plannerActions,
     outputActions,
     projectActions,
     projects:         project.projects,

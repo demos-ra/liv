@@ -4,40 +4,33 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    step5d-phase1
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:   none
 // wires-out:  (registry only — no runtime exports)
 // deps:       none
-// validated:  2026-03-13
+// validated:  pending
 //
 // Wire registry for F-dashboard R0 atoms.
 // Every W-ATOM declared in dashboard-types.ts is registered here.
 // Rule: a wire is declared the same commit it is created. No undeclared wires.
 // Axiom cite: A6 — declare at origin. A1 — F-dashboard owns these declarations.
+//
+// step5d-phase1 (A1, A7):
+//   W-DASH-001 (DashboardPanel): retired — tab system deleted in step4b3. Stale entry.
+//   W-DASH-003 (PlannerActions): retired — F-planner owns its own action surface.
+//   W-DASH-008 (PipelineView): retired — F-planner owns pipeline view state.
+//   W-DASH-009 (ProgramRenderIntent): added — program registry atom.
+//   Axiom cite: A1 — F-dashboard owns its own wires, not F-planner's. A7 — retired wires removed.
 
 export const DASHBOARD_WIRES = [
-  {
-    wireId:   'W-DASH-001',
-    atom:     'DashboardPanel',
-    emitsTo:  ['F-dashboard/R1', 'F-dashboard/R3'],
-    status:   'active',
-    notes:    'Panel enum: intake | pipeline | output.',
-  },
   {
     wireId:   'W-DASH-002',
     atom:     'ActiveProgram',
     emitsTo:  ['F-dashboard/R3'],
     status:   'active',
-    notes:    'Core readable state atom. null until project selected. Passed as prop to all panels.',
-  },
-  {
-    wireId:   'W-DASH-003',
-    atom:     'PlannerActions',
-    emitsTo:  ['F-dashboard/R3'],
-    status:   'active',
-    notes:    'Callable fns only. No state fields.',
+    notes:    'Core readable state atom. null until project selected. projectId + projectName only.',
   },
   {
     wireId:   'W-DASH-004',
@@ -68,11 +61,11 @@ export const DASHBOARD_WIRES = [
     notes:    'Full return type of useWorkspace(). page.tsx spreads this to DashboardUI.',
   },
   {
-    wireId:   'W-DASH-008',
-    atom:     'PipelineView',
-    emitsTo:  ['F-dashboard/R3'],
+    wireId:   'W-DASH-009',
+    atom:     'ProgramRenderIntent',
+    emitsTo:  ['F-dashboard/R3 (dashboard-registry.tsx)'],
     status:   'active',
-    notes:    'PipelinePanel-specific read state. currentStage, stageStatus, pipelineLog. null until pipeline started.',
+    notes:    'Program declares programId + component. Dashboard renders component autonomously.',
   },
 ] as const
 

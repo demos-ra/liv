@@ -4,16 +4,17 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b3-dashboard
+// amended:    step5d-phase2
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
-//   W-HOOK  useWorkspace  @/features/F-dashboard/contract/dashboard-hook
-//   W-HOOK  useAuth       @/features/F-identity/contract/auth-hooks
-//   W-ATOM  Brand         @/features/F-design-system/contract/primitives
-//   W-ATOM  DashboardUI   @/features/F-dashboard/contract/dashboard-ui
-//   W-ATOM  ChatUI        @/features/F-chat/contract/chat-ui
-//   W-ATOM  AuthPage      @/features/F-identity/contract/auth-pages
+//   W-HOOK  useWorkspace    @/features/F-dashboard/contract/dashboard-hook
+//   W-HOOK  useAuth         @/features/F-identity/contract/auth-hooks
+//   W-ATOM  Brand           @/features/F-design-system/contract/primitives
+//   W-ATOM  DashboardUI     @/features/F-dashboard/contract/dashboard-ui
+//   W-ATOM  ChatUI          @/features/F-chat/contract/chat-ui
+//   W-ATOM  AuthPage        @/features/F-identity/contract/auth-pages
+//   W-ATOM  PlannerRegister @/features/F-planner/contract/planner-register
 // wires-out:  none  (mount point)
 // deps:
 //   R3  @/features/F-dashboard/contract/dashboard-hook  (A5)
@@ -22,6 +23,7 @@
 //   R3  @/features/F-identity/contract/auth-hooks       (A5)
 //   R3  @/features/F-identity/contract/auth-pages       (A5)
 //   R3  @/features/F-design-system/contract/primitives  (A5)
+//   R3  @/features/F-planner/contract/planner-register  (A5 — composition root)
 //   R5  react
 // validated:  pending
 //
@@ -30,26 +32,32 @@
 // step4b3-dashboard (A1, A3, A7):
 //   Removed: second header row, ToggleBar component, grid+chevron SVG (A7).
 //   Added: single dashboard icon button in .chat-header-inner between Brand
-//   and username. Uses .btn-icon class. 14×14 SVG, currentColor, 1.5px stroke.
-//   Icon color: text-dis when collapsed, text-sec when expanded — no rotation,
-//   no animation, just color transition via dur-fast.
-//   dashboardSection.toggleExpanded wired to icon onClick.
-//   dashboardSection.isExpanded wired to icon color.
-//   DashboardUI no longer needs a ToggleBar — it renders null when collapsed.
+//   and username. Uses .btn-icon class.
 //   Axiom cite: A1 — header owns the toggle icon. A7 — ToggleBar deleted.
+//
+// step5d-phase2 (A1, A5):
+//   Added: <PlannerRegister /> in render tree — mounts builder program into the
+//   dashboard registry on mount, deregisters on unmount. Composition root is the
+//   correct location for wiring slices together (A1: one place, clear ownership).
+//   F-planner import here is expected — page.tsx is the composition root, not
+//   a feature slice. A7 test: removing F-planner from src/ leaves F-dashboard
+//   files clean; only page.tsx errors on the PlannerRegister import (correct).
+//   Axiom cite:
+//     A1 — composition root owns wiring. Not F-dashboard's responsibility.
+//     A5 — PlannerRegister imported from F-planner/contract (R3 surface).
 
 'use client'
 
 import { useRef, useCallback } from 'react'
-import { useAuth }       from '@/features/F-identity/contract/auth-hooks'
-import { AuthPage }      from '@/features/F-identity/contract/auth-pages'
-import { useWorkspace }  from '@/features/F-dashboard/contract/dashboard-hook'
-import { DashboardUI }   from '@/features/F-dashboard/contract/dashboard-ui'
-import { ChatUI }        from '@/features/F-chat/contract/chat-ui'
-import { Brand }         from '@/features/F-design-system/contract/primitives'
+import { useAuth }          from '@/features/F-identity/contract/auth-hooks'
+import { AuthPage }         from '@/features/F-identity/contract/auth-pages'
+import { useWorkspace }     from '@/features/F-dashboard/contract/dashboard-hook'
+import { DashboardUI }      from '@/features/F-dashboard/contract/dashboard-ui'
+import { ChatUI }           from '@/features/F-chat/contract/chat-ui'
+import { Brand }            from '@/features/F-design-system/contract/primitives'
+import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
 
 // ── DashboardIcon — 14×14 horizontal lines glyph ─────────────────────────────
-// Three lines suggesting a panel/list. currentColor — inherits from parent.
 function DashboardIcon() {
   return (
     <svg
@@ -84,6 +92,10 @@ export default function Home() {
   return (
     <div className="chat-page">
 
+      {/* ── PlannerRegister — mounts builder into the dashboard registry ── */}
+      {/* Renders null. Registration side-effect only. A1: composition root wires slices. */}
+      <PlannerRegister />
+
       {/* ── HEADER ── */}
       <header className="chat-header">
         <div className="col chat-header-inner">
@@ -96,9 +108,9 @@ export default function Home() {
             onClick={toggleExpanded}
             aria-label={isExpanded ? 'Collapse dashboard' : 'Expand dashboard'}
             style={{
-              color:      isExpanded ? 'var(--text-sec)' : 'var(--text-dis)',
-              transition: `color var(--dur-fast)`,
-              marginLeft: 'auto',
+              color:       isExpanded ? 'var(--text-sec)' : 'var(--text-dis)',
+              transition:  `color var(--dur-fast)`,
+              marginLeft:  'auto',
               marginRight: 'var(--u2)',
             }}
           >
