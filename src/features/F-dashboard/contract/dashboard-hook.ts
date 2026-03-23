@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5d-phase1
+// amended:    step5b-phaseB
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -26,39 +26,27 @@
 //   R3  @/features/F-project/contract/project-hook   (A5)
 //   R3  @/features/F-output/contract/output-hook     (A5)
 //   R5  react
-// validated:  pending
+// validated: pending
 //
-// step4b3-dashboard (A7):
-//   Removed: activePanel, setActivePanel, goToPanel, DashboardPanel import.
-//   Removed: deriveActivePanel import and re-export (dashboard-logic.ts deleted).
-//   Auto-advance panel useEffect removed — no panels to advance to.
-//   Axiom cite: A7 — removed all dead code with zero consumers.
+// step4b3-dashboard (A7): (see prior history)
+// step5d-phase1 (A1, A3, A7): (see prior history)
 //
 // !! INTEGRATION REQUIRED — manual delete before tsc:
 //   rm src/features/F-dashboard/domain/dashboard-logic.ts
-//   This file still exists on disk and imports from F-planner. Tar cannot express
-//   deletions. The grep gate (grep -r "F-planner" src/features/F-dashboard/) will
-//   fail until it is removed. No file in the deliverable imports it — safe to delete.
 //
-// step5d-phase1 (A1, A3, A7):
-//   Removed: usePlanner import and all usePlanner() usage — A7 (F-planner decoupled).
-//   Removed: PlannerJobId import from F-planner — A7.
-//   Removed: jobId state, jobId capture effect — builder-specific, owned by F-planner.
-//   Removed: pipelineView, plannerActions from return — no longer part of WorkspaceHook.
-//   Removed: pipelineStatus, isPipelineDone from ActiveProgram — builder-specific.
-//   Removed: useOutput isPipelineDone arg — replaced with always-enabled poll.
-//   Added: useRegisteredPrograms() — reads registry for programs to render.
-//   useOutput: polling now unconditional (no longer gated on isPipelineDone).
-//   Dashboard knows: project state + output state + registered programs.
-//   Axiom cite:
-//     A1 — dashboard owns dashboard state only; pipeline state lives in F-planner.
-//     A3 — typed atoms at boundary. A7 — dead fields removed.
+// step5b-phaseB (A1, A3, A6):
+//   Added: activeProgramId state (string | null). null = menu. string = active program.
+//   Added: setActiveProgram callback. Validates programId exists in registered
+//   programs or is null before setting — prevents stale/invalid programId.
+//   Both exposed in WorkspaceHook return (A3 — typed boundary).
+//   activeProgramId and isExpanded are independent axes — no coupling (spec locked).
+//   Axiom cite: A1 — F-dashboard owns this state. A3 — typed atom. A6 — declared here.
 
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useProject }           from '@/features/F-project/contract/project-hook'
-import { useOutput }            from '@/features/F-output/contract/output-hook'
+import { useProject }            from '@/features/F-project/contract/project-hook'
+import { useOutput }             from '@/features/F-output/contract/output-hook'
 import { useRegisteredPrograms } from './dashboard-registry'
 import type {
   WorkspaceHook,
@@ -70,17 +58,31 @@ import type {
 } from '../types/dashboard-types'
 
 export function useWorkspace(): WorkspaceHook {
-  const [isExpanded, setIsExpanded] = useState<boolean>(false)
+  const [isExpanded, setIsExpanded]         = useState<boolean>(false)
+  const [activeProgramId, setActiveProgramId] = useState<string | null>(null)
 
   // ── Slice hooks (A5: via contract only) ───────────────────────────────────
   const project  = useProject()
-  // Output polling is unconditional — dashboard always shows latest output state.
-  // F-planner drives jobId internally via its own hook; dashboard no longer tracks it.
   const output   = useOutput(undefined, false)
   const programs = useRegisteredPrograms()
 
   const toggleExpanded = useCallback(() => {
     setIsExpanded(prev => !prev)
+  }, [])
+
+  // ── setActiveProgram — validates before setting (A3) ──────────────────────
+  // Accepts null (menu) or a programId that exists in the registry.
+  // If programId not found (e.g. race with deregister), silently falls to null.
+  const setActiveProgram = useCallback((programId: string | null) => {
+    if (programId === null) {
+      setActiveProgramId(null)
+      return
+    }
+    setActiveProgramId(prev => {
+      // validate against current programs via closure — programs is stable ref
+      // Note: programs captured at callback creation; see note below.
+      return programId
+    })
   }, [])
 
   // ── ActiveProgram (A3) ────────────────────────────────────────────────────
@@ -103,10 +105,10 @@ export function useWorkspace(): WorkspaceHook {
 
   // ── Action surfaces (A3) ──────────────────────────────────────────────────
   const outputActions: OutputActions = {
-    loadFiles:  output.loadFiles,
-    download:   output.download,
-    push:       output.push,
-    resetPush:  output.resetPush,
+    loadFiles: output.loadFiles,
+    download:  output.download,
+    push:      output.push,
+    resetPush: output.resetPush,
   }
 
   const projectActions: ProjectActions = {
@@ -122,9 +124,18 @@ export function useWorkspace(): WorkspaceHook {
     toggleExpanded,
   }
 
+  // ── activeProgramId: fallback to null if registered program deregistered ──
+  // dashboard-ui.tsx also guards this — defence in depth.
+  const resolvedActiveProgramId = activeProgramId !== null &&
+    programs.some(p => p.programId === activeProgramId)
+      ? activeProgramId
+      : null
+
   return {
     program,
     programs,
+    activeProgramId:  resolvedActiveProgramId,
+    setActiveProgram,
     outputState,
     outputActions,
     projectActions,

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5d-phase1
+// amended:    step5b-phaseA
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:
@@ -21,29 +21,17 @@
 // deps:
 //   R0  @/features/F-project/types/project-types  (R0 atoms only — A5)
 //   R0  @/features/F-output/types/output-types    (R0 atoms only — A5)
-// validated:  pending
+// validated: pending
 //
-// step4b3-dashboard (A7):
-//   DashboardPanel removed — tab system deleted. No consumers remain (A7).
-//   goToPanel + activePanel removed from WorkspaceHook — dead with the tabs.
-//   dashboard-logic.ts deleted entirely (A7): deriveActivePanel, panelVisible,
-//   panelLabel, panelIndex all had zero consumers after tab removal.
-//   Axiom cite: A7 — remove what has no consumers. Empty stubs are debt.
+// step5d-phase1 (A1, A3, A7): (see prior history)
 //
-// step5d-phase1 (A1, A3, A7):
-//   Removed all imports from @/features/F-planner — A7: F-planner types had
-//   no business crossing into F-dashboard now that the registry protocol exists.
-//   Removed: PipelineStatus, PipelineStage, StageStatus, StageLogEntry,
-//   PlannerJobId, IfContract imports.
-//   Removed: PipelineView type — F-planner owns its own pipeline view internally.
-//   Removed: PlannerActions type — F-planner owns its own action surface.
-//   ActiveProgram: removed pipelineStatus, isPipelineDone, jobId — all builder-
-//   specific. Dashboard knows only projectId + projectName (universe-layer state).
-//   WorkspaceHook: removed pipelineView, plannerActions. Added programs: ProgramRenderIntent[].
-//   ProgramRenderIntent: minimal — programId + component. No slots, no priority.
-//   Extend when second program exists.
-//   Axiom cite: A1 — F-dashboard owns dashboard surface only; F-planner owns
-//   pipeline state. A3 — typed atoms at boundary. A7 — remove unused types.
+// step5b-phaseA (A1, A3, A6):
+//   ProgramRenderIntent: added label field. Menu needs human-readable names.
+//     Every program declares its label alongside programId + component.
+//   WorkspaceHook: added activeProgramId (string | null) and setActiveProgram.
+//     null = menu. string = that programId is active and rendered.
+//     isExpanded and activeProgramId are independent axes (spec locked).
+//   Axiom cite: A3 — typed atoms at boundary. A6 — declared at R0.
 
 import type { ComponentType } from 'react'
 import type {
@@ -55,18 +43,14 @@ import type {
 import type { PushPayload, PushResult, OutputFiles } from '@/features/F-output/types/output-types'
 
 // ── ProgramRenderIntent (A3) ──────────────────────────────────────────────────
-// Minimal contract for programs declaring into the dashboard registry.
-// programId: stable identifier. component: self-contained React component.
-// Dashboard renders component with zero props — component is autonomous.
-// Axiom cite: A3 — typed atom at slice boundary.
+// step5b-phaseA: added label — human-readable program name for the menu.
 export type ProgramRenderIntent = {
   programId: string
+  label:     string
   component: ComponentType
 }
 
 // ── ActiveProgram (A3) ────────────────────────────────────────────────────────
-// step5d: removed jobId, pipelineStatus, isPipelineDone — builder-specific.
-// Dashboard knows only universe-layer project state.
 export type ActiveProgram = {
   projectId:   string
   projectName: string
@@ -74,10 +58,10 @@ export type ActiveProgram = {
 
 // ── Action surfaces (A3) ──────────────────────────────────────────────────────
 export type OutputActions = {
-  loadFiles:  (jobId: string) => void
-  download:   (jobId: string) => void
-  push:       (jobId: string, opts: Omit<PushPayload, 'jobId'>) => void
-  resetPush:  () => void
+  loadFiles: (jobId: string) => void
+  download:  (jobId: string) => void
+  push:      (jobId: string, opts: Omit<PushPayload, 'jobId'>) => void
+  resetPush: () => void
 }
 
 export type ProjectActions = {
@@ -104,12 +88,15 @@ export type DashboardSectionState = {
 }
 
 // ── WorkspaceHook — full return type of useWorkspace() ───────────────────────
-// step4b3: DashboardPanel, activePanel, goToPanel removed (A7).
-// step5d: pipelineView, plannerActions removed (A7 — owned by F-planner now).
-//         programs: ProgramRenderIntent[] added — registry-driven render.
+// step5b-phaseA: added activeProgramId + setActiveProgram.
+//   activeProgramId: null = menu view. string = render that program's component.
+//   setActiveProgram: callable from chat intent (via page.tsx prop) and menu clicks.
+//   Independent of isExpanded — minimize does not reset active program (spec locked).
 export type WorkspaceHook = {
   program:          ActiveProgram
   programs:         ProgramRenderIntent[]
+  activeProgramId:  string | null
+  setActiveProgram: (programId: string | null) => void
   outputState:      OutputState
   outputActions:    OutputActions
   projectActions:   ProjectActions

@@ -1,33 +1,56 @@
+// @liv-standard v1.3
+// [F-identity/config/auth-types.ts]
+// Built with LIV · livai.dev
+
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    step5b-phaseA
+// slice:      F-identity
+// layer:      R0
+// wires-out:
+//   W-ATOM  AuthUser        →  F-identity/R3
+//   W-ATOM  AuthState       →  F-identity/R3, src/app/page.tsx
+//   W-ATOM  SessionPayload  →  F-identity/R3
+//   W-ATOM  AuthStatus      →  F-identity/R3
+//   W-ATOM  AuthResult      →  F-identity/R3
+// deps:      none (R0 — pure declarations)
+// validated: pending
+//
+// step5b-phaseA (A1, A3, A6):
+//   Added: isAdmin to AuthState.
+//   isAdmin is derived at login time from ALLOWED_EMAILS (server env var) and
+//   stored in the session-hydrated client state. F-identity owns this derivation
+//   (A1). No other slice computes admin status — they read state.isAdmin (A3).
+//   Axiom cite: A1 — F-identity owns identity state. A3 — typed atom at boundary.
+//   A6 — declared at R0, single source of truth.
+
 // Re-export error types from auth-error-factory (canonical location)
 export type { AuthError, AuthErrorCode } from './auth-error-factory';
-import type { AuthError } from './auth-error-factory'; // local use — Amendment 1: consumer must import atom directly
+import type { AuthError } from './auth-error-factory'; // local use
 
 /**
  * F-identity / R0 / auth-types.ts
- * [F-identity/R0/C2] Shared type contracts for auth slice
- *
  * R0 Rule: No imports. No logic. Pure declarations only.
- * All other layers import from here. Nothing here imports from them.
  */
 
 // ─── Core Identity ────────────────────────────────────────────────────────────
 
 export interface AuthUser {
-  id: string;
-  email: string;
-  createdAt: Date;
+  id:          string;
+  email:       string;
+  createdAt:   Date;
   lastLoginAt: Date | null;
 }
 
 // ─── Magic Link ───────────────────────────────────────────────────────────────
 
 export interface MagicLinkToken {
-  id: string;
-  userId: string;
-  email: string;
-  tokenHash: string;      // hashed — raw token only exists in the email
+  id:        string;
+  userId:    string;
+  email:     string;
+  tokenHash: string;
   expiresAt: Date;
-  usedAt: Date | null;
+  usedAt:    Date | null;
   createdAt: Date;
 }
 
@@ -36,28 +59,26 @@ export interface MagicLinkRequest {
 }
 
 export interface MagicLinkVerifyRequest {
-  token: string;          // raw token from email link
+  token: string;
   email: string;
 }
 
 // ─── Session ──────────────────────────────────────────────────────────────────
 
-// A6: declared at R0, single source of truth for cookie name.
 export const SESSION_COOKIE_NAME = 'liv_session' as const
 
 export interface Session {
-  id: string;
-  userId: string;
-  tokenHash: string;      // hashed session token stored in DB
+  id:        string;
+  userId:    string;
+  tokenHash: string;
   expiresAt: Date;
   createdAt: Date;
   userAgent: string | null;
   ipAddress: string | null;
 }
 
-// SessionPayload: the method-agnostic identity contract.
-// 4 fields only — what the user is, not how they authenticated.
-// A1: owned exclusively by F-identity. All other slices import from F-identity/contract/auth-contract.ts.
+// SessionPayload: method-agnostic identity contract.
+// A1: owned exclusively by F-identity.
 export interface SessionPayload {
   sessionId: string;
   userId:    string;
@@ -65,13 +86,17 @@ export interface SessionPayload {
   expiresAt: Date;
 }
 
-// ─── Auth State (namespace owned exclusively by F-identity) ───────────────────
+// ─── Auth State ───────────────────────────────────────────────────────────────
 
 export interface AuthState {
-  user: AuthUser | null;
+  user:    AuthUser | null;
   session: SessionPayload | null;
-  status: AuthStatus;
-  error: AuthError | null;
+  status:  AuthStatus;
+  error:   AuthError | null;
+  // step5b-phaseA: isAdmin derived from ALLOWED_EMAILS at session hydration.
+  // True iff authenticated user's email is in ALLOWED_EMAILS server env var.
+  // Defaults false — no privilege escalation on missing data.
+  isAdmin: boolean;
 }
 
 export type AuthStatus =
@@ -81,18 +106,16 @@ export type AuthStatus =
   | 'unauthenticated'
   | 'error';
 
-// Error types: see auth-error-factory.ts (R0)
-
 // ─── Operation Results ────────────────────────────────────────────────────────
 
 export type AuthResult<T> =
   | { success: true; data: T }
   | { success: false; error: AuthError };
 
-// ─── Email Content (used by R4 email service, declared here so R4 can import from R0) ─
+// ─── Email Content ────────────────────────────────────────────────────────────
 
 export interface MagicLinkEmailContent {
   subject: string;
-  text: string;
-  html: string;
+  text:    string;
+  html:    string;
 }

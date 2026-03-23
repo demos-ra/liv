@@ -4,15 +4,12 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5d-phase1
+// amended:    step5b-phaseB
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook       ../types/dashboard-types
-//   W-ATOM  ActiveProgram       ../types/dashboard-types
 //   W-ATOM  ProgramRenderIntent ../types/dashboard-types
-//   W-ATOM  OutputActions       ../types/dashboard-types
-//   W-ATOM  ProjectActions      ../types/dashboard-types
 //   W-ATOM  Surface             @/features/F-design-system/contract/primitives
 // wires-out:
 //   W-ATOM  DashboardUI  →  src/app/page.tsx
@@ -20,60 +17,54 @@
 //   R0  ../types/dashboard-types
 //   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R5  react
-// Note: ProjectSummary + ProjectId inferred from WorkspaceHook — no direct F-project import needed.
-// validated:  pending
+// validated: pending
 //
-// step4b3-dashboard (A1, A3, A7):
-//   Full rewrite. Single .surface card with project dropdown + status strip.
-//   Axiom cite: A1, A7.
+// step4b3-dashboard (A1, A3, A7): (see prior history)
+// step5d-phase1 (A1, A3, A7): (see prior history)
 //
-// step5d-phase1 (A1, A3, A7):
-//   Removed: all F-planner imports — PipelineStatus, PipelineStage.
-//   Removed: PipelinePanel, StageIcon, StatusDot, STAGE_ORDER, STAGE_NODES,
-//   deriveNodeStates, NodeDot, ConnectorLine, StatusStrip, DashboardCard internals
-//   that referenced pipeline state. All builder-specific — now owned by F-planner.
-//   DashboardCard replaced with DashboardUI surface: iterates programs[],
-//   renders each program.component autonomously (zero props — component is self-
-//   contained). Project dropdown stays — F-project is universe-layer.
-//   Download button: removed from dashboard — F-planner's BuilderStatusCard owns
-//   its own output trigger. OutputState kept in WorkspaceHook for future programs
-//   that may need it; not rendered here.
+// step5b-phaseB (A1, A3):
+//   Two render modes driven by activeProgramId:
+//     null  → menu: one card per registered program showing label. Click activates.
+//     set   → render matching program's component. Back affordance resets to null.
+//   Fallback: if activeProgramId is set but program not found (deregistered),
+//   dashboard-hook already resolves to null — this branch is defence in depth.
+//   Project dropdown: shown in both menu and active-program views (universe-layer).
+//   Back affordance: small mono link above the active program surface.
 //   Axiom cite:
-//     A1 — F-dashboard renders protocol surface only; programs render themselves.
-//     A7 — all dead pipeline code removed.
+//     A1 — F-dashboard renders protocol surface only; does not know program internals.
+//     A3 — WorkspaceHook typed boundary; no inline type assertions.
 
 'use client'
 
-import {
-  Surface,
-} from '@/features/F-design-system/contract/primitives'
+import { Surface } from '@/features/F-design-system/contract/primitives'
 import type { WorkspaceHook } from '../types/dashboard-types'
-
-// ── DashboardUI — exported root component ─────────────────────────────────────
-// Receives full WorkspaceHook spread from page.tsx.
-// Renders nothing when dashboardSection.isExpanded is false.
-// programs: each program.component is rendered inside its own Surface card.
-// Dashboard is a protocol — it does not know what any program is.
 
 export function DashboardUI({
   program,
   programs,
+  activeProgramId,
+  setActiveProgram,
   projects,
   projectActions,
   dashboardSection,
 }: WorkspaceHook) {
   if (!dashboardSection.isExpanded) return null
 
+  const activeProgram = activeProgramId !== null
+    ? programs.find(p => p.programId === activeProgramId) ?? null
+    : null
+
   return (
     <div style={{ marginTop: 'var(--u2)', marginBottom: 'var(--u2)', flexShrink: 0 }}>
       <div className="col">
         <Surface>
-          {/* ── Row 1: Project dropdown ── */}
+
+          {/* ── Project dropdown (always visible — universe-layer) ── */}
           <div style={{
             display:        'flex',
             alignItems:     'center',
             justifyContent: 'space-between',
-            marginBottom:   programs.length > 0 ? 'var(--u3)' : undefined,
+            marginBottom:   'var(--u3)',
             gap:            'var(--u2)',
           }}>
             {projects.length > 0 ? (
@@ -104,13 +95,67 @@ export function DashboardUI({
                 No projects yet
               </span>
             )}
+
+            {/* Back affordance — only when a program is active */}
+            {activeProgram !== null && (
+              <button
+                type="button"
+                onClick={() => setActiveProgram(null)}
+                style={{
+                  fontFamily:      'var(--font-mono)',
+                  fontSize:        'var(--type-sm)',
+                  color:           'var(--text-dis)',
+                  background:      'none',
+                  border:          'none',
+                  cursor:          'pointer',
+                  padding:         0,
+                  marginLeft:      'auto',
+                }}
+                aria-label="Back to menu"
+              >
+                ← menu
+              </button>
+            )}
           </div>
 
-          {/* ── Registered programs — each component is self-contained ── */}
-          {programs.map(p => {
-            const ProgramComponent = p.component
-            return <ProgramComponent key={p.programId} />
-          })}
+          {/* ── Active program view ── */}
+          {activeProgram !== null ? (
+            (() => {
+              const ProgramComponent = activeProgram.component
+              return <ProgramComponent />
+            })()
+          ) : (
+            /* ── Menu view — one card per registered program ── */
+            programs.length === 0 ? (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-sm)', color: 'var(--text-dis)' }}>
+                No programs registered
+              </span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
+                {programs.map(p => (
+                  <button
+                    key={p.programId}
+                    type="button"
+                    onClick={() => setActiveProgram(p.programId)}
+                    style={{
+                      fontFamily:    'var(--font-mono)',
+                      fontSize:      'var(--type-sm)',
+                      color:         'var(--text-sec)',
+                      background:    'var(--input-panel-bg)',
+                      border:        '1px solid var(--border)',
+                      borderRadius:  'var(--u1)',
+                      padding:       'var(--u1) var(--u2)',
+                      cursor:        'pointer',
+                      textAlign:     'left',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+
         </Surface>
       </div>
     </div>

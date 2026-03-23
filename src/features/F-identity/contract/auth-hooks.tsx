@@ -1,18 +1,41 @@
-// @liv-standard v1.0
-// [F-identity/R3/auth-hooks.tsx]
+// @liv-standard v1.3
+// [F-identity/contract/auth-hooks.tsx]
 // Built with LIV · livai.dev
-/**
- * F-identity / R3 / auth-hooks.ts
- * [F-identity/R3/C2] React hooks for auth state
- *
- * R3 Rules:
- * - Client-side only hooks.
- * - Imports from R0 (types, selectors), R1 (validation), R2 (via tRPC). Never R4.
- * - These are the ONLY way other slices read auth state (cross-slice selector rule).
- * - Other slices import useIsAuthenticated, useCurrentUserId — not AuthState directly.
- *
- * State Rule: F-identity writes to 'auth' namespace. Other slices read via these hooks.
- */
+
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    step5b-phaseA
+// slice:      F-identity
+// layer:      R3
+// wires-in:
+//   W-ATOM  AuthState       ../config/auth-types
+//   W-ATOM  AuthUser        ../config/auth-types
+//   W-ATOM  SessionPayload  ../config/auth-types
+//   W-ATOM  AUTH_INITIAL_STATE  ../config/auth-state
+//   W-ATOM  authSelectors      ../config/auth-state
+// wires-out:
+//   W-HOOK  useAuth              →  src/app/page.tsx, F-identity/R3
+//   W-HOOK  useIsAuthenticated   →  cross-slice read
+//   W-HOOK  useCurrentUserId     →  cross-slice read
+//   W-HOOK  useCurrentEmail      →  cross-slice read
+//   W-HOOK  useCurrentSessionId  →  cross-slice read
+//   W-HOOK  useAuthStatus        →  cross-slice read
+//   W-HOOK  useSession           →  cross-slice read
+//   W-ATOM  AuthProvider         →  F-identity/R3 (providers)
+// deps:
+//   R0  ../config/auth-types
+//   R0  ../config/auth-state
+//   R5  react, @/core/api/trpc-client
+// validated: pending
+//
+// step5b-phaseA (A1, A3):
+//   me hydration: reads isAdmin from API response, stores in AuthState.
+//   verifyMagicLink: isAdmin defaults false after verify — full hydration
+//   happens via subsequent me call or page reload. Safe: magic-link verify
+//   only returns user+session, not isAdmin. On next mount, me is called and
+//   isAdmin is set correctly.
+//   refresh: also hydrates isAdmin from me response.
+//   Axiom cite: A1 — F-identity owns all auth state writes. A3 — typed atoms.
 
 'use client';
 
@@ -20,16 +43,16 @@ import { useState, useEffect, useCallback, createContext, useContext } from 'rea
 import type { AuthState, AuthUser, SessionPayload } from '../config/auth-types';
 import { AUTH_INITIAL_STATE } from '../config/auth-state';
 import { authSelectors } from '../config/auth-state';
-import { api } from '@/core/api/trpc-client'; // tRPC client — from F-trpc slice (Phase 3)
+import { api } from '@/core/api/trpc-client';
 
-// ─── Auth Context (owns the auth namespace in React state tree) ───────────────
+// ─── Auth Context ─────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
-  state: AuthState;
+  state:            AuthState;
   requestMagicLink: (email: string) => Promise<{ success: boolean; message?: string; error?: string }>;
-  verifyMagicLink: (token: string, email: string) => Promise<{ success: boolean; error?: string }>;
-  signOut: () => Promise<void>;
-  refresh: () => Promise<void>;
+  verifyMagicLink:  (token: string, email: string) => Promise<{ success: boolean; error?: string }>;
+  signOut:          () => Promise<void>;
+  refresh:          () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -40,8 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(AUTH_INITIAL_STATE);
 
   const requestMagicLinkMutation = api.auth.requestMagicLink.useMutation();
-  const verifyMagicLinkMutation = api.auth.verifyMagicLink.useMutation();
-  const signOutMutation = api.auth.signOut.useMutation();
+  const verifyMagicLinkMutation  = api.auth.verifyMagicLink.useMutation();
+  const signOutMutation          = api.auth.signOut.useMutation();
   const meQuery = api.auth.me.useQuery(undefined, { retry: false, enabled: false });
 
   // ── Hydrate session on mount ────────────────────────────────────────────────
@@ -51,16 +74,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     meQuery.refetch().then(result => {
       if (result.data) {
         setState({
-          user: result.data.user as AuthUser,
+          user:    result.data.user as AuthUser,
           session: result.data.session as SessionPayload,
-          status: 'authenticated',
-          error: null,
+          status:  'authenticated',
+          error:   null,
+          // step5b-phaseA: isAdmin derived server-side, hydrated here
+          isAdmin: result.data.isAdmin ?? false,
         });
       } else {
         setState({ ...AUTH_INITIAL_STATE, status: 'unauthenticated' });
       }
     }).catch(() => {
-      // 401 / network error — session invalid or missing, force unauthenticated
       setState({ ...AUTH_INITIAL_STATE, status: 'unauthenticated' });
     });
   }, []);
@@ -81,11 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState(s => ({ ...s, status: 'loading' }));
     try {
       const result = await verifyMagicLinkMutation.mutateAsync({ token, email });
+      // isAdmin: verify endpoint does not return isAdmin — defaults false.
+      // Full isAdmin hydration occurs on next mount via me query.
       setState({
-        user: result.user as AuthUser,
+        user:    result.user as AuthUser,
         session: result.session as SessionPayload,
-        status: 'authenticated',
-        error: null,
+        status:  'authenticated',
+        error:   null,
+        isAdmin: false,
       });
       return { success: true };
     } catch (err: unknown) {
@@ -93,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState(s => ({
         ...s,
         status: 'unauthenticated',
-        error: { code: 'TOKEN_INVALID', message, timestamp: new Date() },
+        error:  { code: 'TOKEN_INVALID', message, timestamp: new Date() },
       }));
       return { success: false, error: message };
     }
@@ -104,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOutMutation.mutateAsync();
     } finally {
-      // Always clear local state — cookie cleared server-side
       setState({ ...AUTH_INITIAL_STATE, status: 'unauthenticated' });
     }
   }, [signOutMutation]);
@@ -116,7 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState(s => ({
         ...s,
         session: result.data!.session as SessionPayload,
-        status: 'authenticated',
+        status:  'authenticated',
+        isAdmin: result.data!.isAdmin ?? false,
       }));
     }
   }, [meQuery]);
@@ -132,13 +159,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
 
-// ─── Cross-Slice Read Selectors (other slices import these, never AuthState) ──
+// ─── Cross-Slice Read Selectors ───────────────────────────────────────────────
 
 export function useIsAuthenticated(): boolean {
   const { state } = useAuth();
@@ -165,9 +190,7 @@ export function useAuthStatus(): AuthState['status'] {
   return authSelectors.authStatus(state);
 }
 
-// ─── useSession (absorbed from F-session — A1: single owner) ─────────────────
-
 export function useSession(): SessionPayload | null {
-  const { state } = useAuth()
-  return state.session
+  const { state } = useAuth();
+  return state.session;
 }

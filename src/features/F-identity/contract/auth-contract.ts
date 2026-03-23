@@ -20,6 +20,8 @@ import { db, taggedDb } from '@/core/db/client'
 export type { SessionPayload } from '../config/auth-types'
 export type { ValidatedSession } from '../app/auth-workflow'
 export { SESSION_COOKIE_NAME } from '../config/auth-types'
+// step5b-patch: re-export isEmailAllowed so API routes import via contract only (A5).
+export { isEmailAllowed } from '../config/allowlist'
 
 // ─── Session validation (the only cross-slice auth call) ──────────────────────
 export async function validateSession(rawToken: string) {

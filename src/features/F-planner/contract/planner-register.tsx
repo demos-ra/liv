@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5d-phase2
+// amended:    step5b-phaseC
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -16,21 +16,15 @@
 //   R3  @/features/F-dashboard/contract/dashboard-registry  (A5 — R3 surface)
 //   R3  ./planner-ui                                        (intra-slice — A5 compliant)
 //   R5  react
-// validated:  pending
+// validated: pending
 //
-// step5d-phase2 (A1, A5, A7):
-//   New file. Thin registration component. Calls useRegisterProgram() with
-//   programId: 'builder' and component: BuilderStatusCard.
-//   Renders null — registration only. No UI.
-//   page.tsx mounts <PlannerRegister /> in the composition root so it registers
-//   on mount and deregisters on unmount. One import of this component in page.tsx
-//   is expected and correct — composition root is where slices wire together.
-//   A7 test: rm -rf src/features/F-planner → page.tsx errors on PlannerRegister
-//   import (expected — page.tsx is the composition root, not F-dashboard).
-//   F-dashboard files produce zero errors — A7 verified.
-//   Axiom cite:
-//     A1 — F-planner owns builder registration. F-dashboard owns the registry protocol.
-//     A5 — useRegisterProgram imported from F-dashboard/contract (R3 surface only).
+// step5d-phase2 (A1, A5, A7): (see prior history)
+//
+// step5b-phaseC (A3):
+//   Added: label: 'Builder' to registration intent.
+//   ProgramRenderIntent now requires label (step5b-phaseA type change).
+//   Menu displays this label as the clickable card text.
+//   Axiom cite: A3 — typed atom at boundary; label is declared by the owning program.
 
 'use client'
 
@@ -38,6 +32,6 @@ import { useRegisterProgram } from '@/features/F-dashboard/contract/dashboard-re
 import { BuilderStatusCard }  from './planner-ui'
 
 export function PlannerRegister() {
-  useRegisterProgram({ programId: 'builder', component: BuilderStatusCard })
+  useRegisterProgram({ programId: 'builder', label: 'Builder', component: BuilderStatusCard })
   return null
 }

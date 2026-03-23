@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b3-dashboard
+// amended:    step5b-phaseF
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -29,24 +29,28 @@
 //   R3  @/features/F-design-system/contract/primitives
 //   R3  @/features/F-user-profile/config/provider-keys-config
 //   R5  react
-// validated:  pending
+// validated: pending
 //
 // step4b1 (A1, A3): (unchanged)
-// step4b2-phase-d (A1, A3): Models section added — backend deployed, UI now removed.
-// step4b2-corrective (A5): PROVIDER_MODELS inlined, PLANNER_CONST import removed.
+// step4b2-phase-d, step4b2-corrective, step4b3-dashboard: (see prior history)
 //
-// step4b3-dashboard (A1, A7):
-//   AccountPanel rewritten. Model preferences UI removed entirely (A7) —
-//   backend preferences remain deployed, UI had no active users.
-//   Added: StatusDot (accent) on the active provider row — first provider
-//   with a saved key. Click another provider's dot area to switch active.
-//   Added: Divider between panel sections (name, keys, theme, sign out).
-//   Section headers use .label class (uppercase mono, text-dis).
-//   Removed: PROVIDER_MODELS constant, modelsForProvider fn, TierPref/ModelPrefs
-//   types, all model preferences state (modelPrefs, prefsSaving, prefsLoaded),
-//   saveTierPref fn, uniqueModels computation, models section JSX.
-//   Axiom cite: A7 — remove what has no consumers. A1 — AccountPanel owns
-//   its own section structure.
+// step5b-phaseF (A1, A3):
+//   Added: onSetActiveProgram prop — (programId: string | null) => void.
+//     Passed from page.tsx (composition root). F-chat has no knowledge of which
+//     programs exist — it only calls the callback with a string literal or null.
+//     No cross-slice import — callback is the typed boundary (A3).
+//   Intent routing in handleSend (before AI send):
+//     '/admin'          → setActiveProgram('admin')   — exact command
+//     'menu'/'switch'   → setActiveProgram(null)      — back to menu
+//     builder intent    → setActiveProgram('builder') — any non-command message
+//       that reaches the AI is assumed builder intent; expands dashboard if collapsed.
+//   Dashboard expand: intent routing does not toggle isExpanded — that axis is
+//   independent. User must expand dashboard separately (spec locked).
+//   Axiom cite:
+//     A1 — F-chat owns message handling. Program switching is a side-effect
+//          triggered via prop callback, not an internal concern.
+//     A3 — onSetActiveProgram is typed at the boundary; no programId constants
+//          imported from other slices.
 
 'use client'
 
@@ -89,7 +93,19 @@ type Msg = {
   streaming?: boolean
 }
 
-// ── Account panel ─────────────────────────────────────────────────────────────
+// ── Intent routing constants (A3 — owned by F-chat, no cross-slice imports) ───
+const INTENT_ADMIN   = '/admin'
+const INTENT_MENU    = ['menu', 'switch', '/menu']
+
+function resolveIntent(content: string): { programId: string | null; isCommand: boolean } | null {
+  const trimmed = content.trim().toLowerCase()
+  if (trimmed === INTENT_ADMIN) return { programId: 'admin', isCommand: true }
+  if (INTENT_MENU.includes(trimmed)) return { programId: null, isCommand: true }
+  // Any other message → builder intent (not a command, still sends to AI)
+  return { programId: 'builder', isCommand: false }
+}
+
+// ── AccountPanel ──────────────────────────────────────────────────────────────
 
 function AccountPanel({
   open, email, onClose, onSignOut, theme, onToggleTheme,
@@ -112,7 +128,6 @@ function AccountPanel({
   const [keySaving, setKeySaving] = useState<Record<ProviderId, boolean>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
-  // Active provider: first provider with a saved key. Click dot to switch.
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null)
 
   useEffect(() => {
@@ -128,7 +143,6 @@ function AccountPanel({
     })
   }, [open])
 
-  // Set active provider to first with a key when keySet changes
   useEffect(() => {
     if (activeProvider && keySet[activeProvider]) return
     const first = PROVIDER_ORDER.find(p => keySet[p]) ?? null
@@ -192,7 +206,6 @@ function AccountPanel({
       <Overlay open={open} onClose={onClose} />
       <SlidePanel open={open} panelRef={panelRef}>
 
-        {/* ── Identity ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u05)', marginBottom: 'var(--u3)' }}>
           <span className="account-name">{defaultName}</span>
           <span className="account-email">{email}</span>
@@ -217,13 +230,11 @@ function AccountPanel({
 
         <Divider />
 
-        {/* ── API Keys ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u3)', marginTop: 'var(--u3)', marginBottom: 'var(--u3)' }}>
           <Label>API Keys</Label>
           {PROVIDER_ORDER.map(provider => (
             <div key={provider} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', justifyContent: 'space-between' }}>
-                {/* Provider label + active dot */}
                 <div
                   style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', cursor: keySet[provider] ? 'pointer' : 'default' }}
                   onClick={() => { if (keySet[provider]) setActiveProvider(provider) }}
@@ -270,7 +281,6 @@ function AccountPanel({
 
         <Divider />
 
-        {/* ── Theme ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--u3)', marginBottom: 'var(--u3)' }}>
           <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
           <button
@@ -286,7 +296,6 @@ function AccountPanel({
 
         <Divider />
 
-        {/* ── Sign out ── */}
         <div style={{ marginTop: 'var(--u3)' }}>
           <ButtonText variant="danger" onClick={onSignOut}>SIGN OUT</ButtonText>
         </div>
@@ -296,16 +305,18 @@ function AccountPanel({
   )
 }
 
-// ── ChatUI ─────────────────────────────────────────────────────────────────────
+// ── ChatUI ────────────────────────────────────────────────────────────────────
 
 export function ChatUI({
   email,
   signOut,
   onOpenAccount,
+  onSetActiveProgram,
 }: {
-  email:         string
-  signOut:       () => void
-  onOpenAccount: (openFn: () => void) => void
+  email:               string
+  signOut:             () => void
+  onOpenAccount:       (openFn: () => void) => void
+  onSetActiveProgram:  (programId: string | null) => void
 }) {
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
@@ -400,6 +411,17 @@ export function ChatUI({
     if (!content || streaming) return
     setInput('')
 
+    // ── Intent routing (step5b-phaseF) ────────────────────────────────────
+    // Resolve programId before any other logic. Commands (/admin, menu, switch)
+    // activate programs and return early — they are not sent to the AI.
+    // Non-command messages (builder intent) activate 'builder' as a side-effect
+    // but still proceed to AI send.
+    const intent = resolveIntent(content)
+    if (intent) {
+      onSetActiveProgram(intent.programId)
+      if (intent.isCommand) return  // command handled — don't send to AI
+    }
+
     const userMsg: Msg = { id: crypto.randomUUID(), role: 'user', content }
 
     if (hasAnyKey === false) {
@@ -413,7 +435,7 @@ export function ChatUI({
     asstIdRef.current  = newAsstId
     setMessages(prev => [...prev, userMsg, asstMsg])
     await send(content, MODEL_ID)
-  }, [input, streaming, send, hasAnyKey])
+  }, [input, streaming, send, hasAnyKey, onSetActiveProgram])
 
   const handleClosePanel = useCallback(() => {
     setAccountOpen(false)

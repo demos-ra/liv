@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5d-phase2
+// amended:    step5b-phaseF
 // slice:      F-dashboard
 // layer:      R3
 // wires-in:
@@ -15,6 +15,7 @@
 //   W-ATOM  ChatUI          @/features/F-chat/contract/chat-ui
 //   W-ATOM  AuthPage        @/features/F-identity/contract/auth-pages
 //   W-ATOM  PlannerRegister @/features/F-planner/contract/planner-register
+//   W-ATOM  AdminRegister   @/features/F-admin/contract/admin-register
 // wires-out:  none  (mount point)
 // deps:
 //   R3  @/features/F-dashboard/contract/dashboard-hook  (A5)
@@ -24,27 +25,23 @@
 //   R3  @/features/F-identity/contract/auth-pages       (A5)
 //   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R3  @/features/F-planner/contract/planner-register  (A5 — composition root)
+//   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
 //   R5  react
-// validated:  pending
+// validated: pending
 //
-// step4b1 (A1, A2, A3, A5): (see prior history)
+// step4b1, step4b3-dashboard, step5d-phase2: (see prior history)
 //
-// step4b3-dashboard (A1, A3, A7):
-//   Removed: second header row, ToggleBar component, grid+chevron SVG (A7).
-//   Added: single dashboard icon button in .chat-header-inner between Brand
-//   and username. Uses .btn-icon class.
-//   Axiom cite: A1 — header owns the toggle icon. A7 — ToggleBar deleted.
-//
-// step5d-phase2 (A1, A5):
-//   Added: <PlannerRegister /> in render tree — mounts builder program into the
-//   dashboard registry on mount, deregisters on unmount. Composition root is the
-//   correct location for wiring slices together (A1: one place, clear ownership).
-//   F-planner import here is expected — page.tsx is the composition root, not
-//   a feature slice. A7 test: removing F-planner from src/ leaves F-dashboard
-//   files clean; only page.tsx errors on the PlannerRegister import (correct).
+// step5b-phaseF (A1, A5):
+//   Added: <AdminRegister /> — mounted conditionally on state.isAdmin.
+//     AdminRegister registers 'admin' program into dashboard registry on mount,
+//     deregisters on unmount. If user is not admin, program never registers
+//     (not visible in menu, not accessible via chat intent).
+//   Added: setActiveProgram passed to ChatUI as onSetActiveProgram prop.
+//     Allows chat intent routing to activate programs without cross-slice imports.
+//     page.tsx (composition root) owns this wiring (A1).
 //   Axiom cite:
-//     A1 — composition root owns wiring. Not F-dashboard's responsibility.
-//     A5 — PlannerRegister imported from F-planner/contract (R3 surface).
+//     A1 — composition root owns all slice wiring. isAdmin gate lives here, not in F-admin.
+//     A5 — AdminRegister imported from F-admin/contract (R3 surface only).
 
 'use client'
 
@@ -56,8 +53,9 @@ import { DashboardUI }      from '@/features/F-dashboard/contract/dashboard-ui'
 import { ChatUI }           from '@/features/F-chat/contract/chat-ui'
 import { Brand }            from '@/features/F-design-system/contract/primitives'
 import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
+import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
 
-// ── DashboardIcon — 14×14 horizontal lines glyph ─────────────────────────────
+// ── DashboardIcon ─────────────────────────────────────────────────────────────
 function DashboardIcon() {
   return (
     <svg
@@ -92,16 +90,17 @@ export default function Home() {
   return (
     <div className="chat-page">
 
-      {/* ── PlannerRegister — mounts builder into the dashboard registry ── */}
-      {/* Renders null. Registration side-effect only. A1: composition root wires slices. */}
+      {/* ── Program registrations (composition root — A1) ── */}
+      {/* Renders null. Registration side-effect only. */}
       <PlannerRegister />
+      {/* AdminRegister: only mounts when user is admin — gate controls registration */}
+      {state.isAdmin && <AdminRegister />}
 
       {/* ── HEADER ── */}
       <header className="chat-header">
         <div className="col chat-header-inner">
           <Brand variant="header" />
 
-          {/* Dashboard toggle icon — between Brand and username */}
           <button
             type="button"
             className="btn-icon"
@@ -128,7 +127,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── DASHBOARD — flexShrink:0, renders null when collapsed ── */}
+      {/* ── DASHBOARD ── */}
       <div style={{ flexShrink: 0 }}>
         <DashboardUI {...workspace} />
       </div>
@@ -139,6 +138,7 @@ export default function Home() {
           email={email}
           signOut={signOut}
           onOpenAccount={handleRegisterOpen}
+          onSetActiveProgram={workspace.setActiveProgram}
         />
       </div>
 
