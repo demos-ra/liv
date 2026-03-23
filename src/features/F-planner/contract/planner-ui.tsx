@@ -77,22 +77,15 @@ function deriveNodeStates(
 
   if (!pipelineStatus) return { states: none, failureText: null }
 
-  // Specs: pending + IN_MAIN = user describing app, AI filling IF fields
   if (pipelineStatus === 'pending' && currentStage === 'IN_MAIN') {
     return { states: ['active', 'pending', 'pending', 'pending', 'pending'], failureText: null }
   }
 
-  // Pending without a stage yet — initial state
-  if (pipelineStatus === 'pending') {
-    return { states: none, failureText: null }
+  if (pipelineStatus === 'confirmed') {
+    return { states: ['complete', 'active', 'pending', 'pending', 'pending'], failureText: null }
   }
 
-  // Running — map current stage to 5-node strip position
-  // Confirmed = specs complete + running at IN_MAIN means contract frozen
   if (pipelineStatus === 'running') {
-    if (currentStage === 'IN_MAIN') {
-      return { states: ['complete', 'active', 'pending', 'pending', 'pending'], failureText: null }
-    }
     if (currentStage === 'IN_BUILD' || currentStage === 'IN_RESOLVE' || currentStage === 'IN_AUDIT') {
       return { states: ['complete', 'complete', 'active', 'pending', 'pending'], failureText: null }
     }
@@ -109,8 +102,7 @@ function deriveNodeStates(
     return { states: ['complete', 'complete', 'complete', 'complete', 'complete'], failureText: null }
   }
 
-  // Failed or cancelled — mark the failed node
-  if (pipelineStatus === 'failed' || pipelineStatus === 'cancelled') {
+  if (pipelineStatus === 'failed' || pipelineStatus === 'escalated') {
     const stageToIndex: Partial<Record<PipelineStage, number>> = {
       IN_MAIN:    0,
       IN_BUILD:   2,
@@ -123,7 +115,9 @@ function deriveNodeStates(
     const states: NodeState[] = STAGE_NODES.map((_, i) =>
       i < failIdx ? 'complete' : i === failIdx ? 'failed' : 'pending'
     )
-    const text = failureReason ?? 'Build failed — check build log.'
+    const text = pipelineStatus === 'escalated'
+      ? 'Escalated — pipeline could not recover. Check build log.'
+      : failureReason ?? 'Build failed — check build log.'
     return { states, failureText: text }
   }
 
@@ -239,13 +233,11 @@ export function BuilderStatusCard() {
   const currentStage   = planner.job?.currentStage ?? null
 
   // Derive failure reason from pipeline log if available
-  const failedMessages = planner.job?.pipelineLog
+  const failureReason = planner.job?.pipelineLog
     .filter(e => e.status === 'failed')
     .map(e => e.message)
-    .filter(Boolean) ?? []
-  const failureReason = failedMessages.length > 0
-    ? failedMessages[failedMessages.length - 1] ?? undefined
-    : undefined
+    .filter(Boolean)
+    .at(-1) ?? undefined
 
   const { states, failureText } = deriveNodeStates(
     pipelineStatus,

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b4-handoff
+// amended:    step4d-corrective
 // slice:      F-planner
 // layer:      R2
 // wires-in:
@@ -34,6 +34,10 @@
 //   W-ATOM    getHandoff             @/core/constants/liv-api
 //   W-FN      validateHandoff        @/core/constants/liv-api  (step4b4-handoff — replaces validateHandoffShape)
 //   W-ATOM    InstanceId             @/core/constants/liv-standard.types  (step4b4-handoff — type import for cast)
+//   W-ATOM    FlowLibraryEntry       ../types/planner-library-types  (step4d-phase2)
+//   W-ATOM    LibraryInsertPayload   ../types/planner-library-types  (step4d-phase2)
+//   W-FN      reslotFiles            ../domain/planner-library-logic  (step4d-phase3)
+//   W-FN      extractSlotValues      ../domain/planner-library-logic  (step4d-phase3)
 // wires-out:
 //   W-INJECT  IPlannerDb   →  F-planner/R3 (planner-inject.ts binds, planner-contract.ts consumes)
 //   W-INJECT  IAiAdapter   →  F-planner/R3
@@ -75,6 +79,26 @@
 //   validateHandoffShape deleted from planner-logic.ts (A7 — zero consumers).
 //   InstanceId imported from liv-standard.types for toId cast in runRetryStage.
 //   Axiom cite: A2 — R2 uses canonical R5 fn. A7 — dead R1 helper removed.
+//
+// step4d-phase2 (A2, A3, A6):
+//   IPlannerDb extended: 4 library methods added.
+//   lookupExact, lookupPartial, insertLibraryEntry, incrementReuseFailure.
+//   Bound at R3 (planner-inject.ts) via planner-library-db.ts (R4) — A2 compliant.
+//   FlowLibraryEntry + LibraryInsertPayload imported from planner-library-types (R0).
+//   Axiom cite: A2 — interface declared at R2, bound at R3. A3 — typed atoms.
+//   A6 — IPlannerDb declared at R2 of owning slice.
+//
+// step4d-phase3 (A1, A2, A4):
+//   runPipeline: read path, write path, demotion. See prior note.
+//   Axiom cite: A1, A2, A4.
+//
+// step4d-corrective (A2):
+//   hashAtomShape, hashWireSignature removed from R1 import.
+//   Both added to IPlannerDb interface — called via deps.db at R2.
+//   AtomDecl, WireEntry added to liv-standard.types import (needed for interface sig).
+//   R1 import now: reslotFiles, extractSlotValues only.
+//   All call sites: hashAtomShape(x) → deps.db.hashAtomShape(x), same for wire.
+//   Axiom cite: A2 — R2 uses R1 for pure fns, R4 infrastructure via interface only.
 
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
@@ -85,7 +109,8 @@ import {
   getTemplate,
   validateHandoff,
 } from '@/core/constants/liv-api'
-import type { InstanceId } from '@/core/constants/liv-standard.types'
+import type { InstanceId, FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
+import type { FlowLibraryEntry, LibraryInsertPayload } from '../types/planner-library-types'
 import type {
   PlannerJob,
   PlannerJobId,
@@ -129,6 +154,10 @@ import {
   detectStall,
   checkFailsafes,
 } from '../domain/planner-logic'
+import {
+  reslotFiles,
+  extractSlotValues,
+} from '../domain/planner-library-logic'
 
 // ── Local shape — ModelPreferences subset for IPlannerDb return type ──────────
 // R2 cannot import from F-user-profile (cross-slice) — A2. Mirrors the shape
@@ -159,6 +188,14 @@ export interface IPlannerDb {
   getAvailableProviders(userId: string): Promise<PlannerResult<string[]>>
   incrementReentry(jobId: PlannerJobId): Promise<PlannerResult<number>>
   getModelPreferences(userId: string): Promise<PlannerResult<ModelPreferencesLike | null>>  // step4b2-phase-d
+  // ── Flow library (step4d-phase2) ───────────────────────────────────────────
+  lookupExact(flowId: FlowId, standardVersion: string, atomShapeHash: string, wireSignatureHash: string): Promise<PlannerResult<FlowLibraryEntry | null>>
+  lookupPartial(flowId: FlowId, standardVersion: string): Promise<PlannerResult<FlowLibraryEntry | null>>
+  insertLibraryEntry(payload: LibraryInsertPayload): Promise<PlannerResult<FlowLibraryEntry | null>>
+  incrementReuseFailure(id: string): Promise<PlannerResult<void>>
+  // ── Hash fns (step4d-corrective) ─────────────────────────────────────────
+  hashAtomShape(atoms: readonly AtomDecl[]): string
+  hashWireSignature(wires: readonly WireEntry[]): string
 }
 
 export interface IAiAdapter {
@@ -248,6 +285,11 @@ export async function runPipeline(
 
   let accumulatedFiles: FileEntry[] = []
   const stageResults: InstanceCallResult[] = []
+
+  // ── Flow library exact-hit tracking (step4d-phase3) ──────────────────────
+  // Maps bundleName → libraryEntryId for bundles that used an exact library hit.
+  // Consulted at downstream failure points to trigger demotion.
+  const exactHitMap = new Map<string, string>()
 
   // ── Re-entry helper — called on retry exhaustion ──────────────────────────
   // Writes failure report, resets to pending, increments reentry_count.
@@ -343,6 +385,70 @@ export async function runPipeline(
 
   for (const bundle of contract.bundleScope) {
     let bundleSuccess = false
+
+    // ── Flow library read path (step4d-phase3) ──────────────────────────────
+    // Compute structural hashes for this bundle's atoms and wires.
+    // Exact hit → re-slot cached files, skip IN-BUILD entirely.
+    // Partial hit → include reference files in IN-BUILD packet.
+    // Miss → normal IN-BUILD, no reference.
+    const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
+    const bundleWires = contract.wireMap.filter(
+      w => w.from === bundle.name || w.to === bundle.name
+    )
+    const atomHash = deps.db.hashAtomShape(bundleAtoms)
+    const wireHash = deps.db.hashWireSignature(bundleWires)
+    const stdVersion = 'v1.3'
+
+    // Use first flowId for the bundle — per-flow entries written at success
+    const primaryFlowId = contract.flowSelection[0]
+
+    if (primaryFlowId) {
+      const exactResult = await deps.db.lookupExact(primaryFlowId, stdVersion, atomHash, wireHash)
+
+      if (exactResult.ok && exactResult.data) {
+        // ── Exact hit: re-slot and skip IN-BUILD ────────────────────────────
+        const entry     = exactResult.data
+        const newSlots  = extractSlotValues(contract, bundle.name)
+        const reslotted = reslotFiles(entry.outputFiles, entry.slotValues, newSlots)
+
+        accumulatedFiles = [...accumulatedFiles, ...reslotted.map(f => ({ ...f, encoding: 'utf8' as const }))]
+        exactHitMap.set(bundle.name, entry.id)
+        await deps.db.incrementTransition(jobId)
+
+        console.log(JSON.stringify({
+          level: 'info', event: 'flow-library.exact-hit',
+          flowId: primaryFlowId, bundleName: bundle.name, libraryEntryId: entry.id,
+          slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+        }))
+        bundleSuccess = true
+        continue  // skip IN-BUILD for this bundle
+      }
+
+      // ── Partial hit: get reference files for IN-BUILD ────────────────────
+      if (exactResult.ok && !exactResult.data) {
+        const partialResult = await deps.db.lookupPartial(primaryFlowId, stdVersion)
+        if (partialResult.ok && partialResult.data) {
+          console.log(JSON.stringify({
+            level: 'info', event: 'flow-library.partial-hit',
+            flowId: primaryFlowId, bundleName: bundle.name,
+            libraryEntryId: partialResult.data.id,
+            slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+          }))
+          // referenceFiles stored for use in IN-BUILD prompt below
+          const referenceFiles = partialResult.data.outputFiles.map(
+            f => ({ path: f.path, content: f.content, encoding: 'utf8' as const })
+          )
+          // Fall through to IN-BUILD with referenceFiles in errorLog context
+          buildErrorCtx = `Reference files available from a partial library match (${referenceFiles.length} files). Use as structural reference — adapt slot values to this build.`
+        } else {
+          console.log(JSON.stringify({
+            level: 'info', event: 'flow-library.miss',
+            flowId: primaryFlowId, bundleName: bundle.name,
+            slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+          }))
+        }
+      }
+    }
 
     for (let attempt = 0; attempt <= PLANNER_CONST.RETRY_LIMITS.IN_BUILD; attempt++) {
       if (!await assertSafe(buildStage)) return
@@ -441,7 +547,13 @@ export async function runPipeline(
     accumulatedFiles, contract, undefined, PLANNER_CONST.RETRY_LIMITS.IN_RESOLVE,
     pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
   )
-  if (!resolveResult.ok) return
+  if (!resolveResult.ok) {
+    // ── Demotion: exact-hit files failed IN-RESOLVE (step4d-phase3) ──────────
+    for (const [, entryId] of exactHitMap) {
+      deps.db.incrementReuseFailure(entryId).catch(() => {})
+    }
+    return
+  }
   accumulatedFiles = resolveResult.files
 
   // ── IN-AUDIT — failure routes back to IN-BUILD retry budget ───────────────
@@ -451,7 +563,13 @@ export async function runPipeline(
     accumulatedFiles, contract, undefined, PLANNER_CONST.RETRY_LIMITS.IN_AUDIT,
     pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
   )
-  if (!auditResult.ok) return
+  if (!auditResult.ok) {
+    // ── Demotion: exact-hit files failed IN-AUDIT (step4d-phase3) ────────────
+    for (const [, entryId] of exactHitMap) {
+      deps.db.incrementReuseFailure(entryId).catch(() => {})
+    }
+    return
+  }
   accumulatedFiles = auditResult.files
 
   // ── IN-COMPILE — tsc loop with stall detection + IN-DIAGNOSE sub-routine ──
@@ -460,7 +578,13 @@ export async function runPipeline(
     deps, jobId, job, providers, preferences, accumulatedFiles, contract,
     pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
   )
-  if (!compileResult.ok) return
+  if (!compileResult.ok) {
+    // ── Demotion: exact-hit files failed IN-COMPILE (step4d-phase3) ──────────
+    for (const [, entryId] of exactHitMap) {
+      deps.db.incrementReuseFailure(entryId).catch(() => {})
+    }
+    return
+  }
   accumulatedFiles = compileResult.files
   const compileLog  = compileResult.stdout
 
@@ -472,7 +596,13 @@ export async function runPipeline(
     PLANNER_CONST.RETRY_LIMITS.IN_QA,
     pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
   )
-  if (!qaResult.ok) return
+  if (!qaResult.ok) {
+    // ── Demotion: exact-hit files failed IN-QA (step4d-phase3) ───────────────
+    for (const [, entryId] of exactHitMap) {
+      deps.db.incrementReuseFailure(entryId).catch(() => {})
+    }
+    return
+  }
 
   // ── Success ───────────────────────────────────────────────────────────────
   const writeResult = await deps.output.writeFiles(jobId as string, accumulatedFiles)
@@ -504,6 +634,43 @@ export async function runPipeline(
 
   await deps.db.writePipelineReport(jobId, finalReport)
   await deps.db.completePipeline(jobId)
+
+  // ── Flow library write path (step4d-phase3) ───────────────────────────────
+  // One entry per flowId per bundle. Uses accumulatedFiles filtered by bundle
+  // file prefix. Fire-and-forget: insert failures are non-fatal.
+  // ON CONFLICT DO NOTHING in DB — first write wins, duplicates silently skipped.
+  const stdVersion = 'v1.3'
+  for (const bundle of contract.bundleScope) {
+    const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
+    const bundleWires = contract.wireMap.filter(
+      w => w.from === bundle.name || w.to === bundle.name
+    )
+    const atomHash   = deps.db.hashAtomShape(bundleAtoms)
+    const wireHash   = deps.db.hashWireSignature(bundleWires)
+    const slotValues = extractSlotValues(contract, bundle.name)
+
+    // Filter files to this bundle by path prefix convention
+    const bundlePrefix = `src/features/${bundle.name}/`
+    const bundleFiles  = accumulatedFiles
+      .filter(f => f.path.startsWith(bundlePrefix))
+      .map(f => ({ path: f.path, content: f.content }))
+
+    if (bundleFiles.length === 0) continue  // no files for this bundle — skip
+
+    for (const flowId of contract.flowSelection) {
+      deps.db.insertLibraryEntry({
+        flowId,
+        standardVersion:   stdVersion,
+        atomShapeHash:     atomHash,
+        wireSignatureHash: wireHash,
+        bundleName:        bundle.name,
+        slotValues,
+        outputFiles:       bundleFiles,
+        sourceBuildId:     jobId as string,
+      }).catch(() => {})  // non-fatal: library miss on write is recoverable
+    }
+  }
+
   await emitEvent({
     type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
     slice:   'F-planner',

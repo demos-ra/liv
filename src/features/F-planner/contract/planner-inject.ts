@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-phase-d
+// amended:    step4d-corrective
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -15,13 +15,14 @@
 //   W-ATOM    getApiKey     F-user-profile/contract/user-profile-contract  (R3→R3 — permitted)
 //   W-ATOM    providerForModel  F-ai-adapter/config/ai-adapter-config      (R0 — permitted)
 // wires-out:
-//   W-INJECT  createPlannerDb   →  F-planner/R3 (planner-contract.ts)
-//   W-INJECT  createAiAdapter   →  F-planner/R3 (planner-contract.ts)
-//   W-INJECT  createExecutor    →  F-planner/R3 (planner-contract.ts)
+//   W-INJECT  createPlannerDb    →  F-planner/R3 (planner-contract.ts)
+//   W-INJECT  createAiAdapter    →  F-planner/R3 (planner-contract.ts)
+//   W-INJECT  createExecutor     →  F-planner/R3 (planner-contract.ts)
 //   W-INJECT  createOutputWriter →  F-planner/R3 (planner-contract.ts)
 // deps:
-//   R2  ../workflow/planner-workflow  (type import only)
+//   R2  ../workflow/planner-workflow        (type import only)
 //   R4  ../exec/planner-db
+//   R4  ../exec/planner-library-db          (step4d-phase2, step4d-corrective)
 //   R4  ../exec/ai-adapter-io
 //   R3  @/features/F-executor/contract/executor-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
@@ -37,6 +38,19 @@
 // step4b2-phase-c (A3, A5):
 //   dbIncrementReentry added to createPlannerDb() — binds IPlannerDb.incrementReentry().
 //   Direct passthrough — R3 adds no logic.
+//
+// step4d-phase2 (A2, A3):
+//   4 library bindings added to createPlannerDb():
+//     lookupExact, lookupPartial, insertLibraryEntry, incrementReuseFailure.
+//   All bound from planner-library-db.ts (R4) — never imported at R2 directly.
+//   Axiom cite: A2 — R4 bound at R3 inject, consumed via IPlannerDb at R2.
+//   A3 — FlowLibraryEntry, LibraryInsertPayload are typed atoms at boundary.
+//
+// step4d-corrective (A2):
+//   hashAtomShape, hashWireSignature added to import + createPlannerDb() bindings.
+//   Moved from R1 to R4 (planner-library-db.ts) — crypto at R4 only.
+//   Sync return (string) — no async/PlannerResult needed for pure hash fns.
+//   Axiom cite: A2 — R4 infrastructure bound at R3, consumed via IPlannerDb at R2.
 
 import type { IPlannerDb, IAiAdapter, IExecutor, IOutputWriter } from '../workflow/planner-workflow'
 import {
@@ -56,6 +70,14 @@ import {
   dbIncrementReentry,
   dbGetModelPreferences,
 } from '../exec/planner-db'
+import {
+  dbLookupExactFlowLibrary,
+  dbLookupPartialFlowLibrary,
+  dbInsertFlowLibraryEntry,
+  dbIncrementReuseFailure,
+  hashAtomShape,
+  hashWireSignature,
+} from '../exec/planner-library-db'
 import { ioStreamCompletion } from '../exec/ai-adapter-io'
 import { runExecution }       from '@/features/F-executor/contract/executor-contract'
 import { getApiKey }          from '@/features/F-user-profile/contract/user-profile-contract'
@@ -78,8 +100,16 @@ export function createPlannerDb(): IPlannerDb {
     writePipelineReport:    (jobId, report)         => dbWritePipelineReport(jobId, report),
     updateIfContract:       (jobId, contract)       => dbUpdateIfContract(jobId, contract),
     getAvailableProviders:  (userId)                => dbGetAvailableProviders(userId),
-    incrementReentry:       (jobId)                 => dbIncrementReentry(jobId),   // step4b2-phase-c
-    getModelPreferences:    (userId)                => dbGetModelPreferences(userId), // step4b2-phase-d
+    incrementReentry:       (jobId)                 => dbIncrementReentry(jobId),
+    getModelPreferences:    (userId)                => dbGetModelPreferences(userId),
+    // ── Flow library (step4d-phase2) ─────────────────────────────────────────
+    lookupExact:            (flowId, stdVer, atomHash, wireHash) => dbLookupExactFlowLibrary(flowId, stdVer, atomHash, wireHash),
+    lookupPartial:          (flowId, stdVer)        => dbLookupPartialFlowLibrary(flowId, stdVer),
+    insertLibraryEntry:     (payload)               => dbInsertFlowLibraryEntry(payload),
+    incrementReuseFailure:  (id)                    => dbIncrementReuseFailure(id),
+    // ── Hash fns (step4d-corrective) ─────────────────────────────────────────
+    hashAtomShape:          (atoms)                 => hashAtomShape(atoms),
+    hashWireSignature:      (wires)                 => hashWireSignature(wires),
   }
 }
 
