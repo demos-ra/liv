@@ -1,51 +1,53 @@
-// [F-memory/R4/C5] Embedding service — provider-swappable via env
-// R4: I/O only. Zero domain logic.
-// EMBEDDING_PROVIDER=ollama → nomic-embed-text at OLLAMA_URL
-// EMBEDDING_PROVIDER=openai → text-embedding-3-small
-//
-// Embed fires only:
-//   - once per concept on promotion
-//   - once per recall query
-// Never at write time for non-promoted concepts.
-//
-// O3: timeout 30s on all external calls. Fail-throws (caller decides to ignore or rethrow).
+// @liv-standard v1.3
+// [F-memory/R4]
+// Built with LIV · livai.dev
 
-/**
- * Cosine similarity between two vectors. Pure, sync.
- * Inlined at R4 to avoid upward R4→R1 dependency violation.
- */
-export function similarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0
-  let dot = 0, normA = 0, normB = 0
-  for (let i = 0; i < a.length; i++) {
-    dot   += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB)
-  return denom === 0 ? 0 : dot / denom
-}
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-memory
+// layer:      R4
+// wires-in:   none
+// wires-out:  none (consumed by R2 service)
+// deps:       none (env vars only)
+// validated:  pending
+
+// Living Memory v1.0 — embedding service.
+// R4: I/O only. Zero domain logic.
+// Provider-swappable via EMBEDDING_PROVIDER env var.
+// §7 encode(): pure embedding projection. No concept extraction, no tokenization.
+// Input text → vector. That's it.
+//
+// Fires only:
+//   - once per new node on creation (encode the content)
+//   - once per traversal input (encode the ping)
+// Never inline with propagation.
+//
+// Result<T> for all fallible operations per CC.07.
+
+import type { Result, AppError } from '@/core/types/primitives'
 
 const PROVIDER   = process.env.EMBEDDING_PROVIDER ?? 'ollama'
 const OLLAMA_URL = process.env.OLLAMA_URL ?? 'http://localhost:11434'
 
-/**
- * Embed a single string. Returns a float32 vector.
- * Throws on provider error — R2 handles graceful degradation.
- */
-export async function embed(text: string): Promise<number[]> {
-  switch (PROVIDER) {
-    case 'ollama':  return embedOllama(text)
-    case 'openai':  return embedOpenAI(text)
-    default:        return embedOllama(text)
+// ─── Encode ───────────────────────────────────────────────────────────────────
+// §7: pure embedding projection. Input text → vector.
+
+export async function encode(text: string): Promise<Result<number[]>> {
+  try {
+    switch (PROVIDER) {
+      case 'ollama':  return await encodeOllama(text)
+      case 'openai':  return await encodeOpenAI(text)
+      default:        return await encodeOllama(text)
+    }
+  } catch (err) {
+    return { ok: false, error: embedError('ENCODE_FAILED', err) }
   }
 }
 
 // ─── Ollama ───────────────────────────────────────────────────────────────────
-// Uses /api/embed (current endpoint) with `input` field.
-// Returns embeddings[0] (array of arrays — we always embed one string at a time).
 
-async function embedOllama(text: string): Promise<number[]> {
+async function encodeOllama(text: string): Promise<Result<number[]>> {
   const res = await fetch(`${OLLAMA_URL}/api/embed`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,22 +56,34 @@ async function embedOllama(text: string): Promise<number[]> {
   })
 
   if (!res.ok) {
-    throw new Error(`[F-memory/embedding] Ollama error: ${res.status} ${res.statusText}`)
+    return {
+      ok: false,
+      error: embedError('OLLAMA_HTTP_ERROR', new Error(`${res.status} ${res.statusText}`)),
+    }
   }
 
   const data = await res.json() as { embeddings: number[][] }
   const vec = data.embeddings?.[0]
   if (!vec || vec.length === 0) {
-    throw new Error('[F-memory/embedding] Ollama returned empty embedding')
+    return {
+      ok: false,
+      error: embedError('OLLAMA_EMPTY_EMBEDDING', new Error('Empty embedding returned')),
+    }
   }
-  return vec
+
+  return { ok: true, data: vec }
 }
 
 // ─── OpenAI ───────────────────────────────────────────────────────────────────
 
-async function embedOpenAI(text: string): Promise<number[]> {
+async function encodeOpenAI(text: string): Promise<Result<number[]>> {
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('[F-memory/embedding] OPENAI_API_KEY not set')
+  if (!apiKey) {
+    return {
+      ok: false,
+      error: { code: 'OPENAI_KEY_MISSING', message: 'OPENAI_API_KEY not set' },
+    }
+  }
 
   const res = await fetch('https://api.openai.com/v1/embeddings', {
     method:  'POST',
@@ -85,9 +99,29 @@ async function embedOpenAI(text: string): Promise<number[]> {
   })
 
   if (!res.ok) {
-    throw new Error(`[F-memory/embedding] OpenAI error: ${res.status} ${res.statusText}`)
+    return {
+      ok: false,
+      error: embedError('OPENAI_HTTP_ERROR', new Error(`${res.status} ${res.statusText}`)),
+    }
   }
 
   const data = await res.json() as { data: Array<{ embedding: number[] }> }
-  return data.data[0]?.embedding ?? []
+  const vec = data.data?.[0]?.embedding
+  if (!vec || vec.length === 0) {
+    return {
+      ok: false,
+      error: embedError('OPENAI_EMPTY_EMBEDDING', new Error('Empty embedding returned')),
+    }
+  }
+
+  return { ok: true, data: vec }
+}
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+function embedError(code: string, err: unknown): AppError {
+  return {
+    code,
+    message: err instanceof Error ? err.message : String(err),
+  }
 }

@@ -1,32 +1,63 @@
-// [F-memory/R3/C3] Memory hook — client-side vital signs read
-// R3: React hook. Read-only. Health panel display only.
-// Returns latest vital signs snapshot from server.
+// @liv-standard v1.3
+// [F-memory/R3]
+// Built with LIV · livai.dev
+
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-memory
+// layer:      R3
+// wires-in:
+//   W-ATOM  MemoryVitalSigns  F-memory/R0
+//   W-ATOM  MLayer            F-memory/R0
+// wires-out:
+//   W-HOOK  useMemoryStatus   →  F-dashboard (health panel)
+// deps:
+//   R0  ../config/memory-types
+// validated:  pending
+
+// Living Memory v1.0 — client-side vital signs hook.
+// R3: React hook. Read-only. Dashboard health panel display.
+// §15: all ranges graph-relative — no hardcoded safe ranges.
+// Fetches vital signs from a lightweight API endpoint.
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { MemoryVitalSigns } from '../config/memory-types'
 
 const EMPTY_VITALS: MemoryVitalSigns = {
   activationEntropy:    0,
   top1ActivationRatio:  0,
   meanDegree:           0,
-  p95Degree:            0,
-  saturationRatio:      0,
-  identityDensity:      0,
-  utilityCorrelation:   0,
+  layerDistribution:    { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 },
+  closureMean:          0,
+  asymmetryMean:        0,
+  attractorStability:   0,
+  armCount:             0,
+  armDepthDistribution: [],
 }
 
-export function useMemoryStatus(): MemoryVitalSigns {
+export function useMemoryStatus(pollIntervalMs = 30_000): MemoryVitalSigns {
   const [vitals, setVitals] = useState<MemoryVitalSigns>(EMPTY_VITALS)
 
-  useEffect(() => {
-    // Vital signs are logged to server on session_end.
-    // Client hook polls a lightweight endpoint when available.
-    // For now: returns empty until a tRPC/REST endpoint is wired.
-    // This hook is intentionally minimal — health panel can extend it.
-    return () => {}
+  const fetchVitals = useCallback(async () => {
+    try {
+      const res = await fetch('/api/memory/vitals')
+      if (res.ok) {
+        const data = await res.json() as MemoryVitalSigns
+        setVitals(data)
+      }
+    } catch {
+      // Fail silent — dashboard shows stale vitals
+    }
   }, [])
+
+  useEffect(() => {
+    fetchVitals()
+    const interval = setInterval(fetchVitals, pollIntervalMs)
+    return () => clearInterval(interval)
+  }, [fetchVitals, pollIntervalMs])
 
   return vitals
 }

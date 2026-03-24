@@ -11,14 +11,12 @@
 //   W-ATOM    LIV_SPEC         F-chat/R0
 //   W-INJECT  persistMessage   F-chat/R4 (chat-db)
 //   W-INJECT  getMessages      F-chat/R4 (chat-db)
-//   W-INJECT  lmWriteEvent     F-chat/R4 (lm-io)
-//   W-INJECT  lmRecall         F-chat/R4 (lm-io)
-//   W-INJECT  lmRemember       F-chat/R4 (lm-io)
-//   W-INJECT  lmSessionEnd     F-chat/R4 (lm-io)
+//   W-INJECT  lmGetPresentState  F-chat/R4 (lm-io)
+//   W-INJECT  lmTraverseRead     F-chat/R4 (lm-io)
+//   W-INJECT  lmTraverseWrite    F-chat/R4 (lm-io)
 //   W-INJECT  streamAIResponse F-ai-adapter/R3
-//   W-INJECT  remember         F-memory/R3
-//   W-INJECT  recall           F-memory/R3
-//   W-INJECT  onSessionEnd     F-memory/R3
+//   W-INJECT  traverse         F-memory/R3
+//   W-INJECT  getPresentState  F-memory/R3
 //   W-INJECT  getApiKey        F-user-profile/R3
 //   W-ATOM    providerForModel F-ai-adapter/R0
 //   W-ATOM    PROVIDERS        F-user-profile/R0
@@ -42,16 +40,17 @@
 
 import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
-import { lmWriteEvent, lmRecall, lmRemember, lmSessionEnd } from '../exec/lm-io'
+import { lmGetPresentState, lmTraverseRead, lmTraverseWrite } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
-import { remember, recall, onSessionEnd } from '@/features/F-memory/contract/memory-contract'
+import { traverse, getPresentState } from '@/features/F-memory/contract/memory-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
 import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import { generateId } from '@/core/types/primitives'
 
-const memoryDeps = { remember, recall, onSessionEnd }
+// v1.0: MemoryDeps maps to traverse + getPresentState (replaces remember/recall/onSessionEnd)
+const memoryDeps = { traverse, getPresentState }
 
 // ── Session state ─────────────────────────────────────────────────────────────
 
@@ -90,6 +89,12 @@ function updateSessionState(state: SessionState): void {
 }
 
 // ── Send message ──────────────────────────────────────────────────────────────
+// v1.0 §20 flow:
+//   1. getPresentState() → system context (who is this person)
+//   2. traverse(userMessage, { returnActivation: true }) → query-specific context
+//   3. Both injected into LLM context
+//   4. LLM responds (streamed)
+//   5. traverse(llmResponse) → write path, no activation returned
 
 export interface SendMessageInput {
   projectId: string
@@ -104,28 +109,25 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   // Session rotation
   const state = getOrCreateSessionState(userId)
   if (shouldRotateSession(state)) {
-    lmSessionEnd(state.lmSessionId, memoryDeps).catch(() => {})
+    // v1.0: no onSessionEnd needed — traversal handles everything
     state.lmSessionId = crypto.randomUUID()
     state.messageGaps = []
   }
-  // isFirstMessage captured before updateSessionState mutates messageGaps.
-  // Zero gaps = no message has been processed in this session yet.
   const isFirstMessage = state.messageGaps.length === 0
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
-  // Memory context — fast, no embedding
-  const memoryContext = await lmRecall(content, memoryDeps, content.startsWith('/recall'))
+  // §20 step 1: getPresentState() → persistent background context
+  const presentStateContext = lmGetPresentState(memoryDeps)
 
-  // Session-aware system prompt assembly.
-  // Anchor (identity) sent on every call.
-  // Spec (reasoning framework) sent on first message only — lives in history thereafter.
-  // After session rotation, messageGaps resets to [] so spec re-injects on first message of new session.
+  // §20 step 2: traverse(userMessage) → query-specific activated context
+  const traversalContext = await lmTraverseRead(content, memoryDeps)
 
+  // Assemble system prompt
   const systemParts: string[] = [LIV_ANCHOR]
   if (isFirstMessage) systemParts.push(LIV_SPEC)
-  if (memoryContext) systemParts.push(`Memory context:
-${memoryContext}`)
+  if (presentStateContext) systemParts.push(`Memory (who you are talking to):\n${presentStateContext}`)
+  if (traversalContext) systemParts.push(`Memory (relevant to this message):\n${traversalContext}`)
 
   const systemPrompt = systemParts.join('\n\n')
 
@@ -134,12 +136,8 @@ ${memoryContext}`)
     { role: 'user'   as const, content },
   ]
 
-  // Phase 4: load per-user API key for this model's provider.
-  // Non-blocking — null falls back to env var in ai-io.ts.
-  // A4: I/O call isolated here at R2 boundary, never inside R4 stream loop.
+  // Load per-user API key
   const provider = providerForModel(modelId)
-  // A3: guard narrows ai-adapter's Provider ('anthropic'|'openai'|'deepseek') to
-  // user-profile's ProviderId ('anthropic'|'deepseek') — openai has no user-key flow.
   const apiKey = (provider in PROVIDERS)
     ? await getApiKey(userId, provider as ProviderId).catch(() => null)
     : null
@@ -153,20 +151,19 @@ ${memoryContext}`)
     }
   }
 
-  // Post-stream ops — never block the stream
-  const now = Date.now()
+  // §20 step 5: traverse(llmResponse) → write path (async, never blocks)
+  // Also: traverse user message write path (content was read above, now write)
   Promise.all([
-    lmWriteEvent(content, 'episodic', lmSessionId, memoryDeps),
-    lmRemember('chat', 'liv', 'said', fullResponse.slice(0, 200), lmSessionId, memoryDeps),
+    lmTraverseWrite(fullResponse.slice(0, 500), memoryDeps),
     persistMessage({
       messageId: generateId('msg'), projectId, sessionId: lmSessionId, userId,
       role: 'user', content, status: 'complete',
-      createdAt: now, completedAt: now, tokenCount: 0, modelId, parentMessageId: null,
+      createdAt: Date.now(), completedAt: Date.now(), tokenCount: 0, modelId, parentMessageId: null,
     }),
     persistMessage({
       messageId: generateId('msg'), projectId, sessionId: lmSessionId, userId,
       role: 'assistant', content: fullResponse, status: 'complete',
-      createdAt: now, completedAt: now, tokenCount: 0, modelId, parentMessageId: null,
+      createdAt: Date.now(), completedAt: Date.now(), tokenCount: 0, modelId, parentMessageId: null,
     }),
   ]).catch(err => console.error('[chat] post-stream ops failed', err))
 }

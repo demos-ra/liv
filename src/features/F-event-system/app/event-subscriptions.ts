@@ -62,14 +62,6 @@ subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
   await upsertProfileForUser(userId, email)
 })
 
-// ─── F-memory ─────────────────────────────────────────────────────────────────
-
-import { onSessionEnd as memoryOnSessionEnd } from '@/features/F-memory/contract/memory-contract'
-
-subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED, async (_event: LivEvent) => {
-  await memoryOnSessionEnd()
-})
-
 // ─── Export registration function ────────────────────────────────────────────
 // Called exactly once in startup.ts.
 
