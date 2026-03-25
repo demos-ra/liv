@@ -1,13 +1,15 @@
-// @liv-standard v1.0
+// @liv-standard v1.3
 // [F-identity/contract/auth-middleware.ts]
 // Built with LIV · livai.dev
 // Next.js middleware — session guard and cookie management.
 // A1: Session validation owned by F-identity/contract/auth-contract.
 // A4: I/O at R4 only — validateSession calls DB via auth-contract.
+// A6: SESSION_COOKIE_NAME imported from R0 canonical source (step5a-cleanup).
 // Note: Middleware runs on nodejs runtime (declared in middleware.ts config).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession } from './auth-contract'
+import { SESSION_COOKIE_NAME } from '../config/auth-types'
 
 // ─── Route Config (O1: explicit public/protected declarations) ────────────────
 
@@ -31,8 +33,6 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 // ─── Cookie Config ────────────────────────────────────────────────────────────
-
-export const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'liv_session'
 
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
