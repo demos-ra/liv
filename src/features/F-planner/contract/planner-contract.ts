@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-phase-b
+// amended:    step5e
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -17,8 +17,9 @@
 //   W-ATOM    SESSION_COOKIE_NAME   F-identity/contract/auth-contract
 //   W-ATOM    validateSession       F-identity/contract/auth-contract
 // wires-out:
-//   W-HOOK  usePlanner          →  F-dashboard/R3
-//   W-FN    handleBuildRequest  →  src/app/api/chat/[projectId]/message/route.ts
+//   W-HOOK  usePlanner                →  F-dashboard/R3
+//   W-FN    handleBuildRequest        →  src/app/api/chat/[projectId]/message/route.ts
+//   W-FN    handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
 // deps:
 //   R0  ../types/planner-types
 //   R2  ../workflow/planner-workflow
@@ -27,10 +28,17 @@
 //   R5  next/server
 // validated:  pending
 //
+// step5e (A1, A2, A4):
+//   handleGetVersionHistory added. GET /api/planner/[projectId]/versions.
+//   Delegates to deps.db.getVersionHistory via createPlannerDb() — A2 compliant.
+//   Route file imports only this handler, never R4 directly — A2 preserved.
+//   Axiom cite: A1 — F-planner contract is sole R3 surface for planner operations.
+//   A2 — R4 accessed only via IPlannerDb. A4 — I/O at R4 only.
+//
 // step3-executor: (unchanged)
 // step4b2-phase-a: (unchanged)
 //
-// step4b2-phase-b (A1, A4, A5):
+// step4b2-phase-b (A1, A4, A5): (unchanged)
 //   handleBuildRequest() extended: when handleInMainTurn returns isConfirmation=true,
 //   runPipeline() is called fire-and-forget (no await + .catch for error isolation).
 //   The chat SSE stream receives the confirmation ack immediately — runPipeline runs
@@ -256,6 +264,28 @@ export async function handleFreezeContract(
                  : result.error.code === 'NOT_FOUND'         ? 404
                  : 500
     return NextResponse.json({ error: result.error }, { status })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
+}
+
+// ── GET /api/planner/[projectId]/versions ─────────────────────────────────────
+// Returns version history for a project — completed builds with semver tags.
+// Auth required. Delegates to IPlannerDb.getVersionHistory via createPlannerDb().
+// Route file imports only this handler — no direct R4 access from routes (A2).
+
+export async function handleGetVersionHistory(
+  req:       NextRequest,
+  projectId: string,
+): Promise<NextResponse> {
+  const session = await getSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const db     = createPlannerDb()
+  const result = await db.getVersionHistory(projectId)
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, data: result.data })

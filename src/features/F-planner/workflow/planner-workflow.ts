@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4d-corrective
+// amended:    step5e
 // slice:      F-planner
 // layer:      R2
 // wires-in:
@@ -23,6 +23,7 @@
 //   W-ATOM    FreezeContractPayload  ../types/planner-types
 //   W-ATOM    FileEntry              ../types/planner-types
 //   W-ATOM    InstanceCallResult     ../types/planner-types
+//   W-ATOM    BuildVersion           ../types/planner-version-types  (step5e)
 //   W-ATOM    PLANNER_EVENTS         ../types/planner-events
 //   W-ATOM    PLANNER_CONST          ../types/planner-const
 //   W-ATOM    emitEvent              F-event-system/contract/event-bus
@@ -38,6 +39,7 @@
 //   W-ATOM    LibraryInsertPayload   ../types/planner-library-types  (step4d-phase2)
 //   W-FN      reslotFiles            ../domain/planner-library-logic  (step4d-phase3)
 //   W-FN      extractSlotValues      ../domain/planner-library-logic  (step4d-phase3)
+//   W-FN      bumpVersion            ../domain/planner-summary-logic   (step5e)
 // wires-out:
 //   W-INJECT  IPlannerDb   →  F-planner/R3 (planner-inject.ts binds, planner-contract.ts consumes)
 //   W-INJECT  IAiAdapter   →  F-planner/R3
@@ -47,9 +49,11 @@
 //   W-FN      runPipeline       →  F-planner/R3
 // deps:
 //   R0  ../types/planner-types
+//   R0  ../types/planner-version-types  (step5e)
 //   R0  ../types/planner-events
 //   R0  ../types/planner-const
 //   R1  ../domain/planner-logic
+//   R1  ../domain/planner-summary-logic  (step5e)
 //   R3  @/features/F-event-system/contract/event-bus
 //   R5  @/core/constants/liv-api
 // validated:  pending
@@ -99,6 +103,20 @@
 //   R1 import now: reslotFiles, extractSlotValues only.
 //   All call sites: hashAtomShape(x) → deps.db.hashAtomShape(x), same for wire.
 //   Axiom cite: A2 — R2 uses R1 for pure fns, R4 infrastructure via interface only.
+//
+// step5e (A1, A2, A3, A4):
+//   IPlannerDb extended: 3 version methods added (24 total).
+//     getLatestVersion(projectId), setBuildVersion(buildId, version, description),
+//     getVersionHistory(projectId).
+//   BuildVersion imported from planner-version-types (R0).
+//   bumpVersion imported from planner-summary-logic (R1). parseSemVer used internally by bumpVersion.
+//   runPipeline: version assignment block added after completePipeline succeeds,
+//   before flow library write path. Reads featureIntent as description, looks up
+//   latest version for project, applies minor bump (or 1.0.0 for first build),
+//   calls setBuildVersion. Fire-and-forget is not used here — version must be set
+//   before the UI can display it; failure is logged but non-fatal to the user.
+//   Axiom cite: A1 — F-planner owns version assignment. A2 — interface at R2,
+//   bound at R3. A3 — BuildVersion typed atom. A4 — I/O via injected interface.
 
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
@@ -111,6 +129,7 @@ import {
 } from '@/core/constants/liv-api'
 import type { InstanceId, FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
 import type { FlowLibraryEntry, LibraryInsertPayload } from '../types/planner-library-types'
+import type { BuildVersion } from '../types/planner-version-types'
 import type {
   PlannerJob,
   PlannerJobId,
@@ -158,6 +177,9 @@ import {
   reslotFiles,
   extractSlotValues,
 } from '../domain/planner-library-logic'
+import {
+  bumpVersion,
+} from '../domain/planner-summary-logic'
 
 // ── Local shape — ModelPreferences subset for IPlannerDb return type ──────────
 // R2 cannot import from F-user-profile (cross-slice) — A2. Mirrors the shape
@@ -196,6 +218,10 @@ export interface IPlannerDb {
   // ── Hash fns (step4d-corrective) ─────────────────────────────────────────
   hashAtomShape(atoms: readonly AtomDecl[]): string
   hashWireSignature(wires: readonly WireEntry[]): string
+  // ── Version management (step5e) ───────────────────────────────────────────
+  getLatestVersion(projectId: string): Promise<PlannerResult<string | null>>
+  setBuildVersion(buildId: string, version: string, description: string): Promise<PlannerResult<void>>
+  getVersionHistory(projectId: string): Promise<PlannerResult<BuildVersion[]>>
 }
 
 export interface IAiAdapter {
@@ -634,6 +660,32 @@ export async function runPipeline(
 
   await deps.db.writePipelineReport(jobId, finalReport)
   await deps.db.completePipeline(jobId)
+
+  // ── Version assignment (step5e) ───────────────────────────────────────────
+  // Runs after completePipeline. Reads featureIntent as the description
+  // (through-line: confirmation → progress → completion → history → git commit).
+  // Looks up latest version for this project; applies minor bump, or 1.0.0 for
+  // the first build. setBuildVersion is non-fatal on failure — the build is
+  // already marked complete; version display simply won't appear in the UI.
+  // Default bump: minor. AI-determined bump (major/minor/patch from IF diff) is
+  // a future single-line change here.
+  // Axiom cite: A1 — F-planner owns version assignment. A4 — via injected interface.
+  {
+    const description = contract.featureIntent
+    const latestVersionResult = await deps.db.getLatestVersion(job.projectId)
+    const latestVersion       = latestVersionResult.ok ? latestVersionResult.data : null
+    const nextVersion         = latestVersion === null ? '1.0.0' : bumpVersion(latestVersion, 'minor')
+    await deps.db.setBuildVersion(jobId as string, nextVersion, description).catch(() => {
+      console.error(JSON.stringify({
+        level:     'error',
+        event:     'pipeline.version.set.failed',
+        jobId:     jobId as string,
+        slice:     'F-planner',
+        layer:     'R2',
+        timestamp: new Date().toISOString(),
+      }))
+    })
+  }
 
   // ── Flow library write path (step4d-phase3) ───────────────────────────────
   // One entry per flowId per bundle. Uses accumulatedFiles filtered by bundle
