@@ -105,8 +105,13 @@ let _booted = false
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 // Called once at server start by F-event-system/startup.ts.
+// Also called by lazy-boot guard in runTraversal() for Turbopack module isolation.
+// Idempotent: safe to call multiple times (early-exit if already booted).
 
 export async function onBoot(): Promise<void> {
+  // Idempotency guard: if already booted, do nothing
+  if (_booted) return
+
   const loadResult = await loadGraph()
   if (!loadResult.ok) {
     console.error(JSON.stringify({
@@ -162,8 +167,15 @@ export async function runTraversal(
   text: string,
   options: TraversalOptions = {},
 ): Promise<Result<TraversalResult | null>> {
+  // Turbopack module isolation: Next.js 16.1.6 runs instrumentation hook and API routes
+  // in separate worker contexts with separate module instances. bootstrap()→onBoot() sets
+  // _booted=true in instrumentation worker, but request worker has its own instance where
+  // _booted=false. Lazy-boot detects this and initializes in request context.
   if (!_booted) {
-    return { ok: false, error: { code: 'NOT_BOOTED', message: 'Memory service not initialized' } }
+    await onBoot()
+    if (!_booted) {
+      return { ok: false, error: { code: 'NOT_BOOTED', message: 'Memory service not initialized' } }
+    }
   }
 
   const now = Date.now()
