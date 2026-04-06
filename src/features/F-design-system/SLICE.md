@@ -1,28 +1,44 @@
 # F-design-system
 
-**Type:** Pre-built infrastructure slice  
-**Layers:** R0 (config/tokens), R1 (domain/primitives), R3 (contract/index)
+**Type:** Infrastructure slice — design board, physics engines, UI primitives
+**Layers:** R0 (config/board, config/tokens), R1 (domain/engines), R3 (contract/primitives, contract/index), R4 (exec/design-system-provider)
 
-## Why no app/ or exec/?
+## Structure
 
-`F-design-system` is a pure UI token and component library. It has:
-- No server-side operations
-- No database I/O
-- No event emission or subscription
-- No business orchestration
+config/board.ts          — Design board. All masters and authored constants.
+config/tokens.ts         — Runtime values for JS/canvas contexts.
+config/index.ts          — Re-export.
 
-`app/` (R2) and `exec/` (R4) layers are intentionally absent. Adding them
-would be dead code — a violation of the "no fluff" principle.
+domain/light-engine.ts   — 4 masters → 60 CSS vars. Beer-Lambert, inverse square.
+domain/type-engine.ts    — Base + R1 ratio → type scale.
+domain/space-engine.ts   — Base unit → spacing grid.
+domain/motion.ts         — Timing grid + curves + z-index.
+domain/index.ts          — Re-export.
+
+contract/primitives.tsx  — React components. Consume CSS classes only.
+contract/index.ts        — Re-export config + domain motion constants.
+
+exec/design-system-provider.tsx — Engine initialization. Only DOM access point.
 
 ## Import path
 
-All consumers import from the single canonical contract:
+Components:
+  import { Brand, InputContainer, ... } from '@/features/F-design-system/contract/primitives'
 
-```ts
-import { color, font, Button, Stack, Text } from '@/features/F-design-system/contract'
-```
+Runtime tokens:
+  import { COLORS, SPACE, FONTS } from '@/features/F-design-system/contract'
 
-Tokens only (R0):
-```ts
-import { color, font, space } from '@/features/F-design-system/config'
-```
+Motion constants for JS animation:
+  import { TIMING, CURVES } from '@/features/F-design-system/contract'
+
+Provider (layout.tsx only):
+  import { DesignSystemProvider } from '@/features/F-design-system/exec/design-system-provider'
+
+## Why no app/?
+
+No business orchestration, no async workflows. app/ (R2) intentionally absent.
+
+## Why exec/?
+
+DesignSystemProvider writes CSS custom properties to the DOM — that is I/O (R4).
+layout.tsx imports it directly. contract/ does not re-export it (A2: R3 cannot import R4).

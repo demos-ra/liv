@@ -36,10 +36,10 @@ function PipelineProgress({ currentStage }: { currentStage: string | null }) {
         <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', flex: i < STAGES.length - 1 ? 1 : 'none' }}>
           <div style={{
             width: 24, height: 24, borderRadius: '50%',
-            background:   i < idx  ? 'var(--accent)'
-                        : i === idx ? 'var(--amber)'
-                        : 'var(--elevated)',
-            border:      `1px solid ${i <= idx ? 'transparent' : 'var(--border)'}`,
+            background:   i < idx  ? 'rgba(var(--blue), var(--density-full))'
+                        : i === idx ? 'rgba(var(--red), var(--density-full)) /* TODO: replace with --amber when pinned material added to board */'
+                        : 'var(--surface)',
+            border:      `1px solid ${i <= idx ? 'transparent' : 'var(--text-dis)'}`,
             display:     'flex', alignItems: 'center', justifyContent: 'center',
             fontSize:    10, color: i <= idx ? 'var(--bg)' : 'var(--text-dis)',
             fontFamily:  'var(--font-mono)',
@@ -51,7 +51,7 @@ function PipelineProgress({ currentStage }: { currentStage: string | null }) {
           {i < STAGES.length - 1 && (
             <div style={{
               flex: 1, height: 1,
-              background: i < idx ? 'var(--accent)' : 'var(--border)',
+              background: i < idx ? 'rgba(var(--blue), var(--density-full))' : 'var(--text-dis)',
               transition: 'background 0.2s ease',
             }} />
           )}
@@ -71,9 +71,9 @@ function ModeTab({ mode, active, onClick, label }: {
       onClick={onClick}
       style={{
         padding:      'var(--u1) var(--u2)',
-        background:   active ? 'var(--elevated)' : 'transparent',
-        border:       `1px solid ${active ? 'var(--border)' : 'transparent'}`,
-        borderRadius: 'var(--radius)',
+        background:   active ? 'var(--surface)' : 'transparent',
+        border:       `1px solid ${active ? 'var(--text-dis)' : 'transparent'}`,
+        borderRadius: 'var(--radius-surface)',
         color:        active ? 'var(--text)' : 'var(--text-sec)',
         fontSize:     13,
         fontFamily:   'var(--font-ui)',
@@ -94,16 +94,16 @@ function ValidationErrors({ errors }: { errors: Array<{ field: string; message: 
     <div style={{
       marginTop:    'var(--u2)',
       padding:      'var(--u15) var(--u2)',
-      background:   'color-mix(in srgb, var(--error) 10%, transparent)',
-      border:       '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
-      borderRadius: 'var(--radius)',
+      background:   'rgba(var(--red), 0.10)',
+      border:       '1px solid rgba(var(--red), 0.30)',
+      borderRadius: 'var(--radius-surface)',
       display:      'flex',
       flexDirection: 'column',
       gap:          'var(--u05)',
       animation:    'fadeUp 0.1s ease forwards',
     }}>
       {errors.map((e, i) => (
-        <span key={i} style={{ fontSize: 13, color: 'var(--error)', fontFamily: 'var(--font-ui)' }}>
+        <span key={i} style={{ fontSize: 13, color: 'rgba(var(--red), var(--density-full))', fontFamily: 'var(--font-ui)' }}>
           {e.message}
         </span>
       ))}
@@ -123,9 +123,9 @@ function TextInput({ text, onChange }: { text: string; onChange: (v: string) => 
         width:        '100%',
         minHeight:    180,
         padding:      'var(--u2)',
-        background:   'var(--elevated)',
-        border:       '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
+        background:   'var(--surface)',
+        border:       '1px solid var(--text-dis)',
+        borderRadius: 'var(--radius-surface)',
         color:        'var(--text)',
         fontSize:     14,
         fontFamily:   'var(--font-ui)',
@@ -134,8 +134,8 @@ function TextInput({ text, onChange }: { text: string; onChange: (v: string) => 
         outline:      'none',
         transition:   'border-color 0.1s ease',
       }}
-      onFocus={e => { e.target.style.borderColor = 'var(--accent)' }}
-      onBlur={e  => { e.target.style.borderColor = 'var(--border)' }}
+      onFocus={e => { e.target.style.borderColor = 'rgba(var(--blue), var(--density-full))' }}
+      onBlur={e  => { e.target.style.borderColor = 'var(--text-dis)' }}
     />
   )
 }
@@ -165,9 +165,9 @@ function ZipInput({
     return (
       <div style={{
         padding:      'var(--u2)',
-        background:   'var(--elevated)',
-        border:       '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
+        background:   'var(--surface)',
+        border:       '1px solid var(--text-dis)',
+        borderRadius: 'var(--radius-surface)',
         display:      'flex',
         alignItems:   'center',
         justifyContent: 'space-between',
@@ -188,8 +188,8 @@ function ZipInput({
           style={{
             padding:      'var(--u05) var(--u15)',
             background:   'transparent',
-            border:       '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
+            border:       '1px solid var(--text-dis)',
+            borderRadius: 'var(--radius-surface)',
             color:        'var(--text-sec)',
             fontSize:     12,
             fontFamily:   'var(--font-ui)',
@@ -210,9 +210,9 @@ function ZipInput({
       style={{
         minHeight:    120,
         padding:      'var(--u3)',
-        background:   'var(--elevated)',
-        border:       '1px dashed var(--border)',
-        borderRadius: 'var(--radius)',
+        background:   'var(--surface)',
+        border:       '1px dashed var(--text-dis)',
+        borderRadius: 'var(--radius-surface)',
         display:      'flex',
         flexDirection: 'column',
         alignItems:   'center',
@@ -222,12 +222,12 @@ function ZipInput({
         transition:   'border-color 0.1s ease, background 0.1s ease',
       }}
       onMouseEnter={e => {
-        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)'
+        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(var(--blue), var(--density-full))'
         ;(e.currentTarget as HTMLDivElement).style.background  = 'var(--surface)'
       }}
       onMouseLeave={e => {
-        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'
-        ;(e.currentTarget as HTMLDivElement).style.background  = 'var(--elevated)'
+        ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--text-dis)'
+        ;(e.currentTarget as HTMLDivElement).style.background  = 'var(--surface)'
       }}
     >
       <span style={{ fontSize: 22 }}>⊕</span>
@@ -262,9 +262,9 @@ function GitInput({
   const inputStyle = {
     width:        '100%',
     padding:      'var(--u15) var(--u2)',
-    background:   'var(--elevated)',
-    border:       '1px solid var(--border)',
-    borderRadius: 'var(--radius)',
+    background:   'var(--surface)',
+    border:       '1px solid var(--text-dis)',
+    borderRadius: 'var(--radius-surface)',
     color:        'var(--text)',
     fontSize:     14,
     fontFamily:   'var(--font-mono)',
@@ -272,10 +272,10 @@ function GitInput({
     transition:   'border-color 0.1s ease',
   }
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = 'var(--accent)'
+    e.target.style.borderColor = 'rgba(var(--blue), var(--density-full))'
   }
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = 'var(--border)'
+    e.target.style.borderColor = 'var(--text-dis)'
   }
 
   return (
@@ -385,10 +385,10 @@ export function IntakePanel() {
       {pipelineError && (
         <div style={{
           padding:      'var(--u15) var(--u2)',
-          background:   'color-mix(in srgb, var(--error) 10%, transparent)',
-          border:       '1px solid color-mix(in srgb, var(--error) 30%, transparent)',
-          borderRadius: 'var(--radius)',
-          fontSize:     13, color: 'var(--error)',
+          background:   'rgba(var(--red), 0.10)',
+          border:       '1px solid rgba(var(--red), 0.30)',
+          borderRadius: 'var(--radius-surface)',
+          fontSize:     13, color: 'rgba(var(--red), var(--density-full))',
           fontFamily:   'var(--font-ui)',
         }}>
           {pipelineError.message}
@@ -401,9 +401,9 @@ export function IntakePanel() {
         disabled={!canSubmit}
         style={{
           padding:        'var(--u15) var(--u3)',
-          background:     canSubmit ? 'var(--accent)' : 'var(--elevated)',
-          border:         `1px solid ${canSubmit ? 'transparent' : 'var(--border)'}`,
-          borderRadius:   'var(--radius)',
+          background:     canSubmit ? 'rgba(var(--blue), var(--density-full))' : 'var(--surface)',
+          border:         `1px solid ${canSubmit ? 'transparent' : 'var(--text-dis)'}`,
+          borderRadius:   'var(--radius-surface)',
           color:          canSubmit ? 'var(--bg)' : 'var(--text-dis)',
           fontSize:       14,
           fontFamily:     'var(--font-ui)',

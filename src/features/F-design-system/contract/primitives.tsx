@@ -14,7 +14,6 @@
 //   W-ATOM  SendIcon        → F-identity/R3, F-chat/R3
 //   W-ATOM  Spinner         → F-identity/R3, F-chat/R3
 //   W-ATOM  ButtonText      → F-chat/R3
-//   W-ATOM  Input           → F-chat/R3
 //   W-ATOM  Label           → F-chat/R3
 //   W-ATOM  Overlay         → F-chat/R3
 //   W-ATOM  SlidePanel      → F-chat/R3
@@ -22,10 +21,10 @@
 //   W-ATOM  ButtonIcon      → (declared, no active consumer)
 //   W-ATOM  Text            → (declared, no active consumer)
 //   W-ATOM  Heading         → (declared, no active consumer)
-//   W-ATOM  StatusDot       → (declared, no active consumer)
+//   W-ATOM  StatusDot       → F-chat/R3, F-planner/R3
 //   W-ATOM  Badge           → (declared, no active consumer)
 //   W-ATOM  Divider         → (declared, no active consumer)
-//   W-ATOM  Surface         → (declared, no active consumer)
+//   W-ATOM  Surface         → F-dashboard/R3
 //   W-ATOM  Toast           → (declared, no active consumer)
 //   W-ATOM  ToastContainer  → (declared, no active consumer)
 // deps:
@@ -195,34 +194,6 @@ export const InputContainer = forwardRef<HTMLDivElement, InputContainerProps>(
   }
 )
 
-// ── Input ────────────────────────────────────────────────────────────────────
-// Panel settings fields — 32px height, 8px radius, input-panel-bg, inset shadow on focus.
-
-interface InputProps {
-  type?: string
-  placeholder?: string
-  value?: string
-  disabled?: boolean
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
-  style?: React.CSSProperties
-}
-
-export function Input({ type = 'text', placeholder, value, disabled, onChange, onKeyDown, style }: InputProps) {
-  return (
-    <input
-      className="input"
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      disabled={disabled}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      style={style}
-    />
-  )
-}
-
 // ── Label ────────────────────────────────────────────────────────────────────
 
 export function Label({ children }: { children: React.ReactNode }) {
@@ -267,7 +238,7 @@ type SpinnerSize = 'sm' | 'default'
 export function Spinner({ size = 'default' }: { size?: SpinnerSize }) {
   return (
     <div
-      className={size === 'sm' ? 'spinner spinner-sm' : 'spinner'}
+      className={size === 'sm' ? 'icon-spinner spinner-sm' : 'icon-spinner'}
       role="status"
       aria-label="Loading"
     />
@@ -276,7 +247,7 @@ export function Spinner({ size = 'default' }: { size?: SpinnerSize }) {
 
 // ── StatusDot ────────────────────────────────────────────────────────────────
 
-type DotStatus = 'accent' | 'error' | 'caution' | 'dis'
+type DotStatus = 'accent' | 'error' | 'dis'
 
 export function StatusDot({ status }: { status: DotStatus }) {
   return <div className={`dot dot-${status}`} />
@@ -284,7 +255,7 @@ export function StatusDot({ status }: { status: DotStatus }) {
 
 // ── Badge ────────────────────────────────────────────────────────────────────
 
-type BadgeVariant = 'accent' | 'error' | 'caution'
+type BadgeVariant = 'accent' | 'error'
 
 export function Badge({ variant, children }: { variant: BadgeVariant; children: React.ReactNode }) {
   return <span className={`badge badge-${variant}`}>{children}</span>

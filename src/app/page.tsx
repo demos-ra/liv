@@ -108,7 +108,7 @@ export default function Home() {
             aria-label={isExpanded ? 'Collapse dashboard' : 'Expand dashboard'}
             style={{
               color:       isExpanded ? 'var(--text-sec)' : 'var(--text-dis)',
-              transition:  `color var(--dur-fast)`,
+              transition:  `color var(--dur-attack)`,
               marginLeft:  'auto',
               marginRight: 'var(--u2)',
             }}

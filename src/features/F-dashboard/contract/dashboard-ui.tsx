@@ -75,14 +75,15 @@ export function DashboardUI({
                   fontFamily:   'var(--font-mono)',
                   fontSize:     'var(--type-sm)',
                   color:        'var(--text-sec)',
-                  background:   'var(--input-panel-bg)',
-                  border:       '1px solid var(--border)',
+                  background:   'var(--surface)',
+                  border:       'none',
                   borderRadius: 'var(--u1)',
                   height:       'var(--input-h-sm)',
                   padding:      '0 var(--u1)',
                   cursor:       'pointer',
                   outline:      'none',
                   maxWidth:     '240px',
+                  boxShadow:    'var(--glow-rest-low)',
                 }}
                 aria-label="Select project"
               >
@@ -141,12 +142,13 @@ export function DashboardUI({
                       fontFamily:    'var(--font-mono)',
                       fontSize:      'var(--type-sm)',
                       color:         'var(--text-sec)',
-                      background:    'var(--input-panel-bg)',
-                      border:        '1px solid var(--border)',
+                      background:    'var(--surface)',
+                      border:        'none',
                       borderRadius:  'var(--u1)',
                       padding:       'var(--u1) var(--u2)',
                       cursor:        'pointer',
                       textAlign:     'left',
+                      boxShadow:     'var(--glow-rest-low)',
                     }}
                   >
                     {p.label}

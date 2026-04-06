@@ -9,7 +9,6 @@
 // layer:      R3
 // wires-in:
 //   W-ATOM  InputContainer  @/features/F-design-system/contract/primitives
-//   W-ATOM  Input           @/features/F-design-system/contract/primitives
 //   W-ATOM  SendIcon        @/features/F-design-system/contract/primitives
 //   W-ATOM  Overlay         @/features/F-design-system/contract/primitives
 //   W-ATOM  SlidePanel      @/features/F-design-system/contract/primitives
@@ -60,7 +59,6 @@ import { PROVIDER_ORDER, PROVIDERS } from '@/features/F-user-profile/config/prov
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import {
   InputContainer,
-  Input,
   SendIcon,
   Overlay,
   SlidePanel,
@@ -214,14 +212,15 @@ function AccountPanel({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--u1)', marginBottom: 'var(--u3)' }}>
           <Label>Display name</Label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}>
-            <Input
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') saveDisplayName() }}
-              placeholder={defaultName}
-              disabled={nameSaving}
-              style={{ flex: 1 }}
-            />
+            <div style={{ flex: 1 }}>
+              <InputContainer
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveDisplayName() }}
+                placeholder={defaultName}
+                disabled={nameSaving}
+              />
+            </div>
             <ButtonText variant="accent" onClick={saveDisplayName} disabled={nameSaving}>
               {nameSaving ? '···' : 'SAVE'}
             </ButtonText>
@@ -257,15 +256,16 @@ function AccountPanel({
                 <span className="key-dots">••••••••••••••••</span>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}>
-                  <Input
-                    type="password"
-                    value={keyInputs[provider]}
-                    onChange={e => setKeyInputs(prev => ({ ...prev, [provider]: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter') saveKey(provider) }}
-                    placeholder={PROVIDERS[provider].placeholder}
-                    disabled={keySaving[provider]}
-                    style={{ flex: 1 }}
-                  />
+                  <div style={{ flex: 1 }}>
+                    <InputContainer
+                      type="password"
+                      value={keyInputs[provider]}
+                      onChange={e => setKeyInputs(prev => ({ ...prev, [provider]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') saveKey(provider) }}
+                      placeholder={PROVIDERS[provider].placeholder}
+                      disabled={keySaving[provider]}
+                    />
+                  </div>
                   <ButtonText
                     variant="accent"
                     onClick={() => saveKey(provider)}
@@ -288,7 +288,7 @@ function AccountPanel({
             className="toggle-track"
             onClick={onToggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            style={{ background: theme === 'dark' ? 'var(--accent)' : 'var(--text-dis)' }}
+            style={{ background: theme === 'dark' ? 'rgba(var(--blue), var(--density-full))' : 'rgba(var(--ink-rest), var(--density-faint))' }}
           >
             <div className="toggle-thumb" style={{ left: theme === 'dark' ? 18 : 2 }} />
           </button>
@@ -364,7 +364,7 @@ export function ChatUI({
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    document.documentElement.style.background = 'var(--bg)'
+    ;(window as any)._livRecalc?.()
   }, [theme])
 
   useEffect(() => {

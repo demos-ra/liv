@@ -147,12 +147,12 @@ function deriveNodeStates(
 
 function NodeDot({ label, state }: { label: string; state: NodeState }) {
   const dotStatus = state === 'failed' ? 'error' : state === 'pending' ? 'dis' : 'accent'
-  const labelColor = state === 'failed'   ? 'var(--error)'
+  const labelColor = state === 'failed'   ? 'rgba(var(--red), var(--density-full))'
                    : state === 'active'   ? 'var(--text)'
                    : state === 'complete' ? 'var(--text-sec)'
                    : 'var(--text-dis)'
-  const glowStyle = state === 'active'  ? { boxShadow: 'var(--glow-accent-subtle)' }
-                  : state === 'failed'  ? { boxShadow: 'var(--glow-error)' }
+  const glowStyle = state === 'active'  ? { boxShadow: 'var(--glow-blue-rest-low)' }
+                  : state === 'failed'  ? { boxShadow: 'var(--glow-red-rest-low)' }
                   : {}
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--u05)', position: 'relative' }}>
@@ -166,7 +166,7 @@ function NodeDot({ label, state }: { label: string; state: NodeState }) {
         textTransform: 'uppercase',
         color:         labelColor,
         whiteSpace:    'nowrap',
-        transition:    'color var(--dur-fast)',
+        transition:    'color var(--dur-attack)',
       }}>
         {label}
       </span>
@@ -181,9 +181,9 @@ function ConnectorLine({ complete }: { complete: boolean }) {
     <div style={{
       flex:         1,
       height:       '1px',
-      background:   complete ? 'var(--accent)' : 'var(--border)',
+      background:   complete ? 'rgba(var(--blue), var(--density-full))' : 'var(--text-dis)',
       marginBottom: '10px',
-      transition:   'background var(--dur-fast)',
+      transition:   'background var(--dur-attack)',
       minWidth:     'var(--u2)',
     }} />
   )
@@ -311,12 +311,13 @@ function PushForm({ jobId, commitMessage, onPush, pushStatus, pushError, pushRes
     fontFamily:  'var(--font-mono)',
     fontSize:    'var(--type-xs)',
     background:  'var(--surface)',
-    border:      '1px solid var(--border)',
+    border:      'none',
     borderRadius: '4px',
     padding:     '6px var(--u1)',
     color:       'var(--text)',
     width:       '100%',
     outline:     'none',
+    boxShadow:   'var(--glow-rest-low)',
   }
 
   if (pushStatus === 'success' && pushResult) {
@@ -343,8 +344,9 @@ function PushForm({ jobId, commitMessage, onPush, pushStatus, pushError, pushRes
       marginTop:   'var(--u15)',
       padding:     'var(--u2)',
       background:  'var(--surface)',
-      border:      '1px solid var(--border)',
+      border:      'none',
       borderRadius: '6px',
+      boxShadow:   'var(--glow-rest-low)',
       display:     'flex',
       flexDirection: 'column',
       gap:         'var(--u1)',
@@ -372,7 +374,7 @@ function PushForm({ jobId, commitMessage, onPush, pushStatus, pushError, pushRes
         onChange={e => setToken(e.target.value)}
       />
       {pushError && (
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-xs)', color: 'var(--error)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-xs)', color: 'rgba(var(--red), var(--density-full))' }}>
           {pushError.message}
         </div>
       )}
@@ -412,7 +414,7 @@ function VersionHistory({ versions }: { versions: BuildVersion[] }) {
               fontSize:   'var(--type-xs)',
             }}
           >
-            <span style={{ color: 'var(--accent)', minWidth: '44px', flexShrink: 0 }}>
+            <span style={{ color: 'rgba(var(--blue), var(--density-full))', minWidth: '44px', flexShrink: 0 }}>
               {formatVersion(v.version)}
             </span>
             <span style={{
@@ -576,8 +578,8 @@ export function BuilderStatusCard() {
             <span style={{
               fontFamily:  'var(--font-mono)',
               fontSize:    'var(--type-xs)',
-              color:       'var(--accent)',
-              background:  'color-mix(in srgb, var(--accent) 10%, transparent)',
+              color:       'rgba(var(--blue), var(--density-full))',
+              background:  'rgba(var(--blue), var(--density-faint))',
               borderRadius: '3px',
               padding:     '1px 6px',
               flexShrink:  0,

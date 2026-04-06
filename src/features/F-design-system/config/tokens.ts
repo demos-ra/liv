@@ -1,121 +1,130 @@
 // @liv-standard v1.3
-// [F-design-system/R0]
+// [F-design-system/R1]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    tokens reclassified R0→R1 (imports deriveLight from R1 domain)
 // slice:      F-design-system
-// layer:      R0
+// layer:      R1
 // wires-in:   none
-// wires-out:
-//   W-ATOM  SPATIAL       → F-design-system/R3
-//   W-ATOM  TYPE          → F-design-system/R3
-//   W-ATOM  COLOR_ROLES   → F-design-system/R3
-//   W-ATOM  MOTION        → F-design-system/R3
-//   W-ATOM  GLOW          → F-design-system/R3
-//   W-ATOM  RADIUS        → F-design-system/R3
-//   W-ATOM  DEVICE_CLASS  → F-design-system/R3
-//   W-ATOM  COLORS        → F-design-system/R3
-//   W-ATOM  SPACE         → F-design-system/R3
-//   W-ATOM  FONTS         → F-design-system/R3
-//   W-ATOM  TYPE_SCALE    → F-design-system/R3
-// deps:      none
-// validated: pending
+// wires-out:  (consumed by canvas/JS contexts outside F-design-system)
+// deps:
+//   R0 ./board
+//   R1 ../domain/light-engine
+// validated:  pending
+// note:       Runtime token values for JS/canvas contexts.
+//             COLORS derived by calling deriveLight() at module scope (pure, no DOM).
+//             Removed exports: COLOR_ROLES, old MOTION array, GLOW.
 
-// Runtime design tokens — JS only. For canvas, charts, non-CSS contexts.
-// All visual styling lives in globals.css. Do not duplicate there.
-// Every value here must match its counterpart CSS custom property exactly.
+import {
+  I_LIGHT, I_DARK,
+  BLUE, RED,
+  FONT_UI, FONT_MONO, FONT_BRAND,
+  TYPE_BASE, TYPE_RATIO,
+  SPACE_UNIT,
+  RADIUS_BUBBLE,
+  COL_WIDTH, COL_WIDTH_LG, LOGIN_WIDTH,
+  ATTACK, RELEASE, BLOOM, CYCLE_STREAM,
+  CURVE_S, CURVE_E, CURVE_T, CURVE_B, CURVE_G,
+} from './board'
 
-// ── Token name registries (type layer — no runtime CSS) ──────────────────────
-// Purpose: other slices reference token names without magic strings.
+import { deriveLight } from '../domain/light-engine'
 
-export const SPATIAL = [
-  'u05', 'u1', 'u15', 'u2', 'u25', 'u3', 'u4', 'u5', 'u55', 'u6',
-  'header-h', 'input-h', 'input-h-sm',
-] as const
+// ── Colors — derived from light engine per mode ────────────────────────────
 
-export const TYPE = [
-  'type-xs', 'type-sm', 'type-base', 'type-lg', 'type-xl',
-  'font-ui', 'font-mono', 'font-brand',
-] as const
+const lightVars = deriveLight(I_LIGHT)
+const darkVars  = deriveLight(I_DARK)
 
-export const COLOR_ROLES = [
-  'bg', 'surface', 'border', 'text', 'text-sec', 'text-dis',
-  'accent', 'error', 'caution', 'surface-msg', 'input-panel-bg', 'overlay-bg',
-] as const
-
-export const MOTION = [
-  'dur-fast', 'dur-normal', 'dur-slow',
-  'ease-default', 'ease-enter', 'ease-exit', 'ease-float',
-] as const
-
-export const GLOW = [
-  'glow-accent', 'glow-accent-strong', 'glow-accent-rest', 'glow-accent-subtle',
-  'glow-error', 'glow-toast-entry',
-  'shadow-surface', 'shadow-panel',
-] as const
-
-export const RADIUS = [
-  'radius-pill', 'radius-surface', 'radius-bubble',
-] as const
-
-export const DEVICE_CLASS = ['col'] as const
-
-// ── Runtime color values — JS/canvas contexts only ──────────────────────────
-// Accent is #6B9FFF in both modes — one identity. (brief rule)
+function extractRgb(triplet: string): [number, number, number] {
+  const parts = triplet.split(',').map(Number)
+  return [parts[0], parts[1], parts[2]]
+}
 
 export const COLORS = {
-  dark: {
-    bg:         '#111110',
-    surface:    '#1F1E1C',
-    border:     '#2A2825',
-    text:       '#E8E6E1',
-    textSec:    '#857F76',
-    textDis:    '#6B655C',
-    accent:     '#6B9FFF',
-    error:      '#E8695F',
-    caution:    '#D4A84B',
-    surfaceMsg: '#1F1E1C',
-  },
   light: {
-    bg:         '#F4F1EC',
-    surface:    '#F8F6F2',
-    border:     '#E2DED6',
-    text:       '#1A1917',
-    textSec:    '#6B6560',
-    textDis:    '#8A837A',
-    accent:     '#6B9FFF',
-    error:      '#C4564A',
-    caution:    '#B58A2E',
-    surfaceMsg: '#F8F6F2',
+    bg:      lightVars['--bg'],
+    surface: lightVars['--surface'],
+    canyon:  lightVars['--canyon'],
+    blue:    extractRgb(lightVars['--blue']),
+    red:     extractRgb(lightVars['--red']),
+    text:    lightVars['--text'],
+    textSec: lightVars['--text-sec'],
+    textDis: lightVars['--text-dis'],
+  },
+  dark: {
+    bg:      darkVars['--bg'],
+    surface: darkVars['--surface'],
+    canyon:  darkVars['--canyon'],
+    blue:    extractRgb(darkVars['--blue']),
+    red:     extractRgb(darkVars['--red']),
+    text:    darkVars['--text'],
+    textSec: darkVars['--text-sec'],
+    textDis: darkVars['--text-dis'],
+  },
+  pinned: {
+    blue: BLUE,
+    red:  RED,
   },
 } as const
 
-// ── Runtime spatial values (px as numbers) ──────────────────────────────────
+// ── Space — derived from SPACE_UNIT ────────────────────────────────────────
 
 export const SPACE = {
-  u05: 4,  u1: 8,   u15: 12, u2: 16,  u25: 20,
-  u3:  24, u4: 32,  u5:  40, u55: 44, u6:  48,
-  headerH:  48,
-  inputH:   44,
-  inputHSm: 32,
+  u05: SPACE_UNIT * 0.5,
+  u1:  SPACE_UNIT * 1,
+  u15: SPACE_UNIT * 1.5,
+  u2:  SPACE_UNIT * 2,
+  u25: SPACE_UNIT * 2.5,
+  u3:  SPACE_UNIT * 3,
+  u4:  SPACE_UNIT * 4,
+  u5:  SPACE_UNIT * 5,
+  u55: SPACE_UNIT * 5.5,
+  u6:  SPACE_UNIT * 6,
+  headerH:      SPACE_UNIT * 6,
+  inputH:       SPACE_UNIT * 5.5,
+  inputHSm:     SPACE_UNIT * 4,
+  radiusPill:   (SPACE_UNIT * 5.5) / 2,
+  radiusSurface: SPACE_UNIT * 1.5,
+  radiusBubble: RADIUS_BUBBLE,
+  colWidth:     COL_WIDTH,
+  colWidthLg:   COL_WIDTH_LG,
+  loginWidth:   LOGIN_WIDTH,
 } as const
 
-// ── Runtime font stacks ──────────────────────────────────────────────────────
+// ── Fonts — from board ─────────────────────────────────────────────────────
 
 export const FONTS = {
-  ui:    "'Geist', system-ui, -apple-system, sans-serif",
-  mono:  "'CommitMono', monospace",
-  brand: "'Montserrat', sans-serif",
+  ui:    FONT_UI,
+  mono:  FONT_MONO,
+  brand: FONT_BRAND,
 } as const
 
-// ── Runtime type scale (px as numbers) ──────────────────────────────────────
+// ── Type scale — derived from TYPE_BASE + TYPE_RATIO ───────────────────────
 
 export const TYPE_SCALE = {
-  xs:   11,
-  sm:   13,
-  base: 16,
-  lg:   19,
-  xl:   23,
+  xs:   Math.round(TYPE_BASE * Math.pow(TYPE_RATIO, -2)),
+  sm:   Math.round(TYPE_BASE * Math.pow(TYPE_RATIO, -1)),
+  base: TYPE_BASE,
+  lg:   Math.round(TYPE_BASE * Math.pow(TYPE_RATIO, 1)),
+  xl:   Math.round(TYPE_BASE * Math.pow(TYPE_RATIO, 2)),
+} as const
+
+// ── Motion — resolved ms values for JS style.transition assignments ────────
+
+export const MOTION = {
+  attack:      ATTACK,
+  release:     RELEASE,
+  bloom:       BLOOM,
+  cycleStream: CYCLE_STREAM,
+} as const
+
+// ── Curves — resolved strings, never CSS var() references ──────────────────
+
+export const CURVES_RESOLVED = {
+  S: CURVE_S,
+  E: CURVE_E,
+  T: CURVE_T,
+  B: CURVE_B,
+  G: CURVE_G,
 } as const

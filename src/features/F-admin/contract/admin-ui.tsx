@@ -53,7 +53,7 @@ function fmtDuration(startMs: number, endMs: number): string {
 
 function PipelineDetail({ report }: { report: PipelineReportSummary }) {
   return (
-    <div style={{ padding: 'var(--u2) 0', borderTop: '1px solid var(--border)' }}>
+    <div style={{ padding: 'var(--u2) 0', borderTop: '1px solid var(--text-dis)' }}>
       <div style={{ display: 'flex', gap: 'var(--u3)', marginBottom: 'var(--u2)', flexWrap: 'wrap' }}>
         <span style={mono}><span style={dim}>outcome</span> {report.outcome ?? '—'}</span>
         <span style={mono}><span style={dim}>transitions</span> {report.totalTransitions}</span>
@@ -166,7 +166,7 @@ export function AdminDashboard() {
               <Fragment key={b.buildId}>
                 <tr
                   onClick={() => toggleRow(b.buildId)}
-                  style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}
+                  style={{ cursor: 'pointer', borderTop: '1px solid var(--text-dis)' }}
                 >
                   <td style={tdStyle}>{b.userId.slice(0, 8)}</td>
                   <td style={tdStyle}>{b.projectId.slice(0, 8)}</td>
