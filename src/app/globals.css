@@ -250,7 +250,8 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 /* ═══ 5. LAYOUT ═══ */
 
 .col { max-width: var(--col-width); width: 100%; margin: 0 auto; padding: 0 var(--u25); }
-.icon-planet, .icon-send { flex-shrink: 0; display: block; }
+.icon-planet { flex-shrink: 0; display: block; }
+.icon-send { flex-shrink: 0; display: block; stroke: currentColor; stroke-width: 1.5px; /* exception: sub-grid, optical tuning */ stroke-linecap: round; fill: none; }
 
 /* Page — content layer */
 .page { position: fixed; inset: 0; display: flex; flex-direction: column; z-index: 1; /* Z.content */ }
