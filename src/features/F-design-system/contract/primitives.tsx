@@ -9,19 +9,19 @@
 // layer:      R3
 // wires-in:   none
 // wires-out:
-//   W-ATOM  Brand           → F-identity/R3, F-chat/R3
-//   W-ATOM  InputContainer  → F-identity/R3, F-chat/R3
+//   W-ATOM  Brand           → F-identity/R3, core/app/R4
+//   W-ATOM  InputContainer  → F-identity/R3, F-chat/R3, F-user-profile/R3
 //   W-ATOM  SendIcon        → F-identity/R3, F-chat/R3
 //   W-ATOM  Spinner         → F-identity/R3, F-chat/R3
-//   W-ATOM  ButtonText      → F-chat/R3
-//   W-ATOM  Label           → F-chat/R3
-//   W-ATOM  Overlay         → F-chat/R3
-//   W-ATOM  SlidePanel      → F-chat/R3
+//   W-ATOM  ButtonText      → F-user-profile/R3
+//   W-ATOM  Label           → F-user-profile/R3
+//   W-ATOM  StatusDot       → core/app/R4, F-user-profile/R3, F-planner/R3
+//   W-ATOM  Overlay         → (declared, no active consumer)
+//   W-ATOM  SlidePanel      → (declared, no active consumer)
 //   W-ATOM  Button          → (declared, no active consumer)
 //   W-ATOM  ButtonIcon      → (declared, no active consumer)
 //   W-ATOM  Text            → (declared, no active consumer)
 //   W-ATOM  Heading         → (declared, no active consumer)
-//   W-ATOM  StatusDot       → core/app, F-chat/R3, F-planner/R3
 //   W-ATOM  Badge           → (declared, no active consumer)
 //   W-ATOM  Divider         → (declared, no active consumer)
 //   W-ATOM  Surface         → F-dashboard/R3
@@ -143,6 +143,7 @@ interface InputContainerProps {
   placeholder?: string
   type?: string
   disabled?: boolean
+  readOnly?: boolean
   value?: string
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
@@ -163,6 +164,7 @@ export const InputContainer = forwardRef<HTMLDivElement, InputContainerProps>(
       placeholder,
       type = 'text',
       disabled,
+      readOnly,
       value,
       onChange,
       onKeyDown,
@@ -185,6 +187,7 @@ export const InputContainer = forwardRef<HTMLDivElement, InputContainerProps>(
           type={type}
           placeholder={placeholder}
           disabled={disabled}
+          readOnly={readOnly}
           value={value}
           onChange={onChange}
           onKeyDown={onKeyDown}

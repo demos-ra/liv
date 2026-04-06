@@ -219,6 +219,8 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .theme-transitioning .toast,
 .theme-transitioning .toggle-track,
 .theme-transitioning .toggle-thumb,
+.theme-transitioning .surface,
+.theme-transitioning .icon-spinner,
 .theme-transitioning .input-bare {
   transition: background-color var(--dur-attack) var(--B),
               color var(--dur-attack) var(--B),
@@ -259,7 +261,8 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .page.visible, .chat-header.visible { opacity: 1; pointer-events: all; visibility: visible; }
 .page.forming, .chat-header.forming { z-index: 2; /* Z.forming */ }
 .page.forming .form, .chat-header.forming .form { opacity: 0; animation: formIn var(--form-dur, var(--dur-attack)) var(--S) forwards; }
-.page.dissolving, .chat-header.dissolving { animation: fadeOut var(--dissolve-dur, var(--dur-attack)) var(--E) forwards; z-index: 1; /* Z.content */ }
+.page.dissolving, .chat-header.dissolving { animation: fadeOut var(--dissolve-dur, var(--dur-attack)) var(--E) forwards; z-index: 1; /* Z.content */ pointer-events: none; }
+.page-main { top: var(--header-h); }
 
 /* Header — persistent, outside pages */
 .chat-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-h); display: flex; align-items: center; z-index: 10; /* Z.header */ }
@@ -275,15 +278,14 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .dashboard-area.powering-off .dashboard-container { animation: dashPowerOff var(--dur-release) var(--S) forwards; }
 
 /* Login page */
-.login-page { align-items: center; justify-content: center; padding-bottom: 10vh; }
+.login-page { align-items: center; justify-content: center; padding-bottom: 10vh; /* exception: viewport-relative centering, not grid-derived */ }
 .login-content { width: 100%; max-width: var(--login-width); padding: 0 var(--u25); }
 .login-brand { margin-bottom: var(--u5); text-align: center; }
 .login-brand .brand { font-size: var(--type-lg); letter-spacing: 0.35em; /* LETTER_SPACING.brandLg */ text-shadow: var(--glow-blue-rest-high); }
 .login-status { height: var(--u3); padding-top: var(--u1); padding-left: var(--u25); }
 .login-status-text { font-family: var(--font-ui); font-size: var(--type-sm); color: var(--text-sec); }
 
-/* Chat content */
-.chat-content { position: fixed; inset: 0; top: var(--header-h); display: flex; flex-direction: column; z-index: 1; /* Z.content */ }
+/* Chat layout */
 .chat-main { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
 .chat-main::before {
   content: ''; position: sticky; top: 0; left: 0; right: 0; display: block;
@@ -298,8 +300,7 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
   padding-bottom: calc(var(--u3) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Account content */
-.account-content-area { position: fixed; inset: 0; top: var(--header-h); display: flex; flex-direction: column; z-index: 1; /* Z.content */ }
+/* Account layout */
 .account-main { flex: 1; overflow-y: auto; padding-top: var(--u4); }
 .account-content { display: flex; flex-direction: column; gap: var(--u4); }
 .account-section { display: flex; flex-direction: column; gap: var(--u1); }
@@ -386,27 +387,6 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
   background: rgba(var(--red), var(--density-faint));
   box-shadow: var(--glow-red-press-low);
 }
-
-/* Icon Button — ink column, transparent, icon-only */
-.btn-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: auto; padding: var(--u05); border: none; border-radius: var(--u05);
-  background: transparent; cursor: pointer;
-  color: rgba(var(--ink-rest), var(--density-full));
-  text-shadow: var(--glow-rest-low);
-  transition: color var(--dur-release) var(--S), text-shadow var(--dur-release) var(--S);
-}
-.btn-icon:hover {
-  color: rgba(var(--ink-hover), var(--density-soft));
-  text-shadow: var(--glow-hover-low);
-  transition: color var(--dur-attack) var(--S), text-shadow var(--dur-attack) var(--S);
-}
-.btn-icon:active {
-  color: rgba(var(--ink-press), var(--density-faint));
-  text-shadow: var(--glow-press-low);
-  transition: color var(--dur-attack) var(--S), text-shadow var(--dur-attack) var(--S);
-}
-.btn-icon:disabled { opacity: var(--density-half); cursor: not-allowed; }
 
 /* Text Button — accent (blue) / danger (red), full→soft→faint */
 .btn-text {
@@ -508,7 +488,9 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
   position: absolute; top: 2px; /* exception: sub-grid, optical tuning */ width: var(--u15); height: var(--u15);
   border-radius: 50%; background: var(--bg);
   transition: left var(--dur-release) var(--S);
+  left: 2px; /* exception: sub-grid, optical tuning */
 }
+.toggle-thumb.active { left: calc(var(--u4) - var(--u15) - 2px); /* exception: sub-grid, optical tuning */ }
 
 
 /* ═══ 7. STATIC COLUMNS ═══ */
@@ -583,7 +565,7 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .msg-user { display: flex; justify-content: flex-end; }
 .msg-user-bubble {
   background: var(--surface); border: none; border-radius: var(--radius-bubble);
-  padding: var(--u15) var(--u2); max-width: 75%;
+  padding: var(--u15) var(--u2); max-width: 75%; /* exception: content proportion, not grid-derived */
   font-size: var(--type-base); line-height: 1.5; /* LINE_HEIGHT.body */
   color: var(--text); word-break: break-word;
   box-shadow: var(--glow-rest-low);
@@ -744,12 +726,12 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 
 @media (max-width: 480px) /* BREAKPOINT_SM = 480 */ {
   .col { max-width: 100%; padding: 0 var(--u2); }
-  .login-page { padding-bottom: 15vh; }
+  .login-page { padding-bottom: 15vh; /* exception: viewport-relative centering, not grid-derived */ }
   .login-content { padding: 0 var(--u2); }
-  .msg-user-bubble { max-width: 85%; }
+  .msg-user-bubble { max-width: 85%; /* exception: content proportion, not grid-derived */ }
   .slide-panel { width: 100%; }
 }
 @media (min-width: 1281px) /* BREAKPOINT_LG = 1281 */ {
   .col { max-width: var(--col-width-lg); }
-  .msg-user-bubble { max-width: 70%; }
+  .msg-user-bubble { max-width: 70%; /* exception: content proportion, not grid-derived */ }
 }

@@ -1,27 +1,33 @@
 // @liv-standard v1.3
-// [F-design-system/R2]
+// [F-design-system/R4]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase4-page-transitions
+// amended:    phase4-page-transitions, phase5-remediation
 // slice:      F-design-system
-// layer:      R2
+// layer:      R4
 // wires-in:   none
-// wires-out:  (internal — consumed by F-design-system barrel)
+// wires-out:  (internal — consumed by core/app/page.tsx via direct R4 import)
 // deps:
 //   R0 ../config/board  (ATTACK, RELEASE — resolved timing values)
 //   R5 react
 // validated:  pending
 //
-// phase4-page-transitions (A1, A2):
-//   Orchestrates page dissolve/form transitions. Pure state management +
-//   timeout scheduling. No I/O (A2 — R2 orchestration only).
+// phase4-page-transitions (A1, A4):
+//   Orchestrates page dissolve/form transitions. Performs imperative DOM I/O
+//   (querySelector, style.setProperty) — R4 per A4.
 //   Consumers call showPage(); hook manages class strings and timeouts.
 //   Duration values resolved from board constants — no var() in JS (design rule).
 //   Header participates at login boundary only (dissolves on sign-out,
 //   forms on entrance). Chat↔account: header persists, no animation.
 //   Login transitions deferred (Phase 4 scope = chat↔account).
+//
+// phase5-remediation (A4):
+//   Moved workflow/ → exec/. Reduced-motion: all setTimeout durations
+//   zero when prefers-reduced-motion matched.
+
+'use client'
 
 import { useState, useRef, useCallback, useEffect, type RefObject } from 'react'
 import { ATTACK, RELEASE } from '../config/board'
@@ -42,8 +48,14 @@ interface PageTransitionResult {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function usePageTransition(
+  // headerRef: Reserved for login boundary transitions (Phase 4+).
+  // Chat↔account: header persists, no animation. When login joins the
+  // page set, this ref enables dissolve/form on the header element.
   headerRef: RefObject<HTMLElement | null>,
 ): PageTransitionResult {
+
+  const reducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const [currentPage, setCurrentPage] = useState<PageId>('chat')
   const pageStates = useRef<Record<PageId, PageState>>({
@@ -73,8 +85,9 @@ export function usePageTransition(
     const outgoing = currentPage
     if (outgoing === pageId) return
 
-    const dur = tier === 'entrance' ? RELEASE : ATTACK
-    const offset = dur / 2
+    const baseDur = tier === 'entrance' ? RELEASE : ATTACK
+    const dur = reducedMotion ? 0 : baseDur
+    const offset = reducedMotion ? 0 : baseDur / 2
 
     // Clear any in-flight transitions
     timeouts.current.forEach(clearTimeout)

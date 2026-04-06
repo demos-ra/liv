@@ -12,7 +12,6 @@
 //   W-ATOM  ButtonText      @/features/F-design-system/contract/primitives
 //   W-ATOM  Label           @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot       @/features/F-design-system/contract/primitives
-//   W-ATOM  Divider         @/features/F-design-system/contract/primitives
 //   W-ATOM  ProviderId      @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDERS       @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
@@ -49,7 +48,6 @@ import {
   ButtonText,
   Label,
   StatusDot,
-  Divider,
 } from '@/features/F-design-system/contract/primitives'
 
 // ── AccountPage ──────────────────────────────────────────────────────────────
@@ -175,7 +173,7 @@ export function AccountPage({
 
   return (
     <div className={pageClass} data-page="account">
-      <main className="account-main form" style={{ marginTop: 'var(--header-h)' }}>
+      <main className="account-main form">
         <div className="col account-content">
 
           {/* Identity */}
@@ -268,12 +266,11 @@ export function AccountPage({
               <Label>{theme === 'dark' ? 'DARK' : 'LIGHT'}</Label>
               <button
                 type="button"
-                className="toggle-track"
+                className={`toggle-track${theme === 'dark' ? ' active' : ''}`}
                 onClick={onToggleTheme}
                 aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                style={{ background: theme === 'dark' ? 'rgba(var(--blue), var(--density-full))' : 'rgba(var(--ink-rest), var(--density-faint))' }}
               >
-                <div className="toggle-thumb" style={{ left: theme === 'dark' ? 18 : 2 }} />
+                <div className={`toggle-thumb${theme === 'dark' ? ' active' : ''}`} />
               </button>
             </div>
           </div>

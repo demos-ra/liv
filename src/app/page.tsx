@@ -4,14 +4,14 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase3-planet, phase4-page-transitions
+// amended:    phase3-planet, phase4-page-transitions, phase5-remediation
 // slice:      core/app
-// layer:      R3
+// layer:      R4
 // wires-in:
 //   W-HOOK  useWorkspace       @/features/F-dashboard/contract/dashboard-hook
 //   W-HOOK  useAuth            @/features/F-identity/contract/auth-hooks
-//   W-HOOK  usePlanet          @/features/F-design-system/contract
-//   W-HOOK  usePageTransition  @/features/F-design-system/contract
+//   W-HOOK  usePlanet          @/features/F-design-system/exec/use-planet
+//   W-HOOK  usePageTransition  @/features/F-design-system/exec/use-page-transition
 //   W-ATOM  Brand              @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot          @/features/F-design-system/contract/primitives
 //   W-ATOM  DashboardUI        @/features/F-dashboard/contract/dashboard-ui
@@ -22,13 +22,14 @@
 //   W-ATOM  AdminRegister      @/features/F-admin/contract/admin-register
 // wires-out:  none  (mount point)
 // deps:
+//   R4  @/features/F-design-system/exec/use-planet          (A4 — DOM I/O)
+//   R4  @/features/F-design-system/exec/use-page-transition (A4 — DOM I/O)
 //   R3  @/features/F-dashboard/contract/dashboard-hook  (A5)
 //   R3  @/features/F-dashboard/contract/dashboard-ui    (A5)
 //   R3  @/features/F-chat/contract/chat-ui              (A5)
 //   R3  @/features/F-identity/contract/auth-hooks       (A5)
 //   R3  @/features/F-identity/contract/auth-pages       (A5)
 //   R3  @/features/F-design-system/contract/primitives  (A5)
-//   R3  @/features/F-design-system/contract             (A5 — usePlanet, usePageTransition)
 //   R3  @/features/F-user-profile/contract/account-page (A5)
 //   R3  @/features/F-planner/contract/planner-register  (A5 — composition root)
 //   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
@@ -72,7 +73,8 @@ import { DashboardUI }      from '@/features/F-dashboard/contract/dashboard-ui'
 import { ChatUI }           from '@/features/F-chat/contract/chat-ui'
 import { AccountPage }      from '@/features/F-user-profile/contract/account-page'
 import { Brand, StatusDot } from '@/features/F-design-system/contract/primitives'
-import { usePlanet, usePageTransition } from '@/features/F-design-system/contract'
+import { usePlanet } from '@/features/F-design-system/exec/use-planet'
+import { usePageTransition } from '@/features/F-design-system/exec/use-page-transition'
 import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
 
@@ -96,6 +98,8 @@ export default function Home() {
   const workspace = useWorkspace()
 
   // ── Page transitions ─────────────────────────────────────────────────────
+  // headerRef: Deferred — login boundary transitions (Phase 4+).
+  // .form classes on header children pre-wire formIn participation.
   const headerRef = useRef<HTMLElement | null>(null)
   const { showPage, pageClass, currentPage } = usePageTransition(headerRef)
 
@@ -165,8 +169,8 @@ export default function Home() {
             <button
               type="button"
               className="header-username form"
-              onClick={openAccount}
-              aria-label="Open account settings"
+              onClick={currentPage === 'account' ? closeAccount : openAccount}
+              aria-label={currentPage === 'account' ? 'Return to chat' : 'Open account settings'}
             >
               {userName}
             </button>
@@ -180,7 +184,7 @@ export default function Home() {
       </div>
 
       {/* ── CHAT (always mounted, transition via hook) ── */}
-      <div className={pageClass('chat')} data-page="chat">
+      <div className={`${pageClass('chat')} page-main`} data-page="chat">
         <ChatUI
           email={email}
           signOut={signOut}
@@ -191,7 +195,7 @@ export default function Home() {
 
       {/* ── ACCOUNT (always mounted, transition via hook) ── */}
       <AccountPage
-        pageClass={pageClass('account')}
+        pageClass={`${pageClass('account')} page-main`}
         email={email}
         onClose={closeAccount}
         onSignOut={signOut}

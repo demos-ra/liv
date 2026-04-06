@@ -145,7 +145,7 @@ export function AuthPage() {
             </button>
           }
           value={email}
-          disabled
+          readOnly
         />
       )}
 
@@ -206,7 +206,7 @@ export function AuthVerifyPage() {
         <InputContainer
           className="form"
           placeholder="···"
-          disabled
+          readOnly
           icon={<Spinner size="sm" />}
         />
       )}
@@ -214,7 +214,7 @@ export function AuthVerifyPage() {
         <InputContainer
           className="form"
           placeholder="signing in"
-          disabled
+          readOnly
           icon={<Spinner size="sm" />}
         />
       )}
@@ -222,7 +222,7 @@ export function AuthVerifyPage() {
         <InputContainer
           className="form"
           placeholder="—"
-          disabled
+          readOnly
         />
       )}
 

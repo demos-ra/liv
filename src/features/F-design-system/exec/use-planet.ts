@@ -1,14 +1,14 @@
 // @liv-standard v1.3
-// [F-design-system/R2]
+// [F-design-system/R4]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase3-planet
+// amended:    phase3-planet, phase5-remediation
 // slice:      F-design-system
-// layer:      R2
+// layer:      R4
 // wires-in:   none
-// wires-out:  usePlanet → F-design-system/contract
+// wires-out:  usePlanet → core/app/page.tsx (R4 direct import)
 // deps:
 //   R1 ../domain/motion (TIMING, CURVES)
 //   R5 react
@@ -24,6 +24,14 @@
 //   Axiom cite:
 //     A1 — single hook owns all planet visual state.
 //     A3 — typed boundary: handlers record out, boolean + ref in.
+//
+// phase5-remediation (A4):
+//   Moved workflow/ → exec/. Hook performs imperative DOM I/O
+//   (classList, style.transition, el.closest) — R4 per A4.
+//   Theme collision guard: skips inline transition during dimmer window.
+//   Reduced-motion: all setTimeout durations zero when matched.
+
+'use client'
 
 import { useRef, useEffect, useCallback, type RefObject } from 'react'
 import { TIMING, CURVES } from '../domain/motion'
@@ -73,6 +81,13 @@ export function usePlanet(
   isOn: boolean,
   ref: RefObject<HTMLElement | null>,
 ): UsePlanetResult {
+  const reducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  // Resolved durations — zero when reduced-motion active (Fix 7)
+  const RELEASE = reducedMotion ? 0 : TIMING.release
+  const ATTACK  = reducedMotion ? 0 : TIMING.attack
+
   const phaseRef   = useRef<PlanetPhase>('off-rest')
   const classRef   = useRef<string>('planet-off-rest')
   const lockedRef  = useRef(false)
@@ -90,6 +105,15 @@ export function usePlanet(
   const applyClass = useCallback((cls: string, isGoodbye?: boolean) => {
     const el = ref.current
     if (!el) return
+
+    // During theme transition, let dimmer own visual interpolation (Fix 8)
+    const themeTransitioning = el.closest('.theme-transitioning')
+    if (themeTransitioning) {
+      for (const c of ALL_PLANET_CLASSES) el.classList.remove(c)
+      el.classList.add(cls)
+      classRef.current = cls
+      return
+    }
 
     const prev = classRef.current
     const isIn = cls.includes('-hover-in') || cls.includes('-press-in')
@@ -137,8 +161,8 @@ export function usePlanet(
         timeoutRef.current = setTimeout(() => {
           phaseRef.current = 'off-rest'
           lockedRef.current = false
-        }, TIMING.release)
-      }, TIMING.release)
+        }, RELEASE)
+      }, RELEASE)
     }
   }, [isOn, clearTO, applyClass])
 
@@ -182,13 +206,13 @@ export function usePlanet(
       timeoutRef.current = setTimeout(() => {
         applyClass('planet-off-rest')
         phaseRef.current = 'off-rest'
-      }, TIMING.release)
+      }, RELEASE)
     } else if (phase === 'on-hover' || phase === 'on-press') {
       applyClass('planet-on-hover-out')
       timeoutRef.current = setTimeout(() => {
         applyClass('planet-on-rest')
         phaseRef.current = 'on-rest'
-      }, TIMING.release)
+      }, RELEASE)
     }
   }, [clearTO, applyClass])
 
@@ -217,7 +241,7 @@ export function usePlanet(
       timeoutRef.current = setTimeout(() => {
         phaseRef.current = 'on-rest'
         applyClass('planet-on-rest')
-      }, TIMING.release)
+      }, RELEASE)
     } else if (phase === 'on-press') {
       // on→off: press-out, goodbye to off-rest
       applyClass('planet-on-press-out')
@@ -227,8 +251,8 @@ export function usePlanet(
         timeoutRef.current = setTimeout(() => {
           phaseRef.current = 'off-rest'
           lockedRef.current = false
-        }, TIMING.release)
-      }, TIMING.release)
+        }, RELEASE)
+      }, RELEASE)
     }
   }, [clearTO, applyClass])
 
