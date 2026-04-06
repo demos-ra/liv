@@ -12,7 +12,7 @@
 // deps:
 //   R0 ../config/board
 // validated:  pending
-// note:       Pure function. 60 CSS custom properties: 24 shared + 36 per-tier.
+// note:       Pure function. 70 CSS custom properties: 25 shared + 45 per-tier.
 //             Direct translation of liv-mockup-v26.html lines 598–760.
 //             No DOM access. Returns Record, never calls style.setProperty.
 
@@ -21,7 +21,7 @@ import {
   R1, R2, R4,
   L_CEIL, SCALE_FLOOR, COOL_SHIFT, DARK_THRESHOLD, SCOTOPIC_HUE,
   BREATH_DELTA, PX_SCALE,
-  BLUE, RED,
+  BLUE, RED, AMBER,
   DENSITY_FULL, DENSITY_SOFT, DENSITY_HALF, DENSITY_FAINT,
   H_REST, H_HOVER, H_PRESS,
   CURVE_S, CURVE_E, CURVE_T, CURVE_B, CURVE_G,
@@ -91,7 +91,7 @@ export function deriveLight(I: number): Record<string, string> {
   const fieldSat = Math.min(1.0, sSat)
   const surfaceStep = isDark ? R2 : R1
 
-  // ── Shared (24) ──
+  // ── Shared (25) ──
 
   const bg = hslRgb(sHue, fieldSat, I)
   const surfaceConc = concentration(H_REST)
@@ -137,7 +137,7 @@ export function deriveLight(I: number): Record<string, string> {
   out['--halo-bias']   = haloBias + 'px'
   out['--scale-floor'] = String(SCALE_FLOOR)
 
-  // ── Per-tier (36) ──
+  // ── Per-tier (45) ──
 
   const tiers: Array<{ name: string; Hx: number }> = [
     { name: 'rest',  Hx: H_REST },
@@ -146,6 +146,10 @@ export function deriveLight(I: number): Record<string, string> {
   ]
   const blueStr = rgbStr(blue)
   const redStr  = rgbStr(red)
+
+  const amber    = hslRgb(AMBER.hue, AMBER.sat, AMBER.L)
+  const amberStr = rgbStr(amber)
+  out['--amber'] = amberStr
 
   for (const { name, Hx } of tiers) {
     const conc = concentration(Hx)
@@ -172,6 +176,7 @@ export function deriveLight(I: number): Record<string, string> {
       out[`--glow-${name}-${label}`]      = `0 0 ${blur}px rgba(${gcStr},${opacity.toFixed(4)})`
       out[`--glow-blue-${name}-${label}`]  = `0 0 ${blur}px rgba(${blueStr},${opacity.toFixed(4)})`
       out[`--glow-red-${name}-${label}`]   = `0 0 ${blur}px rgba(${redStr},${opacity.toFixed(4)})`
+      out[`--glow-amber-${name}-${label}`] = `0 0 ${blur}px rgba(${amberStr},${opacity.toFixed(4)})`
     }
 
     const shOp     = Hx * R4

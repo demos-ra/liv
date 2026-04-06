@@ -39,8 +39,9 @@ export const PX_SCALE       = 32
 
 // ── Pinned materials ─────────────────────────────────────────────────────────
 
-export const BLUE = { hue: 220, sat: 1.0,  L: 0.71 } as const
-export const RED  = { hue: 7,   sat: 0.52, L: 0.53 } as const
+export const BLUE  = { hue: 220, sat: 1.0,  L: 0.71 } as const
+export const RED   = { hue: 7,   sat: 0.52, L: 0.53 } as const
+export const AMBER = { hue: 40,  sat: 0.75, L: 0.55 } as const
 
 // ── Density scale (derived from R-steps) ─────────────────────────────────────
 
@@ -99,6 +100,14 @@ export const LOGIN_WIDTH   = 340   // px
 export const BREAKPOINT_SM = 480   // px
 export const BREAKPOINT_LG = 1281  // px
 
+// ── Component dimensions (authored) ──────────────────────────────────────────
+
+export const DOT_SIZE         = 6    // px
+export const SPINNER_SIZE     = 14   // px
+export const SPINNER_SIZE_SM  = 12   // px
+export const DASH_MIN_H       = 100  // px
+export const PANEL_WIDTH      = 320  // px
+
 // ── Motion — timing ──────────────────────────────────────────────────────────
 
 export const ATTACK       = 256    // 2^8 ms
@@ -124,5 +133,6 @@ export const Z = {
   dash:    9,
   header:  10,
   overlay: 20,
+  panel:   21,    // slide panel, above overlay
   toast:   30,
 } as const

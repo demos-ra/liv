@@ -37,7 +37,7 @@ function PipelineProgress({ currentStage }: { currentStage: string | null }) {
           <div style={{
             width: 24, height: 24, borderRadius: '50%',
             background:   i < idx  ? 'rgba(var(--blue), var(--density-full))'
-                        : i === idx ? 'rgba(var(--red), var(--density-full)) /* TODO: replace with --amber when pinned material added to board */'
+                        : i === idx ? 'rgba(var(--amber), var(--density-full))'
                         : 'var(--surface)',
             border:      `1px solid ${i <= idx ? 'transparent' : 'var(--text-dis)'}`,
             display:     'flex', alignItems: 'center', justifyContent: 'center',

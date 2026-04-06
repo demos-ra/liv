@@ -9,7 +9,7 @@ config/board.ts          — Design board. All masters and authored constants.
 config/tokens.ts         — Runtime values for JS/canvas contexts.
 config/index.ts          — Re-export.
 
-domain/light-engine.ts   — 4 masters → 60 CSS vars. Beer-Lambert, inverse square.
+domain/light-engine.ts   — 4 masters → 70 CSS vars. Beer-Lambert, inverse square.
 domain/type-engine.ts    — Base + R1 ratio → type scale.
 domain/space-engine.ts   — Base unit → spacing grid.
 domain/motion.ts         — Timing grid + curves + z-index.

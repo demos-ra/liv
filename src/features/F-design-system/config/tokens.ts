@@ -19,7 +19,7 @@
 
 import {
   I_LIGHT, I_DARK,
-  BLUE, RED,
+  BLUE, RED, AMBER,
   FONT_UI, FONT_MONO, FONT_BRAND,
   TYPE_BASE, TYPE_RATIO,
   SPACE_UNIT,
@@ -63,8 +63,9 @@ export const COLORS = {
     textDis: darkVars['--text-dis'],
   },
   pinned: {
-    blue: BLUE,
-    red:  RED,
+    blue:  BLUE,
+    red:   RED,
+    amber: AMBER,
   },
 } as const
 

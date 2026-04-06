@@ -38,7 +38,7 @@ import {
 
 function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="login-page">
+    <div className="page login-page">
       <div className="login-content">
         <Brand variant="login" />
         {children}

@@ -69,7 +69,7 @@ export function DesignSystemProvider({ children }: { children: ReactNode }) {
       bloom: TIMING.bloom,
     }
 
-    // Expose recalc for theme change — engine recomputes all 60 light vars
+    // Expose recalc for theme change — engine recomputes all 70 light vars
     ;(window as any)._livRecalc = recalcLight
 
     // Observe data-theme attribute for theme changes

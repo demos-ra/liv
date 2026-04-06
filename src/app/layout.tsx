@@ -1,6 +1,21 @@
 // @liv-standard v1.3
-// [app/layout]
+// [core/app/R4]
 // Built with LIV · livai.dev
+
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      core/app
+// layer:      R4
+// wires-in:   none
+// wires-out:  none (Next.js root layout — mount point)
+// deps:
+//   R4 ./globals.css (import side-effect)
+//   R4 @/features/F-design-system/exec/design-system-provider
+//   R3 @/features/F-dashboard/contract/providers
+//   R5 next (Metadata type)
+//   R5 react
+// validated:  pending
 
 import './globals.css'
 import type { Metadata } from 'next'

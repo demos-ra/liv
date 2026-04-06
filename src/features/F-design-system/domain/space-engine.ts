@@ -12,12 +12,13 @@
 // deps:
 //   R0 ../config/board
 // validated:  pending
-// note:       Pure function. All spacing, dimensions, radii as CSS custom properties.
+// note:       Pure function. 24 CSS custom properties: spacing, dimensions, radii, component sizes.
 
 import {
   SPACE_UNIT,
   RADIUS_BUBBLE,
   COL_WIDTH, COL_WIDTH_LG, LOGIN_WIDTH,
+  DOT_SIZE, SPINNER_SIZE, SPINNER_SIZE_SM, DASH_MIN_H, PANEL_WIDTH,
 } from '../config/board'
 
 export function deriveSpace(): Record<string, string> {
@@ -56,5 +57,10 @@ export function deriveSpace(): Record<string, string> {
     '--col-width':      COL_WIDTH + 'px',
     '--col-width-lg':   COL_WIDTH_LG + 'px',
     '--login-width':    LOGIN_WIDTH + 'px',
+    '--dot-size':       DOT_SIZE + 'px',
+    '--spinner-size':   SPINNER_SIZE + 'px',
+    '--spinner-size-sm': SPINNER_SIZE_SM + 'px',
+    '--dash-min-h':     DASH_MIN_H + 'px',
+    '--panel-width':    PANEL_WIDTH + 'px',
   }
 }

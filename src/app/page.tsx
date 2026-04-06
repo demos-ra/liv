@@ -88,7 +88,7 @@ export default function Home() {
   const { isExpanded, toggleExpanded } = workspace.dashboardSection
 
   return (
-    <div className="chat-page">
+    <div className="page">
 
       {/* ── Program registrations (composition root — A1) ── */}
       {/* Renders null. Registration side-effect only. */}
@@ -108,7 +108,7 @@ export default function Home() {
             aria-label={isExpanded ? 'Collapse dashboard' : 'Expand dashboard'}
             style={{
               color:       isExpanded ? 'var(--text-sec)' : 'var(--text-dis)',
-              transition:  `color var(--dur-attack)`,
+              transition:  `color var(--dur-attack) var(--S)`,
               marginLeft:  'auto',
               marginRight: 'var(--u2)',
             }}
