@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    phase3-form-classes
 // slice:      F-design-system
 // layer:      R3
 // wires-in:   none
@@ -21,7 +21,7 @@
 //   W-ATOM  ButtonIcon      → (declared, no active consumer)
 //   W-ATOM  Text            → (declared, no active consumer)
 //   W-ATOM  Heading         → (declared, no active consumer)
-//   W-ATOM  StatusDot       → F-chat/R3, F-planner/R3
+//   W-ATOM  StatusDot       → core/app, F-chat/R3, F-planner/R3
 //   W-ATOM  Badge           → (declared, no active consumer)
 //   W-ATOM  Divider         → (declared, no active consumer)
 //   W-ATOM  Surface         → F-dashboard/R3
@@ -30,6 +30,11 @@
 // deps:
 //   R5  react
 // validated: pending
+//
+// phase3-form-classes (A3):
+//   InputContainer: added optional className prop to typed boundary.
+//   Applied to outer div for .form class participation in dissolve/form
+//   entrance animations.
 
 import { forwardRef } from 'react'
 
@@ -37,15 +42,15 @@ import { forwardRef } from 'react'
 
 type BrandVariant = 'header' | 'login'
 
-export function Brand({ variant }: { variant: BrandVariant }) {
+export function Brand({ variant, className }: { variant: BrandVariant; className?: string }) {
   if (variant === 'login') {
     return (
       <div className="login-brand">
-        <span className="brand">LIV</span>
+        <span className={className ? `brand ${className}` : 'brand'}>LIV</span>
       </div>
     )
   }
-  return <span className="brand">LIV</span>
+  return <span className={className ? `brand ${className}` : 'brand'}>LIV</span>
 }
 
 // ── Button ───────────────────────────────────────────────────────────────────
@@ -75,7 +80,7 @@ export function Button({ variant, disabled, onClick, children, type = 'button' }
 
 // ── ButtonText ───────────────────────────────────────────────────────────────
 
-type ButtonTextVariant = 'accent' | 'danger'
+type ButtonTextVariant = 'accent' | 'danger' | 'signout'
 
 interface ButtonTextProps {
   variant: ButtonTextVariant
@@ -134,6 +139,7 @@ export function ButtonIcon({
 // Monoform pill — login input and chat input. Bare input + icon slot.
 
 interface InputContainerProps {
+  className?: string
   placeholder?: string
   type?: string
   disabled?: boolean
@@ -153,6 +159,7 @@ interface InputContainerProps {
 export const InputContainer = forwardRef<HTMLDivElement, InputContainerProps>(
   function InputContainer(
     {
+      className,
       placeholder,
       type = 'text',
       disabled,
@@ -171,7 +178,7 @@ export const InputContainer = forwardRef<HTMLDivElement, InputContainerProps>(
     ref
   ) {
     return (
-      <div className="input-container" ref={ref}>
+      <div className={className ? `input-container ${className}` : 'input-container'} ref={ref}>
         <input
           ref={inputRef}
           className="input-bare"
@@ -249,8 +256,9 @@ export function Spinner({ size = 'default' }: { size?: SpinnerSize }) {
 
 type DotStatus = 'accent' | 'error' | 'dis'
 
-export function StatusDot({ status }: { status: DotStatus }) {
-  return <div className={`dot dot-${status}`} />
+export function StatusDot({ status, className }: { status: DotStatus; className?: string }) {
+  const base = `dot dot-${status}`
+  return <div className={className ? `${base} ${className}` : base} />
 }
 
 // ── Badge ────────────────────────────────────────────────────────────────────
@@ -334,11 +342,12 @@ export function SendIcon() {
   return (
     <svg
       className="icon-send"
-      viewBox="0 0 18 18"
+      viewBox="0 0 256 256"
+      fill="currentColor"
+      width="18" height="18"
       aria-hidden="true"
     >
-      <line x1="4" y1="9" x2="14" y2="9" />
-      <polyline points="10,5 14,9 10,13" />
+      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,109.66-32,32a8,8,0,0,1-11.32-11.32L148.69,136H88a8,8,0,0,1,0-16h60.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,173.66,133.66Z"/>
     </svg>
   )
 }

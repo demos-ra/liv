@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    phase3-form-classes
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -21,6 +21,11 @@
 //   R5  react
 //   R5  next/navigation
 // validated: pending
+//
+// phase3-form-classes (A3):
+//   Added .form className to Brand, InputContainer, and login-status elements
+//   on login page. Required for dissolve/form entrance animation participation
+//   at the login boundary (Phase 4+ scope).
 
 'use client'
 
@@ -40,7 +45,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="page login-page">
       <div className="login-content">
-        <Brand variant="login" />
+        <Brand variant="login" className="form" />
         {children}
       </div>
     </div>
@@ -92,6 +97,7 @@ export function AuthPage() {
       {/* Monoform pill — login input */}
       {!submitted ? (
         <InputContainer
+          className="form"
           inputRef={inputRef}
           autoFocus
           type="email"
@@ -114,7 +120,7 @@ export function AuthPage() {
             ) : (
               <button
                 type="button"
-                className="btn-icon"
+                className="send-key"
                 onClick={handleSubmit}
                 disabled={!hasInput}
                 aria-label="Send sign-in link"
@@ -127,6 +133,7 @@ export function AuthPage() {
       ) : (
         /* Sent state — container settles, email shown, resend available */
         <InputContainer
+          className="form"
           placeholder=""
           icon={
             <button
@@ -143,7 +150,7 @@ export function AuthPage() {
       )}
 
       {/* Fixed status slot — height reserved, no layout shift */}
-      <div className="login-status">
+      <div className="login-status form">
         {status === 'sent' && (
           <span className="login-status-text fade-in">
             check your inbox
@@ -197,6 +204,7 @@ export function AuthVerifyPage() {
       {/* State-dependent pill content */}
       {status === 'verifying' && (
         <InputContainer
+          className="form"
           placeholder="···"
           disabled
           icon={<Spinner size="sm" />}
@@ -204,6 +212,7 @@ export function AuthVerifyPage() {
       )}
       {status === 'success' && (
         <InputContainer
+          className="form"
           placeholder="signing in"
           disabled
           icon={<Spinner size="sm" />}
@@ -211,13 +220,14 @@ export function AuthVerifyPage() {
       )}
       {status === 'error' && (
         <InputContainer
+          className="form"
           placeholder="—"
           disabled
         />
       )}
 
       {/* Fixed status slot */}
-      <div className="login-status">
+      <div className="login-status form">
         {status === 'error' && errorMsg && (
           <span className="text-error fade-in">
             {errorMsg}

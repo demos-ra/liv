@@ -235,6 +235,7 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .theme-transitioning .account-name,
 .theme-transitioning .account-email,
 .theme-transitioning .key-dots,
+.theme-transitioning .btn-text-signout,
 .theme-transitioning .dashboard-placeholder,
 .theme-transitioning .status-node,
 .theme-transitioning .dashboard-toggle,
@@ -250,8 +251,7 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 /* ═══ 5. LAYOUT ═══ */
 
 .col { max-width: var(--col-width); width: 100%; margin: 0 auto; padding: 0 var(--u25); }
-.icon-planet { flex-shrink: 0; display: block; }
-.icon-send { flex-shrink: 0; display: block; stroke: currentColor; stroke-width: 1.5px; /* exception: sub-grid, optical tuning */ stroke-linecap: round; fill: none; }
+.icon-planet, .icon-send { flex-shrink: 0; display: block; }
 
 /* Page — content layer */
 .page { position: fixed; inset: 0; display: flex; flex-direction: column; z-index: 1; /* Z.content */ }
@@ -429,6 +429,14 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 }
 .btn-text-danger:hover { color: rgba(var(--red), var(--density-soft)); text-shadow: var(--glow-red-hover-low); }
 .btn-text-danger:active { color: rgba(var(--red), var(--density-faint)); text-shadow: var(--glow-red-press-low); }
+
+/* Sign Out — ink column, not accent/danger */
+.btn-text-signout {
+  color: rgba(var(--ink-rest), var(--density-full));
+  text-shadow: var(--glow-rest-low);
+}
+.btn-text-signout:hover { color: rgba(var(--ink-hover), var(--density-soft)); text-shadow: var(--glow-hover-low); }
+.btn-text-signout:active { color: rgba(var(--ink-press), var(--density-faint)); text-shadow: var(--glow-press-low); }
 
 /* Username — ink, full→soft→faint + ink shift + glow tighten */
 .header-username {
