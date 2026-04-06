@@ -221,6 +221,8 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 .theme-transitioning .toggle-thumb,
 .theme-transitioning .surface,
 .theme-transitioning .icon-spinner,
+.theme-transitioning .slide-panel,
+.theme-transitioning .overlay,
 .theme-transitioning .input-bare {
   transition: background-color var(--dur-attack) var(--B),
               color var(--dur-attack) var(--B),
@@ -722,7 +724,29 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 }
 
 
-/* ═══ 11. RESPONSIVE ═══ */
+/* ═══ 11. UTILITY ═══ */
+
+/* Screen-reader only — visually hidden, accessible to assistive tech */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Fieldset reset — bare container, no browser chrome */
+.fieldset-bare {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+
+/* ═══ 12. RESPONSIVE ═══ */
 
 @media (max-width: 480px) /* BREAKPOINT_SM = 480 */ {
   .col { max-width: 100%; padding: 0 var(--u2); }

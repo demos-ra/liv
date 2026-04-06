@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase3-planet, phase4-page-transitions, phase5-remediation
+// amended:    phase3-planet, phase4-page-transitions, phase5-remediation, phase5-focus
 // slice:      core/app
 // layer:      R4
 // wires-in:
@@ -12,6 +12,7 @@
 //   W-HOOK  useAuth            @/features/F-identity/contract/auth-hooks
 //   W-HOOK  usePlanet          @/features/F-design-system/exec/use-planet
 //   W-HOOK  usePageTransition  @/features/F-design-system/exec/use-page-transition
+//   W-ATOM  ATTACK           @/features/F-design-system/config/board
 //   W-ATOM  Brand              @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot          @/features/F-design-system/contract/primitives
 //   W-ATOM  DashboardUI        @/features/F-dashboard/contract/dashboard-ui
@@ -24,6 +25,7 @@
 // deps:
 //   R4  @/features/F-design-system/exec/use-planet          (A4 — DOM I/O)
 //   R4  @/features/F-design-system/exec/use-page-transition (A4 — DOM I/O)
+//   R0  @/features/F-design-system/config/board         (A2 — R0 into R4)
 //   R3  @/features/F-dashboard/contract/dashboard-hook  (A5)
 //   R3  @/features/F-dashboard/contract/dashboard-ui    (A5)
 //   R3  @/features/F-chat/contract/chat-ui              (A5)
@@ -53,7 +55,7 @@
 //   Hook manages all planet-* CSS classes imperatively — no inline style.
 //   Axiom cite:
 //     A1 — composition root owns ref and handler wiring.
-//     A5 — usePlanet imported from F-design-system/contract (R3 barrel).
+//     A5 — usePlanet imported from F-design-system/exec (R4 — DOM I/O, A4).
 //
 // phase4-page-transitions (A1, A5):
 //   Replaced direct class toggling with usePageTransition hook.
@@ -62,6 +64,12 @@
 //   headerRef passed to hook for future login boundary animation.
 //   AccountPage receives pageClass string instead of visible boolean.
 //   activePage state removed — currentPage sourced from hook.
+//
+// phase5-focus (A1):
+//   chatInputRef created at composition root, passed to ChatUI.
+//   useEffect watches currentPage — focuses chat input after ATTACK
+//   timeout when returning to chat. No focus action on account entry.
+//   ATTACK imported from F-design-system/config/board (R0 — A2).
 
 'use client'
 
@@ -75,6 +83,7 @@ import { AccountPage }      from '@/features/F-user-profile/contract/account-pag
 import { Brand, StatusDot } from '@/features/F-design-system/contract/primitives'
 import { usePlanet } from '@/features/F-design-system/exec/use-planet'
 import { usePageTransition } from '@/features/F-design-system/exec/use-page-transition'
+import { ATTACK } from '@/features/F-design-system/config/board'
 import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
 
@@ -102,6 +111,7 @@ export default function Home() {
   // .form classes on header children pre-wire formIn participation.
   const headerRef = useRef<HTMLElement | null>(null)
   const { showPage, pageClass, currentPage } = usePageTransition(headerRef)
+  const chatInputRef = useRef<HTMLInputElement | null>(null)
 
   // ── Planet state machine ────────────────────────────────────────────────
   const planetRef = useRef<HTMLButtonElement>(null)
@@ -130,6 +140,14 @@ export default function Home() {
   const toggleTheme = useCallback(() => {
     setTheme(t => t === 'dark' ? 'light' : 'dark')
   }, [])
+
+  // ── Focus chat input on return (B2 — A1, composition root) ──────────────
+  useEffect(() => {
+    if (currentPage === 'chat') {
+      const id = setTimeout(() => chatInputRef.current?.focus(), ATTACK)
+      return () => clearTimeout(id)
+    }
+  }, [currentPage])
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
   const openAccount = useCallback(() => showPage('account'), [showPage])
@@ -178,6 +196,11 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ── ARIA page announcement (B3) ── */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {currentPage === 'account' ? 'Account settings' : 'Chat'}
+      </div>
+
       {/* ── DASHBOARD ── */}
       <div className="dashboard-area">
         <DashboardUI {...workspace} />
@@ -190,6 +213,7 @@ export default function Home() {
           signOut={signOut}
           onOpenAccount={openAccount}
           onSetActiveProgram={workspace.setActiveProgram}
+          chatInputRef={chatInputRef}
         />
       </div>
 

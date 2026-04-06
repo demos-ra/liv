@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase3-form-classes
+// amended:    phase3-form-classes, phase5-remediation
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -26,6 +26,11 @@
 //   Added .form className to Brand, InputContainer, and login-status elements
 //   on login page. Required for dissolve/form entrance animation participation
 //   at the login boundary (Phase 4+ scope).
+//
+// phase5-remediation (A3):
+//   InputContainer: disabled → readOnly in sent/verify display states.
+//   Preserves visual identity (no opacity dim, no stop-sign cursor).
+//   Loading guards (disabled during API calls) unchanged.
 
 'use client'
 

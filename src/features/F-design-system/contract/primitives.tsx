@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase3-form-classes
+// amended:    phase3-form-classes, phase5-remediation
 // slice:      F-design-system
 // layer:      R3
 // wires-in:   none
@@ -19,7 +19,6 @@
 //   W-ATOM  Overlay         → (declared, no active consumer)
 //   W-ATOM  SlidePanel      → (declared, no active consumer)
 //   W-ATOM  Button          → (declared, no active consumer)
-//   W-ATOM  ButtonIcon      → (declared, no active consumer)
 //   W-ATOM  Text            → (declared, no active consumer)
 //   W-ATOM  Heading         → (declared, no active consumer)
 //   W-ATOM  Badge           → (declared, no active consumer)
@@ -35,6 +34,10 @@
 //   InputContainer: added optional className prop to typed boundary.
 //   Applied to outer div for .form class participation in dissolve/form
 //   entrance animations.
+//
+// phase5-remediation (A3):
+//   InputContainer: added readOnly prop to typed boundary.
+//   Renders native readOnly attribute — no opacity/cursor change (vs disabled).
 
 import { forwardRef } from 'react'
 
@@ -97,38 +100,6 @@ export function ButtonText({ variant, disabled, onClick, children, type = 'butto
       className={`btn-text btn-text-${variant}`}
       disabled={disabled}
       onClick={onClick}
-    >
-      {children}
-    </button>
-  )
-}
-
-// ── ButtonIcon ───────────────────────────────────────────────────────────────
-
-interface ButtonIconProps {
-  onClick?: () => void
-  disabled?: boolean
-  active?: boolean
-  'aria-label': string
-  children: React.ReactNode
-  type?: 'button' | 'submit' | 'reset'
-}
-
-export function ButtonIcon({
-  onClick,
-  disabled,
-  active,
-  'aria-label': ariaLabel,
-  children,
-  type = 'button',
-}: ButtonIconProps) {
-  return (
-    <button
-      type={type}
-      className={`btn-icon${active ? ' active' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
     >
       {children}
     </button>

@@ -8,7 +8,9 @@
 // slice:      F-design-system
 // layer:      R0
 // wires-in:   none
-// wires-out:  (internal — consumed by F-design-system/domain/ engines)
+// wires-out:
+//   W-ATOM  ATTACK  → core/app/R4 (page transition focus timing)
+//   (internal: ATTACK, RELEASE → F-design-system/R4)
 // deps:       none
 // validated:  pending
 

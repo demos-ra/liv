@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase2-account-extraction
+// amended:    phase2-account-extraction, phase5-focus
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -31,6 +31,11 @@
 //
 // step5b-phaseF (A1, A3):
 //   Intent routing preserved — onSetActiveProgram, resolveIntent unchanged.
+//
+// phase5-focus (A3):
+//   Added optional chatInputRef prop to typed boundary.
+//   External ref synced to internal inputRef for composition-root
+//   focus management. Internal inputRef usage unchanged.
 
 'use client'
 
@@ -84,11 +89,13 @@ export function ChatUI({
   signOut,
   onOpenAccount,
   onSetActiveProgram,
+  chatInputRef,
 }: {
   email:               string
   signOut:             () => void
   onOpenAccount:       () => void
   onSetActiveProgram:  (programId: string | null) => void
+  chatInputRef?:       React.RefObject<HTMLInputElement | null>
 }) {
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
@@ -97,6 +104,13 @@ export function ChatUI({
   const asstIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLInputElement>(null)
+
+  // Sync external ref for composition-root focus management (B2)
+  useEffect(() => {
+    if (chatInputRef && inputRef.current) {
+      (chatInputRef as React.MutableRefObject<HTMLInputElement | null>).current = inputRef.current
+    }
+  })
 
   const userName = email.includes('@') ? email.split('@')[0] : email
 

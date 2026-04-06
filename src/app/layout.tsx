@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    phase5-hydration-fix
 // slice:      core/app
 // layer:      R4
 // wires-in:   none
@@ -16,6 +16,11 @@
 //   R5 next (Metadata type)
 //   R5 react
 // validated:  pending
+//
+// phase5-hydration-fix (A4):
+//   Inline script in <body> sets data-theme before first paint.
+//   Eliminates dark-mode light flash. prefers-color-scheme read is
+//   synchronous DOM I/O — acceptable at layout root (R4).
 
 import './globals.css'
 import type { Metadata } from 'next'
@@ -31,6 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html:
+          `(function(){var d=document.documentElement;var t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';d.setAttribute('data-theme',t)})()`
+        }} />
         <DesignSystemProvider>
           <Providers>{children}</Providers>
         </DesignSystemProvider>

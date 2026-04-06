@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase4-page-transitions
+// amended:    phase4-page-transitions, phase5-remediation
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -37,6 +37,12 @@
 //   Transition classes (dissolving, forming) now managed by usePageTransition
 //   hook in page.tsx — AccountPage receives the computed class string.
 //   Internal visible derived from pageClass for effect guards.
+//
+// phase5-remediation (A3, A7):
+//   Toggle: inline style={{ background }} removed, .toggle-track.active CSS class
+//   used via className. Toggle-thumb left values moved to CSS classes.
+//   marginTop inline style removed — .page-main handles header offset.
+//   Divider import removed (zero consumers, A7).
 
 'use client'
 
@@ -238,25 +244,34 @@ export function AccountPage({
           {PROVIDER_ORDER.some(p => keySet[p]) && (
             <div className="account-section">
               <Label>Active provider</Label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u15)' }}>
-                {PROVIDER_ORDER.filter(p => keySet[p]).map(provider => (
-                  <div
-                    key={provider}
-                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', cursor: 'pointer' }}
-                    onClick={() => setActiveProvider(provider)}
-                    title={`Use ${PROVIDERS[provider].label} as active provider`}
-                  >
-                    <StatusDot status={activeProvider === provider ? 'accent' : 'dis'} />
-                    <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize:   'var(--type-sm)',
-                      color:      activeProvider === provider ? 'var(--text)' : 'var(--text-sec)',
-                    }}>
-                      {PROVIDERS[provider].label}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <fieldset className="fieldset-bare">
+                <legend className="sr-only">Active provider</legend>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u15)' }}>
+                  {PROVIDER_ORDER.filter(p => keySet[p]).map(provider => (
+                    <label
+                      key={provider}
+                      style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', cursor: 'pointer' }}
+                    >
+                      <input
+                        type="radio"
+                        name="active-provider"
+                        value={provider}
+                        checked={activeProvider === provider}
+                        onChange={() => setActiveProvider(provider)}
+                        className="sr-only"
+                      />
+                      <StatusDot status={activeProvider === provider ? 'accent' : 'dis'} />
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize:   'var(--type-sm)',
+                        color:      activeProvider === provider ? 'var(--text)' : 'var(--text-sec)',
+                      }}>
+                        {PROVIDERS[provider].label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </div>
           )}
 
