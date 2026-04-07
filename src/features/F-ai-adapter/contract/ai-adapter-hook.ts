@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-ai-adapter/R3]
+// Built with LIV · livai.dev
 // [F-ai-adapter/R3/C2] useModelSelector + useAvailableModels hooks
 // R3: client-side contract
 

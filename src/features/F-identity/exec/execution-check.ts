@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// @liv-standard v1.3
+// [F-identity/R4]
+// Built with LIV · livai.dev
 /**
  * F-identity / execution-check.ts
  * [F-identity/R0/C2] Execution and health check for F-identity slice

@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-event-system/R4]
+// Built with LIV · livai.dev
 // [F-event-system/R4/C2] Event queue — Postgres persistence
 // R4: depends on R0 only.
 // All database operations for the event queue.

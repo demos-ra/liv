@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-permissions/R2]
+// Built with LIV · livai.dev
 // [F-permissions/R2/C3] Permission resolution workflow
 // commit: add assignDefaultRole + setMemberRole for event-subscriptions
 //

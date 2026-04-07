@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R4]
+// Built with LIV · livai.dev
 /**
  * F-identity / R4 / auth-queries.ts
  * [F-identity/R4/C2] Email service implementation and DB connection factory

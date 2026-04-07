@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-ai-adapter/R0]
+// Built with LIV · livai.dev
 // [F-ai-adapter/R0/C3] AI event declarations — owned by this slice
 export const AI_EVENTS = {
   MESSAGE_SENT:     'ai.message-sent',

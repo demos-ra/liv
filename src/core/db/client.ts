@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [core/R5]
+// Built with LIV · livai.dev
 // [core/db/client.ts]
 // R5 — pure infrastructure. Zero business logic.
 // O6: DATABASE_URL from env only. O3: statement_timeout=30s. O5: structured error log.

@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-la-config/R1]
+// Built with LIV · livai.dev
 // [F-state-registry/R1/C2] State namespace enforcement
 // R1: depends on R0 only.
 // Pure functions. No I/O. No side effects.

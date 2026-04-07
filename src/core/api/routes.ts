@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [core/R5]
+// Built with LIV · livai.dev
 // [core/api/routes.ts]
 // R5 — route map documentation only. Zero imports. Zero logic.
 // All handlers live in their owning slice R3 contract.

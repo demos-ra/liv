@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-permissions/R0]
+// Built with LIV · livai.dev
 // [F-permissions/R0/C2] Permission configuration — roles, actions, resources
 // R0: pure config, zero dependencies
 

@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-chat/R3]
+// Built with LIV · livai.dev
 // [F-chat/R3/C2] useChat + useChatStream hooks
 // R3: client-side contract. Owns all stream logic.
 

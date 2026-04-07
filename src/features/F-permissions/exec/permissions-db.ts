@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-permissions/R4]
+// Built with LIV · livai.dev
 // [F-permissions/R4/C2] Permissions database I/O
 // R4: execution layer, depends R0 only
 

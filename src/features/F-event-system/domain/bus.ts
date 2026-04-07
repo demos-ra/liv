@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-event-system/R1]
+// Built with LIV · livai.dev
 // [F-event-system/R1/C2] Event bus domain logic
 // R1: depends on R0 only.
 // Pure functions. No I/O. No database calls. No side effects.

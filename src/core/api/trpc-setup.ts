@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [core/R5]
+// Built with LIV · livai.dev
 // [core/api/trpc-setup.ts]
 // R5 — raw tRPC initialization only. Zero slice dependencies, zero context.
 // Procedures (createTRPCRouter, publicProcedure, protectedProcedure) live in

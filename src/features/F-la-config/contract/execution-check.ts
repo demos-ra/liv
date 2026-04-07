@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-la-config/R3]
+// Built with LIV · livai.dev
 // [F-la-config/contract/execution-check.ts]
 // R3 — exposes buildGridFromResults for cross-slice use.
 // The LA validator CLI lives at F-la-config/exec/la-validator.ts

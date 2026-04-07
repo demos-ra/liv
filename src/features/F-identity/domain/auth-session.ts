@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R1]
+// Built with LIV · livai.dev
 /**
  * F-identity / R1 / auth-session.ts
  * [F-identity/R1/C2] Pure session creation and token logic

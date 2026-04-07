@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R0]
+// Built with LIV · livai.dev
 /**
  * F-identity / R0 / auth-error-factory.ts
  * [F-identity/R0/C2] Structured error factory — declared at R0 so R4 can import

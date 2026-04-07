@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-user-profile/R3]
+// Built with LIV · livai.dev
 // [F-user-profile/R3/C2] useUserProfile hook
 // R3: client-side contract
 

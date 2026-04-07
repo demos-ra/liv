@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-permissions/R1]
+// Built with LIV · livai.dev
 // [F-permissions/R1/C2] Permission domain logic
 // R1: pure functions, no I/O, depends R0 only
 

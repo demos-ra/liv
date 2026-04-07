@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-event-system/R3]
+// Built with LIV · livai.dev
 // [F-event-system/contract/event-bus.ts]
 // R3 — event bus public interface for all slices.
 // Slices import from here, never from app/event-dispatch directly.

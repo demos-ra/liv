@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-event-system/R2]
+// Built with LIV · livai.dev
 // [F-event-system/R2/C2] Event dispatch orchestration
 // R2: depends on R0, R1, R4.
 // Coordinates: R1 validates, R4 persists, R2 orchestrates dispatch.

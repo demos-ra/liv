@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-permissions/R3]
+// Built with LIV · livai.dev
 // [F-permissions/R3/C2] usePermissions hook — reads from permissions:: namespace
 // R3: client-side contract
 

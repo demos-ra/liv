@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [app/R4]
+// Built with LIV · livai.dev
 // src/app/api/chat/[projectId]/message/route.ts
 import { type NextRequest } from 'next/server'
 import { POST_message } from '@/features/F-chat/contract/chat-contract'

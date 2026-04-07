@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-la-config/R4]
+// Built with LIV · livai.dev
 // [F-la-config/R4/C2] LA validator I/O — executes Python validators
 // R4: execution layer, depends R0 only.
 //

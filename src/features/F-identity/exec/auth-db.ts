@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R4]
+// Built with LIV · livai.dev
 /**
  * F-identity / R4 / auth-db.ts
  * [F-identity/R4/C2] Postgres queries and external I/O for auth slice

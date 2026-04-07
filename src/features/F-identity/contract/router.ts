@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R3]
+// Built with LIV · livai.dev
 // [F-identity/contract/router.ts]
 // R3 — assembles the tRPC app router from all slice routers.
 // Owned by F-identity because auth is the first and foundational slice.

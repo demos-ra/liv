@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-la-config/R4]
+// Built with LIV · livai.dev
 // [F-la-config/exec/la-validator.ts]
 // R4 — LA integrity validator. CLI tool only.
 // Run manually: npx ts-node src/features/F-la-config/exec/la-validator.ts

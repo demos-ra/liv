@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [core/R5]
+// Built with LIV · livai.dev
 // [core/types/session.ts]
 // R5 — session infrastructure config only. Zero slice dependencies.
 // SESSION_CONFIG: pure technical config (TTLs, options) for use by core infrastructure.

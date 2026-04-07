@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-chat/R4]
+// Built with LIV · livai.dev
 // [F-chat/R4/C2] Chat database I/O
 // R4: execution layer, depends R0 only
 

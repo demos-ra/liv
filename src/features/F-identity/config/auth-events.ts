@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R0]
+// Built with LIV · livai.dev
 // [F-identity/R0/C3] Auth event declarations — owned by this slice
 // R0: zero dependencies. Declares only. Never imports from F-event-system.
 // F-event-system/config/event-schema.ts re-exports these. Do not import from there.

@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-la-config/R3]
+// Built with LIV · livai.dev
 // [F-state-registry/R3/C2] State registry React provider + hooks
 // R3: contract layer, depends R0 + R1.
 // 'use client'

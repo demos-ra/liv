@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R2]
+// Built with LIV · livai.dev
 /**
  * F-identity / R2 / auth-workflow.ts
  * [F-identity/R2/C3] Auth orchestration — wires R1 logic + R4 I/O, emits events

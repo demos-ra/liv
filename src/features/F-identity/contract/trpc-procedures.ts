@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R3]
+// Built with LIV · livai.dev
 // [F-identity/contract/trpc-procedures.ts]
 // R3 — tRPC procedures typed against TRPCContext. Owned by F-identity.
 // Core (R5) cannot import TRPCContext — procedures that depend on context live here.

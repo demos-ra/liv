@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [F-identity/R1]
+// Built with LIV · livai.dev
 /**
  * F-identity / R1 / auth-errors.ts
  * [F-identity/R1/C2] Auth error utilities — re-exports R0 factory, adds log shape

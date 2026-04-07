@@ -1,3 +1,6 @@
+// @liv-standard v1.3
+// [core/R5]
+// Built with LIV · livai.dev
 // [core/api/trpc-client.ts]
 // R5 — tRPC React client singleton.
 // 'use client' — browser only.
