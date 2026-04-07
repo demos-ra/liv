@@ -12,6 +12,7 @@
 //   W-ATOM  ButtonText      @/features/F-design-system/contract/primitives
 //   W-ATOM  Label           @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot       @/features/F-design-system/contract/primitives
+//   W-ATOM  Text            @/features/F-design-system/contract/primitives
 //   W-ATOM  ProviderId      @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDERS       @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
@@ -54,6 +55,7 @@ import {
   ButtonText,
   Label,
   StatusDot,
+  Text,
 } from '@/features/F-design-system/contract/primitives'
 
 // ── AccountPage ──────────────────────────────────────────────────────────────
@@ -91,6 +93,9 @@ export function AccountPage({
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null)
+  const [feedbackText, setFeedbackText]     = useState('')
+  const [feedbackSending, setFeedbackSending] = useState(false)
+  const [feedbackSent, setFeedbackSent]       = useState(false)
 
   // ── Fetch key status when page becomes visible ──────────────────────────
   useEffect(() => {
@@ -171,6 +176,22 @@ export function AccountPage({
         setActiveProvider(next)
       }
     } catch {}
+  }
+
+  // ── Feedback ─────────────────────────────────────────────────────────────
+  const submitFeedback = async () => {
+    if (!feedbackText.trim()) return
+    setFeedbackSending(true)
+    try {
+      const res = await fetch('/api/profile/feedback', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ message: feedbackText.trim() }),
+      })
+      if (res.ok) setFeedbackSent(true)
+    } catch { /* network error — silently fail */ } finally {
+      setFeedbackSending(false)
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -288,6 +309,40 @@ export function AccountPage({
                 <div className={`toggle-thumb${theme === 'dark' ? ' active' : ''}`} />
               </button>
             </div>
+          </div>
+
+          {/* Terms */}
+          <div className="account-section">
+            <a href="/terms" className="btn-text btn-text-accent" style={{ textDecoration: 'none' }}>
+              TERMS & PRIVACY
+            </a>
+          </div>
+
+          {/* Feedback */}
+          <div className="account-section">
+            <Label>Feedback</Label>
+            {feedbackSent ? (
+              <Text role="sec">Thanks for your feedback.</Text>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)' }}>
+                <div style={{ flex: 1 }}>
+                  <InputContainer
+                    value={feedbackText}
+                    onChange={e => setFeedbackText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitFeedback() }}
+                    placeholder="Tell us anything..."
+                    disabled={feedbackSending}
+                  />
+                </div>
+                <ButtonText
+                  variant="accent"
+                  onClick={submitFeedback}
+                  disabled={feedbackSending || !feedbackText.trim()}
+                >
+                  {feedbackSending ? '···' : 'SEND'}
+                </ButtonText>
+              </div>
+            )}
           </div>
 
           {/* Sign out */}
