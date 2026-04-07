@@ -55,6 +55,9 @@ export interface IAuthDb {
   findSession(rawSessionToken: string): Promise<AuthResult<Session>>;
   deleteSession(sessionId: string): Promise<AuthResult<void>>;
   refreshSession(sessionId: string, newExpiresAt: Date): Promise<void>;
+
+  // #9 Task E: Cleanup expired/used magic link tokens (A4 — I/O at R4 only)
+  cleanupExpiredTokens(): Promise<AuthResult<{ deletedCount: number }>>;
 }
 
 // ─── Email Service Interface ──────────────────────────────────────────────────
@@ -419,6 +422,24 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         `;
       } catch {
         // Non-blocking — old expiry still valid
+      }
+    },
+
+    // ── Token Cleanup (#9 Task E — A4: I/O at R4 only) ────────────────────────
+    // Deletes expired/used magic link tokens older than 7 days.
+    // Called at boot via scheduleTokenCleanup() (R2). Single-server, fire-and-forget.
+
+    async cleanupExpiredTokens(): Promise<AuthResult<{ deletedCount: number }>> {
+      try {
+        const rows = await sql`
+          DELETE FROM auth_magic_link_tokens
+          WHERE (used_at IS NOT NULL AND used_at < now() - interval '7 days')
+             OR (expires_at < now() - interval '7 days')
+          RETURNING id
+        `;
+        return { success: true, data: { deletedCount: rows.length } };
+      } catch (err) {
+        return { success: false, error: AuthErrors.dbError('cleanupExpiredTokens', err) };
       }
     },
   };

@@ -5,26 +5,10 @@
 // src/app/auth/verify/page.tsx
 // Next.js route: /auth/verify?token=...&email=...
 // Handles magic link verification after user clicks email link.
-// Suspense boundary required for useSearchParams() in Next.js App Router.
+// Suspense owned by AuthVerifyPage — no page-level boundary needed.
 
-import { Suspense } from 'react'
 import { AuthVerifyPage } from '@/features/F-identity/contract/auth-pages'
 
 export default function VerifyPage() {
-  return (
-    <Suspense fallback={
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'rgba(18,17,14,0.25)', /* exception: pre-engine fallback, matches --text-dis light */
-        fontFamily: 'system-ui, sans-serif',
-      }}>
-        Signing you in…
-      </div>
-    }>
-      <AuthVerifyPage />
-    </Suspense>
-  )
+  return <AuthVerifyPage />
 }

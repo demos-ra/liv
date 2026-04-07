@@ -36,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        {/* Safe: static theme-detection script — no user input interpolated */}
         <script dangerouslySetInnerHTML={{ __html:
           `(function(){var d=document.documentElement;var t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';d.setAttribute('data-theme',t)})()`
         }} />

@@ -9,5 +9,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { bootstrap } = await import('@/features/F-event-system/app/startup')
     await bootstrap()
+
+    // #9 Task E: Fire-and-forget token cleanup at boot (A1: F-identity owned, A4: I/O via R4)
+    const { scheduleTokenCleanup } = await import('@/features/F-identity/app/auth-workflow')
+    const { createAuthDb } = await import('@/features/F-identity/exec/auth-db')
+    const { db, taggedDb } = await import('@/core/db/client')
+    scheduleTokenCleanup(createAuthDb(taggedDb(db)))
   }
 }

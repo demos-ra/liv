@@ -3,23 +3,31 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    w2-item-12
 // slice:      F-chat
 // layer:      R0
 // wires-in:
-//   none
+//   W-ATOM  RateLimitConfig  F-chat/domain/rate-limiter  (R1 — A2 compliant)
 // wires-out:
-//   W-ATOM  CHAT_CONFIG     →  F-chat/R1, F-chat/R3
-//   W-ATOM  CHAT_NAMESPACE  →  F-chat/R3
-//   W-ATOM  LIV_ANCHOR      →  F-chat/R2
-//   W-ATOM  LIV_SPEC        →  F-chat/R2
-//   W-ATOM  MessageRole     →  F-chat/R0 (internal — used by ChatMessage type)
-//   W-ATOM  MessageStatus   →  F-chat/R0 (internal use)
-//   W-ATOM  ChatMessage     →  F-chat/R1, F-chat/R4
-//   W-ATOM  ChatThread      →  F-chat/R3, F-chat/R4
+//   W-ATOM  CHAT_CONFIG      →  F-chat/R1, F-chat/R3
+//   W-ATOM  CHAT_RATE_LIMIT  →  F-chat/R3
+//   W-ATOM  CHAT_NAMESPACE   →  F-chat/R3
+//   W-ATOM  LIV_ANCHOR       →  F-chat/R2
+//   W-ATOM  LIV_SPEC         →  F-chat/R2
+//   W-ATOM  MessageRole      →  F-chat/R0 (internal — used by ChatMessage type)
+//   W-ATOM  MessageStatus    →  F-chat/R0 (internal use)
+//   W-ATOM  ChatMessage      →  F-chat/R1, F-chat/R4
+//   W-ATOM  ChatThread       →  F-chat/R3, F-chat/R4
 // deps:
-//   none
+//   R1  ../domain/rate-limiter
 // validated:  pending
+//
+// w2-item-12 (A6):
+//   CHAT_RATE_LIMIT added. 30 requests per 60s sliding window.
+//   RateLimitConfig imported from R1 (A2 — lower layer).
+//   Axiom cite: A6 — rate limit constant declared at R0 of owner slice.
+
+import type { RateLimitConfig } from '../domain/rate-limiter'
 
 export const CHAT_CONFIG = {
   maxMessageLength: 32_000,
@@ -27,6 +35,12 @@ export const CHAT_CONFIG = {
   streamChunkSize: 64,
   contextWindow: 20,    // max messages sent to AI as context
 } as const
+
+// ── Rate limit (w2-item-12, A6) ──────────────────────────────────────────────
+export const CHAT_RATE_LIMIT: RateLimitConfig = {
+  windowMs: 60_000,        // 1 minute sliding window
+  maxRequests: 30,         // 30 messages/minute
+}
 
 export const CHAT_NAMESPACE = 'chat' as const
 

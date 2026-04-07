@@ -465,3 +465,22 @@ function createProductionEmailService(): IEmailService {
     },
   }
 }
+
+// ─── Token Cleanup (#9 Task E — R2 orchestration, A4 cite) ─────────────────
+// Fire-and-forget cleanup of expired/used magic link tokens.
+// Called once at server boot from instrumentation.ts. Non-blocking.
+// R2: orchestrates R4 I/O (cleanupExpiredTokens). A1: F-identity owns entirely.
+
+export function scheduleTokenCleanup(authDb: IAuthDb): void {
+  authDb.cleanupExpiredTokens()
+    .then((result) => {
+      if (result.success) {
+        log('info', 'auth.token-cleanup.complete', { deletedCount: result.data.deletedCount })
+      } else {
+        log('warn', 'auth.token-cleanup.failed', { error: result.error.message })
+      }
+    })
+    .catch((err) => {
+      log('warn', 'auth.token-cleanup.unexpected', { error: String(err) })
+    })
+}

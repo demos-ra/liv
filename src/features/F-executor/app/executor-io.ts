@@ -107,6 +107,9 @@ export async function ioRunExecution(
         '--memory',      '512m',          // reasonable default; VPS has >=1GB
         '--cpus',        '1',
         '--user',        'node',          // non-root inside container
+        '--read-only',                                       // #11: immutable root filesystem
+        '--tmpfs',       '/tmp:rw,noexec,nosuid,size=64m',   // #11: npm needs /tmp for temp files
+        '--env',         'HOME=/tmp',                        // #11: npm cache writes to $HOME/.npm — redirect to writable tmpfs
         EXECUTOR_CONST.DOCKER_IMAGE,
         'sh', '-c',
         'npm install --prefer-offline --no-audit --silent && npm test',

@@ -4,13 +4,16 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-phase-c
+// amended:    w2-item-12
 // slice:      F-planner
 // layer:      R0
-// wires-in:   none
+// wires-in:
+//   W-ATOM  RateLimitConfig  F-chat/domain/rate-limiter  (cross-slice R1, A2)
 // wires-out:
-//   W-ATOM  PLANNER_CONST  →  F-planner/R1, F-planner/R2
-// deps:       none
+//   W-ATOM  PLANNER_CONST      →  F-planner/R1, F-planner/R2
+//   W-ATOM  PLANNER_RATE_LIMIT →  F-planner/R3
+// deps:
+//   R1  @/features/F-chat/domain/rate-limiter  (cross-slice, A2 — lower layer)
 // validated:  pending
 //
 // A6: R0 declares, never imports. Stage strings duplicated here intentionally —
@@ -35,6 +38,13 @@
 //   Existing MAX_RETRIES_PER_STAGE retained for backward compatibility with
 //   advanceStage() (Phase B). RETRY_LIMITS supersedes it for runPipeline() (Phase C).
 //   Axiom cite: A6 — declared at R0 of owner. A3 — typed constants only.
+//
+// w2-item-12 (A6):
+//   PLANNER_RATE_LIMIT added. 5 pipeline starts per 1-hour sliding window.
+//   RateLimitConfig imported cross-slice from F-chat/R1 (A2 — lower layer).
+//   Axiom cite: A6 — rate limit constant declared at R0 of consumer slice.
+
+import type { RateLimitConfig } from '@/features/F-chat/domain/rate-limiter'
 
 export const PLANNER_CONST = {
   // Stage execution order — index determines sequence. Never reorder.
@@ -122,3 +132,9 @@ export const PLANNER_CONST = {
 } as const
 
 export const PLANNER_NAMESPACE = 'planner' as const
+
+// ── Rate limit (w2-item-12, A6) ──────────────────────────────────────────────
+export const PLANNER_RATE_LIMIT: RateLimitConfig = {
+  windowMs: 3_600_000,     // 1 hour sliding window
+  maxRequests: 5,          // 5 pipeline starts/hour
+}

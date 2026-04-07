@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-3
+// amended:    w2-item-12
 // slice:      F-planner
 // layer:      R4
 // wires-in:
@@ -16,7 +16,8 @@
 //   W-ATOM  IfContract       ../types/planner-types
 //   W-ATOM  StageLogEntry    ../types/planner-types
 //   W-ATOM  PlannerResult    ../types/planner-types
-// wires-out:  none  (R4 is never imported. Bound via IPlannerDb at R3.)
+// wires-out:
+//   W-FN  dbCountActiveBuildsForUser  →  F-planner/R3  (w2-item-12)
 // deps:
 //   R0  ../types/planner-types
 //   R5  @/core/db/client
@@ -38,6 +39,14 @@
 //     dbGetAvailableProviders — queries user_api_keys for user's set providers
 //   Axiom cite: A3 — BuildRow is the typed R4 boundary; no raw DB types escape.
 //               A4 — all I/O here, never in R1/R2.
+//
+// w2-item-12 (A4):
+//   dbCountActiveBuildsForUser added. Counts builds with status IN
+//   ('pending', 'confirmed', 'running') for a given userId. Used by
+//   planner-contract.ts to enforce max 1 concurrent build per user.
+//   Returns PlannerResult<number>. Direct R4 import from R3 — same pattern
+//   as dbGetActiveJobForProject (A2-r3-active-build-check amendment).
+//   Axiom cite: A4 — I/O only here. No logic beyond count mapping.
 
 import { db } from '@/core/db/client'
 import type {
@@ -521,5 +530,27 @@ export async function dbGetModelPreferences(
     return { ok: true, data: parsed ?? null }
   } catch (e) {
     return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to get model preferences', context: { cause: String(e) } } }
+  }
+}
+
+// ── COUNT active builds for user (w2-item-12) ────────────────────────────────
+// Returns the number of builds with active statuses for a given userId.
+// Used by planner-contract.ts to enforce max 1 concurrent build per user.
+// A4: I/O only. No domain logic — just a count query.
+
+export async function dbCountActiveBuildsForUser(
+  userId: string
+): Promise<PlannerResult<number>> {
+  try {
+    const result = await db.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+       FROM builds
+       WHERE user_id = $1
+         AND status IN ('pending', 'confirmed', 'running')`,
+      [userId]
+    )
+    return { ok: true, data: result.rows[0]?.count ?? 0 }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to count active builds', context: { cause: String(e) } } }
   }
 }

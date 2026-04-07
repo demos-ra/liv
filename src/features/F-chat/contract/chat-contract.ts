@@ -4,20 +4,25 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-2
+// amended:    step4b2-corrective-2, w2-item10, w2-item-12
 // slice:      F-chat
 // layer:      R3
 // wires-in:
 //   W-ATOM  SESSION_COOKIE_NAME  F-identity/contract/auth-contract
 //   W-ATOM  validateSession      F-identity/contract/auth-contract
+//   W-ATOM  MODELS               F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  CHAT_CONFIG          ../config/chat-config
+//   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
+//   W-FN    createRateLimiter    ../domain/rate-limiter
 //   W-FN    handleBuildRequest   F-planner/contract/planner-contract  (R3→R3, A5)
 //   W-FN    dbGetActiveJobForProject  F-planner/exec/planner-db  (R4 — see amendment below)
 // wires-out:  none  (route handler — external surface)
 // deps:
 //   R0  ../config/chat-config
+//   R0  @/features/F-ai-adapter/config/ai-adapter-config
 //   R0  @/features/F-planner/types/planner-types
 //   R1  ../domain/chat-logic
+//   R1  ../domain/rate-limiter
 //   R2  ../app/chat-workflow
 //   R3  @/features/F-identity/contract/auth-contract
 //   R3  @/features/F-planner/contract/planner-contract
@@ -51,15 +56,31 @@
 //     A1 — POST_message owns the fork decision. No other layer is appropriate.
 //     A3 — BuildRequestPayload is the typed boundary to F-planner (A3).
 //     A5 — handleBuildRequest is called via F-planner's R3 contract surface.
+//
+// w2-item-12 (A4):
+//   Per-user rate limit check added to POST_message. Inserted after session
+//   validation, before body parsing — rejected users don't burn req.json() cost.
+//   createRateLimiter() with lazy init (Turbopack rule). Returns 429 with
+//   Retry-After header. Independent store from planner rate limiter.
+//   Axiom cite: A4 — rate limit is a pre-I/O gate. No I/O consumed on rejection.
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { sendMessage, getMessages }             from '../app/chat-workflow'
 import { SESSION_COOKIE_NAME, validateSession } from '@/features/F-identity/contract/auth-contract'
-import { CHAT_CONFIG }                          from '../config/chat-config'
+import { CHAT_CONFIG, CHAT_RATE_LIMIT }         from '../config/chat-config'
 import { validateMessageContent }               from '../domain/chat-logic'
+import { MODELS }                               from '@/features/F-ai-adapter/config/ai-adapter-config'
+import { createRateLimiter }                    from '../domain/rate-limiter'
 import { handleBuildRequest }                   from '@/features/F-planner/contract/planner-contract'
 import { dbGetActiveJobForProject }             from '@/features/F-planner/exec/planner-db'
 import type { BuildRequestPayload }             from '@/features/F-planner/types/planner-types'
+
+// ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
+let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
+function getChatLimiter() {
+  if (!chatLimiter) chatLimiter = createRateLimiter()
+  return chatLimiter
+}
 
 // ── POST /api/chat/[projectId]/message ────────────────────────────────────────
 // Fork point: active build → IN-MAIN loop via F-planner/R3.
@@ -75,10 +96,29 @@ export async function POST_message(
   const session = await validateSession(accessToken)
   if (!session) return new Response('Unauthenticated', { status: 401 })
 
+  // ── Rate limit (w2-item-12) ─────────────────────────────────────────────────
+  const limit = getChatLimiter().check(session.userId, CHAT_RATE_LIMIT)
+  if (!limit.allowed) {
+    return new Response(
+      JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please wait.' } }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type':  'application/json',
+          'Retry-After':   String(Math.ceil(limit.retryAfterMs / 1000)),
+        },
+      }
+    )
+  }
+
   const { projectId } = params
   const body = await req.json()
   const { content, modelId } = body
   if (!content || !modelId) return new Response('Missing params', { status: 400 })
+
+  // A3: validate modelId against MODELS allowlist at contract surface.
+  // Rejects unknown model strings before they reach the AI adapter.
+  if (!MODELS[modelId]) return new Response('Invalid model', { status: 400 })
 
   const validation = validateMessageContent(content)
   if (!validation.valid) return new Response(validation.error, { status: 400 })

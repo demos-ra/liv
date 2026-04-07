@@ -21,6 +21,10 @@ export type AuthErrorCode =
   | 'RATE_LIMITED'
   | 'DB_ERROR'
   | 'EMAIL_SEND_FAILED'
+  | 'OAUTH_STATE_INVALID'
+  | 'OAUTH_CODE_EXCHANGE_FAILED'
+  | 'OAUTH_EMAIL_UNAVAILABLE'
+  | 'OAUTH_EMAIL_NOT_VERIFIED'
   | 'UNKNOWN';
 
 export interface AuthError {
@@ -69,4 +73,15 @@ export const AuthErrors = {
     makeError('UNKNOWN', 'An unexpected error occurred', {
       cause: cause instanceof Error ? cause.message : String(cause),
     }),
+
+  // ── OAuth Errors (Wave 2 — Item #14) ──────────────────────────────────────
+  // A6: declared at R0 so R4 (oauth-io.ts) can construct errors without importing R1.
+  oauthStateInvalid: (context?: Record<string, unknown>) =>
+    makeError('OAUTH_STATE_INVALID', 'OAuth state parameter is invalid or expired', context),
+  oauthCodeExchangeFailed: (context?: Record<string, unknown>) =>
+    makeError('OAUTH_CODE_EXCHANGE_FAILED', 'Failed to exchange authorization code for access token', context),
+  oauthEmailUnavailable: (context?: Record<string, unknown>) =>
+    makeError('OAUTH_EMAIL_UNAVAILABLE', 'Could not retrieve email from OAuth provider', context),
+  oauthEmailNotVerified: (context?: Record<string, unknown>) =>
+    makeError('OAUTH_EMAIL_NOT_VERIFIED', 'Email address from OAuth provider is not verified', context),
 } as const;

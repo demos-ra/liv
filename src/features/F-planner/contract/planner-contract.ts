@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5e
+// amended:    w2-item-12
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -16,15 +16,21 @@
 //   W-ATOM    FreezeContractPayload ../types/planner-types
 //   W-ATOM    SESSION_COOKIE_NAME   F-identity/contract/auth-contract
 //   W-ATOM    validateSession       F-identity/contract/auth-contract
+//   W-ATOM    PLANNER_RATE_LIMIT    ../types/planner-const
+//   W-FN      createRateLimiter     F-chat/domain/rate-limiter  (cross-slice R1, A2)
+//   W-FN      dbCountActiveBuildsForUser  ../exec/planner-db
 // wires-out:
 //   W-HOOK  usePlanner                →  F-dashboard/R3
 //   W-FN    handleBuildRequest        →  src/app/api/chat/[projectId]/message/route.ts
 //   W-FN    handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
 // deps:
 //   R0  ../types/planner-types
+//   R0  ../types/planner-const
+//   R1  @/features/F-chat/domain/rate-limiter  (cross-slice, A2 — lower layer)
 //   R2  ../workflow/planner-workflow
 //   R3  ./planner-inject
 //   R3  @/features/F-identity/contract/auth-contract
+//   R4  ../exec/planner-db
 //   R5  next/server
 // validated:  pending
 //
@@ -48,9 +54,21 @@
 //     A1 — handleBuildRequest is sole R3 surface for build/pipeline interactions.
 //     A4 — runPipeline is async I/O; fire-and-forget isolates it from the SSE path.
 //     A5 — runPipeline called only here; IOutputWriter bound only in planner-inject.
+//
+// w2-item-12 (A2, A4):
+//   Per-user rate limit check + concurrent build check added to handleStartPipeline.
+//   Inserted after session validation, before body parsing — reject cheaply.
+//   createRateLimiter() with lazy init (Turbopack rule). Independent store from chat.
+//   dbCountActiveBuildsForUser imported from R4 — same pattern as chat-contract's
+//   dbGetActiveJobForProject import (A2-r3-active-build-check amendment).
+//   Axiom cite: A2 — R1 cross-slice import (lower layer). A4 — R4 query for
+//   concurrent build check, minimal boundary crossing.
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { createRateLimiter }                    from '@/features/F-chat/domain/rate-limiter'
+import { PLANNER_RATE_LIMIT }                   from '../types/planner-const'
+import { dbCountActiveBuildsForUser }           from '../exec/planner-db'
 import {
   startPipeline,
   advanceStage,
@@ -75,6 +93,13 @@ async function getSession(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
   return validateSession(token)
+}
+
+// ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
+let plannerLimiter: ReturnType<typeof createRateLimiter> | null = null
+function getPlannerLimiter() {
+  if (!plannerLimiter) plannerLimiter = createRateLimiter()
+  return plannerLimiter
 }
 
 // ── handleBuildRequest ────────────────────────────────────────────────────────
@@ -131,6 +156,27 @@ export async function handleBuildRequest(
 export async function handleStartPipeline(req: NextRequest): Promise<NextResponse> {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  // ── Rate limit (w2-item-12) ─────────────────────────────────────────────────
+  const limit = getPlannerLimiter().check(session.userId, PLANNER_RATE_LIMIT)
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: { code: 'RATE_LIMITED', message: 'Too many build requests. Please wait.' } },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) },
+      }
+    )
+  }
+
+  // ── Concurrent build check (w2-item-12) ─────────────────────────────────────
+  const activeCount = await dbCountActiveBuildsForUser(session.userId)
+  if (activeCount.ok && activeCount.data > 0) {
+    return NextResponse.json(
+      { error: { code: 'CONCURRENT_BUILD', message: 'A build is already in progress.' } },
+      { status: 429 }
+    )
+  }
 
   let body: unknown
   try { body = await req.json() } catch { return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 }) }
