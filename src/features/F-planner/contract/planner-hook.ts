@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    w2-item-13c
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -19,6 +19,12 @@
 //   R0  ../types/planner-types
 //   R5  react
 // validated:  2026-03-12
+//
+// w2-item-13c (A1):
+//   Polling interval callback: added .catch() to fetchJob call inside setInterval.
+//   Prevents unhandled promise rejection when server returns non-JSON 500 during
+//   active polling. On catch: sets NETWORK_ERROR, stops polling.
+//   Axiom cite: A1 — F-planner owns pipeline polling error handling.
 
 'use client'
 
@@ -67,10 +73,17 @@ export function usePlanner(initialJobId?: PlannerJobId): PlannerHook {
   }, [stopPolling])
 
   // Auto-poll while a job is running
+  // w2-item-13c: .catch() prevents unhandled rejection on non-JSON 500 during polling
   useEffect(() => {
     if (!job || !isRunning(job.pipelineStatus)) return
     stopPolling()
-    pollRef.current = setInterval(() => fetchJob(job.jobId), POLL_INTERVAL_MS)
+    pollRef.current = setInterval(() => {
+      fetchJob(job.jobId).catch(() => {
+        setError({ code: 'NETWORK_ERROR', message: 'Lost connection to build server' })
+        setStatus('error')
+        stopPolling()
+      })
+    }, POLL_INTERVAL_MS)
     return stopPolling
   }, [job?.jobId, job?.pipelineStatus, fetchJob, stopPolling])
 

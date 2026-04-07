@@ -4,17 +4,19 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    phase2-account-extraction, phase5-focus
+// amended:    phase2-account-extraction, phase5-focus, w2-item-13b
 // slice:      F-chat
 // layer:      R3
 // wires-in:
 //   W-ATOM  InputContainer  @/features/F-design-system/contract/primitives
 //   W-ATOM  SendIcon        @/features/F-design-system/contract/primitives
 //   W-ATOM  Spinner         @/features/F-design-system/contract/primitives
+//   W-ATOM  ChatError       ../config/chat-config
 //   W-HOOK  useChatStream   ./chat-hook
 // wires-out:
 //   W-ATOM  ChatUI  → src/app/page.tsx
 // deps:
+//   R0  ../config/chat-config
 //   R3  ./chat-hook
 //   R3  @/features/F-design-system/contract/primitives
 //   R3  @/features/F-user-profile/config/provider-keys-config
@@ -36,12 +38,21 @@
 //   Added optional chatInputRef prop to typed boundary.
 //   External ref synced to internal inputRef for composition-root
 //   focus management. Internal inputRef usage unchanged.
+//
+// w2-item-13b (A1, A3):
+//   Error rendering updated: ChatError typed atom replaces raw error string.
+//   Renders error.message from ChatError (A3 — typed boundary from hook).
+//   onStreamError callback wired to useChatStream — on partial stream failure,
+//   appends '[Response interrupted. Try sending again.]' inline to assistant
+//   message content rather than replacing it. Preserves partial content (A1).
+//   Axiom cite: A1 — F-chat owns chat error rendering. A3 — ChatError atom.
 
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useChatStream } from './chat-hook'
 import { PROVIDER_ORDER } from '@/features/F-user-profile/config/provider-keys-config'
+import type { ChatError } from '../config/chat-config'
 import {
   InputContainer,
   SendIcon,
@@ -144,7 +155,16 @@ export function ChatUI({
     ))
   }, [])
 
-  const { streaming, error, send } = useChatStream(PROJECT_ID, handleChunk)
+  // w2-item-13b: partial stream failure — append inline indicator to existing content
+  const handleStreamError = useCallback((indicator: string) => {
+    const id = asstIdRef.current
+    if (!id) return
+    setMessages(prev => prev.map(m =>
+      m.id === id ? { ...m, content: m.content + '\n\n' + indicator, streaming: false } : m
+    ))
+  }, [])
+
+  const { streaming, error, send } = useChatStream(PROJECT_ID, handleChunk, handleStreamError)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -234,7 +254,7 @@ export function ChatUI({
 
           {error && (
             <div className="text-error fade-in" style={{ marginTop: 'var(--u1)' }}>
-              {error}
+              {error.message}
             </div>
           )}
 

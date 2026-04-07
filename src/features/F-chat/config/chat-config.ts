@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    w2-item-12
+// amended:    w2-item-12, w2-item-13b
 // slice:      F-chat
 // layer:      R0
 // wires-in:
@@ -18,6 +18,8 @@
 //   W-ATOM  MessageStatus    →  F-chat/R0 (internal use)
 //   W-ATOM  ChatMessage      →  F-chat/R1, F-chat/R4
 //   W-ATOM  ChatThread       →  F-chat/R3, F-chat/R4
+//   W-ATOM  ChatErrorCode    →  F-chat/R3 (chat-hook, chat-ui)
+//   W-ATOM  ChatError        →  F-chat/R3 (chat-hook, chat-ui)
 // deps:
 //   R1  ../domain/rate-limiter
 // validated:  pending
@@ -26,6 +28,11 @@
 //   CHAT_RATE_LIMIT added. 30 requests per 60s sliding window.
 //   RateLimitConfig imported from R1 (A2 — lower layer).
 //   Axiom cite: A6 — rate limit constant declared at R0 of owner slice.
+//
+// w2-item-13b (A3, A6):
+//   ChatError type added. Typed atom crossing hook/UI boundary (A3).
+//   ChatErrorCode union: 5 error classes for differentiated chat error messages.
+//   Axiom cite: A6 — type declared at R0 of owner slice. A3 — typed boundary.
 
 import type { RateLimitConfig } from '../domain/rate-limiter'
 
@@ -153,4 +160,20 @@ export type ChatThread = {
   messages: ChatMessage[]
   hasMore: boolean
   oldestCursor: string | null
+}
+
+// ── Chat error classification (w2-item-13b, A3) ──────────────────────────────
+// Typed atom crossing chat-hook → chat-ui boundary.
+// Each code maps to a differentiated user-facing message.
+
+export type ChatErrorCode =
+  | 'PROVIDER_UNREACHABLE'   // fetch threw or res.ok false (non-429)
+  | 'STREAM_INTERRUPTED'     // reader threw mid-stream after chunks received
+  | 'API_KEY_MISSING'        // HTTP 401 or 403 from AI provider
+  | 'RATE_LIMITED'           // HTTP 429 from LIV rate limiter
+  | 'NETWORK_UNREACHABLE'    // fetch threw TypeError (network error)
+
+export type ChatError = {
+  code:    ChatErrorCode
+  message: string
 }
