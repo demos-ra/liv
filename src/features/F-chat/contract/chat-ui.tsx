@@ -216,7 +216,7 @@ export function ChatUI({
                 <div className="msg-asst">
                   {m.content}
                   {m.streaming && m.content === '' && (
-                    <span className="msg-streaming">···</span>
+                    <Spinner size="sm" />
                   )}
                 </div>
               )}

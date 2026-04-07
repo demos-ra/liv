@@ -149,6 +149,16 @@ export default function Home() {
     }
   }, [currentPage])
 
+  // ── Dashboard Escape (A1 — composition root owns cross-concern coordination) ──
+  useEffect(() => {
+    if (!workspace.dashboardSection.isExpanded || currentPage === 'account') return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') workspace.dashboardSection.toggleExpanded()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [workspace.dashboardSection.isExpanded, currentPage, workspace.dashboardSection.toggleExpanded])
+
   // ── Callbacks ─────────────────────────────────────────────────────────────
   const openAccount = useCallback(() => showPage('account'), [showPage])
   const closeAccount = useCallback(() => showPage('chat'), [showPage])

@@ -201,6 +201,7 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(var(--u1)); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeOut { to { opacity: 0; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes glowOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes streamPulse {
   0%, 100% { opacity: var(--density-faint); }
   44%      { opacity: var(--density-half); }
@@ -540,14 +541,25 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
   box-shadow: var(--shadow-rest);
 }
 
-/* Spinner — border-ring, blue at identity density */
+/* Spinner — static ring + orbiting glow point */
 .icon-spinner {
-  flex-shrink: 0; display: block;
+  flex-shrink: 0; display: block; position: relative;
   width: var(--spinner-size); height: var(--spinner-size); border-radius: 50%;
   border: 1.5px solid rgba(var(--blue), var(--density-faint)); /* exception: sub-grid, optical tuning */
-  border-top-color: rgba(var(--blue), var(--identity-density));
-  animation: spin var(--dur-release) linear infinite;
   box-shadow: var(--glow-blue-rest-low);
+}
+.icon-spinner::after {
+  content: ''; position: absolute; inset: -1.5px; border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 330deg,
+    rgba(var(--blue), var(--identity-density)) 345deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #fff calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #fff calc(100% - 1.5px));
+  animation: glowOrbit var(--dur-release) var(--S) infinite;
 }
 .spinner-sm { width: var(--spinner-size-sm); height: var(--spinner-size-sm); }
 
