@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -21,12 +21,20 @@
 //   R4  ./memory-repository
 // validated:  pending
 
-// Living Memory v1.0 — graph load and atomic persistence.
+// Living Memory v1.1 — graph load and atomic persistence.
 // R4: I/O only. Composes repository calls.
 // G3: persistMutations() commits all mutations atomically in one database transaction.
 //     A single runTraversal() can produce node creates, edge upserts, edge deletes,
 //     node deletes, source text prunes, AND layer updates. All or nothing.
 // MA2: one traversal = one mutation set = one transaction.
+//
+// lm-v1.1 changes:
+//   loadGraph: +userId param, passed to all repository load calls
+//   loadScopedGraphs: new — loads user + global graphs for fallthrough
+//   persistMutations: +userId param, 6-column edge INSERT, scoped ON CONFLICT
+//   persistArms: +userId param, scoped DELETE
+//   persistDominance: +userId param
+//   touchTraversedNodes: +userId param, scoped UPDATE
 
 import { db } from '@/core/db/client'
 import type { Result, AppError } from '@/core/types/primitives'
@@ -46,7 +54,8 @@ import {
 } from './memory-repository'
 
 // ─── Load Graph ───────────────────────────────────────────────────────────────
-// Called once on boot. Loads full graph + arms + dominance from Postgres.
+// Called on boot (global: userId=null) and per-user lazy load (userId=string).
+// Amendment 3: userId param passed to all repository load calls (A4).
 
 export type LoadedGraph = {
   graph:        MemGraph
@@ -54,17 +63,17 @@ export type LoadedGraph = {
   dominanceMap: Map<string, DominanceEntry>
 }
 
-export async function loadGraph(): Promise<Result<LoadedGraph>> {
-  const nodesResult = await loadAllNodes()
+export async function loadGraph(userId: string | null): Promise<Result<LoadedGraph>> {
+  const nodesResult = await loadAllNodes(userId)
   if (!nodesResult.ok) return nodesResult
 
-  const edgesResult = await loadAllEdges()
+  const edgesResult = await loadAllEdges(userId)
   if (!edgesResult.ok) return edgesResult
 
-  const armsResult = await loadArms()
+  const armsResult = await loadArms(userId)
   if (!armsResult.ok) return armsResult
 
-  const domResult = await loadDominance()
+  const domResult = await loadDominance(userId)
   if (!domResult.ok) return domResult
 
   return {
@@ -80,6 +89,21 @@ export async function loadGraph(): Promise<Result<LoadedGraph>> {
   }
 }
 
+// ─── Load Scoped Graphs ───────────────────────────────────────────────────────
+// Amendment 3: loads both user-scoped and global graphs for fallthrough bind (A6).
+// User graph is the primary workspace. Global graph is read-only context.
+
+export async function loadScopedGraphs(userId: string): Promise<Result<{
+  user:   LoadedGraph
+  global: LoadedGraph
+}>> {
+  const userResult = await loadGraph(userId)
+  if (!userResult.ok) return userResult
+  const globalResult = await loadGraph(null)
+  if (!globalResult.ok) return globalResult
+  return { ok: true, data: { user: userResult.data, global: globalResult.data } }
+}
+
 // ─── Persist Mutations (Atomic) ───────────────────────────────────────────────
 // G3: one traversal = one transaction. All mutations committed atomically.
 // Partial commits create inconsistent graph state — this prevents that.
@@ -91,17 +115,23 @@ export async function loadGraph(): Promise<Result<LoadedGraph>> {
 //   - node deletes (isolate removal)
 //   - source text prunes (M3→M2 transition)
 //   - layer updates (recomputed by update_layers_locally)
+//
+// Amendment 1+3: edge INSERT is 6 columns, ON CONFLICT scoped (A6).
+// Amendment 3: userId param for defensive node creates (A4).
 
-export async function persistMutations(mutation: GraphMutation): Promise<Result<void>> {
+export async function persistMutations(
+  mutation: GraphMutation,
+  userId: string | null,
+): Promise<Result<void>> {
   try {
     await db.query('BEGIN', [])
 
     try {
-      // 1. Node creates
+      // 1. Node creates — Amendment 3: +user_id
       for (const node of mutation.nodeCreates) {
         await db.query(
-          `INSERT INTO mem_node (id, content, embedding, source_text, created_at, last_traversed, cached_layer, cached_closure, cached_asymmetry)
-           VALUES ($1, $2, $3, $4, to_timestamp($5::double precision / 1000), to_timestamp($6::double precision / 1000), $7, $8, $9)
+          `INSERT INTO mem_node (id, content, embedding, source_text, created_at, last_traversed, cached_layer, cached_closure, cached_asymmetry, user_id)
+           VALUES ($1, $2, $3, $4, to_timestamp($5::double precision / 1000), to_timestamp($6::double precision / 1000), $7, $8, $9, $10)
            ON CONFLICT (id) DO UPDATE SET
              content         = EXCLUDED.content,
              embedding       = EXCLUDED.embedding,
@@ -120,38 +150,42 @@ export async function persistMutations(mutation: GraphMutation): Promise<Result<
             node.cachedLayer,
             node.cachedClosure,
             node.cachedAsymmetry,
+            node.userId,
           ],
         )
       }
 
-      // 2. Edge upserts
+      // 2. Edge upserts — Amendment 1+3: 6-column INSERT, scoped ON CONFLICT
       for (const edge of mutation.edgeUpserts) {
         // Ensure both endpoints exist (defensive — node creates should have covered this)
+        // Amendment 3: defensive creates include user_id
         await db.query(
-          `INSERT INTO mem_node (id, content, created_at, cached_layer)
-           VALUES ($1, $1, now(), 4)
+          `INSERT INTO mem_node (id, content, created_at, cached_layer, user_id)
+           VALUES ($1, $1, now(), 4, $2)
            ON CONFLICT (id) DO NOTHING`,
-          [edge.fromId],
+          [edge.fromId, userId],
         )
         await db.query(
-          `INSERT INTO mem_node (id, content, created_at, cached_layer)
-           VALUES ($1, $1, now(), 4)
+          `INSERT INTO mem_node (id, content, created_at, cached_layer, user_id)
+           VALUES ($1, $1, now(), 4, $2)
            ON CONFLICT (id) DO NOTHING`,
-          [edge.toId],
+          [edge.toId, userId],
         )
+        // Amendment 1: primitive_type + created_at. Amendment 3: user_id + scoped conflict.
         await db.query(
-          `INSERT INTO mem_edge (from_id, to_id, weight)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (from_id, to_id) DO UPDATE SET weight = EXCLUDED.weight`,
-          [edge.fromId, edge.toId, edge.weight],
+          `INSERT INTO mem_edge (from_id, to_id, weight, primitive_type, created_at, user_id)
+           VALUES ($1, $2, $3, $4, to_timestamp($5::double precision / 1000), $6)
+           ON CONFLICT (from_id, to_id, COALESCE(user_id, '__global__'))
+           DO UPDATE SET weight = EXCLUDED.weight`,
+          [edge.fromId, edge.toId, edge.weight, edge.primitiveType, edge.createdAt, edge.userId],
         )
       }
 
-      // 3. Edge deletes
+      // 3. Edge deletes — Amendment 3: scoped by user_id (A6)
       for (const del of mutation.edgeDeletes) {
         await db.query(
-          `DELETE FROM mem_edge WHERE from_id = $1 AND to_id = $2`,
-          [del.fromId, del.toId],
+          `DELETE FROM mem_edge WHERE from_id = $1 AND to_id = $2 AND user_id IS NOT DISTINCT FROM $3`,
+          [del.fromId, del.toId, userId],
         )
       }
 
@@ -172,8 +206,12 @@ export async function persistMutations(mutation: GraphMutation): Promise<Result<
       }
 
       // 6. Node deletes (isolate removal — last, after edge cleanup)
+      // Amendment 3: scoped by user_id (A6)
       for (const nodeId of mutation.nodeDeletes) {
-        await db.query(`DELETE FROM mem_node WHERE id = $1`, [nodeId])
+        await db.query(
+          `DELETE FROM mem_node WHERE id = $1 AND user_id IS NOT DISTINCT FROM $2`,
+          [nodeId, userId],
+        )
       }
 
       await db.query('COMMIT', [])
@@ -189,19 +227,21 @@ export async function persistMutations(mutation: GraphMutation): Promise<Result<
 
 // ─── Persist Arms ─────────────────────────────────────────────────────────────
 // Called after detectArms() finds new community structure.
+// Amendment 3: +userId param, scoped DELETE (A4).
 
-export async function persistArms(arms: MemArm[]): Promise<Result<void>> {
+export async function persistArms(arms: MemArm[], userId: string | null): Promise<Result<void>> {
   try {
     await db.query('BEGIN', [])
     try {
-      // Clear all existing arms and replace
-      await db.query(`DELETE FROM mem_arm`, [])
+      // Clear existing arms for this scope and replace
+      // Amendment 3: scoped DELETE — only delete arms for this userId
+      await db.query(`DELETE FROM mem_arm WHERE user_id IS NOT DISTINCT FROM $1`, [userId])
 
       for (const arm of arms) {
         await db.query(
-          `INSERT INTO mem_arm (id, label, node_ids, depth, updated_at)
-           VALUES ($1, $2, $3, $4, to_timestamp($5::double precision / 1000))`,
-          [arm.id, arm.label, arm.nodeIds, arm.depth, arm.updatedAt],
+          `INSERT INTO mem_arm (id, label, node_ids, depth, updated_at, user_id)
+           VALUES ($1, $2, $3, $4, to_timestamp($5::double precision / 1000), $6)`,
+          [arm.id, arm.label, arm.nodeIds, arm.depth, arm.updatedAt, arm.userId],
         )
       }
 
@@ -218,19 +258,23 @@ export async function persistArms(arms: MemArm[]): Promise<Result<void>> {
 
 // ─── Persist Dominance ────────────────────────────────────────────────────────
 // Called after background recomputeDominance() completes.
+// Amendment 3: +userId param (A4).
 
-export async function persistDominance(entries: DominanceEntry[]): Promise<Result<void>> {
+export async function persistDominance(
+  entries: DominanceEntry[],
+  userId: string | null,
+): Promise<Result<void>> {
   try {
     await db.query('BEGIN', [])
     try {
       for (const entry of entries) {
         await db.query(
-          `INSERT INTO mem_dominance (node_id, convergence, computed_at)
-           VALUES ($1, $2, to_timestamp($3::double precision / 1000))
+          `INSERT INTO mem_dominance (node_id, convergence, computed_at, user_id)
+           VALUES ($1, $2, to_timestamp($3::double precision / 1000), $4)
            ON CONFLICT (node_id) DO UPDATE SET
              convergence = EXCLUDED.convergence,
              computed_at = EXCLUDED.computed_at`,
-          [entry.nodeId, entry.convergence, entry.computedAt],
+          [entry.nodeId, entry.convergence, entry.computedAt, userId],
         )
       }
       await db.query('COMMIT', [])
@@ -246,18 +290,21 @@ export async function persistDominance(entries: DominanceEntry[]): Promise<Resul
 
 // ─── Touch traversed nodes ────────────────────────────────────────────────────
 // Bulk update last_traversed for all nodes activated in a traversal.
+// Amendment 3: +userId param, scoped UPDATE (A4).
 
 export async function touchTraversedNodes(
   nodeIds: string[],
   timestamp: number,
+  userId: string | null,
 ): Promise<Result<void>> {
   if (nodeIds.length === 0) return { ok: true, data: undefined }
 
   try {
-    // Use ANY($1) for batch update
+    // Amendment 3: scope to user — only touch nodes belonging to this graph scope
     await db.query(
-      `UPDATE mem_node SET last_traversed = to_timestamp($2::double precision / 1000) WHERE id = ANY($1)`,
-      [nodeIds, timestamp],
+      `UPDATE mem_node SET last_traversed = to_timestamp($2::double precision / 1000)
+       WHERE id = ANY($1) AND user_id IS NOT DISTINCT FROM $3`,
+      [nodeIds, timestamp, userId],
     )
     return { ok: true, data: undefined }
   } catch (err) {

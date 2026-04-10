@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1-wire-fix
 // slice:      F-chat
 // layer:      R4
 // wires-in:
@@ -14,20 +14,21 @@
 // deps:       none (deps injected via MemoryDeps)
 // validated:  pending
 
-// Living Memory v1.0 adapter for F-chat.
+// Living Memory v1.1 adapter for F-chat.
 // R4: I/O boundary. Adapts chat-workflow call signatures to F-memory contract.
-// §20 integration: two surfaces — traverse() + getPresentState().
+// §20 integration: two surfaces — traverse(text, userId, options?) + getPresentState(userId).
 // O3: fail-silent — memory down must never break chat.
 
 import type { Result } from '@/core/types/primitives'
 
 // ─── Memory deps interface ────────────────────────────────────────────────────
 // Injected by R2 chat-workflow. Maps to F-memory/R3 contract.
-// v1.0: replaces v0.6 remember/recall/onSessionEnd with traverse/getPresentState.
+// v1.1: +userId on both signatures (Amendment 3). userId field injected by R2 caller.
 
 export interface MemoryDeps {
-  traverse:        (text: string, options?: { returnActivation?: boolean }) => Promise<Result<TraversalResultLike | null>>
-  getPresentState: () => PresentStateLike
+  traverse:        (text: string, userId: string, options?: { returnActivation?: boolean }) => Promise<Result<TraversalResultLike | null>>
+  getPresentState: (userId: string) => PresentStateLike
+  userId:          string
 }
 
 // Lightweight types to avoid cross-slice R0 import at R4.
@@ -54,7 +55,7 @@ type TraversalResultLike = {
 
 export function lmGetPresentState(deps: MemoryDeps): string {
   try {
-    const state = deps.getPresentState()
+    const state = deps.getPresentState(deps.userId)
     if (state.statements.length === 0) return ''
 
     const lines: string[] = []
@@ -79,7 +80,7 @@ export async function lmTraverseRead(
   deps: MemoryDeps,
 ): Promise<string> {
   try {
-    const result = await deps.traverse(text, { returnActivation: true })
+    const result = await deps.traverse(text, deps.userId, { returnActivation: true })
     if (!result.ok || !result.data) return ''
 
     const lines: string[] = []
@@ -102,7 +103,7 @@ export async function lmTraverseWrite(
   deps: MemoryDeps,
 ): Promise<void> {
   try {
-    await deps.traverse(text)
+    await deps.traverse(text, deps.userId)
   } catch {
     // Memory down — fail silent
   }

@@ -80,6 +80,7 @@ export type FSlice =
   | 'F-health-panel'
   | 'F-execution-panel'
   | 'F-memory'
+  | 'F-codec'       // W3 — cognitive codec slice
   | 'F-planner'     // Phase 4 — pipeline orchestration
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push

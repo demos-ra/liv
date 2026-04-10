@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1
 // slice:      F-memory
 // layer:      R0
 // wires-in:   none
@@ -19,14 +19,23 @@
 //   W-ATOM  MemArm            →  F-memory/*
 //   W-ATOM  DominanceEntry    →  F-memory/*
 //   W-ATOM  MemoryVitalSigns  →  F-memory/R3
+//   W-ATOM  EdgePrimitiveType →  F-memory/*
+//   W-ATOM  GraphScope        →  F-memory/*
+//   W-ATOM  ScopedGraphSet    →  F-memory/*
 // deps:       none
 // validated:  pending
 
-// Living Memory v1.0 — all domain types.
+// Living Memory v1.1 — all domain types.
 // A6: declared at R0. Zero dependencies. Everything else imports from here.
 // MA5: no NodeType — layer is computed from connectivity, never assigned.
 // MA1: no decay constants — conservation + rebalancing.
 // MA2: one action (traversal) — no separate read/write types.
+//
+// lm-v1.1 amendments:
+//   Amendment 1: EdgePrimitiveType + MemEdge gains primitiveType, createdAt, userId
+//   Amendment 3: userId on MemNode, MemArm; GraphScope, ScopedGraphSet
+//   Amendment 4: primitiveType on TraversalOptions
+//   Amendment 2: LABEL_REUSE_THRESHOLD in MEMORY_CONFIG
 
 // ─── M-Layer ──────────────────────────────────────────────────────────────────
 // Five layers. Numeric for comparison: M0=0 (deepest) .. M4=4 (shallowest).
@@ -41,12 +50,20 @@ export const M2_KNOWLEDGE = 2 as const satisfies MLayer
 export const M3_CONTEXT   = 3 as const satisfies MLayer
 export const M4_INPUT     = 4 as const satisfies MLayer
 
+// ─── Edge Primitive Type (Amendment 1) ────────────────────────────────────────
+// A6: declared at R0. Five traversal primitives that give edges semantic meaning.
+// null = pre-v1.1 edge or learning sub-op (not a direct primitive).
+
+export type EdgePrimitiveType = 'anchor' | 'relate' | 'restructure' | 'reinforce' | 'suppress'
+
 // ─── Node ─────────────────────────────────────────────────────────────────────
 // A unit of memory. No type tag. Layer computed from connectivity depth.
 // source_text: original input text. Populated at M4/M3, pruned on M3→M2 transition.
+// userId (Amendment 3): null = global graph, string = per-user graph. A6: scope at origin.
 
 export type MemNode = {
   id:              string
+  userId:          string | null    // null = global, string = per-user (Amendment 3, A6)
   content:         string           // semantic label or summary
   embedding:       number[] | null  // VECTOR(1536), null until encoded
   sourceText:      string | null    // original input, pruned at M3→M2. MA3: structural position carries meaning.
@@ -60,11 +77,15 @@ export type MemNode = {
 // ─── Edge ─────────────────────────────────────────────────────────────────────
 // Directed weighted edge. Weight ∈ (0, 1].
 // MA1: weights redistributed by traversal, never created or destroyed arbitrarily.
+// Amendment 1: primitiveType + createdAt. Amendment 3: userId for scope.
 
 export type MemEdge = {
-  fromId: string
-  toId:   string
-  weight: number
+  fromId:         string
+  toId:           string
+  weight:         number
+  primitiveType:  EdgePrimitiveType | null  // null = pre-v1.1 or learning sub-op (Amendment 1, A6)
+  createdAt:      number                    // unix ms (Amendment 1, A6)
+  userId:         string | null             // null = global, string = per-user (Amendment 3, A6)
 }
 
 // ─── Graph ────────────────────────────────────────────────────────────────────
@@ -76,12 +97,26 @@ export type MemGraph = {
   edges: Map<string, MemEdge[]>  // fromId → outgoing edges
 }
 
+// ─── Scope (Amendment 3) ──────────────────────────────────────────────────────
+// A6: scope types declared at R0. Two-graph model: user + global with fallthrough.
+
+export type GraphScope = {
+  userId: string | null
+}
+
+export type ScopedGraphSet = {
+  user:   MemGraph
+  global: MemGraph
+}
+
 // ─── Arms (Horizontal Structure) ──────────────────────────────────────────────
 // Overlapping subgraphs detected by community structure (modularity).
 // Not separate from the graph — soft constraints on traversal.
+// userId (Amendment 3): null = global, string = per-user. A6: scope at origin.
 
 export type MemArm = {
   id:        string
+  userId:    string | null    // null = global, string = per-user (Amendment 3, A6)
   label:     string | null    // semantic label, null until detectable
   nodeIds:   string[]         // nodes in this arm
   depth:     number           // how many M-layers this arm spans (1–5)
@@ -125,9 +160,11 @@ export type TraversalResult = {
 }
 
 // ─── Traversal Options ────────────────────────────────────────────────────────
+// Amendment 4: primitiveType allows caller to tag edges created by this traversal.
 
 export type TraversalOptions = {
-  returnActivation?: boolean   // true = read path (return activated nodes). false = write-only.
+  returnActivation?: boolean        // true = read path (return activated nodes). false = write-only.
+  primitiveType?:    EdgePrimitiveType  // edge tag for this traversal (Amendment 4, A6)
 }
 
 // ─── Present State ────────────────────────────────────────────────────────────
@@ -205,6 +242,7 @@ export const MEMORY_CONFIG = {
 
   // Binding
   BINDING_K_SIGMA:     1.0,     // bind if score > μ + kσ
+  LABEL_REUSE_THRESHOLD: 0.92,  // cosine sim above which existing node is reused (Amendment 2, A6)
 
   // Arms
   ARM_AFFINITY_THRESHOLD: 0.3,  // minimum affinity to include node in arm

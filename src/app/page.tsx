@@ -21,6 +21,7 @@
 //   W-ATOM  AccountPage        @/features/F-user-profile/contract/account-page
 //   W-ATOM  PlannerRegister    @/features/F-planner/contract/planner-register
 //   W-ATOM  AdminRegister      @/features/F-admin/contract/admin-register
+//   W-ATOM  MemoryRegister     @/features/F-codec/contract/memory-register
 // wires-out:  none  (mount point)
 // deps:
 //   R4  @/features/F-design-system/exec/use-planet          (A4 — DOM I/O)
@@ -35,6 +36,7 @@
 //   R3  @/features/F-user-profile/contract/account-page (A5)
 //   R3  @/features/F-planner/contract/planner-register  (A5 — composition root)
 //   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
+//   R3  @/features/F-codec/contract/memory-register     (A5 — composition root)
 //   R5  react
 // validated: pending
 //
@@ -86,6 +88,7 @@ import { usePageTransition } from '@/features/F-design-system/exec/use-page-tran
 import { ATTACK } from '@/features/F-design-system/config/board'
 import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
+import { MemoryRegister }   from '@/features/F-codec/contract/memory-register'
 
 // ── DashboardIcon ─────────────────────────────────────────────────────────────
 function DashboardIcon() {
@@ -175,6 +178,7 @@ export default function Home() {
       {/* ── Program registrations (composition root — A1) ── */}
       <PlannerRegister />
       {state.isAdmin && <AdminRegister />}
+      <MemoryRegister />
 
       {/* ── HEADER (persistent — outside all pages) ── */}
       <header ref={headerRef} className="chat-header">

@@ -32,6 +32,7 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
   'F-memory':          'memory',
+  'F-codec':           'codec',       // W3 — cognitive codec slice
   'F-planner':         'planner',    // Phase 4
   'F-intake':          'intake',     // Phase 5
   'F-output':          'output',     // Phase 6

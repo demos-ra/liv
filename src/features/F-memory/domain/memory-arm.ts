@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1-arm-userid
 // slice:      F-memory
 // layer:      R1
 // wires-in:
@@ -174,6 +174,7 @@ export function detectArms(graph: MemGraph): MemArm[] {
 
     arms.push({
       id:        `arm_${label}`,
+      userId:    null,  // Amendment 3: R1 pure — caller stamps real userId after return (A6)
       label:     null,  // semantic label assigned later by Present State
       nodeIds:   members,
       depth:     layers.size,

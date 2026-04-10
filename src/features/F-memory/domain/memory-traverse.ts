@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1
 // slice:      F-memory
 // layer:      R1
 // wires-in:
@@ -18,12 +18,18 @@
 //   R0  ../config/memory-types
 // validated:  pending
 
-// Living Memory v1.0 — propagation and learning.
+// Living Memory v1.1 — propagation and learning.
 // R1: pure functions, zero I/O.
 // §6 propagate(): conserved activation flow with M1 bias.
 // §7 learn(): inline reinforcement — Δw = lr × flow × (1 - w/sum_outgoing).
 // MA1: Σ activations = 1 throughout. Energy conserved, never created or destroyed.
 // MA2: read, write, and learning are one pass.
+//
+// lm-v1.1 changes:
+//   learn() returns 6-field MemEdge (Amendment 1+3):
+//     primitiveType: null (learning is sub-op, not a direct primitive)
+//     createdAt: Date.now() (timestamp of the learning event)
+//     userId: preserved from source edge (scope continuity)
 
 import type {
   MemGraph,
@@ -118,6 +124,11 @@ export function propagate(
 // Δw = lr × flow × (1 - w / sum_outgoing)
 // Self-regulating: strong edges learn slower, weak edges learn faster.
 // Learning rate scales inversely with node degree (dense = stable, sparse = plastic).
+//
+// Amendment 1+3: returns 6-field MemEdge.
+//   primitiveType: null — learning is sub-op, not a direct primitive (A6)
+//   createdAt: Date.now() — timestamp of the learning event (A6)
+//   userId: preserved from source edge — scope continuity (A6)
 
 function learn(
   edge: MemEdge,
@@ -148,9 +159,12 @@ function learn(
   const newWeight = Math.max(0, Math.min(1, edge.weight + delta))
 
   return [{
-    fromId: edge.fromId,
-    toId:   edge.toId,
-    weight: newWeight,
+    fromId:        edge.fromId,
+    toId:          edge.toId,
+    weight:        newWeight,
+    primitiveType: null,         // learning is sub-op, not a direct primitive (Amendment 1, A6)
+    createdAt:     Date.now(),   // timestamp of the learning event (Amendment 1, A6)
+    userId:        edge.userId,  // preserve scope from source edge (Amendment 3, A6)
   }]
 }
 

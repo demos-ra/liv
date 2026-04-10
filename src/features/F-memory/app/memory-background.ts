@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    A2-event-bus-r3
+// amended:    lm-v1.1, A2-event-bus-r3
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -12,7 +12,7 @@
 //   W-ATOM  DominanceEntry   F-memory/R0
 //   W-ATOM  MEMORY_CONFIG    F-memory/R0
 //   W-ATOM  MEMORY_EVENTS    F-memory/R0
-//   W-INJECT getGraph, getDominanceMap, setDominanceMap  F-memory/R2 (memory-service)
+//   W-INJECT getGraph, getUserGraph, getDominanceMap, setDominanceMap  F-memory/R2 (memory-service)
 //   W-INJECT persistDominance  F-memory/R4 (memory-graph-io)
 //   W-INJECT emitEvent        F-event-system/R3
 // wires-out:  none
@@ -24,11 +24,15 @@
 //   R3  @/features/F-event-system/contract/event-bus (A2-event-bus-r3)
 // validated:  pending
 
-// Living Memory v1.0 — background dominance recomputation.
+// Living Memory v1.1 — background dominance recomputation.
 // R2: orchestration. Async, eventually consistent.
 // §6: one background process — recomputeDominance().
 // Detects M1→M0 transitions via random walk convergence analysis.
 // Acceptable latency because M0 transitions are rare.
+//
+// lm-v1.1 changes (Amendment 3):
+//   recomputeDominance: +userId param. null = global graph, string = per-user graph.
+//   Caller (startup/cron) dispatches per scope. This function accepts the scope.
 
 import type {
   MemGraph,
@@ -37,7 +41,7 @@ import type {
 import { MEMORY_CONFIG } from '../config/memory-types'
 import { MEMORY_EVENTS } from '../config/memory-events'
 
-import { getGraph, getDominanceMap, setDominanceMap } from './memory-service'
+import { getGraph, getUserGraph, getDominanceMap, setDominanceMap } from './memory-service'
 import { persistDominance } from '../exec/memory-graph-io'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
@@ -48,9 +52,12 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 //
 // Called periodically (not on every traversal — too expensive).
 // Results written to dominance cache, read by computeLayer() on next traversal.
+//
+// Amendment 3: +userId param. null = global graph, string = per-user (A4).
 
-export async function recomputeDominance(): Promise<void> {
-  const graph = getGraph()
+export async function recomputeDominance(userId: string | null): Promise<void> {
+  // Amendment 3: select graph by scope
+  const graph = userId === null ? getGraph() : getUserGraph(userId)
   if (graph.nodes.size === 0) return
 
   const now = Date.now()
@@ -66,15 +73,17 @@ export async function recomputeDominance(): Promise<void> {
     })
   }
 
-  // Update in-memory dominance map
-  const newMap = new Map<string, DominanceEntry>()
-  for (const entry of entries) {
-    newMap.set(entry.nodeId, entry)
+  // Update in-memory dominance map (global only — per-user dominance stored in UserGraphState)
+  if (userId === null) {
+    const newMap = new Map<string, DominanceEntry>()
+    for (const entry of entries) {
+      newMap.set(entry.nodeId, entry)
+    }
+    setDominanceMap(newMap)
   }
-  setDominanceMap(newMap)
 
-  // Persist to DB
-  const result = await persistDominance(entries)
+  // Persist to DB — Amendment 3: scoped (A4)
+  const result = await persistDominance(entries, userId)
   if (!result.ok) {
     console.error(JSON.stringify({
       level: 'error', event: 'memory.dominance.persist-failed',
@@ -93,6 +102,7 @@ export async function recomputeDominance(): Promise<void> {
   console.log(JSON.stringify({
     level: 'info', event: 'memory.dominance.recomputed',
     nodeCount: entries.length,
+    scope: userId ?? 'global',
     timestamp: new Date().toISOString(),
   }))
 }

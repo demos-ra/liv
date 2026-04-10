@@ -4,11 +4,12 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1
 // slice:      F-memory
 // layer:      R1
 // wires-in:
 //   W-ATOM  MemGraph              F-memory/R0
+//   W-ATOM  ScopedGraphSet        F-memory/R0
 //   W-ATOM  MemArm                F-memory/R0
 //   W-ATOM  PresentState          F-memory/R0
 //   W-ATOM  PresentStateStatement F-memory/R0
@@ -20,10 +21,10 @@
 //   R0  ../config/memory-types
 // validated:  pending
 
-// Living Memory v1.0 — Present State Layer.
+// Living Memory v1.1 — Present State Layer.
 // R1: pure function, zero I/O.
 // §18: the bridge between living process and immediate usability.
-// A pure R1 function: computePresentState(graph, arms) → PresentState.
+// A pure R1 function: computePresentState(graphs, userArms, globalArms) → PresentState.
 // Never stored. Always derived from current graph state. Never stale.
 //
 // G1: graceful fallback for weak arm structure.
@@ -33,10 +34,18 @@
 //
 // G2: getPresentState() at R3 reads the precomputed result — this function
 //     is called only inside runTraversal() as a side effect.
+//
+// lm-v1.1 changes (Amendment 3):
+//   Signature: ScopedGraphSet + userArms + globalArms (two-graph model)
+//   Merge: user nodes first (priority), then global nodes.
+//   Dedup: global node skipped if cosine similarity ≥ LABEL_REUSE_THRESHOLD
+//          to any user node (same constant as bind-before-create, A6).
 
 import type {
   MemGraph,
+  MemNode,
   MemArm,
+  ScopedGraphSet,
   PresentState,
   PresentStateStatement,
   ConfidenceTier,
@@ -52,78 +61,65 @@ import {
 } from '../config/memory-types'
 
 // ─── Compute Present State ────────────────────────────────────────────────────
-// §18: reads all nodes, weighted by recency + layer depth.
+// §18: reads all nodes from both graphs, weighted by recency + layer depth.
 // Output: structured data, not prose. The consuming LLM reads it as context injection.
+// Amendment 3: accepts ScopedGraphSet. User nodes take priority over global nodes.
 
 export function computePresentState(
-  graph: MemGraph,
-  arms: MemArm[],
+  graphs: ScopedGraphSet,
+  userArms: MemArm[],
+  globalArms: MemArm[],
 ): PresentState {
-  if (graph.nodes.size === 0) {
+  if (graphs.user.nodes.size === 0 && graphs.global.nodes.size === 0) {
     // G2: cold boot — return empty. Never block on computation.
     return { statements: [] }
   }
 
   const now = Date.now()
-  const statements: PresentStateStatement[] = []
 
-  // Build arm lookup: nodeId → arm label
+  // Build arm lookup: nodeId → arm label (span both arm sets)
   const nodeToArm = new Map<string, string | null>()
-  for (const arm of arms) {
+  for (const arm of userArms) {
     for (const nodeId of arm.nodeIds) {
-      // Assign arm label. If node is in multiple arms, use the deepest one.
-      const existing = nodeToArm.get(nodeId)
-      if (!existing) {
+      if (!nodeToArm.has(nodeId)) {
+        nodeToArm.set(nodeId, arm.label ?? arm.id)
+      }
+    }
+  }
+  for (const arm of globalArms) {
+    for (const nodeId of arm.nodeIds) {
+      if (!nodeToArm.has(nodeId)) {
         nodeToArm.set(nodeId, arm.label ?? arm.id)
       }
     }
   }
 
-  // Score and collect all nodes
-  const scored: Array<{
-    nodeId:     string
-    content:    string
-    arm:        string | null
-    source:     string | null
-    layer:      MLayer
-    confidence: ConfidenceTier
-    recency:    number
-    sortScore:  number
-  }> = []
+  // Score and collect — user nodes first (priority), then deduplicated global nodes
+  const scored: ScoredNode[] = []
 
-  for (const [nodeId, node] of graph.nodes) {
-    // Skip M4 (pre-integration, not yet bound)
+  // Collect user graph nodes
+  // Amendment 3: user nodes always included — they are the primary workspace
+  const userEmbeddings: Array<{ nodeId: string; embedding: number[] }> = []
+
+  for (const [nodeId, node] of graphs.user.nodes) {
+    if (node.cachedLayer === M4_INPUT) continue
+    scored.push(scoreNode(nodeId, node, nodeToArm, now))
+    if (node.embedding) {
+      userEmbeddings.push({ nodeId, embedding: node.embedding })
+    }
+  }
+
+  // Collect global graph nodes — deduplicate against user nodes
+  // Amendment 3: skip global node if near-identical to any user node (A6)
+  for (const [nodeId, node] of graphs.global.nodes) {
     if (node.cachedLayer === M4_INPUT) continue
 
-    // §18: recency = EMA-weighted traversal recency
-    const recency = computeRecency(node.lastTraversed, now)
+    // Dedup: if this global node is near-identical to a user node, skip it
+    if (node.embedding && isNearDuplicate(node.embedding, userEmbeddings)) {
+      continue
+    }
 
-    // §18: layer depth — M0/M1 nodes carry more structural weight
-    const layerWeight = layerDepthWeight(node.cachedLayer)
-
-    // Combined sort score: layer weight + recency
-    const sortScore = layerWeight * 0.6 + recency * 0.4
-
-    const confidence = layerToConfidence(node.cachedLayer)
-
-    // G1: arm is null if arms haven't formed yet
-    const arm = nodeToArm.get(nodeId) ?? null
-
-    // §18 source text lifecycle:
-    //   M3: source_text available for exact recall
-    //   M2+: source_text pruned, value from graph position
-    const source = node.cachedLayer >= M3_CONTEXT ? node.sourceText : null
-
-    scored.push({
-      nodeId,
-      content:    node.content,
-      arm,
-      source,
-      layer:      node.cachedLayer,
-      confidence,
-      recency,
-      sortScore,
-    })
+    scored.push(scoreNode(nodeId, node, nodeToArm, now))
   }
 
   // Sort by score descending — most relevant first
@@ -132,18 +128,99 @@ export function computePresentState(
   // Take top N
   const topN = scored.slice(0, MEMORY_CONFIG.PRESENT_STATE_MAX)
 
-  for (const item of topN) {
-    statements.push({
-      arm:        item.arm,
-      value:      item.content,
-      source:     item.source,
-      layer:      item.layer,
-      confidence: item.confidence,
-      recency:    item.recency,
-    })
-  }
+  const statements: PresentStateStatement[] = topN.map(item => ({
+    arm:        item.arm,
+    value:      item.content,
+    source:     item.source,
+    layer:      item.layer,
+    confidence: item.confidence,
+    recency:    item.recency,
+  }))
 
   return { statements }
+}
+
+// ─── Score a single node ──────────────────────────────────────────────────────
+
+type ScoredNode = {
+  nodeId:     string
+  content:    string
+  arm:        string | null
+  source:     string | null
+  layer:      MLayer
+  confidence: ConfidenceTier
+  recency:    number
+  sortScore:  number
+}
+
+function scoreNode(
+  nodeId: string,
+  node: MemNode,
+  nodeToArm: Map<string, string | null>,
+  now: number,
+): ScoredNode {
+  // §18: recency = EMA-weighted traversal recency
+  const recency = computeRecency(node.lastTraversed, now)
+
+  // §18: layer depth — M0/M1 nodes carry more structural weight
+  const layerWeight = layerDepthWeight(node.cachedLayer)
+
+  // Combined sort score: layer weight + recency
+  const sortScore = layerWeight * 0.6 + recency * 0.4
+
+  const confidence = layerToConfidence(node.cachedLayer)
+
+  // G1: arm is null if arms haven't formed yet
+  const arm = nodeToArm.get(nodeId) ?? null
+
+  // §18 source text lifecycle:
+  //   M3: source_text available for exact recall
+  //   M2+: source_text pruned, value from graph position
+  const source = node.cachedLayer >= M3_CONTEXT ? node.sourceText : null
+
+  return {
+    nodeId,
+    content: node.content,
+    arm,
+    source,
+    layer:   node.cachedLayer,
+    confidence,
+    recency,
+    sortScore,
+  }
+}
+
+// ─── Near-duplicate detection (Amendment 3) ───────────────────────────────────
+// Uses LABEL_REUSE_THRESHOLD (same constant as bind-before-create, A6).
+// Cosine similarity between global node embedding and any user node embedding.
+
+function isNearDuplicate(
+  globalEmbedding: number[],
+  userEmbeddings: Array<{ nodeId: string; embedding: number[] }>,
+): boolean {
+  for (const { embedding } of userEmbeddings) {
+    const sim = cosine(globalEmbedding, embedding)
+    if (sim >= MEMORY_CONFIG.LABEL_REUSE_THRESHOLD) {
+      return true
+    }
+  }
+  return false
+}
+
+// ─── Cosine similarity ────────────────────────────────────────────────────────
+// R1: pure function. Duplicated here to avoid cross-file R1 dep on memory-bind.
+// Both vectors assumed same length (1536). Returns [-1, 1].
+
+function cosine(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0
+  let dot = 0, magA = 0, magB = 0
+  for (let i = 0; i < a.length; i++) {
+    dot  += a[i] * b[i]
+    magA += a[i] * a[i]
+    magB += b[i] * b[i]
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB)
+  return denom === 0 ? 0 : dot / denom
 }
 
 // ─── Recency ──────────────────────────────────────────────────────────────────

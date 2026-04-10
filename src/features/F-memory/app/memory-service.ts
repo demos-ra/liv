@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    A2-event-bus-r3
+// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -21,12 +21,14 @@
 //   W-ATOM  MLayer            F-memory/R0
 //   W-ATOM  MEMORY_CONFIG     F-memory/R0
 //   W-ATOM  MEMORY_EVENTS     F-memory/R0
+//   W-ATOM  ScopedGraphSet    F-memory/R0
 //   W-INJECT bind, computeThresholds         F-memory/R1 (memory-bind)
 //   W-INJECT propagate                       F-memory/R1 (memory-traverse)
 //   W-INJECT sparsify                        F-memory/R1 (memory-sparsify)
 //   W-INJECT computeLayer, updateLayersLocally F-memory/R1 (memory-layer)
 //   W-INJECT detectArms, detectArmMerges     F-memory/R1 (memory-arm)
 //   W-INJECT computePresentState             F-memory/R1 (memory-present)
+//   W-INJECT normalizeLabel                  F-memory/R1 (memory-label)
 //   W-INJECT loadGraph, persistMutations, persistArms, touchTraversedNodes F-memory/R4 (memory-graph-io)
 //   W-INJECT encode                          F-memory/R4 (embedding-service)
 //   W-INJECT emitEvent                       F-event-system/R3
@@ -40,18 +42,32 @@
 //   R1  ../domain/memory-layer
 //   R1  ../domain/memory-arm
 //   R1  ../domain/memory-present
+//   R1  ../domain/memory-label
 //   R4  ../exec/memory-graph-io
 //   R4  ../exec/embedding-service
-//   R3  @/features/F-event-system/contract/event-bus (A2-event-bus-r3: documented amendment)
+//   R3  @/features/F-event-system/contract/event-bus (A2-event-bus-r3)
 // validated:  pending
 
-// Living Memory v1.0 — orchestration service.
+// Living Memory v1.1 — orchestration service.
 // R2: wires R1 pure functions + R4 I/O. The brain.
 //
-// §6: one operation — runTraversal(ping).
+// §6: one operation — runTraversal(text, userId, options).
 // MA2: read, write, and learning are one pass.
-// G2: getPresentState() reads _cachedPresentState. Recomputed only inside runTraversal().
+// G2: getPresentState(userId) reads _userStates cache. Recomputed only inside runTraversal().
 // G3: all mutations committed atomically via persistMutations().
+//
+// lm-v1.1 changes:
+//   Module state: split to global (boot once) + per-user (lazy-loaded, keyed by userId)
+//   onBoot(): loads global graph only (userId=null)
+//   ensureUserLoaded(userId): lazy per-user graph load
+//   runTraversal(text, userId, options):
+//     - Fallthrough bind: user graph first, global graph if no resonance (Amendment 3)
+//     - Bind-before-create: skip node creation if top match ≥ LABEL_REUSE_THRESHOLD (Amendment 2)
+//     - normalizeLabel() on new node content (Amendment 2)
+//     - 6-field edges: primitiveType + createdAt + userId (Amendments 1+3)
+//     - Scoped persist: userId passed to all R4 calls
+//   getPresentState(userId): per-user present state
+//   getUserGraph(userId): per-user graph for vital signs
 
 import type {
   MemGraph,
@@ -81,6 +97,7 @@ import { sparsify } from '../domain/memory-sparsify'
 import { updateLayersLocally } from '../domain/memory-layer'
 import { detectArms, detectArmMerges } from '../domain/memory-arm'
 import { computePresentState } from '../domain/memory-present'
+import { normalizeLabel } from '../domain/memory-label'
 
 // R4 — I/O
 import { loadGraph, persistMutations, persistArms, touchTraversedNodes } from '../exec/memory-graph-io'
@@ -93,84 +110,144 @@ import type { Result } from '@/core/types/primitives'
 import { generateId } from '@/core/types/primitives'
 
 // ─── Module-level state ───────────────────────────────────────────────────────
-// Graph is the single source of truth during runtime.
-// Loaded from Postgres on boot, kept warm in memory.
+// Amendment 3: split to global (boot once, shared read-only) + per-user (lazy).
 
-let _graph: MemGraph = { nodes: new Map(), edges: new Map() }
-let _arms: MemArm[] = []
-let _dominanceMap: Map<string, DominanceEntry> = new Map()
-let _cachedPresentState: PresentState = { statements: [] }
-let _thresholds: GraphThresholds = { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 }
+// Global graph — loaded once on boot, shared read-only
+let _globalGraph: MemGraph = { nodes: new Map(), edges: new Map() }
+let _globalArms: MemArm[] = []
+let _globalDominanceMap: Map<string, DominanceEntry> = new Map()
+let _globalThresholds: GraphThresholds = { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 }
 let _booted = false
+
+// Per-user state — lazy-loaded, keyed by userId
+type UserGraphState = {
+  graph:        MemGraph
+  arms:         MemArm[]
+  dominanceMap: Map<string, DominanceEntry>
+  thresholds:   GraphThresholds
+  presentState: PresentState
+  loaded:       boolean
+}
+const _userStates = new Map<string, UserGraphState>()
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 // Called once at server start by F-event-system/startup.ts.
-// Also called by lazy-boot guard in runTraversal() for Turbopack module isolation.
+// Amendment 3: loads global graph only (userId=null). Per-user graphs lazy-loaded.
 // Idempotent: safe to call multiple times (early-exit if already booted).
 
 export async function onBoot(): Promise<void> {
-  // Idempotency guard: if already booted, do nothing
   if (_booted) return
 
-  const loadResult = await loadGraph()
+  const loadResult = await loadGraph(null)
   if (!loadResult.ok) {
     console.error(JSON.stringify({
       level: 'error', event: 'memory.boot.load-failed',
       error: loadResult.error.message,
       timestamp: new Date().toISOString(),
     }))
-    // Non-fatal — start with empty graph
-    _graph = { nodes: new Map(), edges: new Map() }
-    _arms = []
-    _dominanceMap = new Map()
+    // Non-fatal — start with empty global graph
+    _globalGraph = { nodes: new Map(), edges: new Map() }
+    _globalArms = []
+    _globalDominanceMap = new Map()
     _booted = true
     return
   }
 
-  _graph = loadResult.data.graph
-  _arms = loadResult.data.arms
-  _dominanceMap = loadResult.data.dominanceMap
+  _globalGraph = loadResult.data.graph
+  _globalArms = loadResult.data.arms
+  _globalDominanceMap = loadResult.data.dominanceMap
 
-  // Compute initial thresholds from loaded graph
-  _thresholds = computeThresholds(_graph)
-
-  // Compute initial present state
-  _cachedPresentState = computePresentState(_graph, _arms)
+  // Compute initial thresholds from global graph
+  _globalThresholds = computeThresholds(_globalGraph)
 
   _booted = true
 
   console.log(JSON.stringify({
     level: 'info', event: 'memory.boot.complete',
-    nodeCount: _graph.nodes.size,
-    edgeCount: Array.from(_graph.edges.values()).reduce((s, e) => s + e.length, 0),
-    armCount: _arms.length,
+    nodeCount: _globalGraph.nodes.size,
+    edgeCount: Array.from(_globalGraph.edges.values()).reduce((s, e) => s + e.length, 0),
+    armCount: _globalArms.length,
     timestamp: new Date().toISOString(),
   }))
 }
 
+// ─── Ensure User Loaded ───────────────────────────────────────────────────────
+// Amendment 3: lazy per-user graph load. Returns UserGraphState, creates empty on failure.
+
+async function ensureUserLoaded(userId: string): Promise<UserGraphState> {
+  let state = _userStates.get(userId)
+  if (state?.loaded) return state
+
+  const result = await loadGraph(userId)
+
+  if (!result.ok) {
+    console.error(JSON.stringify({
+      level: 'error', event: 'memory.user-load.failed',
+      userId,
+      error: result.error.message,
+      timestamp: new Date().toISOString(),
+    }))
+    // Non-fatal — start with empty user graph
+    state = {
+      graph:        { nodes: new Map(), edges: new Map() },
+      arms:         [],
+      dominanceMap: new Map(),
+      thresholds:   { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 },
+      presentState: { statements: [] },
+      loaded:       true,
+    }
+    _userStates.set(userId, state)
+    return state
+  }
+
+  const graph = result.data.graph
+  const arms = result.data.arms
+  const dominanceMap = result.data.dominanceMap
+  const thresholds = computeThresholds(graph)
+
+  // Compute initial present state with scoped graph set
+  const presentState = computePresentState(
+    { user: graph, global: _globalGraph },
+    arms,
+    _globalArms,
+  )
+
+  state = {
+    graph,
+    arms,
+    dominanceMap,
+    thresholds,
+    presentState,
+    loaded: true,
+  }
+  _userStates.set(userId, state)
+  return state
+}
+
 // ─── Run Traversal ────────────────────────────────────────────────────────────
 // §6: the one operation. Handles read, write, and learning in one pass (MA2).
+// Amendment 3: +userId param. All operations use per-user graph state.
 //
-// Pipeline per §6 runTraversal(ping):
-//   1. encode(ping) → embedding vector
-//   2. bind(embedding, G) → find resonant nodes
-//   3. if no binding → create new M4 node, return empty
-//   4. connect → create edges to bound nodes
+// Pipeline per §6 runTraversal(text, userId, options):
+//   1. encode(text) → embedding vector
+//   2. bind(embedding, userGraph, userThresholds) → find resonant nodes
+//   2a. FALLTHROUGH: if no resonance → bind(embedding, _globalGraph, _globalThresholds)
+//   2b. BIND-BEFORE-CREATE: if top match ≥ LABEL_REUSE_THRESHOLD → reinforce, skip create
+//   3. if no binding → create new M4 node (normalizeLabel), return empty
+//   4. connect → create edges to bound nodes (6-field, scoped)
 //   5. propagate → spread activation, inline learning
 //   6. sparsify → top-K competition + edge prune + isolate removal
 //   7. update_layers_locally → recompute layer for changed nodes
-//   8. persist atomically (G3)
+//   8. persist atomically (G3, scoped)
 //   9. recompute Present State (G2: side effect of traversal only)
 //  10. return → if read: return top-K activated nodes
 
 export async function runTraversal(
   text: string,
+  userId: string,
   options: TraversalOptions = {},
 ): Promise<Result<TraversalResult | null>> {
-  // Turbopack module isolation: Next.js 16.1.6 runs instrumentation hook and API routes
-  // in separate worker contexts with separate module instances. bootstrap()→onBoot() sets
-  // _booted=true in instrumentation worker, but request worker has its own instance where
-  // _booted=false. Lazy-boot detects this and initializes in request context.
+  // Turbopack module isolation: lazy-boot if needed
   if (!_booted) {
     await onBoot()
     if (!_booted) {
@@ -178,12 +255,16 @@ export async function runTraversal(
     }
   }
 
+  // Amendment 3: load per-user graph state
+  const userState = await ensureUserLoaded(userId)
+  const userGraph = userState.graph
+  const userThresholds = userState.thresholds
+
   const now = Date.now()
 
   // ── Step 1: encode ──────────────────────────────────────────────────────────
   const encodeResult = await encode(text)
   if (!encodeResult.ok) {
-    // Embedding provider down — fail graceful, return null
     console.error(JSON.stringify({
       level: 'error', event: 'memory.traversal.encode-failed',
       error: encodeResult.error.message,
@@ -194,7 +275,15 @@ export async function runTraversal(
   const embedding = encodeResult.data
 
   // ── Step 2: bind ────────────────────────────────────────────────────────────
-  const binding = bind(embedding, _graph, _thresholds)
+  let binding = bind(embedding, userGraph, userThresholds)
+
+  // Amendment 3: FALLTHROUGH — if no resonance in user graph, try global graph
+  // Fallthrough is read-only: global graph never mutated by user traversals (A6)
+  let fallthroughUsed = false
+  if (binding.nodes.length === 0) {
+    binding = bind(embedding, _globalGraph, _globalThresholds)
+    fallthroughUsed = binding.nodes.length > 0
+  }
 
   // Track all changed nodes for layer recomputation
   const changedNodeIds = new Set<string>()
@@ -209,32 +298,58 @@ export async function runTraversal(
     layerUpdates: [],
   }
 
-  // ── Step 3: if no binding → create new M4 node ─────────────────────────────
-  const newNodeId = generateId('mem')
-  const newNode: MemNode = {
-    id:              newNodeId,
-    content:         text.slice(0, 500),  // cap content length
-    embedding,
-    sourceText:      text,
-    createdAt:       now,
-    lastTraversed:   now,
-    cachedLayer:     M4_INPUT,
-    cachedClosure:   0,
-    cachedAsymmetry: 0,
-  }
-  mutation.nodeCreates.push(newNode)
-  changedNodeIds.add(newNodeId)
+  // ── Step 2b: bind-before-create (Amendment 2) ──────────────────────────────
+  // If top match similarity ≥ LABEL_REUSE_THRESHOLD, skip node creation.
+  // Reinforce existing node instead of creating a duplicate.
+  const topMatch = binding.nodes.length > 0 ? binding.nodes[0] : null
+  const skipCreate = topMatch !== null && topMatch.similarity >= MEMORY_CONFIG.LABEL_REUSE_THRESHOLD
 
-  // Apply to in-memory graph immediately (needed for propagation)
-  _graph.nodes.set(newNodeId, newNode)
+  let activeNodeId: string
+
+  if (skipCreate && topMatch) {
+    // Amendment 2: reuse existing node — reinforce instead of create
+    activeNodeId = topMatch.nodeId
+    changedNodeIds.add(activeNodeId)
+
+    // Touch the reused node in the user graph
+    // MA1: clone before mutation — global graph energy is independent.
+    // A user traversal must not alter global state, even in-memory.
+    const sourceNode = userGraph.nodes.get(activeNodeId) ?? _globalGraph.nodes.get(activeNodeId)
+    const existingNode = sourceNode ? { ...sourceNode } : null
+    if (existingNode) {
+      existingNode.lastTraversed = now
+      userGraph.nodes.set(activeNodeId, existingNode)
+    }
+  } else {
+    // ── Step 3: create new M4 node ────────────────────────────────────────────
+    // Amendment 2: normalizeLabel() on content (A6)
+    activeNodeId = generateId('mem')
+    const newNode: MemNode = {
+      id:              activeNodeId,
+      userId,                                  // Amendment 3: scoped to user (A6)
+      content:         normalizeLabel(text.slice(0, 500)),  // Amendment 2: canonical label
+      embedding,
+      sourceText:      text,
+      createdAt:       now,
+      lastTraversed:   now,
+      cachedLayer:     M4_INPUT,
+      cachedClosure:   0,
+      cachedAsymmetry: 0,
+    }
+    mutation.nodeCreates.push(newNode)
+    changedNodeIds.add(activeNodeId)
+
+    // Apply to in-memory user graph immediately (needed for propagation)
+    userGraph.nodes.set(activeNodeId, newNode)
+  }
 
   if (binding.nodes.length === 0) {
     // No resonance — persist the isolated node and return
-    await commitAndUpdate(mutation, changedNodeIds, now)
+    await commitAndUpdate(mutation, changedNodeIds, now, userId, userGraph)
 
     await emitEvent({
       type: MEMORY_EVENTS.NODE_CREATED,
-      payload: { nodeId: newNodeId },
+      payload: { nodeId: activeNodeId },
       slice: 'F-memory',
     })
 
@@ -242,80 +357,82 @@ export async function runTraversal(
   }
 
   // ── Step 4: connect → create edges to bound nodes ───────────────────────────
-  // §7 bind(): the activation distribution across resonant nodes is the
-  // natural decomposition. One node, multiple edges, weights set by projection magnitude.
+  // Amendment 1+3: 6-field edges with primitiveType, createdAt, userId (A6)
+  // Fallthrough: edges point to global node IDs but stored with userId in per-user graph
   for (const bound of binding.nodes) {
     const edge: MemEdge = {
-      fromId: newNodeId,
-      toId:   bound.nodeId,
-      weight: Math.max(0.01, bound.similarity), // minimum edge weight
+      fromId:        activeNodeId,
+      toId:          bound.nodeId,
+      weight:        Math.max(0.01, bound.similarity),
+      primitiveType: options.primitiveType ?? null,  // Amendment 4: caller-specified or null (A6)
+      createdAt:     now,                            // Amendment 1 (A6)
+      userId,                                        // Amendment 3: scoped (A6)
     }
     mutation.edgeUpserts.push(edge)
     changedNodeIds.add(bound.nodeId)
 
-    // Apply to in-memory graph
-    const outEdges = _graph.edges.get(newNodeId) ?? []
+    // Apply to in-memory user graph
+    const outEdges = userGraph.edges.get(activeNodeId) ?? []
     outEdges.push(edge)
-    _graph.edges.set(newNodeId, outEdges)
+    userGraph.edges.set(activeNodeId, outEdges)
   }
 
-  // New node now has edges → at least M3
-  newNode.cachedLayer = M3_CONTEXT
-  _graph.nodes.set(newNodeId, newNode)
+  // Active node now has edges → at least M3
+  const activeNode = userGraph.nodes.get(activeNodeId)
+  if (activeNode && activeNode.cachedLayer === M4_INPUT) {
+    activeNode.cachedLayer = M3_CONTEXT
+    userGraph.nodes.set(activeNodeId, activeNode)
+  }
 
   // ── Step 5: propagate → spread activation + inline learning ─────────────────
   const seed: ActivationMap = new Map()
   for (const bound of binding.nodes) {
     seed.set(bound.nodeId, bound.similarity)
   }
-  // Also seed the new node
-  seed.set(newNodeId, binding.score)
+  seed.set(activeNodeId, binding.score)
 
-  const { activation, edgeMutations } = propagate(seed, _graph)
+  const { activation, edgeMutations } = propagate(seed, userGraph)
 
-  // Collect edge mutations from learning
   for (const learnedEdge of edgeMutations) {
     mutation.edgeUpserts.push(learnedEdge)
     changedNodeIds.add(learnedEdge.fromId)
     changedNodeIds.add(learnedEdge.toId)
 
-    // Apply to in-memory graph
-    const outEdges = _graph.edges.get(learnedEdge.fromId) ?? []
+    // Apply to in-memory user graph
+    const outEdges = userGraph.edges.get(learnedEdge.fromId) ?? []
     const idx = outEdges.findIndex(e => e.toId === learnedEdge.toId)
     if (idx >= 0) outEdges[idx] = learnedEdge
     else outEdges.push(learnedEdge)
-    _graph.edges.set(learnedEdge.fromId, outEdges)
+    userGraph.edges.set(learnedEdge.fromId, outEdges)
   }
 
   // ── Step 6: sparsify → edge prune + isolate removal ─────────────────────────
-  const sparsifyResult = sparsify(_graph)
+  const sparsifyResult = sparsify(userGraph)
 
   for (const edgeDel of sparsifyResult.edgeDeletes) {
     mutation.edgeDeletes.push(edgeDel)
     changedNodeIds.add(edgeDel.fromId)
     changedNodeIds.add(edgeDel.toId)
 
-    // Apply to in-memory graph
-    const outEdges = _graph.edges.get(edgeDel.fromId) ?? []
-    _graph.edges.set(edgeDel.fromId, outEdges.filter(e => e.toId !== edgeDel.toId))
+    const outEdges = userGraph.edges.get(edgeDel.fromId) ?? []
+    userGraph.edges.set(edgeDel.fromId, outEdges.filter(e => e.toId !== edgeDel.toId))
   }
 
   for (const nodeId of sparsifyResult.nodeDeletes) {
     mutation.nodeDeletes.push(nodeId)
-    _graph.nodes.delete(nodeId)
-    _graph.edges.delete(nodeId)
+    userGraph.nodes.delete(nodeId)
+    userGraph.edges.delete(nodeId)
   }
 
   // ── Step 7: update_layers_locally → recompute changed nodes ─────────────────
-  const layerUpdates = updateLayersLocally(changedNodeIds, _graph, _thresholds, _dominanceMap)
+  const layerUpdates = updateLayersLocally(changedNodeIds, userGraph, userThresholds, userState.dominanceMap)
 
   for (const update of layerUpdates) {
-    const node = _graph.nodes.get(update.nodeId)
+    const node = userGraph.nodes.get(update.nodeId)
     if (!node) continue
 
     const oldLayer = node.cachedLayer
 
-    // Check for M3→M2 transition: prune source text
     if (oldLayer >= M3_CONTEXT && update.layer <= 2) {
       mutation.sourcePrunes.push(update.nodeId)
       node.sourceText = null
@@ -323,13 +440,11 @@ export async function runTraversal(
 
     mutation.layerUpdates.push(update)
 
-    // Apply to in-memory graph
     node.cachedLayer = update.layer
     node.cachedClosure = update.closure
     node.cachedAsymmetry = update.asymmetry
-    _graph.nodes.set(update.nodeId, node)
+    userGraph.nodes.set(update.nodeId, node)
 
-    // Emit layer change event
     if (oldLayer !== update.layer) {
       await emitEvent({
         type: MEMORY_EVENTS.LAYER_CHANGED,
@@ -339,18 +454,22 @@ export async function runTraversal(
     }
   }
 
-  // ── Step 8: persist atomically (G3) ─────────────────────────────────────────
-  await commitAndUpdate(mutation, changedNodeIds, now)
+  // ── Step 8: persist atomically (G3, scoped) ─────────────────────────────────
+  await commitAndUpdate(mutation, changedNodeIds, now, userId, userGraph)
 
   // ── Step 9: recompute Present State (G2) ────────────────────────────────────
-  // Recompute thresholds (graph may have changed significantly)
-  _thresholds = computeThresholds(_graph)
+  userState.thresholds = computeThresholds(userGraph)
 
   // Detect arms periodically (every traversal for now; optimize later)
-  const newArms = detectArms(_graph)
-  if (newArms.length !== _arms.length) {
-    // Check for merges
-    const merges = detectArmMerges(newArms, _graph)
+  const newArms = detectArms(userGraph)
+
+  // Amendment 3+#5: stamp userId onto detected arms before persist (memory-arm.ts stays pure)
+  for (const arm of newArms) {
+    arm.userId = userId
+  }
+
+  if (newArms.length !== userState.arms.length) {
+    const merges = detectArmMerges(newArms, userGraph)
     for (const merge of merges) {
       await emitEvent({
         type: MEMORY_EVENTS.ARM_MERGED,
@@ -363,9 +482,8 @@ export async function runTraversal(
       })
     }
 
-    // Detect new arms
     for (const arm of newArms) {
-      const existed = _arms.some(a => a.id === arm.id)
+      const existed = userState.arms.some(a => a.id === arm.id)
       if (!existed) {
         await emitEvent({
           type: MEMORY_EVENTS.ARM_DETECTED,
@@ -375,19 +493,23 @@ export async function runTraversal(
       }
     }
 
-    _arms = newArms
-    await persistArms(_arms)
+    userState.arms = newArms
+    await persistArms(newArms, userId)
   }
 
-  // Recompute present state
-  _cachedPresentState = computePresentState(_graph, _arms)
+  // Recompute present state with scoped graph set
+  userState.presentState = computePresentState(
+    { user: userGraph, global: _globalGraph },
+    userState.arms,
+    _globalArms,
+  )
 
   // Emit traversal complete
   await emitEvent({
     type: MEMORY_EVENTS.TRAVERSAL_COMPLETE,
     payload: {
-      nodeCount: _graph.nodes.size,
-      edgeCount: Array.from(_graph.edges.values()).reduce((s, e) => s + e.length, 0),
+      nodeCount: userGraph.nodes.size,
+      edgeCount: Array.from(userGraph.edges.values()).reduce((s, e) => s + e.length, 0),
     },
     slice: 'F-memory',
   })
@@ -397,12 +519,11 @@ export async function runTraversal(
     return { ok: true, data: null }
   }
 
-  // Build TraversalResult from activation
   const topNodes = Array.from(activation.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, MEMORY_CONFIG.TOP_K_ACTIVATION)
     .map(([nodeId, score]) => {
-      const node = _graph.nodes.get(nodeId)
+      const node = userGraph.nodes.get(nodeId) ?? _globalGraph.nodes.get(nodeId)
       return {
         nodeId,
         content: node?.content ?? nodeId,
@@ -419,50 +540,66 @@ export async function runTraversal(
 
 // ─── Get Present State ────────────────────────────────────────────────────────
 // G2: reads precomputed values only — never triggers recomputation.
-// Called by R3 contract before every LLM call.
+// Amendment 3: per-user present state keyed by userId.
 
-export function getPresentState(): PresentState {
-  return _cachedPresentState
+export function getPresentState(userId: string): PresentState {
+  const state = _userStates.get(userId)
+  return state?.presentState ?? { statements: [] }
 }
 
 // ─── Get graph stats (for vital signs) ────────────────────────────────────────
+// getGraph(): returns global graph (boot-time, shared read-only)
+// getUserGraph(): returns per-user graph for vital signs (Amendment 3)
 
 export function getGraph(): MemGraph {
-  return _graph
+  return _globalGraph
+}
+
+export function getUserGraph(userId: string): MemGraph {
+  const state = _userStates.get(userId)
+  return state?.graph ?? { nodes: new Map(), edges: new Map() }
 }
 
 export function getArms(): MemArm[] {
-  return _arms
+  return _globalArms
+}
+
+// A3: typed boundary — per-user arms for cross-slice graph read surface.
+// w3-17-contract-ext: new accessor, mirrors getUserGraph pattern.
+export function getUserArms(userId: string): MemArm[] {
+  const state = _userStates.get(userId)
+  return state?.arms ?? []
 }
 
 export function getDominanceMap(): Map<string, DominanceEntry> {
-  return _dominanceMap
+  return _globalDominanceMap
 }
 
 export function setDominanceMap(map: Map<string, DominanceEntry>): void {
-  _dominanceMap = map
+  _globalDominanceMap = map
 }
 
 // ─── Internal: commit mutation + touch traversed nodes ────────────────────────
+// Amendment 3: +userId param, passed to all R4 persist calls (A4).
 
 async function commitAndUpdate(
   mutation: GraphMutation,
   changedNodeIds: Set<string>,
   timestamp: number,
+  userId: string,
+  userGraph: MemGraph,
 ): Promise<void> {
-  const persistResult = await persistMutations(mutation)
+  const persistResult = await persistMutations(mutation, userId)
   if (!persistResult.ok) {
     console.error(JSON.stringify({
       level: 'error', event: 'memory.traversal.persist-failed',
       error: persistResult.error.message,
       timestamp: new Date().toISOString(),
     }))
-    // In-memory graph already updated — DB will catch up on next successful persist
     return
   }
 
-  // Touch all activated nodes' last_traversed timestamp
-  const touchResult = await touchTraversedNodes(Array.from(changedNodeIds), timestamp)
+  const touchResult = await touchTraversedNodes(Array.from(changedNodeIds), timestamp, userId)
   if (!touchResult.ok) {
     console.error(JSON.stringify({
       level: 'error', event: 'memory.traversal.touch-failed',
@@ -473,10 +610,10 @@ async function commitAndUpdate(
 
   // Update in-memory last_traversed
   for (const nodeId of changedNodeIds) {
-    const node = _graph.nodes.get(nodeId)
+    const node = userGraph.nodes.get(nodeId)
     if (node) {
       node.lastTraversed = timestamp
-      _graph.nodes.set(nodeId, node)
+      userGraph.nodes.set(nodeId, node)
     }
   }
 

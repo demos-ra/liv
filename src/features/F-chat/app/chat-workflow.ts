@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v1.1-wire-fix
 // slice:      F-chat
 // layer:      R2
 // wires-in:
@@ -49,8 +49,7 @@ import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import { generateId } from '@/core/types/primitives'
 
-// v1.0: MemoryDeps maps to traverse + getPresentState (replaces remember/recall/onSessionEnd)
-const memoryDeps = { traverse, getPresentState }
+// v1.1: MemoryDeps constructed inside sendMessage — needs userId from input.
 
 // ── Session state ─────────────────────────────────────────────────────────────
 
@@ -105,6 +104,9 @@ export interface SendMessageInput {
 
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
   const { projectId, content, modelId, userId } = input
+
+  // v1.1: MemoryDeps needs userId (Amendment 3)
+  const memoryDeps = { traverse, getPresentState, userId }
 
   // Session rotation
   const state = getOrCreateSessionState(userId)
