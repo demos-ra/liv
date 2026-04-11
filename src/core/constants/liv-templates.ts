@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.3
-// amended: none
+// standard: LIV-Standard v1.4
+// amended: v1.4
 // slice: core
 // layer: R5
 // wires-in: none
@@ -11,7 +11,7 @@
 //   W-ATOM TEMPLATES → core/R5 liv-api
 // deps:
 //   R5 ./liv-standard.types
-// validated: 2026-03-16
+// validated: 2026-04-11
 
 // ═══════════════════════════════════════════════════════════════
 // §5 TEMPLATES — 14 entries, all with bodies
@@ -30,8 +30,9 @@ export const TEMPLATES: Record<TemplateId, Template> = {
     file: '{slice}-types.ts',
     layer: 'R0',
     slots: ['SLICE_NAME', 'ENTITY_NAME', 'ENTITY_FIELDS', 'SUMMARY_FIELDS', 'ENUM_NAME', 'ENUM_MEMBERS'],
-    derived: [{ name: 'SLICE_UPPER', from: 'SLICE_NAME', transform: 'upperCase' }],
+    derived: [],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R0]
@@ -46,9 +47,6 @@ export type {ENTITY_NAME} = {
 }
 export type {ENTITY_NAME}Summary = Pick<{ENTITY_NAME}, "id" | {SUMMARY_FIELDS}>
 export type {ENTITY_NAME}Delta   = Partial<Omit<{ENTITY_NAME}, "id" | "createdAt" | "updatedAt">>
-export type {SLICE_UPPER}Result<T> =
-  | { ok: true;  data: T }
-  | { ok: false; error: { code: string; message: string; context?: Record<string, unknown> } }
 export type {ENUM_NAME} = {ENUM_MEMBERS}`,
   },
 
@@ -66,6 +64,7 @@ export type {ENUM_NAME} = {ENUM_MEMBERS}`,
       { name: 'event-name', from: 'EVENT_NAME', transform: 'kebabCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R0]
@@ -94,6 +93,7 @@ export type {EventName}Payload = {
       { name: 'slice_name', from: 'SLICE_NAME', transform: 'snakeCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R0]
@@ -118,6 +118,7 @@ export const {SLICE_UPPER}_NAMESPACE = '{slice_name}' as const`,
     slots: ['SLICE_NAME', 'WIRE_TYPE', 'WIRE_ID', 'PAYLOAD_REF', 'WIRE_BLOCKS'],
     derived: [],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R0]
@@ -152,6 +153,7 @@ export {}  // module marker — declarations live in @wire blocks above`,
       { name: 'SLICE_UPPER', from: 'SLICE_NAME', transform: 'upperCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R1]
@@ -189,6 +191,7 @@ import { {SLICE_UPPER}_CONST } from '../types/{slice}-const'
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['PRIMITIVES_PATH', 'EVENT_BUS_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R2]
@@ -198,11 +201,11 @@ import { {SLICE_UPPER}_CONST } from '../types/{slice}-const'
 // FL-CRUD: R3 validates → R2 orchestrates → R4 persists → event emit.
 
 import { generateId }  from '@/core/types/primitives'
+import type { Result } from '@/core/types/primitives'
 import { emitEvent }   from '@/features/F-event-system/contract/event-bus'
 import type {
   {ENTITY_NAME},
   {ENTITY_NAME}Delta,
-  {SLICE_UPPER}Result,
   {CREATE_PAYLOAD},
 } from '../types/{slice}-types'
 import { {SLICE_UPPER}_EVENTS, {EVENT_PAYLOAD_TYPES} } from '../types/{slice}-events'
@@ -233,6 +236,7 @@ export interface I{SliceName}Db {
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['EVENT_BUS_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R2]
@@ -296,6 +300,7 @@ function sleep(ms: number) {
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: [],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R2]
@@ -344,10 +349,10 @@ export interface {SliceName}WorkflowDeps {
     slots: ['SLICE_NAME', 'TYPES', 'LOGIC_FNS', 'JOB_DB_METHODS', 'JOB_PAYLOAD', 'JOB_RESULT', 'JOB_HANDLER', 'COMPLETION_EVENT', 'RESULT_CONTEXT', 'DEAD_LETTER_EVENT'],
     derived: [
       { name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' },
-      { name: 'SLICE_UPPER', from: 'SLICE_NAME', transform: 'upperCase' },
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['EVENT_BUS_PATH', 'PRIMITIVES_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R2]
@@ -358,7 +363,7 @@ export interface {SliceName}WorkflowDeps {
 // Scheduler → R2 → R4 I/O → event emit on completion.
 
 import type { {TYPES} } from '../types/{slice}-types'
-import type { {SLICE_UPPER}Result } from '../types/{slice}-types'
+import type { Result } from '@/core/types/primitives'
 import { {LOGIC_FNS} } from '../domain/{slice}-logic'
 import { emitEvent }   from '@/features/F-event-system/contract/event-bus'
 
@@ -369,7 +374,7 @@ export interface I{SliceName}JobDb {
 export async function runJob(
   deps: { db: I{SliceName}JobDb },
   payload: {JOB_PAYLOAD}
-): Promise<{SLICE_UPPER}Result<{JOB_RESULT}>> {
+): Promise<Result<{JOB_RESULT}>> {
   try {
     {JOB_HANDLER}
 
@@ -392,6 +397,7 @@ export async function runJob(
     slots: ['SLICE_NAME', 'WORKFLOW_FNS', 'INJECT_FACTORY', 'INPUT_OUTPUT_ATOMS', 'ROUTE_HANDLERS'],
     derived: [{ name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' }],
     system: ['STANDARD_VERSION'],
+    platform: ['FRAMEWORK_SERVER', 'AUTH_CONTRACT_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
@@ -399,7 +405,7 @@ export async function runJob(
 // Slots: SLICE_NAME, WORKFLOW_FNS, INJECT_FACTORY, INPUT_OUTPUT_ATOMS, ROUTE_HANDLERS
 // A2: R3 never calls R4 directly.
 // A3: R3 validates shape — schema, required fields, format.
-// R3 maps Result to HTTP/tRPC code — never exposes raw error internals.
+// R3 maps Result to HTTP status code — never exposes raw error internals.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
@@ -428,6 +434,7 @@ async function getSession(req: NextRequest) {
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['PRIMITIVES_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
@@ -474,6 +481,7 @@ export function use{SliceName}(): {SliceName}Hook {
       { name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['CLIENT_DIRECTIVE'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
@@ -509,9 +517,9 @@ export function {COMPONENT_NAME}() {
     slots: ['SLICE_NAME', 'TABLE_NAME', 'ENTITY_NAME', 'ROW_FIELDS', 'ROW_MAPPING'],
     derived: [
       { name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' },
-      { name: 'SLICE_UPPER', from: 'SLICE_NAME', transform: 'upperCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['DB_CLIENT_PATH', 'PRIMITIVES_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R4]
@@ -521,11 +529,11 @@ export function {COMPONENT_NAME}() {
 
 import { db }                                    from '@/core/db/client'
 import type { {ENTITY_NAME}, {ENTITY_NAME}Delta } from '../types/{slice}-types'
-import type { {SLICE_UPPER}Result }               from '../types/{slice}-types'
+import type { Result }                            from '@/core/types/primitives'
 
 type {ENTITY_NAME}Row = { {ROW_FIELDS} }
 
-export async function get{ENTITY_NAME}(id: string): Promise<{SLICE_UPPER}Result<{ENTITY_NAME}>> {
+export async function get{ENTITY_NAME}(id: string): Promise<Result<{ENTITY_NAME}>> {
   const result = await db.query<{ENTITY_NAME}Row>(
     \`SELECT {ROW_FIELDS} FROM {TABLE_NAME} WHERE id = $1\`, [id]
   )
@@ -548,9 +556,9 @@ function mapRow(r: {ENTITY_NAME}Row): {ENTITY_NAME} {
     slots: ['SLICE_NAME', 'TYPES', 'CONFIG_RESOLUTION', 'SERVICE_OPS'],
     derived: [
       { name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' },
-      { name: 'SLICE_UPPER', from: 'SLICE_NAME', transform: 'upperCase' },
     ],
     system: ['STANDARD_VERSION'],
+    platform: ['PRIMITIVES_PATH'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R4]
@@ -561,7 +569,7 @@ function mapRow(r: {ENTITY_NAME}Row): {ENTITY_NAME} {
 // Every function returns Result<T> — no raw throws. Dev stub implements same interface.
 
 import type { {TYPES} }            from '../types/{slice}-types'
-import type { {SLICE_UPPER}Result } from '../types/{slice}-types'
+import type { Result }             from '@/core/types/primitives'
 
 // ── Config / key resolution ─────────────────────────────────────
 

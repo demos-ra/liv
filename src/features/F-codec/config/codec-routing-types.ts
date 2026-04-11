@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    phase-b-item2
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -91,10 +91,14 @@ export type CodecRoutingEventType = typeof CODEC_ROUTING_EVENTS[keyof typeof COD
 
 // ─── Route-Build Payload ─────────────────────────────────────────────────────
 // A5: event payload for F-planner subscription.
+// phase-b-item2: projectId now required for build routes. message + modelId
+// added as pass-through fields for planner event subscription handler.
 
 export type RouteBuildPayload = {
   primitive:  MutatingPrimitive
   label:      string
   userId:     string
-  projectId?: string
+  projectId:  string      // was optional, now required for build routes
+  message:    string      // pass-through: original user message
+  modelId:    string      // pass-through: model preference
 }

@@ -49,7 +49,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // ── Admin gate ────────────────────────────────────────────────────────────
   // ValidatedSession has no email field (Gap 1 — intentionally minimal).
   // Resolve email from auth_users via R4. Null → user not found → 403.
-  const email = await dbGetUserEmail(session.userId)
+  const emailResult = await dbGetUserEmail(session.userId)
+  if (!emailResult.ok) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+  const email = emailResult.data
   if (!email || !isEmailAllowed(email)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -67,8 +71,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // ── DB query ──────────────────────────────────────────────────────────────
   try {
-    const builds = await dbGetBuilds({ status, limit })
-    return NextResponse.json(builds)
+    const buildsResult = await dbGetBuilds({ status, limit })
+    if (!buildsResult.ok) {
+      return NextResponse.json({ error: buildsResult.error.message }, { status: 500 })
+    }
+    return NextResponse.json(buildsResult.data)
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

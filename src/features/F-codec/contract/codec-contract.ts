@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-codec/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w3-19-memory-exports, w3-20-admin-exports
+// standard:   LIV-Standard v1.4
+// amended:    w3-19-memory-exports, w3-20-admin-exports, phase-b-item2
 // slice:      F-codec
 // layer:      R3
 // wires-in:
@@ -46,12 +46,15 @@ import { processMessage as _processMessage } from '../app/codec-orchestrate'
 // Full codec pipeline: encode → route → decode → dispatch.
 // Single entry point for F-chat. Returns everything needed for LLM context
 // injection (decodedContext.systemPromptBlock) and action dispatch (route).
+// phase-b-item2: projectId/modelId added as optional pass-through for build routing.
 
 export async function processMessage(
-  content: string,
-  userId:  string,
+  content:    string,
+  userId:     string,
+  projectId?: string,
+  modelId?:   string,
 ): Promise<Result<CodecPipelineResult>> {
-  return _processMessage(content, userId)
+  return _processMessage(content, userId, projectId, modelId)
 }
 
 // ─── encode ───────────────────────────────────────────────────────────────────

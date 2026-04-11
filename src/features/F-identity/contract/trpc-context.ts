@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-identity/contract/trpc-context.ts]
+// @liv-standard v1.3
+// [F-identity/R3]
 // Built with LIV · livai.dev
 // R3 — tRPC context factory. Wires auth workflow deps for every request.
 // A2: R3 owns IAuthDb factory instantiation. R2 depends on interface only.

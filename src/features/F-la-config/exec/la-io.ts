@@ -14,6 +14,7 @@
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { db } from '@/core/db/client'
+import type { Result } from '@/core/types/primitives'
 
 const execFileAsync = promisify(execFile)
 
@@ -60,70 +61,96 @@ async function runValidator(
 
 // ─── Individual validators ────────────────────────────────────────────────────
 
-export async function runRLayerValidator(repoPath: string): Promise<string> {
-  assertSafePath(repoPath)
-  const result = await runValidator(
-    `${LA_PATH}/src/domain/validate-r-layers.py`,
-    [],
-    repoPath
-  )
-  return result.stdout + result.stderr
+export async function runRLayerValidator(repoPath: string): Promise<Result<string>> {
+  try {
+    assertSafePath(repoPath)
+    const result = await runValidator(
+      `${LA_PATH}/src/domain/validate-r-layers.py`,
+      [],
+      repoPath
+    )
+    return { ok: true, data: result.stdout + result.stderr }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_VALIDATOR_FAILED', message } }
+  }
 }
 
-export async function runFTagValidator(repoPath: string): Promise<string> {
-  assertSafePath(repoPath)
-  const result = await runValidator(
-    `${LA_PATH}/src/domain/validate-f-tags.py`,
-    [],
-    repoPath
-  )
-  return result.stdout + result.stderr
+export async function runFTagValidator(repoPath: string): Promise<Result<string>> {
+  try {
+    assertSafePath(repoPath)
+    const result = await runValidator(
+      `${LA_PATH}/src/domain/validate-f-tags.py`,
+      [],
+      repoPath
+    )
+    return { ok: true, data: result.stdout + result.stderr }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_VALIDATOR_FAILED', message } }
+  }
 }
 
-export async function runOperationsValidator(repoPath: string): Promise<string> {
-  assertSafePath(repoPath)
-  const result = await runValidator(
-    `${LA_PATH}/src/domain/validate-operations.py`,
-    [],
-    repoPath
-  )
-  return result.stdout + result.stderr
+export async function runOperationsValidator(repoPath: string): Promise<Result<string>> {
+  try {
+    assertSafePath(repoPath)
+    const result = await runValidator(
+      `${LA_PATH}/src/domain/validate-operations.py`,
+      [],
+      repoPath
+    )
+    return { ok: true, data: result.stdout + result.stderr }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_VALIDATOR_FAILED', message } }
+  }
 }
 
-export async function runExecutionValidator(repoPath: string): Promise<string> {
-  assertSafePath(repoPath)
-  const result = await runValidator(
-    `${LA_PATH}/src/domain/validate-execution.py`,
-    [],
-    repoPath
-  )
-  return result.stdout + result.stderr
+export async function runExecutionValidator(repoPath: string): Promise<Result<string>> {
+  try {
+    assertSafePath(repoPath)
+    const result = await runValidator(
+      `${LA_PATH}/src/domain/validate-execution.py`,
+      [],
+      repoPath
+    )
+    return { ok: true, data: result.stdout + result.stderr }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_VALIDATOR_FAILED', message } }
+  }
 }
 
 export async function runChangesValidator(
   repoPath: string,
   commitMsg: string
-): Promise<string> {
-  assertSafePath(repoPath)
-  const result = await runValidator(
-    `${LA_PATH}/src/domain/validate-changes.py`,
-    [commitMsg],
-    repoPath
-  )
-  return result.stdout + result.stderr
+): Promise<Result<string>> {
+  try {
+    assertSafePath(repoPath)
+    const result = await runValidator(
+      `${LA_PATH}/src/domain/validate-changes.py`,
+      [commitMsg],
+      repoPath
+    )
+    return { ok: true, data: result.stdout + result.stderr }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_VALIDATOR_FAILED', message } }
+  }
 }
 
 // ─── Repo path resolver ───────────────────────────────────────────────────────
 // Looks up the registered repo path for a project from F-git-connector state.
 
-export async function resolveRepoPath(projectId: string): Promise<string | null> {
+export async function resolveRepoPath(projectId: string): Promise<Result<string | null>> {
   try {
     const result = await db.query<{ repo_path: string }>(
       `SELECT repo_path FROM git_connections WHERE project_id = $1 AND status = 'connected' LIMIT 1`,
       [projectId]
     )
-    return result.rows[0]?.repo_path ?? null
-  } catch {
-    return null
+    return { ok: true, data: result.rows[0]?.repo_path ?? null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LA_DB_QUERY_FAILED', message } }
   }
 }

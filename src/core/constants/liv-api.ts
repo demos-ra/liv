@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.3
-// amended: step4b4-handoff
+// standard: LIV-Standard v1.4
+// amended: v1.4
 // slice: core
 // layer: R5
 // wires-in:
@@ -12,18 +12,16 @@
 //   W-ATOM HANDOFFS                core/R5 liv-procedure
 //   W-ATOM FLOW_TEMPLATE_MAP       core/R5 liv-procedure
 //   W-ATOM PACKET_SLICING_RULES    core/R5 liv-procedure
-//   W-ATOM MODEL_MAPPING           core/R5 liv-procedure
 //   W-ATOM TEMPLATES               core/R5 liv-templates
 //   W-ATOM LIV_STANDARD            core/R5 liv-standard
 // wires-out:
 //   W-ATOM getSliceForInstance   → F-planner/R2
 //   W-ATOM getInstanceProfile    → F-planner/R2
 //   W-ATOM getPacketForInstance  → F-planner/R2
-//   W-ATOM getModelForInstance   → F-planner/R2
 //   W-ATOM getTemplatesForFlow   → F-planner/R2
 //   W-ATOM getTemplate           → F-planner/R2
 //   W-ATOM getHandoff            → F-planner/R2
-//   W-FN   validateHandoff       → F-planner/R2 (step4b4-handoff — 12th public fn)
+//   W-ATOM validateHandoff       → F-planner/R2 (step4b4-handoff — 11th public fn)
 //   W-ATOM getBuildSequence      → F-planner/R2
 //   W-ATOM validateIfContract    → F-planner/R2
 //   W-ATOM validateSlotsFilled   → F-planner/R2
@@ -34,10 +32,10 @@
 //   R5 ./liv-templates
 //   R5 ./liv-standard
 //   R5 ./liv-standard.types
-// validated: 2026-03-16
+// validated: 2026-04-11
 
 import { getSliceForInstance } from './liv-renderer'
-import { INSTANCE_PROFILES, HANDOFFS, FLOW_TEMPLATE_MAP, PACKET_SLICING_RULES, MODEL_MAPPING } from './liv-procedure'
+import { INSTANCE_PROFILES, HANDOFFS, FLOW_TEMPLATE_MAP, PACKET_SLICING_RULES } from './liv-procedure'
 import { TEMPLATES } from './liv-templates'
 import { LIV_STANDARD } from './liv-standard'
 import type {
@@ -138,11 +136,6 @@ export function getPacketForInstance(id: InstanceId, contract: IfContract, bundl
   }
 }
 
-export function getModelForInstance(id: InstanceId): string {
-  const size = LIV_STANDARD.instances[id].size
-  return MODEL_MAPPING[size]
-}
-
 export function getPacketSlicingRules(): readonly PacketSlicingRule[] {
   return PACKET_SLICING_RULES
 }
@@ -205,7 +198,7 @@ export function validateSlotsFilled(body: string, slots: readonly string[]): { v
   return { valid: unfilled.length === 0, unfilled }
 }
 
-// ─── Handoff validation (step4b4-handoff — 12th public function) ──────────────
+// ─── Handoff validation (step4b4-handoff — 11th public function) ──────────────
 // Validates that AI output satisfies the declared handoff spec for the given
 // instance pair. Looks up the HandoffSpec internally — caller does not need
 // to call getHandoff() separately.

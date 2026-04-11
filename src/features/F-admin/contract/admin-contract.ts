@@ -1,9 +1,9 @@
-// @liv-standard v1.3
-// [F-admin/contract/admin-contract.ts]
+// @liv-standard v1.4
+// [F-admin/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
+// standard:   LIV-Standard v1.4
 // amended:    none
 // slice:      F-admin
 // layer:      R3

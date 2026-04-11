@@ -25,7 +25,7 @@
 // A6: declared at R0 — consumed by R1 decode + render.
 // CA5: observable transition — classifications are deterministic structural reads.
 
-import type { MLayer, EdgePrimitiveType } from '../../F-memory/config/memory-types'
+import type { MLayer, EdgePrimitiveType } from '@/features/F-memory/config/memory-types'
 
 // ─── Classification Category ─────────────────────────────────────────────────
 // The 5 structural forms a graph produces when read.

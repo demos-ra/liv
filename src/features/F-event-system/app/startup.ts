@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-event-system/app/startup.ts]
+// @liv-standard v1.3
+// [F-event-system/R2]
 // Built with LIV · livai.dev
 // R2: orchestration layer, depends R0 + R1 + R4.
 //

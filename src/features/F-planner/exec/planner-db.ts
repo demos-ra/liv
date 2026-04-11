@@ -1,10 +1,10 @@
-// @liv-standard v1.3
-// [F-planner/exec/planner-db.ts]
+// @liv-standard v1.4
+// [F-planner/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w2-item-12
+// standard:   LIV-Standard v1.4
+// amended:    w2-item-12, phase-b-item4
 // slice:      F-planner
 // layer:      R4
 // wires-in:
@@ -16,10 +16,15 @@
 //   W-ATOM  IfContract       ../types/planner-types
 //   W-ATOM  StageLogEntry    ../types/planner-types
 //   W-ATOM  PlannerResult    ../types/planner-types
+//   W-ATOM  AdminBuild       @/features/F-admin/types/admin-types
+//   W-ATOM  AdminBuildsFilter @/features/F-admin/types/admin-types
+//   W-ATOM  PipelineReportSummary @/features/F-admin/types/admin-types
 // wires-out:
 //   W-FN  dbCountActiveBuildsForUser  →  F-planner/R3  (w2-item-12)
+//   W-FN  dbGetBuildsForAdmin         →  F-planner/R3  (phase-b-item4)
 // deps:
 //   R0  ../types/planner-types
+//   R0  @/features/F-admin/types/admin-types
 //   R5  @/core/db/client
 // validated:  pending
 //
@@ -47,6 +52,12 @@
 //   Returns PlannerResult<number>. Direct R4 import from R3 — same pattern
 //   as dbGetActiveJobForProject (A2-r3-active-build-check amendment).
 //   Axiom cite: A4 — I/O only here. No logic beyond count mapping.
+//
+// phase-b-item4 (A1, A4):
+//   dbGetBuildsForAdmin added. Query logic moved from F-admin/exec/admin-db.ts
+//   into F-planner/R4 where it belongs (A1 — F-planner owns builds table).
+//   Returns AdminBuild[] — typed atom from F-admin/R0 (A3 — atom crosses boundary).
+//   Axiom cite: A1 — single ownership. A4 — all I/O at R4.
 
 import { db } from '@/core/db/client'
 import type {
@@ -60,6 +71,12 @@ import type {
   PlannerResult,
   PipelineReport,
 } from '../types/planner-types'
+import type {
+  AdminBuild,
+  AdminBuildsFilter,
+  PipelineReportSummary,
+  PipelineStageEntry,
+} from '@/features/F-admin/types/admin-types'
 
 // ── Row type — typed R4 boundary (A3) ─────────────────────────────────────────
 // Mirrors the builds table schema after migration 006.
@@ -552,5 +569,95 @@ export async function dbCountActiveBuildsForUser(
     return { ok: true, data: result.rows[0]?.count ?? 0 }
   } catch (e) {
     return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to count active builds', context: { cause: String(e) } } }
+  }
+}
+
+// ── dbGetBuildsForAdmin (phase-b-item4) ───────────────────────────────────────
+// Read-only admin projection of builds table. Query moved from F-admin/exec/admin-db.ts.
+// A1: F-planner owns builds table — query belongs here.
+// A3: AdminBuild atom (F-admin/R0) crosses boundary. No F-admin logic imported.
+// A4: I/O only. Row mapping + report parsing — no domain logic.
+
+type AdminBuildRow = {
+  build_id:          string
+  project_id:        string
+  user_id:           string
+  status:            string
+  current_stage:     string | null
+  pipeline_report:   unknown
+  transition_count:  number
+  reentry_count:     number
+  created_at:        Date
+  updated_at:        Date
+}
+
+function parsePipelineReport(raw: unknown): PipelineReportSummary | null {
+  if (!raw) return null
+  try {
+    const obj = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Record<string, unknown>
+    return {
+      outcome:          (obj.outcome as string | null) ?? null,
+      failureReason:    (obj.failureReason as string | null) ?? null,
+      totalTransitions: (obj.totalTransitions as number) ?? 0,
+      reentries:        (obj.reentries as number) ?? 0,
+      startedAt:        (obj.startedAt as number) ?? 0,
+      completedAt:      obj.completedAt as number | undefined,
+      stages:           Array.isArray(obj.stages)
+        ? (obj.stages as Record<string, unknown>[]).map(s => ({
+            instanceId:   String(s.instanceId ?? ''),
+            model:        String(s.model ?? ''),
+            startedAt:    Number(s.startedAt ?? 0),
+            completedAt:  Number(s.completedAt ?? 0),
+            tokenCount:   Number(s.tokenCount ?? 0),
+            handoffValid: Boolean(s.handoffValid),
+          }) as PipelineStageEntry)
+        : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+function mapAdminBuildRow(r: AdminBuildRow): AdminBuild {
+  return {
+    buildId:         r.build_id,
+    projectId:       r.project_id,
+    userId:          r.user_id,
+    status:          r.status,
+    currentStage:    r.current_stage,
+    pipelineReport:  parsePipelineReport(r.pipeline_report),
+    transitionCount: r.transition_count ?? 0,
+    reentryCount:    r.reentry_count ?? 0,
+    createdAt:       r.created_at instanceof Date ? r.created_at.getTime() : Number(r.created_at),
+    updatedAt:       r.updated_at instanceof Date ? r.updated_at.getTime() : Number(r.updated_at),
+  }
+}
+
+export async function dbGetBuildsForAdmin(
+  filters: AdminBuildsFilter = {},
+): Promise<PlannerResult<AdminBuild[]>> {
+  try {
+    const statuses = filters.status && filters.status.length > 0
+      ? filters.status
+      : ['escalated']
+    const limit = filters.limit ?? 50
+
+    const placeholders = statuses.map((_, i) => `$${i + 1}`).join(', ')
+
+    const result = await db.query<AdminBuildRow>(
+      `SELECT build_id, project_id, user_id, status,
+              current_stage, pipeline_report,
+              transition_count, reentry_count,
+              created_at, updated_at
+       FROM   builds
+       WHERE  status IN (${placeholders})
+       ORDER  BY updated_at DESC
+       LIMIT  $${statuses.length + 1}`,
+      [...statuses, limit],
+    )
+
+    return { ok: true, data: result.rows.map(mapAdminBuildRow) }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to query builds for admin', context: { cause: String(e) } } }
   }
 }

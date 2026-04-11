@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-user-profile/config/user-profile-config.ts]
+// @liv-standard v1.3
+// [F-user-profile/R0]
 // Built with LIV · livai.dev
 // R0: pure config, zero dependencies.
 // A6: UserProfile is the canonical type for this slice.

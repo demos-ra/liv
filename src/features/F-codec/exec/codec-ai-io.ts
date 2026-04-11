@@ -1,20 +1,25 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-codec/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    phase-b-item1
 // slice:      F-codec
 // layer:      R4
 // wires-in:
 //   W-ATOM  CODEC_CONFIG  ←  F-codec/R0
 //   W-FN    getApiKey()   ←  F-user-profile/R3 (deferred — env var until per-user key threading)
 // wires-out:
-//   W-FN  classifyAndLabel()  →  F-codec/R2
+//   W-FN  classifyAndLabel()  →  F-codec/R3 (codec-inject)
 // deps:
 //   R0  ../config/codec-types
 // validated:  pending
+//
+// phase-b-item1 (A2, T1.1):
+//   wires-out updated: classifyAndLabel() now consumed by R3 (codec-inject),
+//   not R2 (codec-encode) directly. T1.1: "R4: Never directly imported."
+//   Axiom cite: A2 — R4 consumed only through R3 bridge.
 
 // R4: I/O boundary. Makes the LLM call for classify + label extraction.
 // Result<string> — returns raw LLM response text. R1 parses it.

@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-ai-adapter/contract/ai-contract.ts]
+// @liv-standard v1.3
+// [F-ai-adapter/R3]
 // Built with LIV · livai.dev
 // R3: interface boundary, depends R0 + R1 + R2.
 // A5: this is the only import path for AI streaming across all slices.

@@ -1,10 +1,10 @@
-// @liv-standard v1.3
-// [F-planner/workflow/planner-workflow.ts]
+// @liv-standard v1.4
+// [F-planner/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5e
+// standard:   LIV-Standard v1.4
+// amended:    step5e, phase-b-item4
 // slice:      F-planner
 // layer:      R2
 // wires-in:
@@ -130,6 +130,7 @@ import {
 import type { InstanceId, FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
 import type { FlowLibraryEntry, LibraryInsertPayload } from '../types/planner-library-types'
 import type { BuildVersion } from '../types/planner-version-types'
+import type { AdminBuild } from '@/features/F-admin/types/admin-types'
 import type {
   PlannerJob,
   PlannerJobId,
@@ -222,6 +223,8 @@ export interface IPlannerDb {
   getLatestVersion(projectId: string): Promise<PlannerResult<string | null>>
   setBuildVersion(buildId: string, version: string, description: string): Promise<PlannerResult<void>>
   getVersionHistory(projectId: string): Promise<PlannerResult<BuildVersion[]>>
+  // ── Admin query (phase-b-item4) ─────────────────────────────────────────
+  getBuildsForAdmin(filters: { status?: string[]; limit?: number }): Promise<PlannerResult<AdminBuild[]>>
 }
 
 export interface IAiAdapter {

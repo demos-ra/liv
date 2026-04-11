@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.3
-// amended: step4b4-handoff
+// standard: LIV-Standard v1.4
+// amended: v1.4
 // slice: core
 // layer: R5
 // wires-in: none
@@ -11,7 +11,7 @@
 //   W-ATOM LivStandardTypes → core/R5 liv-standard, core/R5 liv-renderer, core/R5 liv-procedure, core/R5 liv-templates, core/R5 liv-api
 //   W-ATOM HandoffValidationResult → core/R5 liv-api (step4b4-handoff)
 // deps: none
-// validated: 2026-03-16
+// validated: 2026-04-11
 
 // ═══════════════════════════════════════════════════════════════
 // LIV-STANDARD TYPES
@@ -39,12 +39,14 @@ export type InstanceId =
   | 'IN-DIAGNOSE'
   | 'IN-QA'
 
+// v1.4: size field removed. Zero external consumers — consumed only by getModelForInstance() in liv-api.ts,
+// removed in same operation. Model selection moved to F-planner deployment config. T1.6-R3 satisfied.
+
 export type Instance = {
   readonly id: InstanceId
   readonly name: string
   readonly count: number | '1/bundle'
   readonly description: string
-  readonly size: 'Largest' | 'Medium' | 'Smallest'
   readonly parallel: boolean
   readonly routesTo: string
 }
@@ -226,6 +228,7 @@ export type Template = {
   readonly slots: readonly string[]
   readonly derived: readonly DerivedSlot[]
   readonly system: readonly string[]
+  readonly platform: readonly string[]
   readonly body: string
 }
 
@@ -250,7 +253,7 @@ export type HandoffSpec = {
 }
 
 // ─── Handoff Validation ───
-// Result type for validateHandoff() in liv-api.ts (12th public function).
+// Result type for validateHandoff() in liv-api.ts (11th public function).
 // Declared at R5 alongside HandoffSpec — same concept family (step4b4-handoff).
 export type HandoffValidationResult = {
   readonly valid:   boolean
@@ -320,7 +323,7 @@ export type EventContract = {
 }
 
 export type MigrationDelta = {
-  readonly op: 'create_table' | 'add_column' | 'add_index' | 'drop_column'
+  readonly op: 'create_table' | 'alter_table' | 'drop_table' | 'rename_table' | 'add_column' | 'alter_column' | 'drop_column' | 'rename_column' | 'add_index' | 'drop_index'
   readonly target: string
   readonly detail: string
 }
@@ -328,7 +331,7 @@ export type MigrationDelta = {
 export type IfContract = {
   readonly featureIntent: string
   readonly atomDeclarations: readonly AtomDecl[]
-  readonly bundleScope: readonly { readonly name: string; readonly status: 'new' | 'modified' }[]
+  readonly bundleScope: readonly { readonly name: string; readonly status: 'new' | 'modified' | 'deleted' }[]
   readonly flowSelection: readonly FlowId[]
   readonly wireMap: readonly WireEntry[]
   readonly eventContracts: readonly EventContract[]
@@ -344,4 +347,12 @@ export type JobPacket = {
   readonly buildId: string
   readonly instanceType: InstanceId
   readonly fields: Partial<IfContract>
+}
+
+// ─── Request Context ───
+// Canonical identity envelope at R3 boundary. A3: typed boundary between HTTP surface and business logic.
+
+export type RequestContext = {
+  readonly userId: string
+  readonly sessionId: string
 }

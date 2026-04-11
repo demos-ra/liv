@@ -1,0 +1,22 @@
+// @liv-standard v1.3
+// [F-permissions/R0]
+// Built with LIV · livai.dev
+
+// Boundary declaration for F-permissions.
+// A3: only atoms cross slice boundaries.
+// A5: cross-slice communication via event bus or R3 contracts.
+
+// ─── Inbound (consumed by this slice) ─────────────────────────────────────────
+//   W-FN    emitEvent()            ←  F-event-system/R3 (event-bus)
+//   W-ATOM  EVENTS                 ←  F-event-system/R0 (event-schema)
+//   W-FN    useNamespace()         ←  F-la-config/R3 (registry-hook)
+//   W-FN    validateSession()      ←  F-identity/R3 (auth-contract)
+//   W-ATOM  SESSION_COOKIE_NAME    ←  F-identity/R3 (auth-contract)
+
+// ─── Outbound (exported from this slice) ───────────────────────────────────────
+//   W-FN    requirePermission()    →  F-la-config/R3 (la-contract)
+//   W-FN    assignDefaultRole()    →  F-event-system/R2 (event-subscriptions)
+//   W-ATOM  PERMISSIONS_EVENTS     →  F-event-system/R0 (event-schema)
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+//   W-EVENT  PERMISSIONS_EVENTS    →  F-event-system/R0

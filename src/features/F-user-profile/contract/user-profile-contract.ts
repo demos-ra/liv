@@ -93,8 +93,9 @@ export async function GET_apiKey(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'unknown_provider' }, { status: 400 })
   }
 
-  const has = await hasApiKey(session.userId, provider as ProviderId)
-  return NextResponse.json({ hasKey: has })
+  const hasResult = await hasApiKey(session.userId, provider as ProviderId)
+  if (!hasResult.ok) return NextResponse.json({ error: hasResult.error.message }, { status: 500 })
+  return NextResponse.json({ hasKey: hasResult.data })
 }
 
 // ── POST /api/profile/api-key ──────────────────────────────────────────────────
@@ -121,7 +122,7 @@ export async function POST_apiKey(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ ok: true })
 }
 
-// ── DELETE /api/profile/api-key ────────────────────────────────────────────────
+// ── DELETE /api/profile/api-key ────────────────────────────────────────────
 export async function DELETE_apiKey(req: NextRequest): Promise<NextResponse> {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
@@ -210,8 +211,11 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
     }
 
     // Validate user actually has a key for this provider
-    const hasKey = await hasApiKey(session.userId, t.provider as ProviderId)
-    if (!hasKey) {
+    const hasKeyResult = await hasApiKey(session.userId, t.provider as ProviderId)
+    if (!hasKeyResult.ok) {
+      return NextResponse.json({ error: hasKeyResult.error.message }, { status: 500 })
+    }
+    if (!hasKeyResult.data) {
       return NextResponse.json(
         { error: 'no_key_for_provider', message: `No API key saved for ${t.provider}. Add the key before setting a model preference.` },
         { status: 422 }

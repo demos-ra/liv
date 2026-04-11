@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    phase-b-item1
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -12,7 +12,7 @@
 //   W-ATOM  CODEC_EVENTS  ←  F-codec/R0
 //   W-FN    buildClassifyPrompt(), parseClassifyResponse()  ←  F-codec/R1
 //   W-FN    normalizeLabel(), parseLabelResponse()  ←  F-codec/R1
-//   W-FN    classifyAndLabel()  ←  F-codec/R4
+//   W-FN    classifyAndLabel()  ←  F-codec/R3 (codec-inject)
 //   W-FN    traverse(), getPresentState()  ←  F-memory/R3
 //   W-FN    emitEvent()  ←  F-event-system/R3
 // wires-out:
@@ -23,8 +23,13 @@
 //   R0  ../config/codec-events
 //   R1  ../domain/codec-classify
 //   R1  ../domain/codec-label
-//   R4  ../exec/codec-ai-io
+//   R3  ../contract/codec-inject
 // validated:  pending
+//
+// phase-b-item1 (A2, T1.1):
+//   classifyAndLabel() import moved from R4 (codec-ai-io) to R3 (codec-inject).
+//   R2 no longer imports R4 directly. T1.1: "R4: Never directly imported."
+//   Axiom cite: A2 — directional deps, lower layers only.
 
 // R2: orchestration. No I/O of its own — delegates to R4 for LLM, F-memory/R3 for graph.
 // Two encode modes: LLM (conversation) and Mechanical (system events).
@@ -36,7 +41,7 @@ import { CODEC_CONFIG, MECHANICAL_MAPPINGS } from '../config/codec-types'
 import { CODEC_EVENTS } from '../config/codec-events'
 import { buildClassifyPrompt, parseClassifyResponse } from '../domain/codec-classify'
 import { normalizeLabel, parseLabelResponse } from '../domain/codec-label'
-import { classifyAndLabel } from '../exec/codec-ai-io'
+import { classifyAndLabel } from '../contract/codec-inject'
 import { traverse, getPresentState } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 

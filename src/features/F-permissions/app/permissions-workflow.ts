@@ -30,7 +30,8 @@ export async function setMemberRole(
   projectId: string,
   role: Role
 ): Promise<void> {
-  await dbSetMemberRole(userId, projectId, role)
+  const result = await dbSetMemberRole(userId, projectId, role)
+  if (!result.ok) throw new Error(result.error.message)
   await emitEvent({
     type: EVENTS.PERMISSIONS.PERMISSIONS_LOADED,
     payload: { userId, projectId, role },
@@ -44,7 +45,9 @@ export async function resolveAndCheck(
   projectId: string,
   action: Action
 ): Promise<{ allowed: boolean; role: Role | null }> {
-  const role = await getMemberRole(userId, projectId)
+  const roleResult = await getMemberRole(userId, projectId)
+  if (!roleResult.ok) throw new Error(roleResult.error.message)
+  const role = roleResult.data
 
   if (!role) {
     await emitEvent({

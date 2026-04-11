@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-la-config/app/la-runner.ts]
+// @liv-standard v1.3
+// [F-la-config/R2]
 // Built with LIV · livai.dev
 // R2: orchestration layer.
 //

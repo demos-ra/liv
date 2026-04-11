@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.3
-// amended: none
+// standard: LIV-Standard v1.4
+// amended: v1.4
 // slice: core
 // layer: R5
 // wires-in: none
@@ -12,10 +12,9 @@
 //   W-ATOM HANDOFFS → core/R5 liv-api
 //   W-ATOM FLOW_TEMPLATE_MAP → core/R5 liv-api
 //   W-ATOM PACKET_SLICING_RULES → core/R5 liv-api
-//   W-ATOM MODEL_MAPPING → core/R5 liv-api
 // deps:
 //   R5 ./liv-standard.types
-// validated: 2026-03-16
+// validated: 2026-04-11
 
 import type {
   InstanceId,
@@ -93,6 +92,7 @@ export const HANDOFFS: readonly HandoffSpec[] = [
   { from: 'IN-BUILD',    to: 'IN-RESOLVE',  format: 'HO-FILES',     content: 'F-{slice}/ tree. types/, domain/, workflow/, contract/, exec/. All files complete.' },
   { from: 'IN-RESOLVE',  to: 'IN-AUDIT',    format: 'HO-FILES',     content: 'Full reconciled src/ tree. event-schema.ts updated. All imports corrected.' },
   { from: 'IN-AUDIT',    to: 'IN-COMPILE',  format: 'HO-FILES',     content: 'Verified file set. Manifests validated or generated. validated date stamped.' },
+  { from: 'IN-AUDIT',    to: 'IN-MAIN',     format: 'HO-REPORT',    content: 'Audit failure report: [{file, field, expected, actual, axiom}]. Structural issues beyond manifest repair.' },
   { from: 'IN-COMPILE',  to: 'IN-DIAGNOSE', format: 'HO-FILES+LOG', content: 'Stalled file set + error log (error count not decreasing)' },
   { from: 'IN-COMPILE',  to: 'IN-QA',       format: 'HO-FILES+LOG', content: 'Zero-error file set + error log: [{file, tsCode, violation, axiom, fix}]' },
   { from: 'IN-QA',       to: 'IN-MAIN',     format: 'HO-REPORT',    content: 'Pass: {status:"pass", buildId, standardVersion, procedureVersion, timestamp}. Fail: {status:"fail", violations:[{file, ruleId, axiom, description}]}' },
@@ -141,13 +141,3 @@ export const PACKET_SLICING_RULES: readonly PacketSlicingRule[] = [
   { id: 'RS.5', text: 'IN-QA receives IF.08 + IN-COMPILE error log. No source packet fields.' },
   { id: 'RS.6', text: 'IF.09 and IF.10 go to all instances. Every instance stamps every file. File without stamp is rejected by IN-RESOLVE.' },
 ] as const
-
-// ═══════════════════════════════════════════════════════════════
-// MODEL MAPPING — Instance.size → model string
-// ═══════════════════════════════════════════════════════════════
-
-export const MODEL_MAPPING: Record<'Largest' | 'Medium' | 'Smallest', string> = {
-  Largest:  'TBD',
-  Medium:   'TBD',
-  Smallest: 'TBD',
-} as const

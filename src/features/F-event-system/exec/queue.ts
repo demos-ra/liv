@@ -7,6 +7,7 @@
 // No business logic. No validation. R1 handles those.
 
 import type { LivEvent, EventId, EventStatus } from '@/core/types/primitives'
+import type { Result } from '@/core/types/primitives'
 
 // ─── Database schema (SQL) ───────────────────────────────────────────────────
 // Run once during Phase 1 setup.
@@ -65,81 +66,119 @@ export interface DbClient {
 export async function insertEvent(
   db: DbClient,
   event: Omit<LivEvent, 'createdAt'>
-): Promise<LivEvent> {
-  const { rows } = await db.query<Record<string, unknown>>(
-    `INSERT INTO liv_events
-       (id, type, slice, name, payload, status, scheduled_at, delay_ms, after_event_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     RETURNING *`,
-    [
-      event.id,
-      event.type,
-      event.slice,
-      event.name,
-      JSON.stringify(event.payload),
-      event.status,
-      event.scheduledAt ?? null,
-      event.delayMs ?? null,
-      event.afterEventId ?? null,
-    ]
-  )
-  return rowToEvent(rows[0])
+): Promise<Result<LivEvent>> {
+  try {
+    const { rows } = await db.query<Record<string, unknown>>(
+      `INSERT INTO liv_events
+         (id, type, slice, name, payload, status, scheduled_at, delay_ms, after_event_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING *`,
+      [
+        event.id,
+        event.type,
+        event.slice,
+        event.name,
+        JSON.stringify(event.payload),
+        event.status,
+        event.scheduledAt ?? null,
+        event.delayMs ?? null,
+        event.afterEventId ?? null,
+      ]
+    )
+    return { ok: true, data: rowToEvent(rows[0]) }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_INSERT_FAILED', message } }
+  }
 }
 
-export async function fetchPendingEvents(db: DbClient, limit = 100): Promise<LivEvent[]> {
-  const { rows } = await db.query<Record<string, unknown>>(
-    `SELECT * FROM liv_events
-     WHERE status = 'pending'
-       AND (type = 'immediate'
-         OR (type = 'scheduled' AND scheduled_at <= now())
-         OR (type = 'delayed'   AND created_at + (delay_ms || ' milliseconds')::interval <= now())
-       )
-     ORDER BY created_at ASC
-     LIMIT $1`,
-    [limit]
-  )
-  return rows.map(rowToEvent)
+export async function fetchPendingEvents(db: DbClient, limit = 100): Promise<Result<LivEvent[]>> {
+  try {
+    const { rows } = await db.query<Record<string, unknown>>(
+      `SELECT * FROM liv_events
+       WHERE status = 'pending'
+         AND (type = 'immediate'
+           OR (type = 'scheduled' AND scheduled_at <= now())
+           OR (type = 'delayed'   AND created_at + (delay_ms || ' milliseconds')::interval <= now())
+         )
+       ORDER BY created_at ASC
+       LIMIT $1`,
+      [limit]
+    )
+    return { ok: true, data: rows.map(rowToEvent) }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_FETCH_PENDING_FAILED', message } }
+  }
 }
 
 export async function fetchReactiveEvents(
   db: DbClient,
   completedEventId: EventId
-): Promise<LivEvent[]> {
-  const { rows } = await db.query<Record<string, unknown>>(
-    `SELECT * FROM liv_events
-     WHERE status = 'pending'
-       AND type = 'reactive'
-       AND after_event_id = $1`,
-    [completedEventId]
-  )
-  return rows.map(rowToEvent)
+): Promise<Result<LivEvent[]>> {
+  try {
+    const { rows } = await db.query<Record<string, unknown>>(
+      `SELECT * FROM liv_events
+       WHERE status = 'pending'
+         AND type = 'reactive'
+         AND after_event_id = $1`,
+      [completedEventId]
+    )
+    return { ok: true, data: rows.map(rowToEvent) }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_FETCH_REACTIVE_FAILED', message } }
+  }
 }
 
-export async function markProcessing(db: DbClient, id: EventId): Promise<void> {
-  await db.query(
-    `UPDATE liv_events SET status = 'processing' WHERE id = $1`,
-    [id]
-  )
+export async function markProcessing(db: DbClient, id: EventId): Promise<Result<void>> {
+  try {
+    await db.query(
+      `UPDATE liv_events SET status = 'processing' WHERE id = $1`,
+      [id]
+    )
+    return { ok: true, data: undefined }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_MARK_PROCESSING_FAILED', message } }
+  }
 }
 
-export async function markCompleted(db: DbClient, id: EventId): Promise<void> {
-  await db.query(
-    `UPDATE liv_events SET status = 'completed', processed_at = now() WHERE id = $1`,
-    [id]
-  )
+export async function markCompleted(db: DbClient, id: EventId): Promise<Result<void>> {
+  try {
+    await db.query(
+      `UPDATE liv_events SET status = 'completed', processed_at = now() WHERE id = $1`,
+      [id]
+    )
+    return { ok: true, data: undefined }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_MARK_COMPLETED_FAILED', message } }
+  }
 }
 
-export async function markFailed(db: DbClient, id: EventId, error: string): Promise<void> {
-  await db.query(
-    `UPDATE liv_events SET status = 'failed', processed_at = now(), error = $2 WHERE id = $1`,
-    [id, error]
-  )
+export async function markFailed(db: DbClient, id: EventId, error: string): Promise<Result<void>> {
+  try {
+    await db.query(
+      `UPDATE liv_events SET status = 'failed', processed_at = now(), error = $2 WHERE id = $1`,
+      [id, error]
+    )
+    return { ok: true, data: undefined }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_MARK_FAILED_FAILED', message } }
+  }
 }
 
-export async function fetchById(db: DbClient, id: EventId): Promise<LivEvent | null> {
-  const { rows } = await db.query<Record<string, unknown>>(
-    `SELECT * FROM liv_events WHERE id = $1`,
-    [id]
-  )
-  return rows.length > 0 ? rowToEvent(rows[0]) : null
+export async function fetchById(db: DbClient, id: EventId): Promise<Result<LivEvent | null>> {
+  try {
+    const { rows } = await db.query<Record<string, unknown>>(
+      `SELECT * FROM liv_events WHERE id = $1`,
+      [id]
+    )
+    return { ok: true, data: rows.length > 0 ? rowToEvent(rows[0]) : null }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'EVENT_DB_FETCH_FAILED', message } }
+  }
 }

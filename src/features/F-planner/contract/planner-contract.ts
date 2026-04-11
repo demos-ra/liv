@@ -1,10 +1,10 @@
-// @liv-standard v1.3
-// [F-planner/contract/planner-contract.ts]
+// @liv-standard v1.4
+// [F-planner/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w2-item-12
+// standard:   LIV-Standard v1.4
+// amended:    w2-item-12, phase-b-item4, phase-b-item2
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -87,6 +87,8 @@ import type {
   FailStagePayload,
   FreezeContractPayload,
 } from '../types/planner-types'
+import type { AdminBuild, AdminBuildsFilter } from '@/features/F-admin/types/admin-types'
+import type { PlannerResult } from '../types/planner-types'
 
 // ── Shared session helper ─────────────────────────────────────────────────────
 async function getSession(req: NextRequest) {
@@ -335,4 +337,31 @@ export async function handleGetVersionHistory(
   }
 
   return NextResponse.json({ ok: true, data: result.data })
+}
+
+// ── getBuildsForAdmin (phase-b-item4) ─────────────────────────────────────────
+// Read-only query surface for F-admin. Returns admin projection of builds.
+// A1: F-planner owns builds table. F-admin imports this, never queries directly.
+// A3: AdminBuild atom (F-admin/R0) crosses boundary — typed, read-only.
+
+export async function getBuildsForAdmin(
+  filters: AdminBuildsFilter,
+): Promise<PlannerResult<AdminBuild[]>> {
+  const db = createPlannerDb()
+  return db.getBuildsForAdmin(filters)
+}
+
+// ── isPipelineActive (phase-b-item2) ──────────────────────────────────────────
+// Read-only query for F-chat. Returns pipeline active state + status.
+// Option B from brief: single read-only query through R3 contract.
+// A3: boolean + string atom crosses boundary. A5: query, not command.
+// Replaces F-chat's direct import of dbGetActiveJobForProject from R4.
+
+export async function isPipelineActive(
+  projectId: string,
+): Promise<{ active: boolean; status: string | null }> {
+  const db = createPlannerDb()
+  const result = await db.getActiveJobForProject(projectId)
+  if (!result.ok || !result.data) return { active: false, status: null }
+  return { active: true, status: result.data.pipelineStatus }
 }

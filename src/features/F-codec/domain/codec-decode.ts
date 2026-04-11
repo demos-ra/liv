@@ -36,7 +36,7 @@ import type {
   MLayer,
   EdgePrimitiveType,
   ScopedGraphSet,
-} from '../../F-memory/config/memory-types'
+} from '@/features/F-memory/config/memory-types'
 
 import type {
   DecodeOutput,

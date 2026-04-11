@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-identity/domain/auth-validation.ts]
+// @liv-standard v1.3
+// [F-identity/R1]
 // Built with LIV · livai.dev
 // R1: pure functions, no I/O, depends R0 only.
 // A2: imports only from R0 (auth-types, allowlist).

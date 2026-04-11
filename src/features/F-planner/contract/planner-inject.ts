@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-planner/contract/planner-inject.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5e
+// standard:   LIV-Standard v1.4
+// amended:    step5e, phase-b-item4, phase-b-item2
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -28,7 +28,7 @@
 //   R3  @/features/F-executor/contract/executor-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
-//   R4  @/features/F-output/exec/output-db  (A2-r3-output-write amendment)
+//   R3  @/features/F-output/contract/output-contract  (phase-b-item2 — was R4)
 // validated:  pending
 //
 // A2-w-inject-bridge amendment: (unchanged)
@@ -45,6 +45,11 @@
 //   All bound from planner-version-db.ts (R4) — never imported at R2 directly.
 //   Axiom cite: A2 — R4 bound at R3 inject, consumed via IPlannerDb at R2.
 //   A3 — BuildVersion is a typed atom at boundary. A7 — separate R4 file, deletable.
+//
+// phase-b-item4 (A1, A2):
+//   getBuildsForAdmin binding added to createPlannerDb() — IPlannerDb grows to 25 methods.
+//   Bound from planner-db.ts (R4). Query moved from F-admin/exec/admin-db.ts.
+//   Axiom cite: A1 — F-planner owns builds table. A2 — R4 bound at R3 inject.
 
 import type { IPlannerDb, IAiAdapter, IExecutor, IOutputWriter } from '../workflow/planner-workflow'
 import {
@@ -63,6 +68,7 @@ import {
   dbGetAvailableProviders,
   dbIncrementReentry,
   dbGetModelPreferences,
+  dbGetBuildsForAdmin,
 } from '../exec/planner-db'
 import {
   dbLookupExactFlowLibrary,
@@ -81,7 +87,7 @@ import { ioStreamCompletion }   from '../exec/ai-adapter-io'
 import { runExecution }         from '@/features/F-executor/contract/executor-contract'
 import { getApiKey }            from '@/features/F-user-profile/contract/user-profile-contract'
 import { providerForModel }     from '@/features/F-ai-adapter/config/ai-adapter-config'
-import { dbReplaceOutputFiles } from '@/features/F-output/exec/output-db'
+import { writeOutputFiles } from '@/features/F-output/contract/output-contract'
 import type { FileEntry }       from '../types/planner-types'
 
 export function createPlannerDb(): IPlannerDb {
@@ -113,6 +119,8 @@ export function createPlannerDb(): IPlannerDb {
     getLatestVersion:       (projectId)                      => dbGetLatestVersion(projectId),
     setBuildVersion:        (buildId, version, description)  => dbSetBuildVersion(buildId, version, description),
     getVersionHistory:      (projectId)                      => dbGetVersionHistory(projectId),
+    // ── Admin query (phase-b-item4) ─────────────────────────────────────────
+    getBuildsForAdmin:      (filters)                        => dbGetBuildsForAdmin(filters),
   }
 }
 
@@ -120,7 +128,8 @@ export function createAiAdapter(): IAiAdapter {
   return {
     streamCompletion: async (opts) => {
       const provider = providerForModel(opts.modelId)
-      const apiKey   = await getApiKey(opts.userId, provider).catch(() => null)
+      const keyResult = await getApiKey(opts.userId, provider)
+      const apiKey    = keyResult.ok ? keyResult.data : null
       return ioStreamCompletion({
         apiKey:   apiKey ?? undefined,
         modelId:  opts.modelId,
@@ -138,9 +147,10 @@ export function createExecutor(): IExecutor {
 }
 
 // ── createOutputWriter — IOutputWriter binding (step4b2-phase-b) ─────────────
-// Wraps dbReplaceOutputFiles (F-output/R4) into IOutputWriter.
+// Wraps writeOutputFiles (F-output/R3) into IOutputWriter.
 // FileEntry[] → OutputFile[] shape conversion: encoding always 'utf8' for
 // AI-generated source files. OutputJobId branded string — cast from plain string.
+// phase-b-item2: import changed from F-output/R4 to F-output/R3 (A2, T1.1).
 
 export function createOutputWriter(): IOutputWriter {
   return {
@@ -150,8 +160,8 @@ export function createOutputWriter(): IOutputWriter {
         content:  f.content,
         encoding: f.encoding,
       }))
-      const result = await dbReplaceOutputFiles(
-        jobId as Parameters<typeof dbReplaceOutputFiles>[0],
+      const result = await writeOutputFiles(
+        jobId as Parameters<typeof writeOutputFiles>[0],
         outputFiles
       )
       return result

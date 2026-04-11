@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-la-config/domain/la-parser.ts]
+// @liv-standard v1.3
+// [F-la-config/R1]
 // Built with LIV · livai.dev
 // R1: pure functions, no I/O, depends R0 only.
 //

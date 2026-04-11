@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-la-config/config/la-types.ts]
+// @liv-standard v1.3
+// [F-la-config/R0]
 // Built with LIV · livai.dev
 // R0 — type declarations only. No imports. No logic.
 // Owns HealthViolation and ExecutionCheckResult — previously in deleted slices.

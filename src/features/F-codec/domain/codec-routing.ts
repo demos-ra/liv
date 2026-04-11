@@ -31,7 +31,7 @@
 import type { EncodeResult } from '../config/codec-types'
 import type { BindingDomain, RouteAction } from '../config/codec-routing-types'
 import { ROUTING_CONFIG } from '../config/codec-routing-types'
-import type { PresentState, MemArm } from '../../F-memory/config/memory-types'
+import type { PresentState, MemArm } from '@/features/F-memory/config/memory-types'
 
 // ─── Classify Domain ─────────────────────────────────────────────────────────
 // Determines which domain subgraph the encoded message belongs to.

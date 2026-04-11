@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-chat/R2]
 // Built with LIV · livai.dev
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1-wire-fix
+// standard:   LIV-Standard v1.4
+// amended:    lm-v1.1-wire-fix, phase-b-item2
 // slice:      F-chat
 // layer:      R2
 // wires-in:
@@ -96,14 +96,15 @@ function updateSessionState(state: SessionState): void {
 //   5. traverse(llmResponse) → write path, no activation returned
 
 export interface SendMessageInput {
-  projectId: string
-  content:   string
-  modelId:   string
-  userId:    string
+  projectId:      string
+  content:        string
+  modelId:        string
+  userId:         string
+  systemContext?: string  // phase-b-item2: decoded graph context from codec pipeline
 }
 
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
-  const { projectId, content, modelId, userId } = input
+  const { projectId, content, modelId, userId, systemContext } = input
 
   // v1.1: MemoryDeps needs userId (Amendment 3)
   const memoryDeps = { traverse, getPresentState, userId }
@@ -128,6 +129,7 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   // Assemble system prompt
   const systemParts: string[] = [LIV_ANCHOR]
   if (isFirstMessage) systemParts.push(LIV_SPEC)
+  if (systemContext) systemParts.push(`Context (graph decode):\n${systemContext}`)
   if (presentStateContext) systemParts.push(`Memory (who you are talking to):\n${presentStateContext}`)
   if (traversalContext) systemParts.push(`Memory (relevant to this message):\n${traversalContext}`)
 
@@ -140,9 +142,11 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
 
   // Load per-user API key
   const provider = providerForModel(modelId)
-  const apiKey = (provider in PROVIDERS)
-    ? await getApiKey(userId, provider as ProviderId).catch(() => null)
-    : null
+  let apiKey: string | null = null
+  if (provider in PROVIDERS) {
+    const keyResult = await getApiKey(userId, provider as ProviderId)
+    apiKey = keyResult.ok ? keyResult.data : null
+  }
 
   // Stream
   let fullResponse = ''
@@ -175,5 +179,7 @@ export async function getMessages(
   cursor: string | null = null,
   limit = 50,
 ) {
-  return dbGetMessages(projectId, cursor, limit)
+  const result = await dbGetMessages(projectId, cursor, limit)
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
 }

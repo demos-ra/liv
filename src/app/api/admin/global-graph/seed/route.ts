@@ -44,8 +44,12 @@ async function validateAdmin(): Promise<{ userId: string } | NextResponse> {
     return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
   }
 
-  // isAdmin check: typed query via F-admin/R4 + F-identity/R3
-  const email = await dbGetUserEmail(session.userId)
+  // isAdmin check: typed query via F-admin/R3 + F-identity/R3
+  const emailResult = await dbGetUserEmail(session.userId)
+  if (!emailResult.ok) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+  const email = emailResult.data
   if (!email || !isEmailAllowed(email)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

@@ -1,5 +1,5 @@
-// @liv-standard v1.3
-// [F-event-system/app/event-subscriptions.ts]
+// @liv-standard v1.4
+// [F-event-system/R2]
 // Built with LIV · livai.dev
 // R2: orchestration layer. Depends R0, R1, R3 contracts only.
 //
@@ -17,6 +17,12 @@
 //   createSessionForUser was a no-op — inline confirmed and removed.
 //   Axiom cite: A5 — event-subscriptions may only import R3 contracts
 //   across slice boundaries, never R2/app or R4/exec directly.
+//
+// phase-b-item2 (A5):
+//   Planner route-build subscription added. F-planner subscribes to
+//   codec.route-build events and calls handleBuildRequest internally.
+//   Previously F-chat called handleBuildRequest directly (A5 violation).
+//   Axiom cite: A5 — cross-slice via event bus + R3 contracts only.
 
 import { subscribeToEvent } from '../contract/event-bus'
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
@@ -60,6 +66,26 @@ import { upsertProfileForUser } from '@/features/F-user-profile/contract/user-pr
 subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
   const { userId, email } = event.payload as { userId: string; email: string }
   await upsertProfileForUser(userId, email)
+})
+
+// ─── F-planner build dispatch (phase-b-item2) ────────────────────────────────
+// F-planner subscribes to codec.route-build events.
+// Previously F-chat called handleBuildRequest directly — A5 violation.
+// Now codec emits the event, planner handles it via subscription.
+// A5: cross-slice via event bus only. R3 contract import for handleBuildRequest.
+
+import { handleBuildRequest } from '@/features/F-planner/contract/planner-contract'
+import { CODEC_ROUTING_EVENTS } from '@/features/F-codec/config/codec-routing-types'
+import type { RouteBuildPayload } from '@/features/F-codec/config/codec-routing-types'
+
+subscribeToEvent(CODEC_ROUTING_EVENTS.ROUTE_BUILD, async (event: LivEvent) => {
+  const payload = event.payload as RouteBuildPayload
+  await handleBuildRequest({
+    projectId: payload.projectId ?? '',
+    userId:    payload.userId,
+    message:   payload.message ?? '',
+    modelId:   payload.modelId ?? '',
+  })
 })
 
 // ─── Export registration function ────────────────────────────────────────────

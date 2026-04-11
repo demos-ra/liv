@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.3
-// amended: none
+// standard: LIV-Standard v1.4
+// amended: v1.4
 // slice: core
 // layer: R5
 // wires-in:
@@ -13,7 +13,7 @@
 // deps:
 //   R5 ./liv-standard
 //   R5 ./liv-standard.types
-// validated: 2026-03-15
+// validated: 2026-04-11
 
 import { LIV_STANDARD } from './liv-standard'
 import type {
@@ -242,7 +242,7 @@ export function getSliceForInstance(instanceId: InstanceId): string {
 
   const parts: string[] = []
   if (sliceKey === 'scope-contract') {
-    parts.push('LIV-Standard v1.3 · Universal Software Organization Standard')
+    parts.push(`LIV-Standard ${LIV_STANDARD.version} · Universal Software Organization Standard`)
     parts.push('Axioms are invariants. Every rule derives from exactly one axiom. A rule that cannot cite its axiom is not a rule — it is a preference. Preferences are not in this document.')
     parts.push('')
     parts.push('Scope: All software systems built on LIV')

@@ -28,9 +28,9 @@
 
 import type { Result } from '@/core/types/primitives'
 import type { GlobalSeedInput, IngestionSource } from '../config/codec-admin-types'
-import type { MemNode, MemEdge } from '../../F-memory/config/memory-types'
+import type { MemNode, MemEdge } from '@/features/F-memory/config/memory-types'
 import { normalizeLabel } from '../domain/codec-label'
-import { seedGlobalNode as persistSeed, removeGlobalNode as persistRemove } from '../../F-memory/contract/memory-contract'
+import { seedGlobalNode as persistSeed, removeGlobalNode as persistRemove } from '@/features/F-memory/contract/memory-contract'
 
 // ─── seedGlobalNode ───────────────────────────────────────────────────────────
 // Admin authors a knowledge node directly into the global graph.

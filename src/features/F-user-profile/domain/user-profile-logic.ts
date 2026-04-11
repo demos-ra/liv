@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-user-profile/domain/user-profile-logic.ts]
+// @liv-standard v1.3
+// [F-user-profile/R1]
 // Built with LIV · livai.dev
 // R1: pure functions, no I/O, depends R0 only.
 // A7: removed githubLogin + avatarUrl — fields had no schema backing and no active use.

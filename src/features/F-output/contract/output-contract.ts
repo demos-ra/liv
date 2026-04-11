@@ -1,36 +1,59 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-output/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    phase-b-item2
 // slice:      F-output
 // layer:      R3
 // wires-in:
 //   W-ATOM    OutputJobId             ../types/output-types
+//   W-ATOM    OutputFiles             ../types/output-types
+//   W-ATOM    OutputResult            ../types/output-types
 //   W-ATOM    PushPayload             ../types/output-types
 //   W-ATOM    OUTPUT_CONST            ../types/output-const
 //   W-ATOM    validateSession         @/features/F-identity/contract/auth-contract
 //   W-ATOM    SESSION_COOKIE_NAME     @/features/F-identity/contract/auth-contract
+//   W-FN      dbReplaceOutputFiles    ../exec/output-db
 // wires-out:
 //   W-HOOK    handleGetFiles          →  app/api/output/[jobId]/files/route.ts
 //   W-HOOK    handleDownload          →  app/api/output/[jobId]/download/route.ts
 //   W-HOOK    handlePush              →  app/api/output/[jobId]/push/route.ts
+//   W-FN      writeOutputFiles        →  F-planner/R3 (planner-inject)
 // deps:
 //   R0  ../types/output-types
 //   R0  ../types/output-const
 //   R2  ../workflow/output-workflow
 //   R3  ./output-inject
 //   R3  @/features/F-identity/contract/auth-contract
-// validated:  2026-03-12
+//   R4  ../exec/output-db
+// validated:  pending
+//
+// phase-b-item2 (A1, A2):
+//   writeOutputFiles added. F-planner was importing dbReplaceOutputFiles from
+//   F-output/R4 directly (A2 violation — T1.1: "R4: Never directly imported").
+//   R3 now bridges R4 for cross-slice write. Same inject pattern.
+//   Axiom cite: A1 — F-output owns output_files column. A2 — R4 via R3 bridge.
 
 import { NextRequest, NextResponse }           from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { getFiles, assembleZip, pushToRemote } from '../workflow/output-workflow'
 import { createOutputDb, createGitPush }       from './output-inject'
 import { OUTPUT_CONST }                        from '../types/output-const'
-import type { OutputJobId, PushPayload }       from '../types/output-types'
+import type { OutputJobId, PushPayload, OutputFiles, OutputResult } from '../types/output-types'
+import { dbReplaceOutputFiles } from '../exec/output-db'
+
+// ── writeOutputFiles (phase-b-item2) ──────────────────────────────────────────
+// R3 bridge for R4 write. F-planner imports this instead of R4 directly.
+// A1: F-output owns output_files. A2: R4 via R3 bridge. T1.1 compliant.
+
+export async function writeOutputFiles(
+  jobId: OutputJobId,
+  files: OutputFiles,
+): Promise<OutputResult<void>> {
+  return dbReplaceOutputFiles(jobId, files)
+}
 
 // ── Shared session helper ─────────────────────────────────────────────────────
 

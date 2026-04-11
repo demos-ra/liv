@@ -1,5 +1,5 @@
-// @liv-standard v1.3
-// [F-identity/contract/auth-contract.ts]
+// @liv-standard v1.4
+// [F-identity/R3]
 // Built with LIV · livai.dev
 // R3 — the single session contract surface for all other slices.
 // Import from here only. Never import from F-identity internals directly.
@@ -11,6 +11,12 @@
 //   destroySessionForUser exposed here so event-subscriptions.ts never
 //   imports F-identity/app or F-identity/exec directly.
 //   Axiom cite: A5 — cross-slice calls via contract only.
+//
+// phase-b-item4 (A1, A5):
+//   getUserEmail exposed. F-admin was querying auth_users directly (A1 violation).
+//   F-identity owns auth_users — email lookup belongs here.
+//   Uses IAuthDb.findUserById (existing R4 function, no new R4 code needed).
+//   Axiom cite: A1 — single ownership. A5 — cross-slice via contract only.
 
 import { lookupSession as _lookupSession, destroySessionForUser as _destroySessionForUser } from '../app/auth-workflow'
 import { createAuthDb } from '../exec/auth-db'
@@ -36,4 +42,15 @@ export async function validateSession(rawToken: string) {
 export async function destroySessionForUser(userId: string, sessionId: string): Promise<void> {
   const authDb = createAuthDb(taggedDb(db))
   return _destroySessionForUser(userId, sessionId, authDb)
+}
+
+// ─── getUserEmail (phase-b-item4) ─────────────────────────────────────────────
+// Read-only email lookup. F-admin was querying auth_users directly — A1 violation.
+// Uses existing IAuthDb.findUserById. Returns null if user not found.
+// A1: F-identity owns auth_users. A3: string atom crosses boundary.
+export async function getUserEmail(userId: string): Promise<string | null> {
+  const authDb = createAuthDb(taggedDb(db))
+  const result = await authDb.findUserById(userId)
+  if (!result.success || !result.data) return null
+  return result.data.email
 }

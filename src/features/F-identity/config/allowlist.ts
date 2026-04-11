@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-identity/config/allowlist.ts]
+// @liv-standard v1.3
+// [F-identity/R0]
 // Built with LIV · livai.dev
 // R0: pure config, zero dependencies.
 // A6: declared at R0 — callers import this interface, never raw env.

@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-ai-adapter/app/ai-adapter-workflow.ts]
+// @liv-standard v1.3
+// [F-ai-adapter/R2]
 // Built with LIV · livai.dev
 // R2: orchestration, depends R0 + R1 + R4 only.
 // Phase 4 change: apiKey? threaded through streamCompletion → getProviderStream → streamAIResponse.

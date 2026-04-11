@@ -61,8 +61,9 @@ export async function emit(
     throw new Error(`Event validation failed: ${validation.error}`)
   }
 
-  const event = await insertEvent(db, { ...partial, id: randomUUID() })
-  return event
+  const result = await insertEvent(db, { ...partial, id: randomUUID() })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
 }
 
 // ─── Dispatch loop ────────────────────────────────────────────────────────────
@@ -70,24 +71,31 @@ export async function emit(
 // Bounded: processes at most `limit` events per call.
 
 export async function dispatchPending(db: DbClient, limit = 50): Promise<void> {
-  const events = await fetchPendingEvents(db, limit)
+  const pendingResult = await fetchPendingEvents(db, limit)
+  if (!pendingResult.ok) throw new Error(pendingResult.error.message)
+  const events = pendingResult.data
 
   for (const event of events) {
-    await markProcessing(db, event.id)
+    const mpResult = await markProcessing(db, event.id)
+    if (!mpResult.ok) { console.error('[event-dispatch] markProcessing failed', mpResult.error); continue }
 
     try {
       const eventHandlers = handlers.get(event.name) ?? []
       await Promise.all(eventHandlers.map((h) => h(event)))
-      await markCompleted(db, event.id)
+      const mcResult = await markCompleted(db, event.id)
+      if (!mcResult.ok) console.error('[event-dispatch] markCompleted failed', mcResult.error)
 
       // Trigger any reactive events waiting on this one
-      const reactives = await fetchReactiveEvents(db, event.id)
-      for (const reactive of reactives) {
+      const reactiveResult = await fetchReactiveEvents(db, event.id)
+      if (!reactiveResult.ok) { console.error('[event-dispatch] fetchReactiveEvents failed', reactiveResult.error); continue }
+      for (const reactive of reactiveResult.data) {
         const reactiveHandlers = handlers.get(reactive.name) ?? []
-        await markProcessing(db, reactive.id)
+        const rmpResult = await markProcessing(db, reactive.id)
+        if (!rmpResult.ok) { console.error('[event-dispatch] markProcessing reactive failed', rmpResult.error); continue }
         try {
           await Promise.all(reactiveHandlers.map((h) => h(reactive)))
-          await markCompleted(db, reactive.id)
+          const rmcResult = await markCompleted(db, reactive.id)
+          if (!rmcResult.ok) console.error('[event-dispatch] markCompleted reactive failed', rmcResult.error)
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
           await markFailed(db, reactive.id, msg)

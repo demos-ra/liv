@@ -24,7 +24,7 @@
 // CA8: tree structure derived from decode output, not authored.
 
 import type { DecodeCategory } from './codec-decode-types'
-import type { MLayer } from '../../F-memory/config/memory-types'
+import type { MLayer } from '@/features/F-memory/config/memory-types'
 
 // ─── Memory Tree Node ────────────────────────────────────────────────────────
 // What the tree UI renders per item.

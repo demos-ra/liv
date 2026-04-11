@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-user-profile/app/user-profile-workflow.ts]
+// @liv-standard v1.3
+// [F-user-profile/R2]
 // Built with LIV · livai.dev
 // R2: orchestration, depends R0 + R1 + R4 only.
 // A7: removed upsertProfileFromGithub — GitHub enrichment path deferred to F-git-connector.

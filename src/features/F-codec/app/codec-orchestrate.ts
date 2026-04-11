@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    phase-b-item2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -69,8 +69,10 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 // 9. Return CodecPipelineResult
 
 export async function processMessage(
-  content: string,
-  userId:  string,
+  content:    string,
+  userId:     string,
+  projectId?: string,
+  modelId?:   string,
 ): Promise<Result<CodecPipelineResult>> {
   try {
     // 1. Encode — classify primitive + label + traverse graph
@@ -110,11 +112,15 @@ export async function processMessage(
 
     // 7. Dispatch — if build domain, emit event for F-planner subscription
     // A5: event bus only. F-codec never imports F-planner.
+    // phase-b-item2: projectId, message, modelId pass-through on payload.
     if (route.type === 'dispatch-planner') {
       const payload: RouteBuildPayload = {
         primitive: route.primitive,
         label:     route.label,
         userId:    route.userId,
+        projectId: projectId ?? '',
+        message:   content,
+        modelId:   modelId ?? '',
       }
       await emitEvent({
         type:    CODEC_ROUTING_EVENTS.ROUTE_BUILD,

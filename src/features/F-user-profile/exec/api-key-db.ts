@@ -1,5 +1,5 @@
-// @liv-standard v1.0
-// [F-user-profile/exec/api-key-db.ts]
+// @liv-standard v1.3
+// [F-user-profile/R4]
 // Built with LIV · livai.dev
 // R4: I/O only, depends R0 only.
 // A1: F-user-profile is sole owner of user_api_keys table.
@@ -9,6 +9,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { db } from '@/core/db/client'
+import type { Result } from '@/core/types/primitives'
 import type { ProviderId } from '../config/provider-keys-config'
 
 // ── Encryption ────────────────────────────────────────────────────────────────
@@ -58,20 +59,25 @@ function decryptKey(stored: string): string {
 export async function getApiKey(
   userId: string,
   provider: ProviderId,
-): Promise<string | null> {
-  const result = await db.query<{ encrypted_key: string }>(
-    `SELECT encrypted_key FROM user_api_keys WHERE user_id = $1 AND provider = $2`,
-    [userId, provider]
-  )
-  const row = result.rows[0]
-  if (!row) return null
+): Promise<Result<string | null>> {
   try {
-    return decryptKey(row.encrypted_key)
-  } catch {
-    // Decryption failure — key is corrupt or encryption secret rotated
-    // Return null so caller falls back to env. Log but do not throw.
-    console.error('[api-key-db] decryption failed', { userId, provider })
-    return null
+    const result = await db.query<{ encrypted_key: string }>(
+      `SELECT encrypted_key FROM user_api_keys WHERE user_id = $1 AND provider = $2`,
+      [userId, provider]
+    )
+    const row = result.rows[0]
+    if (!row) return { ok: true, data: null }
+    try {
+      return { ok: true, data: decryptKey(row.encrypted_key) }
+    } catch {
+      // Decryption failure — key is corrupt or encryption secret rotated
+      // Return null so caller falls back to env. Log but do not throw.
+      console.error('[api-key-db] decryption failed', { userId, provider })
+      return { ok: true, data: null }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'USER_PROFILE_DB_QUERY_FAILED', message } }
   }
 }
 
@@ -79,25 +85,37 @@ export async function setApiKey(
   userId: string,
   provider: ProviderId,
   plainKey: string,
-): Promise<void> {
-  const encrypted = encryptKey(plainKey)
-  await db.query(
-    `INSERT INTO user_api_keys (user_id, provider, encrypted_key, updated_at)
-     VALUES ($1, $2, $3, now())
-     ON CONFLICT (user_id, provider)
-     DO UPDATE SET encrypted_key = $3, updated_at = now()`,
-    [userId, provider, encrypted]
-  )
+): Promise<Result<void>> {
+  try {
+    const encrypted = encryptKey(plainKey)
+    await db.query(
+      `INSERT INTO user_api_keys (user_id, provider, encrypted_key, updated_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (user_id, provider)
+       DO UPDATE SET encrypted_key = $3, updated_at = now()`,
+      [userId, provider, encrypted]
+    )
+    return { ok: true, data: undefined }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'USER_PROFILE_DB_WRITE_FAILED', message } }
+  }
 }
 
 export async function deleteApiKey(
   userId: string,
   provider: ProviderId,
-): Promise<void> {
-  await db.query(
-    `DELETE FROM user_api_keys WHERE user_id = $1 AND provider = $2`,
-    [userId, provider]
-  )
+): Promise<Result<void>> {
+  try {
+    await db.query(
+      `DELETE FROM user_api_keys WHERE user_id = $1 AND provider = $2`,
+      [userId, provider]
+    )
+    return { ok: true, data: undefined }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'USER_PROFILE_DB_DELETE_FAILED', message } }
+  }
 }
 
 // ── Key presence check (no decryption — for UI "is key set?" check) ───────────
@@ -105,12 +123,17 @@ export async function deleteApiKey(
 export async function hasApiKey(
   userId: string,
   provider: ProviderId,
-): Promise<boolean> {
-  const result = await db.query<{ exists: boolean }>(
-    `SELECT EXISTS(
-      SELECT 1 FROM user_api_keys WHERE user_id = $1 AND provider = $2
-    ) AS exists`,
-    [userId, provider]
-  )
-  return result.rows[0]?.exists ?? false
+): Promise<Result<boolean>> {
+  try {
+    const result = await db.query<{ exists: boolean }>(
+      `SELECT EXISTS(
+        SELECT 1 FROM user_api_keys WHERE user_id = $1 AND provider = $2
+      ) AS exists`,
+      [userId, provider]
+    )
+    return { ok: true, data: result.rows[0]?.exists ?? false }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'USER_PROFILE_DB_QUERY_FAILED', message } }
+  }
 }
