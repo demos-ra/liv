@@ -1,10 +1,15 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-la-config/R4]
 // Built with LIV · livai.dev
 // [F-la-config/exec/la-validator.ts]
 // R4 — LA integrity validator. CLI tool only.
 // Run manually: npx ts-node src/features/F-la-config/exec/la-validator.ts
 // Or in CI. Never imported at runtime.
+//
+// w5-item-6.7 (A2, A3, A7):
+//   Appended check #5: CC.18 — cross-slice imports via @/features/ must target
+//   R0 (types/) or R3 (contract/) only. Codifies A2/A3 mechanically.
+//   One function — remove it and validator runs without it (A7).
 
 import * as fs from 'fs'
 import * as path from 'path'
@@ -73,6 +78,33 @@ check('All slices have domain/, contract/, exec/', () => {
       }
     }
   }
+  return violations
+})
+
+// 5. CC.18: Cross-slice imports target R0 or R3 only
+check('CC.18: Cross-slice imports target R0 or R3 only', () => {
+  const violations: string[] = []
+  walkTs(FEATURES, (filePath, content) => {
+    const importingSlice = filePath.split('/features/')[1]?.split('/')[0]
+    if (!importingSlice) return
+
+    const matches = content.matchAll(
+      /from '@\/features\/(F-[^']+)\/(types|domain|app|exec|config|contract)\/[^']*'/g
+    )
+
+    for (const m of matches) {
+      const targetSlice = m[1]
+      const targetLayer = m[2]
+
+      if (targetSlice === importingSlice) continue  // intra-slice OK
+      if (targetLayer === 'types') continue          // R0 OK
+      if (targetLayer === 'contract') continue       // R3 OK
+
+      violations.push(
+        `${shortPath(filePath)} imports cross-slice ${targetLayer}/ from ${targetSlice}`
+      )
+    }
+  })
   return violations
 })
 

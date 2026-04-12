@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-intake/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    w5-item-6.5
 // slice:      F-intake
 // layer:      R3
 // wires-in:
@@ -15,51 +15,18 @@
 //   R0  ../types/intake-types
 //   R3  ./intake-hook
 //   R5  react
-// validated:  2026-03-12
+// validated:  2026-04-12
+//
+// w5-item-6.5 (A2, A7):
+//   pipelineStatus/pipelineError replaced with submitStatus/submitError
+//   from modified useIntake hook. Button label: "Send to chat".
+//   No cross-slice references. Intra-slice only.
 
 'use client'
 
 import { useRef, type DragEvent, type ChangeEvent } from 'react'
 import { useIntake }                                 from './intake-hook'
 import type { IntakeMode }                           from '../types/intake-types'
-
-// ── Pipeline stage indicator ──────────────────────────────────────────────────
-
-const STAGES = ['IN_MAIN', 'IN_BUILD', 'IN_RESOLVE', 'IN_AUDIT', 'IN_COMPILE', 'IN_QA'] as const
-
-function PipelineProgress({ currentStage }: { currentStage: string | null }) {
-  if (!currentStage) return null
-  const idx = STAGES.indexOf(currentStage as typeof STAGES[number])
-  return (
-    <div style={{ display: 'flex', gap: 'var(--u1)', alignItems: 'center', marginTop: 'var(--u3)' }}>
-      {STAGES.map((s, i) => (
-        <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 'var(--u1)', flex: i < STAGES.length - 1 ? 1 : 'none' }}>
-          <div style={{
-            width: 24, height: 24, borderRadius: '50%',
-            background:   i < idx  ? 'rgba(var(--blue), var(--density-full))'
-                        : i === idx ? 'rgba(var(--amber), var(--density-full))'
-                        : 'var(--surface)',
-            border:      `1px solid ${i <= idx ? 'transparent' : 'var(--text-dis)'}`,
-            display:     'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize:    10, color: i <= idx ? 'var(--bg)' : 'var(--text-dis)',
-            fontFamily:  'var(--font-mono)',
-            flexShrink:  0,
-            transition:  'background 0.2s ease',
-          }}>
-            {i < idx ? '✓' : i + 1}
-          </div>
-          {i < STAGES.length - 1 && (
-            <div style={{
-              flex: 1, height: 1,
-              background: i < idx ? 'rgba(var(--blue), var(--density-full))' : 'var(--text-dis)',
-              transition: 'background 0.2s ease',
-            }} />
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ── Mode tab ──────────────────────────────────────────────────────────────────
 
@@ -312,15 +279,14 @@ function GitInput({
 
 // ── Root component ────────────────────────────────────────────────────────────
 
-export function IntakePanel() {
+export function IntakePanel({ onBuildSubmit }: { onBuildSubmit: (text: string) => void }) {
   const {
     state, setMode, setText, setGitUrl, setGitBranch,
     loadZip, clearZip, submit, canSubmit,
-    pipelineStatus, pipelineError,
-  } = useIntake()
+    submitStatus, submitError,
+  } = useIntake(onBuildSubmit)
 
-  const isRunning = pipelineStatus === 'loading'
-  const job       = null  // placeholder — planner hook exposes .job once submitted
+  const isSubmitting = submitStatus === 'submitting'
 
   return (
     <div style={{
@@ -381,8 +347,8 @@ export function IntakePanel() {
       {/* Validation errors */}
       <ValidationErrors errors={state.errors} />
 
-      {/* Pipeline error */}
-      {pipelineError && (
+      {/* Submit error */}
+      {submitError && (
         <div style={{
           padding:      'var(--u15) var(--u2)',
           background:   'rgba(var(--red), 0.10)',
@@ -391,7 +357,7 @@ export function IntakePanel() {
           fontSize:     13, color: 'rgba(var(--red), var(--density-full))',
           fontFamily:   'var(--font-ui)',
         }}>
-          {pipelineError.message}
+          {submitError}
         </div>
       )}
 
@@ -414,10 +380,10 @@ export function IntakePanel() {
           display:        'flex',
           alignItems:     'center',
           gap:            'var(--u1)',
-          opacity:        isRunning ? 0.7 : 1,
+          opacity:        isSubmitting ? 0.7 : 1,
         }}
       >
-        {isRunning ? (
+        {isSubmitting ? (
           <>
             <span style={{
               width: 12, height: 12, border: '1.5px solid currentColor',
@@ -425,10 +391,10 @@ export function IntakePanel() {
               display: 'inline-block',
               animation: 'spin 0.6s linear infinite',
             }} />
-            Starting pipeline…
+            Sending…
           </>
         ) : (
-          'Start build'
+          'Send to chat'
         )}
       </button>
 

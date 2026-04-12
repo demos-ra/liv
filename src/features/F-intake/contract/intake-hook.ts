@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-intake/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.4
+// amended:    w5-item-6.5
 // slice:      F-intake
 // layer:      R3
 // wires-in:
@@ -13,24 +13,27 @@
 //   W-ATOM  IntakeState            ../types/intake-types
 //   W-ATOM  IntakeValidationError  ../types/intake-types
 //   W-ATOM  INTAKE_CONST           ../types/intake-const
-//   W-HOOK  usePlanner             @/features/F-planner/contract/planner-hook
-//   W-HOOK  useProject             @/features/F-project/contract/project-hook
 // wires-out:
 //   W-HOOK  useIntake  →  F-intake/R3 (intake-ui.tsx)
 // deps:
 //   R0  ../types/intake-types
 //   R0  ../types/intake-const
 //   R1  ../domain/intake-logic
-//   R3  @/features/F-planner/contract/planner-hook
-//   R3  @/features/F-project/contract/project-hook
 //   R5  react
-// validated:  2026-03-12
+// validated:  2026-04-12
+//
+// w5-item-6.5 (A2, A5, A7):
+//   Removed cross-slice imports: usePlanner (F-planner/R3), useProject (F-project/R3).
+//   submit() now calls onBuildSubmit callback injected by composition root.
+//   Intake owns zero cross-slice hook dependencies — fully deletable (A7).
+//   No cross-slice direct invocation (A5). Dependency direction inward only (A2).
+//   buildId generation removed — planner generates its own job ID via codec path.
+//   pipelineStatus/pipelineError replaced with local submitStatus/submitError.
+//   Project existence guard removed — parent owns project context.
 
 'use client'
 
 import { useState, useCallback }         from 'react'
-import { usePlanner }                    from '@/features/F-planner/contract/planner-hook'
-import { useProject }                    from '@/features/F-project/contract/project-hook'
 import { validateIntakeInput }           from '../domain/intake-logic'
 import { INTAKE_CONST }                  from '../types/intake-const'
 import type {
@@ -41,18 +44,21 @@ import type {
 } from '../types/intake-types'
 
 // ── Hook shape ─────────────────────────────────────────────────────────────────
+
+export type SubmitStatus = 'idle' | 'submitting' | 'submitted' | 'error'
+
 export type IntakeHook = {
-  state:          IntakeState
-  setMode:        (mode: IntakeMode) => void
-  setText:        (text: string) => void
-  setGitUrl:      (url: string) => void
-  setGitBranch:   (branch: string) => void
-  loadZip:        (file: File) => void
-  clearZip:       () => void
-  submit:         () => void
-  canSubmit:      boolean
-  pipelineStatus: 'idle' | 'loading' | 'error' | 'success'
-  pipelineError:  { code: string; message: string } | null
+  state:         IntakeState
+  setMode:       (mode: IntakeMode) => void
+  setText:       (text: string) => void
+  setGitUrl:     (url: string) => void
+  setGitBranch:  (branch: string) => void
+  loadZip:       (file: File) => void
+  clearZip:      () => void
+  submit:        () => void
+  canSubmit:     boolean
+  submitStatus:  SubmitStatus
+  submitError:   string | null
 }
 
 const INITIAL_STATE: IntakeState = {
@@ -66,10 +72,10 @@ const INITIAL_STATE: IntakeState = {
   errors:      [],
 }
 
-export function useIntake(): IntakeHook {
-  const [state, setState] = useState<IntakeState>(INITIAL_STATE)
-  const planner           = usePlanner()
-  const project           = useProject()
+export function useIntake(onBuildSubmit: (text: string) => void): IntakeHook {
+  const [state, setState]             = useState<IntakeState>(INITIAL_STATE)
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle')
+  const [submitError, setSubmitError]   = useState<string | null>(null)
 
   // ── Field setters ────────────────────────────────────────────────────────────
 
@@ -126,18 +132,10 @@ export function useIntake(): IntakeHook {
   }, [])
 
   // ── Submit ────────────────────────────────────────────────────────────────────
-  // Validates → generates buildId → calls usePlanner.startPipeline.
-  // userId comes from session (server-side) — never threaded through client state.
+  // Validates → calls onBuildSubmit callback with validated text.
+  // No cross-slice invocation. Parent wires callback to chat send path.
 
   const submit = useCallback(() => {
-    if (!project.activeProject) {
-      setState(s => ({
-        ...s,
-        errors: [{ field: 'project', code: 'NO_PROJECT', message: 'No active project selected' }],
-      }))
-      return
-    }
-
     // Build IntakeInput from state
     let input: IntakeInput
     if (state.mode === 'text') {
@@ -164,19 +162,26 @@ export function useIntake(): IntakeHook {
     }
 
     setState(s => ({ ...s, errors: [] }))
+    setSubmitStatus('submitting')
+    setSubmitError(null)
 
-    // buildId generated client-side — uuid v4 pattern, server accepts it as the build key
-    const buildId = crypto.randomUUID()
-
-    planner.startPipeline(buildId, project.activeProject.projectId, 'CONTINUOUS')
-  }, [state, project.activeProject, planner])
+    try {
+      // Text mode: send description. Zip/git: send intent string.
+      // Brief scope: text mode only. Zip/git deferred.
+      const text = state.mode === 'text' ? state.text.trim() : ''
+      onBuildSubmit(text)
+      setSubmitStatus('submitted')
+    } catch (err) {
+      setSubmitStatus('error')
+      setSubmitError(err instanceof Error ? err.message : 'Submission failed')
+    }
+  }, [state, onBuildSubmit])
 
   // ── canSubmit ─────────────────────────────────────────────────────────────────
   // Optimistic check — prevents obviously invalid submits without running full validation.
 
   const canSubmit = (() => {
-    if (planner.status === 'loading') return false
-    if (!project.activeProject) return false
+    if (submitStatus === 'submitting') return false
     switch (state.mode) {
       case 'text': return state.text.trim().length >= INTAKE_CONST.TEXT_MIN_LEN
       case 'zip':  return !!state.zipFileData
@@ -194,7 +199,7 @@ export function useIntake(): IntakeHook {
     clearZip,
     submit,
     canSubmit,
-    pipelineStatus: planner.status,
-    pipelineError:  planner.error,
+    submitStatus,
+    submitError,
   }
 }
