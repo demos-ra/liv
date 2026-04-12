@@ -1,10 +1,10 @@
 // @liv-standard v1.4
-// [F-planner/R3]
+// [F-planner/contract/planner-contract.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    w2-item-12, phase-b-item4, phase-b-item2
+// amended:    w2-item-12, phase-b-item4, phase-b-item2, phase-4.3
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -131,7 +131,7 @@ export async function handleBuildRequest(
     const output   = createOutputWriter()
     const jobId    = result.data.job.jobId
 
-    runPipeline({ db, ai, executor, output }, jobId).catch(err => {
+    runPipeline({ db, ai, executor, output }, jobId, result.data.readSnapshot ?? null).catch(err => {
       // Last-resort catch — runPipeline should handle its own failures internally.
       // If it throws unexpectedly, log and attempt to mark pipeline failed.
       console.error(JSON.stringify({

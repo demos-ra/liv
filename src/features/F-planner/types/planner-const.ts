@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-planner/types/planner-const.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w2-item-12
+// standard:   LIV-Standard v1.4
+// amended:    phase-4.2, phase-4.3
 // slice:      F-planner
 // layer:      R0
 // wires-in:
@@ -43,6 +43,14 @@
 //   PLANNER_RATE_LIMIT added. 5 pipeline starts per 1-hour sliding window.
 //   RateLimitConfig imported cross-slice from F-chat/R1 (A2 — lower layer).
 //   Axiom cite: A6 — rate limit constant declared at R0 of consumer slice.
+//
+// phase-4.2 (A3, A6):
+//   STRESS_MIN_CONTENT_LENGTH added — minimum char count for a file to not be
+//   flagged as a placeholder by assessBuildOutput (R1). Below this → stressed.
+//
+// phase-4.3 (A3, A6):
+//   TEMP_CACHE_RETENTION_DAYS added — external file cache expiry in days.
+//   Axiom cite: A6 — declared at R0 of owner. A3 — typed constant.
 
 import type { RateLimitConfig } from '@/features/F-chat/domain/rate-limiter'
 
@@ -128,6 +136,16 @@ export const PLANNER_CONST = {
     MAX_BUILD_TIME_MS: 30 * 60 * 1000,  // 30 min from pipeline start to terminal
     AI_RETRY_LIMIT:    1,               // infrastructure retries before CLASS_3
   } as const,
+
+  // ── Stress detection (phase-4.2) ────────────────────────────────────────────
+  // Minimum content length in chars for a file to be considered non-placeholder.
+  // Files below this threshold are flagged as 'stressed' by assessBuildOutput (R1).
+  STRESS_MIN_CONTENT_LENGTH: 50,
+
+  // ── Read phase (phase-4.3) ─────────────────────────────────────────────────
+  // External file cache retention in days. Files detected during read phase that
+  // are not LIV-produced are stored temporarily for this duration.
+  TEMP_CACHE_RETENTION_DAYS: 30,
 
 } as const
 

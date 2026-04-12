@@ -1,10 +1,10 @@
 // @liv-standard v1.4
-// [F-planner/R2]
+// [F-planner/workflow/planner-workflow.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    step5e, phase-b-item4
+// amended:    phase-4.2
 // slice:      F-planner
 // layer:      R2
 // wires-in:
@@ -32,7 +32,6 @@
 //   W-ATOM    getPacketForInstance   @/core/constants/liv-api
 //   W-ATOM    getTemplatesForFlow    @/core/constants/liv-api
 //   W-ATOM    getTemplate            @/core/constants/liv-api
-//   W-ATOM    getHandoff             @/core/constants/liv-api
 //   W-FN      validateHandoff        @/core/constants/liv-api  (step4b4-handoff — replaces validateHandoffShape)
 //   W-ATOM    InstanceId             @/core/constants/liv-standard.types  (step4b4-handoff — type import for cast)
 //   W-ATOM    FlowLibraryEntry       ../types/planner-library-types  (step4d-phase2)
@@ -117,6 +116,18 @@
 //   before the UI can display it; failure is logged but non-fatal to the user.
 //   Axiom cite: A1 — F-planner owns version assignment. A2 — interface at R2,
 //   bound at R3. A3 — BuildVersion typed atom. A4 — I/O via injected interface.
+//
+// phase-4.2 (A1, A2, A3, A7):
+//   Sequential per-bundle IN-BUILD loop replaced with tiered parallel execution.
+//   classifyBundleTiers (R1) sorts bundles into dependency tiers by structural
+//   wires (W-ATOM, W-INJECT). Each tier executes concurrently via Promise.allSettled.
+//   Prior-tier R0 files passed as referenceContext to downstream-tier IN-BUILD calls.
+//   assessBuildOutput (R1) checks for stress signals (missing/placeholder files).
+//   Stressed bundles decomposed into per-layer IN-BUILD calls via groupTemplatesByLayer.
+//   StageReportEntry extended with tierIndex, decomposed, layerPasses (instrumentation).
+//   stdVersion hardcode replaced with contract.standardVersion.
+//   Axiom cite: A1 — bundle = single ownership. A2 — R0 reference context only.
+//   A3 — typed boundary atoms. A7 — all new code is deletable.
 
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
@@ -148,6 +159,8 @@ import type {
   FreezeContractPayload,
   FileEntry,
   InstanceCallResult,
+  FileSnapshot,
+  ReadSnapshot,
 } from '../types/planner-types'
 import {
   PLANNER_EVENTS,
@@ -173,6 +186,12 @@ import {
   classifyError,
   detectStall,
   checkFailsafes,
+  classifyBundleTiers,
+  assessBuildOutput,
+  groupTemplatesByLayer,
+  assessFileCompliance,
+  buildReadSnapshot,
+  deriveScopingConstraints,
 } from '../domain/planner-logic'
 import {
   reslotFiles,
@@ -225,6 +244,11 @@ export interface IPlannerDb {
   getVersionHistory(projectId: string): Promise<PlannerResult<BuildVersion[]>>
   // ── Admin query (phase-b-item4) ─────────────────────────────────────────
   getBuildsForAdmin(filters: { status?: string[]; limit?: number }): Promise<PlannerResult<AdminBuild[]>>
+  // ── Read phase (phase-4.3) ──────────────────────────────────────────────
+  scanProjectFiles(projectId: string): Promise<PlannerResult<{ path: string; content: string }[]>>
+  getVersionSnapshot(projectId: string): Promise<PlannerResult<FileSnapshot[] | null>>
+  storeVersionSnapshot(buildId: string, snapshot: FileSnapshot[]): Promise<PlannerResult<void>>
+  storeExternalFileCache(buildId: string, files: { path: string; content: string }[]): Promise<PlannerResult<void>>
 }
 
 export interface IAiAdapter {
@@ -286,7 +310,8 @@ export interface IOutputWriter {
 
 export async function runPipeline(
   deps:  { db: IPlannerDb; ai: IAiAdapter; executor: IExecutor; output: IOutputWriter },
-  jobId: PlannerJobId
+  jobId: PlannerJobId,
+  readSnapshot: ReadSnapshot | null = null
 ): Promise<void> {
   const pipelineStartedAt = Date.now()
 
@@ -315,6 +340,11 @@ export async function runPipeline(
   let accumulatedFiles: FileEntry[] = []
   const stageResults: InstanceCallResult[] = []
 
+  // ── Tier metadata tracking (phase-4.2) ──────────────────────────────────
+  // Maps stageResults index → BuildTierMetadata for report assembly.
+  // Populated when bundle results are collected from executeBundleBuild.
+  const tierMetadataMap = new Map<number, BuildTierMetadata>()
+
   // ── Flow library exact-hit tracking (step4d-phase3) ──────────────────────
   // Maps bundleName → libraryEntryId for bundles that used an exact library hit.
   // Consulted at downstream failure points to trigger demotion.
@@ -327,16 +357,20 @@ export async function runPipeline(
     const reentryReport: PipelineReport = {
       buildId:          jobId as string,
       userId:           job.userId,
-      stages:           stageResults.map(r => ({
-        instanceId:   r.instanceId,
-        model:        r.model,
-        startedAt:    r.startedAt,
-        completedAt:  r.completedAt,
-        tokenCount:   r.tokenCount,
-        handoffValid: r.handoffValid,
-        retries:      0,
-        errors:       [],
-      } satisfies StageReportEntry)),
+      stages:           stageResults.map((r, idx) => {
+        const meta = tierMetadataMap.get(idx)
+        return {
+          instanceId:   r.instanceId,
+          model:        r.model,
+          startedAt:    r.startedAt,
+          completedAt:  r.completedAt,
+          tokenCount:   r.tokenCount,
+          handoffValid: r.handoffValid,
+          retries:      0,
+          errors:       [],
+          ...(meta ? { tierIndex: meta.tierIndex, decomposed: meta.decomposed, layerPasses: meta.layerPasses } : {}),
+        } satisfies StageReportEntry
+      }),
       totalTransitions: freshJob.ok ? freshJob.data.transitionCount : job.transitionCount,
       reentries:        (freshJob.ok ? freshJob.data.reentryCount : job.reentryCount) + 1,
       outcome:          'failed',
@@ -397,7 +431,13 @@ export async function runPipeline(
     return true
   }
 
-  // ── IN-BUILD — one call per bundle, with CLASS_2/CLASS_3 retry ────────────
+  // ── IN-BUILD — tiered parallel execution with stress decomposition (phase-4.2) ──
+  // classifyBundleTiers sorts bundles into dependency tiers by structural wires.
+  // Each tier executes concurrently via Promise.allSettled. Prior-tier R0 files
+  // passed as referenceContext to downstream tiers. assessBuildOutput checks for
+  // stress signals; stressed bundles decomposed into per-layer IN-BUILD calls.
+  // Axiom cite: A1 — bundle = single ownership. A2 — R0 reference context only.
+  // A3 — typed boundary atoms. A7 — all new code is deletable (fallback = v1.3 sequential).
   const buildStage: PipelineStage = 'IN_BUILD'
   if (!await assertSafe(buildStage)) return
 
@@ -409,150 +449,55 @@ export async function runPipeline(
     axiomCite: null, retryCount: 0,
   }))
 
-  let buildRetries   = 0
-  let buildErrorCtx: string | undefined
+  const tiers = classifyBundleTiers(contract.bundleScope, contract.wireMap)
+  const tierCount = tiers.size
 
-  for (const bundle of contract.bundleScope) {
-    let bundleSuccess = false
+  for (let tierIdx = 0; tierIdx < tierCount; tierIdx++) {
+    const tierBundles = tiers.get(tierIdx) ?? []
+    if (tierBundles.length === 0) continue
 
-    // ── Flow library read path (step4d-phase3) ──────────────────────────────
-    // Compute structural hashes for this bundle's atoms and wires.
-    // Exact hit → re-slot cached files, skip IN-BUILD entirely.
-    // Partial hit → include reference files in IN-BUILD packet.
-    // Miss → normal IN-BUILD, no reference.
-    const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
-    const bundleWires = contract.wireMap.filter(
-      w => w.from === bundle.name || w.to === bundle.name
-    )
-    const atomHash = deps.db.hashAtomShape(bundleAtoms)
-    const wireHash = deps.db.hashWireSignature(bundleWires)
-    const stdVersion = 'v1.3'
+    // ── Collect R0 reference context from all completed prior tiers ──────
+    // R0 path convention: src/features/F-xxx/types/*.ts and src/features/F-xxx/config/*.ts
+    // Must not match non-R0 files that happen to contain /types/ in path (A3).
+    const r0PathPattern = /^src\/features\/F-[^/]+\/(types|config)\/[^/]+\.ts$/
+    const referenceContext: FileEntry[] = tierIdx > 0
+      ? accumulatedFiles.filter(f => r0PathPattern.test(f.path))
+      : []
 
-    // Use first flowId for the bundle — per-flow entries written at success
-    const primaryFlowId = contract.flowSelection[0]
+    // ── Execute all bundles in this tier concurrently ────────────────────
+    const bundlePromises = tierBundles.map(bundleName => {
+      const bundle = contract.bundleScope.find(b => b.name === bundleName)!
+      return executeBundleBuild(
+        deps, jobId, job, contract, bundle, buildStage,
+        providers, preferences, referenceContext, tierIdx,
+        pipelineStartedAt, assertSafe, escalate, exactHitMap
+      )
+    })
 
-    if (primaryFlowId) {
-      const exactResult = await deps.db.lookupExact(primaryFlowId, stdVersion, atomHash, wireHash)
+    const settled = await Promise.allSettled(bundlePromises)
 
-      if (exactResult.ok && exactResult.data) {
-        // ── Exact hit: re-slot and skip IN-BUILD ────────────────────────────
-        const entry     = exactResult.data
-        const newSlots  = extractSlotValues(contract, bundle.name)
-        const reslotted = reslotFiles(entry.outputFiles, entry.slotValues, newSlots)
+    for (let i = 0; i < settled.length; i++) {
+      const result = settled[i]
+      const bundleName = tierBundles[i]
 
-        accumulatedFiles = [...accumulatedFiles, ...reslotted.map(f => ({ ...f, encoding: 'utf8' as const }))]
-        exactHitMap.set(bundle.name, entry.id)
-        await deps.db.incrementTransition(jobId)
-
-        console.log(JSON.stringify({
-          level: 'info', event: 'flow-library.exact-hit',
-          flowId: primaryFlowId, bundleName: bundle.name, libraryEntryId: entry.id,
-          slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-        }))
-        bundleSuccess = true
-        continue  // skip IN-BUILD for this bundle
+      if (result.status === 'rejected') {
+        await reEnterInMain(buildStage, `IN-BUILD rejected for bundle ${bundleName}: ${String(result.reason)}`)
+        return
       }
 
-      // ── Partial hit: get reference files for IN-BUILD ────────────────────
-      if (exactResult.ok && !exactResult.data) {
-        const partialResult = await deps.db.lookupPartial(primaryFlowId, stdVersion)
-        if (partialResult.ok && partialResult.data) {
-          console.log(JSON.stringify({
-            level: 'info', event: 'flow-library.partial-hit',
-            flowId: primaryFlowId, bundleName: bundle.name,
-            libraryEntryId: partialResult.data.id,
-            slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-          }))
-          // referenceFiles stored for use in IN-BUILD prompt below
-          const referenceFiles = partialResult.data.outputFiles.map(
-            f => ({ path: f.path, content: f.content, encoding: 'utf8' as const })
-          )
-          // Fall through to IN-BUILD with referenceFiles in errorLog context
-          buildErrorCtx = `Reference files available from a partial library match (${referenceFiles.length} files). Use as structural reference — adapt slot values to this build.`
-        } else {
-          console.log(JSON.stringify({
-            level: 'info', event: 'flow-library.miss',
-            flowId: primaryFlowId, bundleName: bundle.name,
-            slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-          }))
-        }
-      }
-    }
-
-    for (let attempt = 0; attempt <= PLANNER_CONST.RETRY_LIMITS.IN_BUILD; attempt++) {
-      if (!await assertSafe(buildStage)) return
-
-      const bundleStartedAt = Date.now()
-      const { model } = resolveModel('Smallest', providers, preferences)
-
-      const standardSlice   = getSliceForInstance('IN-BUILD')
-      const instanceProfile = getInstanceProfile('IN-BUILD')
-      const packet          = getPacketForInstance('IN-BUILD', contract, bundle.name)
-
-      const templates = contract.flowSelection.flatMap(flowId => {
-        const entries = getTemplatesForFlow(flowId as Parameters<typeof getTemplatesForFlow>[0])
-        return entries.flatMap(e => e.templates.map(tplId => getTemplate(tplId)))
-      })
-
-      const systemPrompt = buildInstancePrompt({
-        standardSlice,
-        profile:   instanceProfile,
-        packet:    { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
-        templates: templates.map(t => ({ id: t.id, file: t.file, layer: t.layer, body: t.body, slots: t.slots })),
-        errorLog:  buildErrorCtx,
-      })
-
-      let fullResponse = ''
-      let tokenCount   = 0
-      const aiResult = await deps.ai.streamCompletion({
-        userId:  job.userId,
-        modelId: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: `Build bundle: ${bundle.name} (${bundle.status})${attempt > 0 ? ` [retry ${attempt}]` : ''}` },
-        ],
-        onChunk: chunk => { fullResponse += chunk },
-      })
-
-      if (!aiResult.ok) {
-        const errClass = classifyError(aiResult.error, buildStage)
-        if (errClass === 3) {
-          if (buildRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
-            buildRetries++; continue
-          }
-          await escalate(buildStage, `IN-BUILD CLASS_3: ${aiResult.error.message}`)
-          return
-        }
-        buildErrorCtx = aiResult.error.message
-        buildRetries++
-        continue
-      }
-      tokenCount = aiResult.data.totalTokens
-
-      const parsed     = parseInstanceResponse(fullResponse, 'IN-BUILD')
-      const shapeCheck = validateHandoff('IN-BUILD', 'IN-RESOLVE', parsed)
-
-      if (!shapeCheck.valid) {
-        buildErrorCtx = shapeCheck.reason
-        buildRetries++
-        if (buildRetries > PLANNER_CONST.RETRY_LIMITS.IN_BUILD) break
-        continue
+      const bundleResult = result.value
+      if (!bundleResult.ok) {
+        if (bundleResult.escalated) return  // already escalated
+        await reEnterInMain(buildStage, `IN-BUILD failed for bundle ${bundleName}: ${bundleResult.reason ?? 'unknown'}`)
+        return
       }
 
-      accumulatedFiles = [...accumulatedFiles, ...parsed.files]
-      await deps.db.incrementTransition(jobId)
-      stageResults.push({
-        instanceId: buildStage, model, response: parsed, tokenCount,
-        durationMs: Date.now() - bundleStartedAt, handoffValid: true,
-        startedAt: bundleStartedAt, completedAt: Date.now(),
-      })
-      bundleSuccess = true
-      break
-    }
-
-    if (!bundleSuccess) {
-      await reEnterInMain(buildStage, `IN-BUILD retry exhausted for bundle ${bundle.name}: ${buildErrorCtx ?? 'unknown'}`)
-      return
+      accumulatedFiles = [...accumulatedFiles, ...bundleResult.files]
+      for (const sr of bundleResult.stageResults) {
+        const idx = stageResults.length
+        stageResults.push(sr)
+        tierMetadataMap.set(idx, bundleResult.metadata)
+      }
     }
   }
 
@@ -560,8 +505,8 @@ export async function runPipeline(
   await deps.db.appendLogEntry(jobId, buildStageLogEntry({
     stage: buildStage, status: 'complete',
     startedAt: pipelineStartedAt, completedAt: Date.now(),
-    message: `IN-BUILD complete. ${accumulatedFiles.length} files across ${contract.bundleScope.length} bundles.`,
-    axiomCite: null, retryCount: buildRetries,
+    message: `IN-BUILD complete. ${accumulatedFiles.length} files across ${contract.bundleScope.length} bundles. ${tierCount} tiers.`,
+    axiomCite: null, retryCount: 0,
   }))
   await emitEvent({
     type:    PLANNER_EVENTS.STAGE_COMPLETED,
@@ -644,16 +589,20 @@ export async function runPipeline(
   const finalReport: PipelineReport = {
     buildId:          jobId as string,
     userId:           job.userId,
-    stages:           stageResults.map(r => ({
-      instanceId:   r.instanceId,
-      model:        r.model,
-      startedAt:    r.startedAt,
-      completedAt:  r.completedAt,
-      tokenCount:   r.tokenCount,
-      handoffValid: r.handoffValid,
-      retries:      0,
-      errors:       [],
-    } satisfies StageReportEntry)),
+    stages:           stageResults.map((r, idx) => {
+      const meta = tierMetadataMap.get(idx)
+      return {
+        instanceId:   r.instanceId,
+        model:        r.model,
+        startedAt:    r.startedAt,
+        completedAt:  r.completedAt,
+        tokenCount:   r.tokenCount,
+        handoffValid: r.handoffValid,
+        retries:      0,
+        errors:       [],
+        ...(meta ? { tierIndex: meta.tierIndex, decomposed: meta.decomposed, layerPasses: meta.layerPasses } : {}),
+      } satisfies StageReportEntry
+    }),
     totalTransitions: freshJob2.ok ? freshJob2.data.transitionCount : job.transitionCount,
     reentries:        freshJob2.ok ? freshJob2.data.reentryCount : job.reentryCount,
     outcome:          'complete',
@@ -690,11 +639,48 @@ export async function runPipeline(
     })
   }
 
+  // ── Snapshot write (phase-4.3) ────────────────────────────────────────────
+  // After version assignment, before flow library write. Merges pipeline output
+  // with prior snapshot: new/modified files overwritten, untouched files carried
+  // forward, deleted files removed.
+  // Fire-and-forget: failure is non-fatal — version and build are already complete.
+  // Axiom cite: A4 — I/O via injected interface. A1 — LIV-produced files only.
+  {
+    const priorSnapshotResult = await deps.db.getVersionSnapshot(job.projectId)
+    const priorSnapshot = priorSnapshotResult.ok ? priorSnapshotResult.data : null
+
+    const outputPaths = new Set(accumulatedFiles.map(f => f.path))
+    const carried: FileSnapshot[] = priorSnapshot
+      ? priorSnapshot.filter(f => !outputPaths.has(f.path))
+      : []
+
+    const merged: FileSnapshot[] = [
+      ...carried,
+      ...accumulatedFiles.map(f => ({ path: f.path, content: f.content })),
+    ]
+
+    await deps.db.storeVersionSnapshot(jobId as string, merged).catch(() => {
+      console.error(JSON.stringify({
+        level: 'error', event: 'pipeline.snapshot.store.failed',
+        jobId: jobId as string, slice: 'F-planner', layer: 'R2',
+        timestamp: new Date().toISOString(),
+      }))
+    })
+
+    // Store external files detected during read phase (non-LIV files from scan).
+    // readSnapshot is threaded from handleInMainTurn → handleConfirmationTurn → runPipeline.
+    // Null when no read phase ran (backward compatible — §13 fallback).
+    if (readSnapshot && readSnapshot.foreignFiles.length > 0) {
+      const foreignFiles = readSnapshot.foreignFiles.map(f => ({ path: f.path, content: '' }))
+      deps.db.storeExternalFileCache(jobId as string, foreignFiles).catch(() => {})
+    }
+  }
+
   // ── Flow library write path (step4d-phase3) ───────────────────────────────
   // One entry per flowId per bundle. Uses accumulatedFiles filtered by bundle
   // file prefix. Fire-and-forget: insert failures are non-fatal.
   // ON CONFLICT DO NOTHING in DB — first write wins, duplicates silently skipped.
-  const stdVersion = 'v1.3'
+  const stdVersion = contract.standardVersion
   for (const bundle of contract.bundleScope) {
     const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
     const bundleWires = contract.wireMap.filter(
@@ -731,6 +717,263 @@ export async function runPipeline(
     slice:   'F-planner',
     payload: { jobId: jobId as string, projectId: job.projectId, userId: job.userId } satisfies PipelineCompletedPayload,
   })
+}
+
+// ── executeBundleBuild — internal: single bundle build with library, retry, stress ──
+// Extracted from the IN-BUILD loop for use with Promise.allSettled within a tier.
+// Returns { ok: true, files, stageResults } on success, { ok: false } on failure.
+// Handles flow library read path, single-pass with retry, stress check, and
+// R-layer decomposition. Does NOT call reEnterInMain — caller handles that.
+// tierIdx passed for StageReportEntry instrumentation.
+
+// Metadata for StageReportEntry instrumentation (phase-4.2, E3 fix).
+// Carried alongside InstanceCallResult from executeBundleBuild to report assembly.
+// Not added to InstanceCallResult (R0 atom) — local to R2 orchestration only (A6).
+type BuildTierMetadata = {
+  tierIndex:   number
+  decomposed:  boolean
+  layerPasses: number
+}
+
+type BundleBuildResult =
+  | { ok: true;  files: FileEntry[]; stageResults: InstanceCallResult[]; metadata: BuildTierMetadata }
+  | { ok: false; escalated?: boolean; reason?: string }
+
+async function executeBundleBuild(
+  deps:             { db: IPlannerDb; ai: IAiAdapter },
+  jobId:            PlannerJobId,
+  job:              PlannerJob,
+  contract:         IfContract,
+  bundle:           { name: string; status: string },
+  buildStage:       PipelineStage,
+  providers:        string[],
+  preferences:      ModelPreferencesLike | null,
+  referenceContext:  FileEntry[],
+  tierIdx:          number,
+  pipelineStartedAt: number,
+  assertSafe:       (stage: PipelineStage) => Promise<boolean>,
+  escalate:         (stage: PipelineStage, reason: string) => Promise<void>,
+  exactHitMap:      Map<string, string>
+): Promise<BundleBuildResult> {
+  const localResults: InstanceCallResult[] = []
+  const stdVersion = contract.standardVersion
+
+  // ── Flow library read path (step4d-phase3, preserved) ─────────────────
+  const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
+  const bundleWires = contract.wireMap.filter(
+    w => w.from === bundle.name || w.to === bundle.name
+  )
+  const atomHash = deps.db.hashAtomShape(bundleAtoms)
+  const wireHash = deps.db.hashWireSignature(bundleWires)
+
+  const primaryFlowId = contract.flowSelection[0]
+
+  if (primaryFlowId) {
+    const exactResult = await deps.db.lookupExact(primaryFlowId, stdVersion, atomHash, wireHash)
+
+    if (exactResult.ok && exactResult.data) {
+      const entry     = exactResult.data
+      const newSlots  = extractSlotValues(contract, bundle.name)
+      const reslotted = reslotFiles(entry.outputFiles, entry.slotValues, newSlots)
+
+      const files = reslotted.map(f => ({ ...f, encoding: 'utf8' as const }))
+      exactHitMap.set(bundle.name, entry.id)
+      await deps.db.incrementTransition(jobId)
+
+      console.log(JSON.stringify({
+        level: 'info', event: 'flow-library.exact-hit',
+        flowId: primaryFlowId, bundleName: bundle.name, libraryEntryId: entry.id,
+        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+      }))
+      return { ok: true, files, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: false, layerPasses: 0 } }
+    }
+  }
+
+  // ── Partial hit: get reference files for IN-BUILD (preserved) ─────────
+  let buildErrorCtx: string | undefined
+  if (primaryFlowId) {
+    const partialResult = await deps.db.lookupPartial(primaryFlowId, stdVersion)
+    if (partialResult.ok && partialResult.data) {
+      console.log(JSON.stringify({
+        level: 'info', event: 'flow-library.partial-hit',
+        flowId: primaryFlowId, bundleName: bundle.name,
+        libraryEntryId: partialResult.data.id,
+        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+      }))
+      buildErrorCtx = `Reference files available from a partial library match (${partialResult.data.outputFiles.length} files). Use as structural reference — adapt slot values to this build.`
+    } else {
+      console.log(JSON.stringify({
+        level: 'info', event: 'flow-library.miss',
+        flowId: primaryFlowId, bundleName: bundle.name,
+        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+      }))
+    }
+  }
+
+  // ── Single-pass IN-BUILD with retry ───────────────────────────────────
+  let infraRetries = 0
+
+  for (let attempt = 0; attempt <= PLANNER_CONST.RETRY_LIMITS.IN_BUILD; attempt++) {
+    if (!await assertSafe(buildStage)) return { ok: false, reason: 'failsafe' }
+
+    const bundleStartedAt = Date.now()
+    const { model } = resolveModel('Smallest', providers, preferences)
+
+    const standardSlice   = getSliceForInstance('IN-BUILD')
+    const instanceProfile = getInstanceProfile('IN-BUILD')
+    const packet          = getPacketForInstance('IN-BUILD', contract, bundle.name)
+
+    const templates = contract.flowSelection.flatMap(flowId => {
+      const entries = getTemplatesForFlow(flowId as Parameters<typeof getTemplatesForFlow>[0])
+      return entries.flatMap(e => e.templates.map(tplId => getTemplate(tplId)))
+    })
+
+    const systemPrompt = buildInstancePrompt({
+      standardSlice,
+      profile:          instanceProfile,
+      packet:           { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
+      templates:        templates.map(t => ({ id: t.id, file: t.file, layer: t.layer, body: t.body, slots: t.slots })),
+      referenceContext: referenceContext.length > 0 ? referenceContext : undefined,
+      errorLog:         buildErrorCtx,
+    })
+
+    let fullResponse = ''
+    let tokenCount   = 0
+    const aiResult = await deps.ai.streamCompletion({
+      userId:  job.userId,
+      modelId: model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: `Build bundle: ${bundle.name} (${bundle.status})${attempt > 0 ? ` [retry ${attempt}]` : ''}` },
+      ],
+      onChunk: chunk => { fullResponse += chunk },
+    })
+
+    if (!aiResult.ok) {
+      const errClass = classifyError(aiResult.error, buildStage)
+      if (errClass === 3) {
+        if (infraRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
+          infraRetries++; continue
+        }
+        await escalate(buildStage, `IN-BUILD CLASS_3: ${aiResult.error.message}`)
+        return { ok: false, escalated: true, reason: aiResult.error.message }
+      }
+      buildErrorCtx = aiResult.error.message
+      continue
+    }
+    tokenCount = aiResult.data.totalTokens
+
+    const parsed     = parseInstanceResponse(fullResponse, 'IN-BUILD')
+    const shapeCheck = validateHandoff('IN-BUILD', 'IN-RESOLVE', parsed)
+
+    if (!shapeCheck.valid) {
+      buildErrorCtx = shapeCheck.reason
+      continue
+    }
+
+    // ── Stress check (phase-4.2) ──────────────────────────────────────────
+    const expectedTemplates = templates.map(t => ({ id: t.id, file: t.file }))
+    const assessment = assessBuildOutput(expectedTemplates, parsed.files)
+
+    if (assessment.clean) {
+      // Clean single-pass — proceed normally
+      await deps.db.incrementTransition(jobId)
+      localResults.push({
+        instanceId: buildStage, model, response: parsed, tokenCount,
+        durationMs: Date.now() - bundleStartedAt, handoffValid: true,
+        startedAt: bundleStartedAt, completedAt: Date.now(),
+      })
+      return { ok: true, files: parsed.files, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: false, layerPasses: 0 } }
+    }
+
+    // ── Stress detected — decompose by R-layer ────────────────────────────
+    console.log(JSON.stringify({
+      level: 'info', event: 'build.stress-detected',
+      bundleName: bundle.name, missing: assessment.missing, stressed: assessment.stressed,
+      slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
+    }))
+
+    const flowEntries = contract.flowSelection.flatMap(flowId =>
+      getTemplatesForFlow(flowId as Parameters<typeof getTemplatesForFlow>[0])
+        .map(e => ({ layer: e.layer, templates: e.templates }))
+    )
+    const layers = groupTemplatesByLayer(flowEntries)
+
+    let decomposedFiles: FileEntry[] = []
+    const layerOrder = ['R0', 'R1', 'R2', 'R3', 'R4']
+    let layerPasses  = 0
+
+    for (const layerName of layerOrder) {
+      const layerTemplateIds = layers.get(layerName)
+      if (!layerTemplateIds || layerTemplateIds.length === 0) continue
+
+      const layerTemplates = layerTemplateIds.map(tplId => getTemplate(tplId as Parameters<typeof getTemplate>[0]))
+      let layerSuccess = false
+      let layerInfraRetries = 0
+
+      for (let layerAttempt = 0; layerAttempt <= PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT; layerAttempt++) {
+        const layerPrompt = buildInstancePrompt({
+          standardSlice:    getSliceForInstance('IN-BUILD'),
+          profile:          getInstanceProfile('IN-BUILD'),
+          packet:           { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
+          templates:        layerTemplates.map(t => ({ id: t.id, file: t.file, layer: t.layer, body: t.body, slots: t.slots })),
+          existingFiles:    decomposedFiles.length > 0 ? decomposedFiles : undefined,
+          referenceContext: referenceContext.length > 0 ? referenceContext : undefined,
+          errorLog:         `Decomposed build: producing ${layerName} layer only. Prior layers already built.${layerAttempt > 0 ? ` [retry ${layerAttempt}]` : ''}`,
+        })
+
+        let layerResponse = ''
+        const layerAiResult = await deps.ai.streamCompletion({
+          userId:  job.userId,
+          modelId: model,
+          messages: [
+            { role: 'system', content: layerPrompt },
+            { role: 'user',   content: `Build ${layerName} layer for bundle: ${bundle.name}` },
+          ],
+          onChunk: chunk => { layerResponse += chunk },
+        })
+
+        if (!layerAiResult.ok) {
+          const errClass = classifyError(layerAiResult.error, buildStage)
+          if (errClass === 3 && layerInfraRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
+            layerInfraRetries++
+            continue
+          }
+          // CLASS_3 exhausted or CLASS_2 — fail this layer
+          return { ok: false, reason: `Decomposed build failed at ${layerName}: ${layerAiResult.error.message}` }
+        }
+
+        const layerParsed = parseInstanceResponse(layerResponse, 'IN-BUILD')
+        decomposedFiles = [...decomposedFiles, ...layerParsed.files]
+        layerPasses++
+        layerSuccess = true
+        break
+      }
+
+      if (!layerSuccess) {
+        return { ok: false, reason: `Decomposed build: ${layerName} layer retry exhausted` }
+      }
+    }
+
+    // Re-check after decomposition
+    const recheck = assessBuildOutput(expectedTemplates, decomposedFiles)
+    if (!recheck.clean) {
+      // Decomposition didn't fix it — problem is IF contract
+      return { ok: false, reason: `Decomposed build still stressed: missing=${recheck.missing.join(',')}, stressed=${recheck.stressed.join(',')}` }
+    }
+
+    await deps.db.incrementTransition(jobId)
+    localResults.push({
+      instanceId: buildStage, model, response: { files: decomposedFiles, raw: '' }, tokenCount,
+      durationMs: Date.now() - bundleStartedAt, handoffValid: true,
+      startedAt: bundleStartedAt, completedAt: Date.now(),
+    })
+
+    return { ok: true, files: decomposedFiles, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: true, layerPasses } }
+  }
+
+  // Retry budget exhausted
+  return { ok: false, reason: `IN-BUILD retry exhausted for bundle ${bundle.name}: ${buildErrorCtx ?? 'unknown'}` }
 }
 
 // ── runRetryStage — internal: single stage with CLASS_2/CLASS_3 retry ─────────
@@ -1019,13 +1262,53 @@ async function runDiagnose(
   return { ok: true, files: merged }
 }
 
-// ── handleInMainTurn (step4b2-phase-a, unchanged) ─────────────────────────────
+// ── readProjectState (phase-4.3) ─────────────────────────────────────────────
+// Pre-build filesystem scan. Produces structural snapshot of existing code.
+// Called at the start of handleInMainTurn, before contract negotiation.
+// Reads project files from disk via IPlannerDb.scanProjectFiles (R4).
+// Loads latest version snapshot from DB via IPlannerDb.getVersionSnapshot (R4).
+// Passes both to buildReadSnapshot (R1) for structural analysis.
+// Result injected into IN-MAIN prompt as codebase context.
+// Ephemeral — computed fresh each time, not cached between turns.
+// Axiom cite: A4 — I/O via injected interface. A2 — R2 orchestration only.
+
+async function readProjectState(
+  projectId: string,
+  deps:      { db: IPlannerDb }
+): Promise<PlannerResult<ReadSnapshot>> {
+  // Scan filesystem
+  const scanResult = await deps.db.scanProjectFiles(projectId)
+  if (!scanResult.ok) return scanResult
+
+  // Load stored snapshot for diffing
+  const snapshotResult = await deps.db.getVersionSnapshot(projectId)
+  const storedSnapshot = snapshotResult.ok ? snapshotResult.data : null
+
+  // Assess compliance per file (R1 pure)
+  const assessed = scanResult.data.map(f => {
+    const { compliant, issues } = assessFileCompliance(f.content, f.path)
+    return { ...f, compliant, issues }
+  })
+
+  // Build structural snapshot (R1 pure)
+  const snapshot = buildReadSnapshot(assessed, storedSnapshot)
+
+  return { ok: true, data: snapshot }
+}
+
+// ── handleInMainTurn (step4b2-phase-a, extended phase-4.3) ───────────────────
 
 export async function handleInMainTurn(
   deps:  { db: IPlannerDb; ai: IAiAdapter },
   input: BuildRequestPayload
-): Promise<PlannerResult<{ response: string; isConfirmation: boolean; job: PlannerJob }>> {
+): Promise<PlannerResult<{ response: string; isConfirmation: boolean; job: PlannerJob; readSnapshot: ReadSnapshot | null }>> {
   const turnStartedAt = Date.now()
+
+  // ── Read phase (phase-4.3) ──────────────────────────────────────────────
+  // Scan project state before contract negotiation. Non-fatal on failure —
+  // pipeline behaves as pre-4.3 (no prior state context).
+  const readResult = await readProjectState(input.projectId, deps)
+  const readSnapshot = readResult.ok ? readResult.data : null
 
   const activeResult = await deps.db.getActiveJobForProject(input.projectId)
   if (!activeResult.ok) return activeResult
@@ -1054,7 +1337,7 @@ export async function handleInMainTurn(
   )
 
   if (isConfirmationMessage && job.ifContract) {
-    return handleConfirmationTurn(deps, jobId, job, input.userId, turnStartedAt)
+    return handleConfirmationTurn(deps, jobId, job, input.userId, turnStartedAt, readSnapshot)
   }
 
   const providersResult = await deps.db.getAvailableProviders(input.userId)
@@ -1085,7 +1368,17 @@ export async function handleInMainTurn(
       }
     : undefined
 
-  const systemPrompt = buildInMainPrompt(standardSlice, instanceProfile, currentContract, reentryContext)
+  // ── Snapshot scoping (phase-4.4) ─────────────────────────────────────────
+  // Derive typed scoping constraints from read snapshot. Passes conclusions
+  // (skip/rebuild/delta) to buildInMainPrompt, not raw snapshot data.
+  const scopingConstraints = readSnapshot
+    ? deriveScopingConstraints(readSnapshot)
+    : undefined
+
+  const systemPrompt = buildInMainPrompt(
+    standardSlice, instanceProfile, currentContract,
+    reentryContext, scopingConstraints
+  )
 
   let fullResponse = ''
   let totalTokens  = 0
@@ -1122,10 +1415,10 @@ export async function handleInMainTurn(
 
   if (complete) {
     const summary = buildDecompositionSummary(mergedContract as IfContract)
-    return { ok: true, data: { response: summary, isConfirmation: false, job } }
+    return { ok: true, data: { response: summary, isConfirmation: false, job, readSnapshot } }
   }
 
-  return { ok: true, data: { response: fullResponse, isConfirmation: false, job } }
+  return { ok: true, data: { response: fullResponse, isConfirmation: false, job, readSnapshot } }
 }
 
 // ── handleConfirmationTurn — updated for Phase B + corrective-2 ───────────────
@@ -1135,8 +1428,9 @@ async function handleConfirmationTurn(
   jobId:         PlannerJobId,
   job:           PlannerJob,
   userId:        string,
-  turnStartedAt: number
-): Promise<PlannerResult<{ response: string; isConfirmation: boolean; job: PlannerJob }>> {
+  turnStartedAt: number,
+  readSnapshot:  ReadSnapshot | null = null
+): Promise<PlannerResult<{ response: string; isConfirmation: boolean; job: PlannerJob; readSnapshot: ReadSnapshot | null }>> {
 
   // ── D5 corrective: freeze the contract with frozenAt + frozenBy ───────────
   // job.ifContract holds the partial contract accumulated across IN-MAIN turns.
@@ -1199,7 +1493,7 @@ async function handleConfirmationTurn(
     'IN-BUILD → IN-RESOLVE → IN-AUDIT → IN-COMPILE → IN-QA',
   ].join('\n')
 
-  return { ok: true, data: { response: ack, isConfirmation: true, job: confirmedJob } }
+  return { ok: true, data: { response: ack, isConfirmation: true, job: confirmedJob, readSnapshot } }
 }
 
 // ── startPipeline ─────────────────────────────────────────────────────────────

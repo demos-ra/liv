@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    step5e, phase-b-item4, phase-b-item2
+// amended:    step5e, phase-b-item4, phase-b-item2, phase-4.3
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -50,6 +50,12 @@
 //   getBuildsForAdmin binding added to createPlannerDb() — IPlannerDb grows to 25 methods.
 //   Bound from planner-db.ts (R4). Query moved from F-admin/exec/admin-db.ts.
 //   Axiom cite: A1 — F-planner owns builds table. A2 — R4 bound at R3 inject.
+//
+// phase-4.3 (A2, A4):
+//   4 read phase bindings added to createPlannerDb() — IPlannerDb grows to 29 methods.
+//     scanProjectFiles, getVersionSnapshot, storeVersionSnapshot, storeExternalFileCache.
+//   All bound from planner-db.ts (R4). Filesystem and DB I/O at R4 only (A4).
+//   Axiom cite: A2 — R4 bound at R3 inject. A4 — I/O at R4.
 
 import type { IPlannerDb, IAiAdapter, IExecutor, IOutputWriter } from '../workflow/planner-workflow'
 import {
@@ -69,6 +75,10 @@ import {
   dbIncrementReentry,
   dbGetModelPreferences,
   dbGetBuildsForAdmin,
+  dbScanProjectFiles,
+  dbGetVersionSnapshot,
+  dbStoreVersionSnapshot,
+  dbStoreExternalFileCache,
 } from '../exec/planner-db'
 import {
   dbLookupExactFlowLibrary,
@@ -121,6 +131,11 @@ export function createPlannerDb(): IPlannerDb {
     getVersionHistory:      (projectId)                      => dbGetVersionHistory(projectId),
     // ── Admin query (phase-b-item4) ─────────────────────────────────────────
     getBuildsForAdmin:      (filters)                        => dbGetBuildsForAdmin(filters),
+    // ── Read phase (phase-4.3) ───────────────────────────────────────────────
+    scanProjectFiles:       (projectId)                      => dbScanProjectFiles(projectId),
+    getVersionSnapshot:     (projectId)                      => dbGetVersionSnapshot(projectId),
+    storeVersionSnapshot:   (buildId, snapshot)              => dbStoreVersionSnapshot(buildId, snapshot),
+    storeExternalFileCache: (buildId, files)                 => dbStoreExternalFileCache(buildId, files),
   }
 }
 

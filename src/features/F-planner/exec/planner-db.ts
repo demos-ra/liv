@@ -1,10 +1,10 @@
 // @liv-standard v1.4
-// [F-planner/R4]
+// [F-planner/exec/planner-db.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    w2-item-12, phase-b-item4
+// amended:    w2-item-12, phase-b-item4, phase-4.3
 // slice:      F-planner
 // layer:      R4
 // wires-in:
@@ -60,6 +60,8 @@
 //   Axiom cite: A1 — single ownership. A4 — all I/O at R4.
 
 import { db } from '@/core/db/client'
+import * as fs from 'fs/promises'
+import * as path from 'path'
 import type {
   PlannerJob,
   PlannerJobId,
@@ -70,6 +72,7 @@ import type {
   StageLogEntry,
   PlannerResult,
   PipelineReport,
+  FileSnapshot,
 } from '../types/planner-types'
 import type {
   AdminBuild,
@@ -659,5 +662,131 @@ export async function dbGetBuildsForAdmin(
     return { ok: true, data: result.rows.map(mapAdminBuildRow) }
   } catch (e) {
     return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to query builds for admin', context: { cause: String(e) } } }
+  }
+}
+// ── dbScanProjectFiles (phase-4.3) ───────────────────────────────────────────
+// Reads all .ts and .tsx files from the project's src/features/ directory on disk.
+// Returns path + content pairs. No compliance analysis — R1 handles that.
+// A4: filesystem I/O at R4 only.
+
+async function walkDir(dir: string): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true })
+  const paths: string[] = []
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      paths.push(...await walkDir(full))
+    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+      paths.push(full)
+    }
+  }
+  return paths
+}
+
+export async function dbScanProjectFiles(
+  projectId: string
+): Promise<PlannerResult<{ path: string; content: string }[]>> {
+  try {
+    // Resolve project root — convention: projects stored at a known base path.
+    // projectId maps to a directory. src/features/ is the scan target.
+    const projectRoot = path.resolve('projects', projectId, 'src', 'features')
+
+    let exists = true
+    try { await fs.access(projectRoot) } catch { exists = false }
+    if (!exists) return { ok: true, data: [] }
+
+    const filePaths = await walkDir(projectRoot)
+    const files: { path: string; content: string }[] = []
+
+    for (const filePath of filePaths) {
+      const content = await fs.readFile(filePath, 'utf8')
+      // Normalize path to src/features/... relative form
+      const relPath = filePath.includes('src/features/')
+        ? 'src/features/' + filePath.split('src/features/')[1]
+        : filePath
+      files.push({ path: relPath, content })
+    }
+
+    return { ok: true, data: files }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to scan project files', context: { cause: String(e) } } }
+  }
+}
+
+// ── dbGetVersionSnapshot (phase-4.3) ─────────────────────────────────────────
+// Loads the project_snapshot JSONB column from the latest completed build for
+// this project. Returns null if no prior version exists.
+// A4: DB I/O at R4 only.
+
+export async function dbGetVersionSnapshot(
+  projectId: string
+): Promise<PlannerResult<FileSnapshot[] | null>> {
+  try {
+    const result = await db.query<{ project_snapshot: unknown }>(
+      `SELECT project_snapshot
+       FROM builds
+       WHERE project_id = $1
+         AND status = 'complete'
+         AND project_snapshot IS NOT NULL
+       ORDER BY completed_at DESC
+       LIMIT 1`,
+      [projectId]
+    )
+    if (!result.rows[0] || !result.rows[0].project_snapshot) {
+      return { ok: true, data: null }
+    }
+
+    const raw = result.rows[0].project_snapshot
+    const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as FileSnapshot[]
+    return { ok: true, data: parsed }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to get version snapshot', context: { cause: String(e) } } }
+  }
+}
+
+// ── dbStoreVersionSnapshot (phase-4.3) ───────────────────────────────────────
+// Writes the full project snapshot to the project_snapshot JSONB column on the
+// build record. Called once after successful pipeline completion.
+// A4: DB I/O at R4 only.
+
+export async function dbStoreVersionSnapshot(
+  buildId:  string,
+  snapshot: FileSnapshot[]
+): Promise<PlannerResult<void>> {
+  try {
+    await db.query(
+      `UPDATE builds
+       SET project_snapshot = $2::jsonb,
+           updated_at       = now()
+       WHERE build_id = $1`,
+      [buildId, JSON.stringify(snapshot)]
+    )
+    return { ok: true, data: undefined }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to store version snapshot', context: { cause: String(e) } } }
+  }
+}
+
+// ── dbStoreExternalFileCache (phase-4.3) ─────────────────────────────────────
+// Stores external (non-LIV) file contents detected during read phase.
+// Temporary — retained for TEMP_CACHE_RETENTION_DAYS. Stored in a separate
+// JSONB column on the build record.
+// A4: DB I/O at R4 only.
+
+export async function dbStoreExternalFileCache(
+  buildId: string,
+  files:   { path: string; content: string }[]
+): Promise<PlannerResult<void>> {
+  try {
+    await db.query(
+      `UPDATE builds
+       SET external_file_cache = $2::jsonb,
+           updated_at          = now()
+       WHERE build_id = $1`,
+      [buildId, JSON.stringify(files)]
+    )
+    return { ok: true, data: undefined }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to store external file cache', context: { cause: String(e) } } }
   }
 }

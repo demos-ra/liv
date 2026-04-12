@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.4
 // [F-planner/types/planner-types.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective
+// standard:   LIV-Standard v1.4
+// amended:    phase-4.2, phase-4.3
 // slice:      F-planner
 // layer:      R0
 // wires-in:
@@ -50,6 +50,22 @@
 //   Removed types: AtomDeclaration, BundleScope, WireMapEntry, EventContractEntry,
 //   MigrationDelta, TableDelta. All consumers now use canonical field shapes.
 //   Axiom cite: A1 — single owner per type. A3 — typed atoms. A6 — declared at R0.
+//
+// phase-4.2 (A3, A6):
+//   StageReportEntry extended with 3 optional fields for tiered parallel execution
+//   and stress-triggered decomposition instrumentation:
+//     tierIndex?: number — which dependency tier this bundle was assigned to.
+//     decomposed?: boolean — true if stress check triggered R-layer decomposition.
+//     layerPasses?: number — count of individual R-layer IN-BUILD calls if decomposed.
+//   All optional — existing reports without them are valid. No consumer uses them
+//   at launch. They provide the data foundation for future adaptive sizing (Phase 4.1).
+//   Axiom cite: A3 — typed atoms. A6 — declared at R0 of owner.
+//
+// phase-4.3 (A3, A6):
+//   ReadSnapshot types for read phase filesystem scan and structural analysis.
+//   FileDiffStatus, FileSnapshot, FileAssessment, SliceSummary, ReadSnapshot.
+//   Used by R1 (buildReadSnapshot) and R2 (readProjectState).
+//   Axiom cite: A3 — typed atoms at boundary. A6 — declared at R0 of owner.
 
 import type {
   IfContract as CanonicalIfContract,
@@ -153,6 +169,10 @@ export type StageReportEntry = {
   retries:      number
   errors:       ErrorRecord[]
   error?:       { message: string }
+  // ── Phase 4.2 instrumentation (optional — existing reports valid without) ──
+  tierIndex?:   number    // which dependency tier this bundle was assigned to (0, 1, 2...)
+  decomposed?:  boolean   // true if stress check triggered R-layer decomposition
+  layerPasses?: number    // count of individual R-layer IN-BUILD calls if decomposed (1-5)
 }
 
 // ── AK-ENT — File atom ────────────────────────────────────────────────────────
@@ -218,4 +238,60 @@ export type BuildRequestPayload = {
   userId:    string
   message:   string
   modelId:   string
+}
+
+// ── Read phase types (phase-4.3) ──────────────────────────────────────────────
+
+export type FileDiffStatus =
+  | 'untouched'
+  | 'modified-compliant'
+  | 'modified-non-compliant'
+  | 'new-foreign'
+  | 'deleted'
+
+export type FileSnapshot = {
+  path:    string
+  content: string
+}
+
+export type FileAssessment = FileSnapshot & {
+  slice:      string
+  layer:      string | null
+  compliant:  boolean
+  issues:     string[]
+  diffStatus: FileDiffStatus
+}
+
+export type SliceSummary = {
+  name:       string
+  fileCount:  number
+  compliant:  boolean
+  files:      FileAssessment[]
+}
+
+export type ReadSnapshot = {
+  slices:       SliceSummary[]
+  foreignFiles: { path: string }[]
+  metadata: {
+    scannedAt:      number
+    totalFiles:     number
+    compliantFiles: number
+    foreignFiles:   number
+    driftedFiles:   number
+  }
+}
+
+// ── Snapshot scoping types (phase-4.4) ───────────────────────────────────────
+
+export type BundleDirective = {
+  name:   string
+  action: 'skip' | 'rebuild' | 'delta'
+  reason: string
+}
+
+export type ScopingConstraints = {
+  directives:      BundleDirective[]
+  foreignDetected: boolean
+  driftedSlices:   string[]
+  summary:         string
 }
