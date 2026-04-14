@@ -1,9 +1,9 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.4
-// amended: v1.4
+// standard: LIV-Standard v1.5
+// amended: v1.5
 // slice: core
 // layer: R5
 // wires-in:
@@ -36,8 +36,8 @@ const INSTANCE_TO_SLICE: InstanceToSlice = {
 
 // Section rendering order per slice — from Procedure §6.2
 const SLICE_SECTION_ORDER: Record<SliceKey, SectionId[]> = {
-  'scope-contract':              ['T0', 'T1.4', 'T1.5', 'T6.2', 'T6.3'],
-  'build-rules-a1-a4':          ['T0', 'T1.1', 'T1.2', 'T1.6', 'T2.1', 'T3.2'],
+  'scope-contract':              ['T0', 'T1.4', 'T1.5', 'T6.2', 'T6.3', 'T6.5'],
+  'build-rules-a1-a4':          ['T0', 'T1.1', 'T1.2', 'T1.6', 'T2.1', 'T2.3', 'T3.1', 'T3.2', 'T4.1'],
   'resolve-rules-a5-a7':        ['T0', 'T1.5', 'T1.4', 'T3.2', 'T5.3'],
   'audit-contract-diff':        ['T1.3', 'T1.5', 'T5.3'],
   'compile-interpret-execution': ['T5.4'],

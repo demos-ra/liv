@@ -1,9 +1,9 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.4
-// amended: v1.4
+// standard: LIV-Standard v1.5
+// amended: v1.5
 // slice: core
 // layer: R5
 // wires-in: none
@@ -32,14 +32,14 @@ import type {
 export const INSTANCE_PROFILES: Record<InstanceId, InstanceProfile> = {
   'IN-MAIN': {
     id: 'IN-MAIN',
-    reads: ['T0', 'T1.4', 'T1.5', 'T6.2', 'T6.3'],
+    reads: ['T0', 'T1.4', 'T1.5', 'T6.2', 'T6.3', 'T6.5'],
     receives: ['Human natural language only — Main sets IF.09 + IF.10 from active standard versions'],
     produces: ['Completed IF.01–IF.10', 'Bundle scope list', 'PK per IN-BUILD', 'PK for IN-RESOLVE'],
     passesTo: ['IN-BUILD', 'IN-RESOLVE'],
   },
   'IN-BUILD': {
     id: 'IN-BUILD',
-    reads: ['T0', 'T1.1', 'T1.2', 'T1.6', 'T2.1', 'T3.2'],
+    reads: ['T0', 'T1.1', 'T1.2', 'T1.6', 'T2.1', 'T2.3', 'T3.1', 'T3.2', 'T4.1'],
     receives: ['IF.01', 'IF.02 (this bundle)', 'IF.03 (this bundle)', 'IF.04 (this bundle)', 'IF.05 (this bundle)', 'IF.06 (this bundle)', 'IF.07 (if applicable)', 'IF.09', 'IF.10'],
     produces: ['All R0–R4 files for assigned bundle', 'Files typed to assigned TPL-IDs', '@liv-standard stamp on every file', 'No cross-bundle edits'],
     passesTo: ['IN-RESOLVE'],

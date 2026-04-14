@@ -1,9 +1,9 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.4
-// amended: v1.4
+// standard: LIV-Standard v1.5
+// amended: v1.5
 // slice: core
 // layer: R5
 // wires-in:

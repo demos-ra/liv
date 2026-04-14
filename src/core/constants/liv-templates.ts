@@ -1,9 +1,9 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.4
-// amended: v1.4
+// standard: LIV-Standard v1.5
+// amended: v1.5
 // slice: core
 // layer: R5
 // wires-in: none
@@ -200,9 +200,9 @@ import { {SLICE_UPPER}_CONST } from '../types/{slice}-const'
 // A2: R2 never imports R4. A4: all I/O via injected interface.
 // FL-CRUD: R3 validates → R2 orchestrates → R4 persists → event emit.
 
-import { generateId }  from '@/core/types/primitives'
-import type { Result } from '@/core/types/primitives'
-import { emitEvent }   from '@/features/F-event-system/contract/event-bus'
+import { generateId }  from '{PRIMITIVES_PATH}'
+import type { Result } from '{PRIMITIVES_PATH}'
+import { emitEvent }   from '{EVENT_BUS_PATH}'
 import type {
   {ENTITY_NAME},
   {ENTITY_NAME}Delta,
@@ -248,7 +248,7 @@ export interface I{SliceName}Db {
 
 import type { {TYPES} } from '../types/{slice}-types'
 import { {LOGIC_FNS} }  from '../domain/{slice}-logic'
-import { emitEvent }    from '@/features/F-event-system/contract/event-bus'
+import { emitEvent }    from '{EVENT_BUS_PATH}'
 
 // ── W-INJECT — interface declared at R2, implemented at R4 ──────
 // A2: R2 never imports R4. R4 receives this interface and implements it.
@@ -363,9 +363,9 @@ export interface {SliceName}WorkflowDeps {
 // Scheduler → R2 → R4 I/O → event emit on completion.
 
 import type { {TYPES} } from '../types/{slice}-types'
-import type { Result } from '@/core/types/primitives'
+import type { Result } from '{PRIMITIVES_PATH}'
 import { {LOGIC_FNS} } from '../domain/{slice}-logic'
-import { emitEvent }   from '@/features/F-event-system/contract/event-bus'
+import { emitEvent }   from '{EVENT_BUS_PATH}'
 
 export interface I{SliceName}JobDb {
   {JOB_DB_METHODS}
@@ -397,7 +397,7 @@ export async function runJob(
     slots: ['SLICE_NAME', 'WORKFLOW_FNS', 'INJECT_FACTORY', 'INPUT_OUTPUT_ATOMS', 'ROUTE_HANDLERS'],
     derived: [{ name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' }],
     system: ['STANDARD_VERSION'],
-    platform: ['FRAMEWORK_SERVER', 'AUTH_CONTRACT_PATH'],
+    platform: ['FRAMEWORK_SERVER', 'AUTH_CONTRACT_PATH', 'FRAMEWORK_SERVER_PATH', 'AUTH_CONTRACT', 'REQUEST_TYPE'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
@@ -407,13 +407,16 @@ export async function runJob(
 // A3: R3 validates shape — schema, required fields, format.
 // R3 maps Result to HTTP status code — never exposes raw error internals.
 
-import { NextRequest, NextResponse } from 'next/server'
-import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { {FRAMEWORK_SERVER} } from '{FRAMEWORK_SERVER_PATH}'
+import { {AUTH_CONTRACT} } from '{AUTH_CONTRACT_PATH}'
 import { {WORKFLOW_FNS} } from '../workflow/{slice}-workflow'
 import { {INJECT_FACTORY} } from './{slice}-inject'
 import type { {INPUT_OUTPUT_ATOMS} } from '../types/{slice}-types'
 
-async function getSession(req: NextRequest) {
+// A3: R3 extracts identity into RequestContext before calling R2.
+// R2 receives RequestContext — never reads session directly.
+
+async function getSession(req: {REQUEST_TYPE}) {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return null
   return validateSession(token)
@@ -434,17 +437,17 @@ async function getSession(req: NextRequest) {
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
     ],
     system: ['STANDARD_VERSION'],
-    platform: ['PRIMITIVES_PATH'],
+    platform: ['PRIMITIVES_PATH', 'STATE_IMPORTS', 'STATE_LIB', 'STATE_HOOK', 'CALLBACK_HOOK'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
 // Built with LIV · livai.dev
-// Slots: SLICE_NAME, ENTITY_NAME, WORKFLOW_FN, ACTION_NAME, ACTION_PARAMS, WORKFLOW_CALL
+// Slots: SLICE_NAME, ENTITY_NAME, WORKFLOW_FN, ACTION_NAME, ACTION_PARAMS, WORKFLOW_CALL, STATE_HOOK, CALLBACK_HOOK
 // Actions are fire-and-forget. Consumer reads result from state, not return value.
 
-import { useState, useCallback } from 'react'
+import { {STATE_IMPORTS} } from '{STATE_LIB}'
 import type { {ENTITY_NAME} }   from '../types/{slice}-types'
-import type { AppError }         from '@/core/types/primitives'
+import type { AppError }         from '{PRIMITIVES_PATH}'
 import { {WORKFLOW_FN} }         from '../workflow/{slice}-workflow'
 
 export type {SliceName}Hook = {
@@ -455,10 +458,10 @@ export type {SliceName}Hook = {
 }
 
 export function use{SliceName}(): {SliceName}Hook {
-  const [data,   setData]   = useState<{ENTITY_NAME} | null>(null)
-  const [status, setStatus] = useState<{SliceName}Hook["status"]>("idle")
-  const [error,  setError]  = useState<AppError | null>(null)
-  const {ACTION_NAME} = useCallback(async ({ACTION_PARAMS}) => {
+  const [data,   setData]   = {STATE_HOOK}<{ENTITY_NAME} | null>(null)
+  const [status, setStatus] = {STATE_HOOK}<{SliceName}Hook["status"]>("idle")
+  const [error,  setError]  = {STATE_HOOK}<AppError | null>(null)
+  const {ACTION_NAME} = {CALLBACK_HOOK}(async ({ACTION_PARAMS}) => {
     setStatus("loading")
     const result = await {WORKFLOW_CALL}
     if (result.ok) { setData(result.data); setStatus("success") }
@@ -475,24 +478,24 @@ export function use{SliceName}(): {SliceName}Hook {
     id: 'TPL-R3-UI',
     file: '{slice}-ui.tsx',
     layer: 'R3',
-    slots: ['SLICE_NAME', 'REACT_IMPORTS', 'TYPES', 'COMPONENT_NAME', 'ACTIONS', 'LOADING_JSX', 'ERROR_JSX', 'JSX'],
+    slots: ['SLICE_NAME', 'TYPES', 'COMPONENT_NAME', 'ACTIONS', 'LOADING_JSX', 'ERROR_JSX', 'JSX'],
     derived: [
       { name: 'SliceName', from: 'SLICE_NAME', transform: 'pascalCase' },
       { name: 'slice', from: 'SLICE_NAME', transform: 'kebabCase' },
     ],
     system: ['STANDARD_VERSION'],
-    platform: ['CLIENT_DIRECTIVE'],
+    platform: ['CLIENT_DIRECTIVE', 'UI_LIB', 'UI_IMPORTS'],
     body: `\
 // @liv-standard {STANDARD_VERSION}
 // [F-{SLICE_NAME}/R3]
 // Built with LIV · livai.dev
-// Slots: SLICE_NAME, REACT_IMPORTS, TYPES, COMPONENT_NAME, ACTIONS, LOADING_JSX, ERROR_JSX, JSX
+// Slots: SLICE_NAME, TYPES, COMPONENT_NAME, ACTIONS, LOADING_JSX, ERROR_JSX, JSX
 // A2: R3 imports R0-R2 only. UI reads hook.error — displays user-facing message only.
 // No direct R4 calls. No raw error internals.
 
-'use client'
+{CLIENT_DIRECTIVE}
 
-import { {REACT_IMPORTS} } from 'react'
+import { {UI_IMPORTS} } from '{UI_LIB}'
 import { use{SliceName} }  from './{slice}-hook'
 import type { {TYPES} }    from '../types/{slice}-types'
 
@@ -527,9 +530,9 @@ export function {COMPONENT_NAME}() {
 // Slots: SLICE_NAME, TABLE_NAME, ENTITY_NAME, ROW_FIELDS, ROW_MAPPING
 // No business logic. No throws. All functions return Result<T>.
 
-import { db }                                    from '@/core/db/client'
+import { db }                                    from '{DB_CLIENT_PATH}'
 import type { {ENTITY_NAME}, {ENTITY_NAME}Delta } from '../types/{slice}-types'
-import type { Result }                            from '@/core/types/primitives'
+import type { Result }                            from '{PRIMITIVES_PATH}'
 
 type {ENTITY_NAME}Row = { {ROW_FIELDS} }
 
@@ -569,7 +572,7 @@ function mapRow(r: {ENTITY_NAME}Row): {ENTITY_NAME} {
 // Every function returns Result<T> — no raw throws. Dev stub implements same interface.
 
 import type { {TYPES} }            from '../types/{slice}-types'
-import type { Result }             from '@/core/types/primitives'
+import type { Result }             from '{PRIMITIVES_PATH}'
 
 // ── Config / key resolution ─────────────────────────────────────
 
