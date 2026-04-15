@@ -1,16 +1,31 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-event-system/R2]
 // Built with LIV · livai.dev
-// R2: orchestration layer. Depends R0, R1, R3 contracts only.
+
+// @manifest
+// standard:   LIV-Standard v1.5
+// amended:    D5a, phase-b-item2, phase-5.1-r1, phase-5-audit
+// slice:      F-event-system
+// layer:      R2
+// wires-in:
+//   W-HOOK  subscribeToEvent       F-event-system/R3 (event-bus)
+//   W-ATOM  EVENTS                 F-event-system/R0 (event-schema)
+//   W-ATOM  LivEvent               core/R0 (primitives)
+//   W-HOOK  destroySessionForUser  F-identity/R3 (auth-contract)
+//   W-HOOK  assignDefaultRole      F-permissions/R3 (permissions-contract)
+//   W-HOOK  upsertProfileForUser   F-user-profile/R3 (user-profile-contract)
+// wires-out:
+//   W-HOOK  registerAllSubscriptions  →  core/startup.ts
+// deps:
+//   R0  @/features/F-event-system/config/event-schema
+//   R0  @/core/types/primitives
+//   R3  ../contract/event-bus
+//   R3  @/features/F-identity/contract/auth-contract
+//   R3  @/features/F-permissions/contract/permissions-contract
+//   R3  @/features/F-user-profile/contract/user-profile-contract
+// validated:  pending
 //
-// This is the complete event wiring of the system.
-// Every subscribe() call that crosses slice boundaries lives here.
-// No slice imports another slice's internals — only R3 contracts.
-//
-// Called once at startup by startup.ts.
-// Idempotent: calling registerAll() twice will double-subscribe — don't.
-//
-// Step 1 — D5a fix (A5):
+// D5a fix (A5):
 //   Removed direct imports of F-identity/app/auth-workflow and
 //   F-identity/exec/auth-db. Both operations now routed through
 //   F-identity/contract/auth-contract (R3 surface).
@@ -23,6 +38,16 @@
 //   codec.route-build events and calls handleBuildRequest internally.
 //   Previously F-chat called handleBuildRequest directly (A5 violation).
 //   Axiom cite: A5 — cross-slice via event bus + R3 contracts only.
+//
+// phase-5.1-r1 (A5):
+//   Removed codec.route-build → handleBuildRequest subscription.
+//   Confirmation is now handled synchronously via W-HOOK inside codec
+//   (codec-orchestrate calls handleBuildRequest directly from F-planner/R3).
+//   The codec.route-build event is retained for observability only —
+//   no subscriber needs to act on it.
+//   Removed imports: handleBuildRequest, CODEC_ROUTING_EVENTS, RouteBuildPayload.
+//   Axiom cite: A5 — event subscriptions are for notification.
+//   The confirmation query moved to synchronous W-HOOK.
 
 import { subscribeToEvent } from '../contract/event-bus'
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
@@ -66,26 +91,6 @@ import { upsertProfileForUser } from '@/features/F-user-profile/contract/user-pr
 subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
   const { userId, email } = event.payload as { userId: string; email: string }
   await upsertProfileForUser(userId, email)
-})
-
-// ─── F-planner build dispatch (phase-b-item2) ────────────────────────────────
-// F-planner subscribes to codec.route-build events.
-// Previously F-chat called handleBuildRequest directly — A5 violation.
-// Now codec emits the event, planner handles it via subscription.
-// A5: cross-slice via event bus only. R3 contract import for handleBuildRequest.
-
-import { handleBuildRequest } from '@/features/F-planner/contract/planner-contract'
-import { CODEC_ROUTING_EVENTS } from '@/features/F-codec/config/codec-routing-types'
-import type { RouteBuildPayload } from '@/features/F-codec/config/codec-routing-types'
-
-subscribeToEvent(CODEC_ROUTING_EVENTS.ROUTE_BUILD, async (event: LivEvent) => {
-  const payload = event.payload as RouteBuildPayload
-  await handleBuildRequest({
-    projectId: payload.projectId ?? '',
-    userId:    payload.userId,
-    message:   payload.message ?? '',
-    modelId:   payload.modelId ?? '',
-  })
 })
 
 // ─── Export registration function ────────────────────────────────────────────

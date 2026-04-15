@@ -1,10 +1,10 @@
-/* @liv-standard v1.3 */
-/* [core/app/globals.css] */
+/* @liv-standard v1.5 */
+/* [core/R5] */
 /* Built with LIV · livai.dev */
 
 /* @manifest
-   standard:   LIV-Standard v1.3
-   amended:    none
+   standard:   LIV-Standard v1.5
+   amended:    phase-5.3
    slice:      core/app
    layer:      R4 (DOM — applies CSS custom properties)
    wires-in:   none (consumed by all slices via className)
@@ -761,11 +761,54 @@ body > * { position: relative; z-index: 1; /* Z.content */ }
 /* ═══ 12. RESPONSIVE ═══ */
 
 @media (max-width: 480px) /* BREAKPOINT_SM = 480 */ {
+  /* (existing rules) */
   .col { max-width: 100%; padding: 0 var(--u2); }
   .login-page { padding-bottom: 15vh; /* exception: viewport-relative centering, not grid-derived */ }
   .login-content { padding: 0 var(--u2); }
   .msg-user-bubble { max-width: 85%; /* exception: content proportion, not grid-derived */ }
   .slide-panel { width: 100%; }
+
+  /* ── 5.3: Mobile dashboard — full remaining viewport ── */
+  .dashboard-area {
+    height: calc(100vh - var(--header-h)) !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .dashboard-container { min-height: 100%; }
+  .dash-close-mobile { display: block !important; }
+
+  /* ── 5.3: Touch targets — 44px min (--u55 = SPACE_UNIT * 5.5 = 44) ── */
+  .send-key,
+  .send-touch-target,
+  .dashboard-toggle,
+  .header-username,
+  .dash-menu-btn,
+  .dash-back-btn,
+  .btn,
+  .btn-text {
+    min-height: var(--u55);
+    min-width: var(--u55);
+  }
+
+  /* ── 5.3: Chat input — sticky at bottom ── */
+  .chat-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5; /* Z.mask */
+    background: var(--bg);
+  }
+
+  /* ── 5.3: Scroll containment ── */
+  .chat-main { overscroll-behavior: contain; }
+}
+@media (max-width: 768px) /* BREAKPOINT_MD = 768 */ {
+  /* ── 5.3: Dashboard height cap at mid-tier ── */
+  .dashboard-area {
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 @media (min-width: 1281px) /* BREAKPOINT_LG = 1281 */ {
   .col { max-width: var(--col-width-lg); }

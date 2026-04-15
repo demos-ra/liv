@@ -1,44 +1,50 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    phase-b-item2
+// standard:   LIV-Standard v1.5
+// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit
 // slice:      F-codec
 // layer:      R2
 // wires-in:
-//   W-ATOM  CodecPipelineResult, CODEC_ROUTING_EVENTS, RouteBuildPayload  ←  F-codec/R0
+//   W-ATOM  CodecPipelineResult, BuildConfirmation, CODEC_ROUTING_EVENTS, RouteBuildPayload  ←  F-codec/R0
 //   W-ATOM  ScopedGraphSet  ←  F-memory/R0
-//   W-FN    encodeLLM()                   ←  F-codec/R2 (codec-encode)
-//   W-FN    classifyDomain()              ←  F-codec/R1 (codec-routing)
-//   W-FN    determineRoute()              ←  F-codec/R1 (codec-routing)
-//   W-FN    classifyGraph()               ←  F-codec/R1 (codec-decode)
-//   W-FN    renderForSystemPrompt()       ←  F-codec/R1 (codec-decode-render)
-//   W-FN    getPresentState()             ←  F-memory/R3
-//   W-FN    getGlobalGraph()              ←  F-memory/R3
-//   W-FN    getUserGraph()                ←  F-memory/R3
-//   W-FN    getGlobalArms()               ←  F-memory/R3
-//   W-FN    getUserArms()                 ←  F-memory/R3
-//   W-FN    emitEvent()                   ←  F-event-system/R3
+//   W-HOOK  getPresentState()             ←  F-memory/R3
+//   W-HOOK  getGlobalGraph()              ←  F-memory/R3
+//   W-HOOK  getUserGraph()                ←  F-memory/R3
+//   W-HOOK  getGlobalArms()               ←  F-memory/R3
+//   W-HOOK  getUserArms()                 ←  F-memory/R3
+//   W-HOOK  emitEvent()                   ←  F-event-system/R3
+//   W-HOOK  handleBuildRequest()          ←  F-planner/R3 (planner-contract)
 // wires-out:
-//   W-FN  processMessage()  →  F-codec/R3
+//   W-HOOK  processMessage()  →  F-codec/R3
 // deps:
 //   R0  ../config/codec-routing-types
+//   R0  @/features/F-memory/config/memory-types
 //   R1  ../domain/codec-routing
 //   R1  ../domain/codec-decode
 //   R1  ../domain/codec-decode-render
 //   R2  ./codec-encode
+//   R3  @/features/F-memory/contract/memory-contract
+//   R3  @/features/F-event-system/contract/event-bus
+//   R3  @/features/F-planner/contract/planner-contract
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // R2: orchestration. The full codec pipeline.
 // encode → classify domain → determine route → decode → dispatch.
 // CA1: intent → state → delta. One message = one pipeline pass.
-// A5: build dispatch via event bus — never imports F-planner.
+// phase-5.1-r1: Build dispatch via synchronous W-HOOK to F-planner/R3.
+//   Same cross-slice R3 query pattern as isPipelineActive (F-chat → F-planner).
+//   Event retained for observability only — no longer triggers pipeline launch.
+//   A2: F-codec depends on F-planner (lower layer consumer pattern).
+//   A5: cross-slice via R3 contract only.
 
 import type { Result } from '@/core/types/primitives'
 import type { ScopedGraphSet } from '@/features/F-memory/config/memory-types'
 import type { CodecPipelineResult, RouteBuildPayload } from '../config/codec-routing-types'
+import type { BuildConfirmation } from '../config/codec-routing-types'
 import { CODEC_ROUTING_EVENTS } from '../config/codec-routing-types'
 import { encodeLLM } from './codec-encode'
 import { classifyDomain, determineRoute } from '../domain/codec-routing'
@@ -52,6 +58,7 @@ import {
   getUserArms,
 } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
+import { handleBuildRequest } from '@/features/F-planner/contract/planner-contract'
 
 // ─── Process Message ─────────────────────────────────────────────────────────
 // The full codec pipeline for one user message.
@@ -64,7 +71,7 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 // 4. Classify domain: classifyDomain(encodeResult, presentState, allArms)
 // 5. Determine route: determineRoute(encodeResult, domain)
 // 6. Decode: classifyGraph(scopedGraphs, userArms, globalArms) → renderForSystemPrompt()
-// 7. Dispatch: if route is dispatch-planner, emit codec.route-build event (A5)
+// 7. Dispatch: if dispatch-planner, call handleBuildRequest (W-HOOK) + emit observability event
 // 8. Emit codec.route-complete
 // 9. Return CodecPipelineResult
 
@@ -103,29 +110,48 @@ export async function processMessage(
 
     // 5. Determine route — (primitive, domain) → action
     // CA5: deterministic mapping, observable transition.
-    const route = determineRoute(encodeResult.data, domain)
+    let route = determineRoute(encodeResult.data, domain)
 
     // 6. Decode — classify graph structures + render for system prompt
     // CA8: graph topology → classified structures → structured text.
     const decoded = classifyGraph(scopedGraphs, userArms, globalArms)
     const decodedContext = renderForSystemPrompt(decoded)
 
-    // 7. Dispatch — if build domain, emit event for F-planner subscription
-    // A5: event bus only. F-codec never imports F-planner.
-    // phase-b-item2: projectId, message, modelId pass-through on payload.
+    // 7. Dispatch — if build domain, call planner confirmation (W-HOOK)
+    // phase-5.1-r1: synchronous W-HOOK replaces fire-and-forget event.
+    // handleBuildRequest called directly via R3 contract (same pattern as isPipelineActive).
+    // Event retained for observability only — no pipeline launch here.
     if (route.type === 'dispatch-planner') {
-      const payload: RouteBuildPayload = {
-        primitive: route.primitive,
-        label:     route.label,
-        userId:    route.userId,
+      // 7a. Call planner confirmation (W-HOOK — synchronous R3 query)
+      const buildResult = await handleBuildRequest({
         projectId: projectId ?? '',
+        userId:    userId,
         message:   content,
         modelId:   modelId ?? '',
+      })
+
+      const confirmation: BuildConfirmation = buildResult.ok
+        ? { response: buildResult.response, isConfirmation: buildResult.isConfirmation, jobId: buildResult.jobId }
+        : { response: buildResult.error, isConfirmation: false, jobId: '' }
+
+      // Attach confirmation to route
+      route = {
+        ...route,
+        confirmation,
       }
+
+      // 7b. Emit for observability (W-EVENT — fire-and-forget, no pipeline launch here)
       await emitEvent({
         type:    CODEC_ROUTING_EVENTS.ROUTE_BUILD,
-        payload,
-        slice:   'F-codec',
+        payload: {
+          primitive: route.primitive,
+          label:     route.label,
+          userId:    route.userId,
+          projectId: projectId ?? '',
+          message:   content,
+          modelId:   modelId ?? '',
+        } satisfies RouteBuildPayload,
+        slice: 'F-codec',
       })
     }
 

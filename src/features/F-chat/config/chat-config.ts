@@ -7,7 +7,7 @@
 // slice:      F-chat
 // layer:      R0
 // wires-in:
-//   W-ATOM  RateLimitConfig  F-chat/domain/rate-limiter  (R1 — A2 compliant)
+//   W-ATOM  RateLimitConfig  core/R1 (rate-limiter)
 // wires-out:
 //   W-ATOM  CHAT_CONFIG      →  F-chat/R1, F-chat/R3
 //   W-ATOM  CHAT_RATE_LIMIT  →  F-chat/R3
@@ -21,7 +21,7 @@
 //   W-ATOM  ChatErrorCode    →  F-chat/R3 (chat-hook, chat-ui)
 //   W-ATOM  ChatError        →  F-chat/R3 (chat-hook, chat-ui)
 // deps:
-//   R1  ../domain/rate-limiter
+//   R1  @/core/domain/rate-limiter
 // validated:  pending
 //
 // w2-item-12 (A6):
@@ -34,7 +34,7 @@
 //   ChatErrorCode union: 5 error classes for differentiated chat error messages.
 //   Axiom cite: A6 — type declared at R0 of owner slice. A3 — typed boundary.
 
-import type { RateLimitConfig } from '../domain/rate-limiter'
+import type { RateLimitConfig } from '@/core/domain/rate-limiter'
 
 export const CHAT_CONFIG = {
   maxMessageLength: 32_000,

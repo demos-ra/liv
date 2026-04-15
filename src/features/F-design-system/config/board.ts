@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-design-system/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5
+// amended:    phase-5.3
 // slice:      F-design-system
 // layer:      R0
 // wires-in:   none
@@ -100,6 +100,7 @@ export const COL_WIDTH     = 680   // px
 export const COL_WIDTH_LG  = 720   // px
 export const LOGIN_WIDTH   = 340   // px
 export const BREAKPOINT_SM = 480   // px
+export const BREAKPOINT_MD = 768   // px — dashboard height cap, mid-tier adjustments
 export const BREAKPOINT_LG = 1281  // px
 
 // ── Component dimensions (authored) ──────────────────────────────────────────

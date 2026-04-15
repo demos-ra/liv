@@ -1,10 +1,10 @@
-// @liv-standard v1.3
-// [F-chat/contract/chat-ui.tsx]
+// @liv-standard v1.5
+// [F-chat/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    phase2-account-extraction, phase5-focus, w2-item-13b
+// standard:   LIV-Standard v1.5
+// amended:    phase2-account-extraction, phase5-focus, w2-item-13b, phase-5.3
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -12,7 +12,8 @@
 //   W-ATOM  SendIcon        @/features/F-design-system/contract/primitives
 //   W-ATOM  Spinner         @/features/F-design-system/contract/primitives
 //   W-ATOM  ChatError       ../config/chat-config
-//   W-HOOK  useChatStream   ./chat-hook
+//   W-HOOK  useChatStream        ./chat-hook
+//   W-HOOK  useViewportKeyboard  ./chat-hook
 // wires-out:
 //   W-ATOM  ChatUI  → src/app/page.tsx
 // deps:
@@ -46,11 +47,18 @@
 //   appends '[Response interrupted. Try sending again.]' inline to assistant
 //   message content rather than replacing it. Preserves partial content (A1).
 //   Axiom cite: A1 — F-chat owns chat error rendering. A3 — ChatError atom.
+//
+// phase-5.3 (A1, A3):
+//   onJobId callback wired to useChatStream 4th param — on jobId SSE event,
+//   calls onSetActiveProgram('builder') to auto-expand dashboard.
+//   useViewportKeyboard hook consumed for mobile chat input positioning.
+//   send-touch-target className added for CSS-driven touch target enforcement.
+//   Axiom cite: A1 — F-chat owns chat UI. A3 — typed imports.
 
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useChatStream } from './chat-hook'
+import { useChatStream, useViewportKeyboard } from './chat-hook'
 import { PROVIDER_ORDER } from '@/features/F-user-profile/config/provider-keys-config'
 import type { ChatError } from '../config/chat-config'
 import {
@@ -164,7 +172,14 @@ export function ChatUI({
     ))
   }, [])
 
-  const { streaming, error, send } = useChatStream(PROJECT_ID, handleChunk, handleStreamError)
+  // phase-5.3: on jobId SSE event, auto-expand dashboard to builder program
+  const handleJobId = useCallback((_jobId: string) => {
+    onSetActiveProgram('builder')
+  }, [onSetActiveProgram])
+
+  const { streaming, error, send } = useChatStream(PROJECT_ID, handleChunk, handleStreamError, handleJobId)
+
+  const keyboardHeight = useViewportKeyboard()
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -262,7 +277,10 @@ export function ChatUI({
         </div>
       </main>
 
-      <footer className="chat-footer">
+      <footer
+        className="chat-footer"
+        style={keyboardHeight > 0 ? { paddingBottom: `${keyboardHeight}px` } : undefined}
+      >
         <div className="col">
           <InputContainer
             inputRef={inputRef}
@@ -281,7 +299,7 @@ export function ChatUI({
               ) : (
                 <button
                   type="button"
-                  className="send-key"
+                  className="send-key send-touch-target"
                   onClick={handleSend}
                   disabled={!hasInput}
                   aria-label="Send message"

@@ -1,11 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-chat/R3]
 // Built with LIV · livai.dev
-// [F-chat/R3/C2] useChat + useChatStream hooks
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w2-item-13b
+// standard:   LIV-Standard v1.5
+// amended:    w2-item-13b, phase-5.2, phase-5.3
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -15,8 +14,9 @@
 //   W-ATOM  ChatErrorCode   ../config/chat-config
 //   W-HOOK  useNamespace    @/features/F-la-config/contract/registry-hook
 // wires-out:
-//   W-HOOK  useChatStream   →  F-chat/R3 (chat-ui.tsx)
-//   W-HOOK  useChat         →  F-chat/R3 (chat-ui.tsx)
+//   W-HOOK  useChatStream        →  F-chat/R3 (chat-ui.tsx)
+//   W-HOOK  useChat              →  F-chat/R3 (chat-ui.tsx)
+//   W-HOOK  useViewportKeyboard  →  F-chat/R3 (chat-ui.tsx)
 // deps:
 //   R0  ../config/chat-config
 //   R3  @/features/F-la-config/contract/registry-hook
@@ -98,15 +98,18 @@ export function useChatStream(
   projectId: string,
   onChunk: (chunk: string) => void,
   onStreamError?: (indicator: string) => void,
+  onJobId?: (jobId: string) => void,
 ) {
   const [state, setState] = useState<StreamState>({ streaming: false, error: null })
   const abortRef   = useRef<AbortController | null>(null)
   const onChunkRef = useRef(onChunk)
   const onStreamErrorRef = useRef(onStreamError)
+  const onJobIdRef = useRef(onJobId)
 
   // Keep refs current — never stale inside async send
   useEffect(() => { onChunkRef.current = onChunk }, [onChunk])
   useEffect(() => { onStreamErrorRef.current = onStreamError }, [onStreamError])
+  useEffect(() => { onJobIdRef.current = onJobId }, [onJobId])
 
   const streamingRef = useRef(false)
 
@@ -163,6 +166,10 @@ export function useChatStream(
                   chunksReceived = true
                   onChunkRef.current(data.chunk)
                 }
+                // phase-5.2: jobId for dashboard binding (sent before LLM stream)
+                if (data.jobId) {
+                  onJobIdRef.current?.(data.jobId)
+                }
                 // SSE error event from server (provider error mid-stream)
                 if (data.error) {
                   const serverError: ChatError = {
@@ -208,4 +215,28 @@ export function useChatStream(
   }, [])
 
   return { ...state, send, cancel }
+}
+
+// ── useViewportKeyboard ──────────────────────────────────────────────────────
+// Returns virtual keyboard height in px via visualViewport API.
+// CSS cannot detect keyboard — this is the one JS-only responsive concern.
+// Returns 0 on desktop or when keyboard is closed.
+
+export function useViewportKeyboard(): number {
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+
+    function onResize() {
+      const kh = window.innerHeight - (vv?.height ?? window.innerHeight)
+      setKeyboardHeight(Math.max(0, kh))
+    }
+
+    vv.addEventListener('resize', onResize, { passive: true })
+    return () => vv.removeEventListener('resize', onResize)
+  }, [])
+
+  return keyboardHeight
 }

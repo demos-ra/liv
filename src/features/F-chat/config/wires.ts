@@ -25,8 +25,6 @@
 //   W-ATOM  Surface, InputContainer, SendIcon, Spinner ← F-design-system/R3 (primitives)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
-//   W-FN    createRateLimiter()    →  F-planner/R3 (planner-contract)
-//   W-ATOM  RateLimitConfig        →  F-planner/R0 (planner-const)
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 //   W-EVENT  CHAT_EVENTS           →  F-event-system/R0 (event-schema)

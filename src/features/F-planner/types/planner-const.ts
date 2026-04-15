@@ -8,12 +8,12 @@
 // slice:      F-planner
 // layer:      R0
 // wires-in:
-//   W-ATOM  RateLimitConfig  F-chat/domain/rate-limiter  (cross-slice R1, A2)
+//   W-ATOM  RateLimitConfig  core/R1 (rate-limiter)
 // wires-out:
 //   W-ATOM  PLANNER_CONST      →  F-planner/R1, F-planner/R2
 //   W-ATOM  PLANNER_RATE_LIMIT →  F-planner/R3
 // deps:
-//   R1  @/features/F-chat/domain/rate-limiter  (cross-slice, A2 — lower layer)
+//   R1  @/core/domain/rate-limiter
 // validated:  pending
 //
 // A6: R0 declares, never imports. Stage strings duplicated here intentionally —
@@ -52,7 +52,7 @@
 //   TEMP_CACHE_RETENTION_DAYS added — external file cache expiry in days.
 //   Axiom cite: A6 — declared at R0 of owner. A3 — typed constant.
 
-import type { RateLimitConfig } from '@/features/F-chat/domain/rate-limiter'
+import type { RateLimitConfig } from '@/core/domain/rate-limiter'
 
 export const PLANNER_CONST = {
   // Stage execution order — index determines sequence. Never reorder.

@@ -1,9 +1,9 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-chat/R2]
 // Built with LIV · livai.dev
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    lm-v1.1-wire-fix, phase-b-item2
+// standard:   LIV-Standard v1.5
+// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit
 // slice:      F-chat
 // layer:      R2
 // wires-in:
@@ -11,13 +11,11 @@
 //   W-ATOM    LIV_SPEC         F-chat/R0
 //   W-INJECT  persistMessage   F-chat/R4 (chat-db)
 //   W-INJECT  getMessages      F-chat/R4 (chat-db)
-//   W-INJECT  lmGetPresentState  F-chat/R4 (lm-io)
-//   W-INJECT  lmTraverseRead     F-chat/R4 (lm-io)
 //   W-INJECT  lmTraverseWrite    F-chat/R4 (lm-io)
-//   W-INJECT  streamAIResponse F-ai-adapter/R3
-//   W-INJECT  traverse         F-memory/R3
-//   W-INJECT  getPresentState  F-memory/R3
-//   W-INJECT  getApiKey        F-user-profile/R3
+//   W-HOOK   streamAIResponse F-ai-adapter/R3
+//   W-HOOK   traverse         F-memory/R3
+//   W-HOOK   getPresentState  F-memory/R3
+//   W-HOOK   getApiKey        F-user-profile/R3
 //   W-ATOM    providerForModel F-ai-adapter/R0
 //   W-ATOM    PROVIDERS        F-user-profile/R0
 //   W-ATOM    ProviderId       F-user-profile/R0
@@ -37,10 +35,19 @@
 //   R0  @/features/F-user-profile/config/provider-keys-config
 //   R5  @/core/types/primitives
 // validated:  pending
+//
+// phase-5.1-r1 (A2):
+//   Removed redundant read-path memory calls (lmGetPresentState, lmTraverseRead).
+//   Codec's processMessage() already does encode + traverse + decode. The
+//   systemContext parameter carries the decoded graph context. Direct memory
+//   reads here duplicated codec's work.
+//   Retained: lmTraverseWrite for write-path (persisting LLM response to graph).
+//   Codec does not handle the write path — it only processes inbound user messages.
+//   Removed W-INJECT for lmGetPresentState and lmTraverseRead from manifest.
 
 import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
-import { lmGetPresentState, lmTraverseRead, lmTraverseWrite } from '../exec/lm-io'
+import { lmTraverseWrite } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
 import { traverse, getPresentState } from '@/features/F-memory/contract/memory-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
@@ -48,8 +55,6 @@ import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-conf
 import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
 import { generateId } from '@/core/types/primitives'
-
-// v1.1: MemoryDeps constructed inside sendMessage — needs userId from input.
 
 // ── Session state ─────────────────────────────────────────────────────────────
 
@@ -88,12 +93,9 @@ function updateSessionState(state: SessionState): void {
 }
 
 // ── Send message ──────────────────────────────────────────────────────────────
-// v1.0 §20 flow:
-//   1. getPresentState() → system context (who is this person)
-//   2. traverse(userMessage, { returnActivation: true }) → query-specific context
-//   3. Both injected into LLM context
-//   4. LLM responds (streamed)
-//   5. traverse(llmResponse) → write path, no activation returned
+// phase-5.1-r1: read-path memory (getPresentState, traverseRead) removed.
+// Codec pipeline now owns the read path. systemContext carries decoded graph context.
+// Write path (lmTraverseWrite) retained — codec does not handle post-stream writes.
 
 export interface SendMessageInput {
   projectId:      string
@@ -106,13 +108,12 @@ export interface SendMessageInput {
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
   const { projectId, content, modelId, userId, systemContext } = input
 
-  // v1.1: MemoryDeps needs userId (Amendment 3)
+  // v1.1: MemoryDeps for write path only
   const memoryDeps = { traverse, getPresentState, userId }
 
   // Session rotation
   const state = getOrCreateSessionState(userId)
   if (shouldRotateSession(state)) {
-    // v1.0: no onSessionEnd needed — traversal handles everything
     state.lmSessionId = crypto.randomUUID()
     state.messageGaps = []
   }
@@ -120,18 +121,11 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
-  // §20 step 1: getPresentState() → persistent background context
-  const presentStateContext = lmGetPresentState(memoryDeps)
-
-  // §20 step 2: traverse(userMessage) → query-specific activated context
-  const traversalContext = await lmTraverseRead(content, memoryDeps)
-
   // Assemble system prompt
+  // phase-5.1-r1: read-path memory removed. systemContext from codec is the sole context source.
   const systemParts: string[] = [LIV_ANCHOR]
   if (isFirstMessage) systemParts.push(LIV_SPEC)
-  if (systemContext) systemParts.push(`Context (graph decode):\n${systemContext}`)
-  if (presentStateContext) systemParts.push(`Memory (who you are talking to):\n${presentStateContext}`)
-  if (traversalContext) systemParts.push(`Memory (relevant to this message):\n${traversalContext}`)
+  if (systemContext) systemParts.push(systemContext)
 
   const systemPrompt = systemParts.join('\n\n')
 
@@ -158,7 +152,7 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   }
 
   // §20 step 5: traverse(llmResponse) → write path (async, never blocks)
-  // Also: traverse user message write path (content was read above, now write)
+  // Also: persist both messages to chat history.
   Promise.all([
     lmTraverseWrite(fullResponse.slice(0, 500), memoryDeps),
     persistMessage({

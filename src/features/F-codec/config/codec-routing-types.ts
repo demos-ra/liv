@@ -1,10 +1,10 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    phase-b-item2
+// standard:   LIV-Standard v1.5
+// amended:    phase-b-item2, phase-5.1-r1
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -15,6 +15,7 @@
 // wires-out:
 //   W-ATOM  BindingDomain           →  F-codec/*
 //   W-ATOM  RouteAction             →  F-codec/*
+//   W-ATOM  BuildConfirmation       →  F-chat/R3
 //   W-ATOM  CodecPipelineResult     →  F-codec consumers
 //   W-ATOM  ROUTING_CONFIG          →  F-codec/*
 //   W-ATOM  CODEC_ROUTING_EVENTS    →  F-codec/*
@@ -41,12 +42,23 @@ export type BindingDomain =
   | 'conversational'  // general knowledge/chat subgraph
   | 'unknown'         // new or unclassifiable region
 
+// ─── Build Confirmation ────────────────────────────────────────────────────
+// phase-5.1-r1: Planner's confirmation response, carried on dispatch-planner route.
+// A3: typed boundary atom. A6: declared at R0 of owning slice.
+
+export type BuildConfirmation = {
+  response:       string    // IN-MAIN's plan text for Liv to contextualize
+  isConfirmation: boolean   // true = plan ready, awaiting user confirm. false = pipeline already launched.
+  jobId:          string    // planner job ID for dashboard binding
+}
+
 // ─── Route Action ────────────────────────────────────────────────────────────
 // What the system does in response to the encoded primitive + domain.
 // Discriminated union on type — each action carries only what it needs.
+// phase-5.1-r1: dispatch-planner now carries BuildConfirmation from W-HOOK query.
 
 export type RouteAction =
-  | { type: 'dispatch-planner'; primitive: MutatingPrimitive; label: string; userId: string }
+  | { type: 'dispatch-planner'; primitive: MutatingPrimitive; label: string; userId: string; confirmation?: BuildConfirmation }
   | { type: 'chat-response';    primitive: CognitivePrimitive; userId: string }
   | { type: 'reference-only';   userId: string }
 
@@ -90,9 +102,9 @@ export const CODEC_ROUTING_EVENTS = {
 export type CodecRoutingEventType = typeof CODEC_ROUTING_EVENTS[keyof typeof CODEC_ROUTING_EVENTS]
 
 // ─── Route-Build Payload ─────────────────────────────────────────────────────
-// A5: event payload for F-planner subscription.
-// phase-b-item2: projectId now required for build routes. message + modelId
-// added as pass-through fields for planner event subscription handler.
+// A5: event payload for observability.
+// phase-5.1-r1: retained for observability event emission. No longer triggers
+// pipeline launch — that is now handled synchronously via W-HOOK in codec.
 
 export type RouteBuildPayload = {
   primitive:  MutatingPrimitive

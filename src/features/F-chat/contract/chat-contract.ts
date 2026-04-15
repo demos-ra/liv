@@ -1,10 +1,10 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    w2-item10, w2-item-12, phase-b-item2
+// standard:   LIV-Standard v1.5
+// amended:    w2-item10, w2-item-12, phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -13,16 +13,16 @@
 //   W-ATOM  MODELS               F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  CHAT_CONFIG          ../config/chat-config
 //   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
-//   W-FN    createRateLimiter    ../domain/rate-limiter
-//   W-FN    processMessage       F-codec/contract/codec-contract  (R3→R3, A5)
-//   W-FN    isPipelineActive     F-planner/contract/planner-contract  (R3→R3, read-only query)
+//   W-ATOM  BuildConfirmation    F-codec/config/codec-routing-types
+//   W-HOOK  processMessage       F-codec/contract/codec-contract  (R3→R3, A5)
+//   W-HOOK  isPipelineActive     F-planner/contract/planner-contract  (R3→R3, read-only query)
 // wires-out:  none  (route handler — external surface)
 // deps:
 //   R0  ../config/chat-config
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
 //   R0  @/features/F-codec/config/codec-routing-types
 //   R1  ../domain/chat-logic
-//   R1  ../domain/rate-limiter
+//   R1  @/core/domain/rate-limiter
 //   R2  ../app/chat-workflow
 //   R3  @/features/F-identity/contract/auth-contract
 //   R3  @/features/F-codec/contract/codec-contract
@@ -44,11 +44,20 @@
 //     3. If running → block with informational message (unchanged behavior)
 //     4. codec.processMessage(content, userId, projectId, modelId)
 //     5. Route dispatch based on route.type:
-//        - dispatch-planner → ack response (event already emitted by codec)
+//        - dispatch-planner → stream confirmation via LLM (phase-5.1-r1)
 //        - chat-response / reference-only → sendMessage with decodedContext
 //   Build dispatch now goes through codec events (A5 compliant).
 //   Axiom cite: A1 — POST_message owns fork. A2 — no R4 imports.
 //   A5 — cross-slice via R3 contracts and event bus only.
+//
+// phase-5.1-r1 (A1, A3):
+//   dispatch-planner branch now streams planner's confirmation response
+//   through sendMessage with plan injected as system context. Replaces
+//   hardcoded "Build request received." dead string. Liv presents the plan
+//   naturally and asks for user confirmation.
+//   BuildConfirmation type import added (W-ATOM from F-codec/R0).
+//   Axiom cite: A3 — typed boundary via BuildConfirmation atom.
+//   A1 — chat-contract owns the SSE stream fork.
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { sendMessage, getMessages }             from '../app/chat-workflow'
@@ -56,10 +65,10 @@ import { SESSION_COOKIE_NAME, validateSession } from '@/features/F-identity/cont
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }         from '../config/chat-config'
 import { validateMessageContent }               from '../domain/chat-logic'
 import { MODELS }                               from '@/features/F-ai-adapter/config/ai-adapter-config'
-import { createRateLimiter }                    from '../domain/rate-limiter'
+import { createRateLimiter }                    from '@/core/domain/rate-limiter'
 import { processMessage }                       from '@/features/F-codec/contract/codec-contract'
 import { isPipelineActive }                     from '@/features/F-planner/contract/planner-contract'
-import type { CodecPipelineResult }             from '@/features/F-codec/config/codec-routing-types'
+import type { BuildConfirmation }               from '@/features/F-codec/config/codec-routing-types'
 
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
 let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
@@ -70,7 +79,8 @@ function getChatLimiter() {
 
 // ── POST /api/chat/[projectId]/message ────────────────────────────────────────
 // phase-b-item2: rewired. Chat → Codec → route dispatch.
-// Build dispatch via codec event bus (A5). Pipeline guard via R3 query.
+// phase-5.1-r1: dispatch-planner streams confirmation via LLM.
+// Build dispatch via codec W-HOOK (A5). Pipeline guard via R3 query.
 
 export async function POST_message(
   req:    NextRequest,
@@ -156,17 +166,50 @@ export async function POST_message(
   const { route, decodedContext } = codecResult.data
 
   // ── 4. Route dispatch ──────────────────────────────────────────────────────
+
+  // phase-5.1-r1: dispatch-planner streams confirmation through LLM.
+  // Codec already called handleBuildRequest (W-HOOK) — confirmation is on route.
+  // Inject plan into LLM system context so Liv presents it naturally.
   if (route.type === 'dispatch-planner') {
-    // processMessage already emitted codec.route-build event (A5).
-    // Planner picks it up via subscription.
-    // Stream acknowledgment to user.
+    const confirmation = route.confirmation
+    if (!confirmation) {
+      // Safety: codec-orchestrate always attaches confirmation on dispatch-planner.
+      // This guard satisfies the optional type — should never execute at runtime.
+      return new Response('Internal error: missing confirmation', { status: 500 })
+    }
     const stream = new ReadableStream({
-      start(controller) {
+      async start(controller) {
         const send = (data: unknown) =>
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-        send({ chunk: 'Build request received.' })
-        send({ done: true })
-        controller.close()
+
+        // phase-5.2: send jobId for dashboard binding (before LLM stream)
+        if (confirmation.jobId) {
+          send({ jobId: confirmation.jobId })
+        }
+
+        try {
+          for await (const chunk of sendMessage({
+            projectId,
+            content,
+            modelId,
+            userId: session.userId,
+            systemContext: [
+              decodedContext.systemPromptBlock,
+              `Build plan:\n${confirmation.response}`,
+              confirmation.isConfirmation
+                ? 'Present this plan to the user and ask for confirmation to proceed.'
+                : 'Acknowledge the build status to the user.',
+            ].filter(Boolean).join('\n\n'),
+          })) {
+            send({ chunk })
+          }
+          send({ done: true })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'unknown_error'
+          send({ error: message })
+        } finally {
+          controller.close()
+        }
       },
     })
     return new Response(stream, {

@@ -1,15 +1,15 @@
-// @liv-standard v1.3
-// [F-dashboard/types/dashboard-types.ts]
+// @liv-standard v1.5
+// [F-dashboard/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5b-phaseA
+// standard:   LIV-Standard v1.5
+// amended:    step5b-phaseA, phase-5.2, phase-5-audit
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:
-//   R0  @/features/F-project/types/project-types
-//   R0  @/features/F-output/types/output-types
+//   W-ATOM  ProjectSummary, CreateProjectPayload, ProjectDelta, ProjectId  F-project/R0
+//   W-ATOM  PushPayload, PushResult, OutputFiles  F-output/R0
 // wires-out:
 //   W-ATOM  ActiveProgram           →  F-dashboard/R3, src/app/page.tsx
 //   W-ATOM  ProgramRenderIntent     →  F-dashboard/R3 (dashboard-registry.tsx)
@@ -21,6 +21,7 @@
 // deps:
 //   R0  @/features/F-project/types/project-types  (R0 atoms only — A5)
 //   R0  @/features/F-output/types/output-types    (R0 atoms only — A5)
+//   R5  react
 // validated: pending
 //
 // step5d-phase1 (A1, A3, A7): (see prior history)
@@ -44,10 +45,13 @@ import type { PushPayload, PushResult, OutputFiles } from '@/features/F-output/t
 
 // ── ProgramRenderIntent (A3) ──────────────────────────────────────────────────
 // step5b-phaseA: added label — human-readable program name for the menu.
+// phase-5.2: added optional statusDot and statusLine for menu card display.
 export type ProgramRenderIntent = {
-  programId: string
-  label:     string
-  component: ComponentType
+  programId:  string
+  label:      string
+  component:  ComponentType
+  statusDot?: 'accent' | 'dis' | 'error'
+  statusLine?: string
 }
 
 // ── ActiveProgram (A3) ────────────────────────────────────────────────────────

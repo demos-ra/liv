@@ -1,10 +1,10 @@
-// @liv-standard v1.3
-// [src/app/page.tsx]
+// @liv-standard v1.5
+// [core/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    phase3-planet, phase4-page-transitions, phase5-remediation, phase5-focus
+// standard:   LIV-Standard v1.5
+// amended:    phase3-planet, phase4-page-transitions, phase5-remediation, phase5-focus, phase-5.4
 // slice:      core/app
 // layer:      R4
 // wires-in:
@@ -18,7 +18,7 @@
 //   W-ATOM  DashboardUI        @/features/F-dashboard/contract/dashboard-ui
 //   W-ATOM  ChatUI             @/features/F-chat/contract/chat-ui
 //   W-ATOM  AuthPage           @/features/F-identity/contract/auth-pages
-//   W-ATOM  AccountPage        @/features/F-user-profile/contract/account-page
+//   W-ATOM  AccountPage        @/features/F-user-profile/contract/account-page  (dynamic import — deferred)
 //   W-ATOM  PlannerRegister    @/features/F-planner/contract/planner-register
 //   W-ATOM  AdminRegister      @/features/F-admin/contract/admin-register
 //   W-ATOM  MemoryRegister     @/features/F-codec/contract/memory-register
@@ -38,6 +38,7 @@
 //   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
 //   R3  @/features/F-codec/contract/memory-register     (A5 — composition root)
 //   R5  react
+//   R5  next/dynamic
 // validated: pending
 //
 // phase2-account-extraction (A1, A5):
@@ -72,16 +73,23 @@
 //   useEffect watches currentPage — focuses chat input after ATTACK
 //   timeout when returning to chat. No focus action on account entry.
 //   ATTACK imported from F-design-system/config/board (R0 — A2).
+//
+// phase-5.4 (A1, A4):
+//   AccountPage converted to next/dynamic lazy import with ssr: false.
+//   Named export via .then() wrapper — AccountPage has required props.
+//   Code deferred until user navigates to account (clicks username).
+//   Entire app behind auth — SSR never renders account page.
+//   Axiom cite: A1 — composition root owns import strategy. A4 — next/dynamic R5 framework.
 
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useAuth }          from '@/features/F-identity/contract/auth-hooks'
 import { AuthPage }         from '@/features/F-identity/contract/auth-pages'
 import { useWorkspace }     from '@/features/F-dashboard/contract/dashboard-hook'
 import { DashboardUI }      from '@/features/F-dashboard/contract/dashboard-ui'
 import { ChatUI }           from '@/features/F-chat/contract/chat-ui'
-import { AccountPage }      from '@/features/F-user-profile/contract/account-page'
 import { Brand, StatusDot } from '@/features/F-design-system/contract/primitives'
 import { usePlanet } from '@/features/F-design-system/exec/use-planet'
 import { usePageTransition } from '@/features/F-design-system/exec/use-page-transition'
@@ -89,6 +97,11 @@ import { ATTACK } from '@/features/F-design-system/config/board'
 import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
 import { MemoryRegister }   from '@/features/F-codec/contract/memory-register'
+
+const AccountPage = dynamic(
+  () => import('@/features/F-user-profile/contract/account-page').then(m => ({ default: m.AccountPage })),
+  { ssr: false }
+)
 
 // ── DashboardIcon ─────────────────────────────────────────────────────────────
 function DashboardIcon() {

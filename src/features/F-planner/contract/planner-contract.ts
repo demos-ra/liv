@@ -1,10 +1,10 @@
-// @liv-standard v1.4
-// [F-planner/contract/planner-contract.ts]
+// @liv-standard v1.5
+// [F-planner/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    w2-item-12, phase-b-item4, phase-b-item2, phase-4.3
+// standard:   LIV-Standard v1.5
+// amended:    w2-item-12, phase-b-item4, phase-b-item2, phase-4.3, phase-5.2, phase-5-audit
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -17,16 +17,17 @@
 //   W-ATOM    SESSION_COOKIE_NAME   F-identity/contract/auth-contract
 //   W-ATOM    validateSession       F-identity/contract/auth-contract
 //   W-ATOM    PLANNER_RATE_LIMIT    ../types/planner-const
-//   W-FN      createRateLimiter     F-chat/domain/rate-limiter  (cross-slice R1, A2)
-//   W-FN      dbCountActiveBuildsForUser  ../exec/planner-db
+//   W-ATOM    AdminBuild, AdminBuildsFilter  F-admin/types/admin-types
+//   W-INJECT  dbCountActiveBuildsForUser  ../exec/planner-db
 // wires-out:
 //   W-HOOK  usePlanner                →  F-dashboard/R3
-//   W-FN    handleBuildRequest        →  src/app/api/chat/[projectId]/message/route.ts
-//   W-FN    handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
+//   W-HOOK  handleBuildRequest        →  F-codec/R2 (codec-orchestrate), route.ts
+//   W-HOOK  handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
 // deps:
 //   R0  ../types/planner-types
 //   R0  ../types/planner-const
-//   R1  @/features/F-chat/domain/rate-limiter  (cross-slice, A2 — lower layer)
+//   R0  @/features/F-admin/types/admin-types
+//   R1  @/core/domain/rate-limiter
 //   R2  ../workflow/planner-workflow
 //   R3  ./planner-inject
 //   R3  @/features/F-identity/contract/auth-contract
@@ -66,7 +67,7 @@
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
-import { createRateLimiter }                    from '@/features/F-chat/domain/rate-limiter'
+import { createRateLimiter }                    from '@/core/domain/rate-limiter'
 import { PLANNER_RATE_LIMIT }                   from '../types/planner-const'
 import { dbCountActiveBuildsForUser }           from '../exec/planner-db'
 import {
@@ -111,7 +112,7 @@ function getPlannerLimiter() {
 
 export async function handleBuildRequest(
   input: BuildRequestPayload
-): Promise<{ ok: true; response: string; isConfirmation: boolean } | { ok: false; error: string }> {
+): Promise<{ ok: true; response: string; isConfirmation: boolean; jobId: string } | { ok: false; error: string }> {
   const db = createPlannerDb()
   const ai = createAiAdapter()
 
@@ -151,6 +152,7 @@ export async function handleBuildRequest(
     ok:             true,
     response:       result.data.response,
     isConfirmation: result.data.isConfirmation,
+    jobId:          result.data.job.jobId as string,
   }
 }
 

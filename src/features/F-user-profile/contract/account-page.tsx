@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-user-profile/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    phase4-page-transitions, phase5-remediation
+// standard:   LIV-Standard v1.5
+// amended:    phase4-page-transitions, phase5-remediation, phase-5.4
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -18,6 +18,7 @@
 //   W-ATOM  PROVIDER_ORDER  @/features/F-user-profile/config/provider-keys-config
 // wires-out:
 //   W-ATOM  AccountPage     → src/app/page.tsx (composition root)
+//   W-ATOM  AccountPage (default) → src/app/page.tsx (dynamic import)
 // deps:
 //   R3  @/features/F-design-system/contract/primitives
 //   R3  @/features/F-user-profile/config/provider-keys-config
@@ -44,6 +45,11 @@
 //   used via className. Toggle-thumb left values moved to CSS classes.
 //   marginTop inline style removed — .page-main handles header offset.
 //   Divider import removed (zero consumers, A7).
+//
+// phase-5.4 (A1, A3):
+//   Default export added alongside named export for next/dynamic consumption.
+//   Named export preserved for existing direct consumers.
+//   Axiom cite: A1 — F-user-profile owns the export surface. A3 — typed boundary unchanged.
 
 'use client'
 
@@ -355,3 +361,5 @@ export function AccountPage({
     </div>
   )
 }
+
+export { AccountPage as default }
