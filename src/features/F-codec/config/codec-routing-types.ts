@@ -3,8 +3,8 @@
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
-// amended:    phase-b-item2, phase-5.1-r1
+// standard:   LIV-Standard v1.5.1
+// amended:    phase-b-item2, phase-5.1-r1, 6.5-6.6-routing, 6.9-6.10-module-exec
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -12,6 +12,9 @@
 //   W-ATOM  MutatingPrimitive    F-codec/R0
 //   W-ATOM  EncodeResult         F-codec/R0
 //   W-ATOM  DecodedContext       F-codec/R0
+//   W-ATOM  FrameworkMode        F-codec/R0
+//   W-ATOM  FrameworkModule      F-codec/R0
+//   W-ATOM  ModuleExecutionResult F-codec/R0
 // wires-out:
 //   W-ATOM  BindingDomain           →  F-codec/*
 //   W-ATOM  RouteAction             →  F-codec/*
@@ -22,6 +25,7 @@
 // deps:
 //   R0  ./codec-types
 //   R0  ./codec-decode-types
+//   R0  ./codec-module-types
 // validated:  pending
 
 // Routing types — domain classification, route actions, pipeline result.
@@ -31,16 +35,18 @@
 
 import type { CognitivePrimitive, MutatingPrimitive, EncodeResult } from './codec-types'
 import type { DecodedContext } from './codec-decode-types'
+import type { FrameworkMode, FrameworkModule, ModuleExecutionResult } from './codec-module-types'
 
 // ─── Binding Domain ──────────────────────────────────────────────────────────
 // Topological classification of where bind() landed in the graph.
-// Not enumerated exhaustively — derived from graph structure.
-// New domains emerge naturally as new subgraphs form.
+// 6.5: widened from literal 'build' to FrameworkMode union.
+// 'generative' replaces 'build'. New modes enter as modules register.
+// CA8: domain derived from graph topology, not authored table.
 
 export type BindingDomain =
-  | 'build'           // build-related subgraph (project/pipeline nodes)
-  | 'conversational'  // general knowledge/chat subgraph
-  | 'unknown'         // new or unclassifiable region
+  | FrameworkMode        // 'epistemic' | 'structural' | 'generative' | 'verificative'
+  | 'conversational'    // no module registered, general chat
+  | 'unknown'           // unclassifiable
 
 // ─── Build Confirmation ────────────────────────────────────────────────────
 // phase-5.1-r1: Planner's confirmation response, carried on dispatch-planner route.
@@ -55,9 +61,12 @@ export type BuildConfirmation = {
 // ─── Route Action ────────────────────────────────────────────────────────────
 // What the system does in response to the encoded primitive + domain.
 // Discriminated union on type — each action carries only what it needs.
-// phase-5.1-r1: dispatch-planner now carries BuildConfirmation from W-HOOK query.
+// phase-5.1-r1: dispatch-planner carries BuildConfirmation from W-HOOK query.
+// 6.6: dispatch-module added for non-build framework modules.
+//   dispatch-planner retained as generative specialization (bespoke planner integration).
 
 export type RouteAction =
+  | { type: 'dispatch-module';  module: FrameworkModule; primitive: CognitivePrimitive; label: string; userId: string; moduleResult?: ModuleExecutionResult }
   | { type: 'dispatch-planner'; primitive: MutatingPrimitive; label: string; userId: string; confirmation?: BuildConfirmation }
   | { type: 'chat-response';    primitive: CognitivePrimitive; userId: string }
   | { type: 'reference-only';   userId: string }
@@ -75,8 +84,9 @@ export type CodecPipelineResult = {
 
 // ─── Routing Config ──────────────────────────────────────────────────────────
 // Bootstrap heuristics for domain detection.
-// Once the graph is dense enough, domain detection becomes purely topological
-// (arm membership alone). These keyword signals are training wheels.
+// 6.5: BUILD_DOMAIN_SIGNALS superseded by MODE_SIGNALS in codec-mode-classify.ts.
+// Retained for backward compatibility — no longer referenced by the classifier.
+// Cleanup candidate for a future pass.
 
 export const ROUTING_CONFIG = {
   // Domain detection: keywords/node-labels that indicate build subgraph.

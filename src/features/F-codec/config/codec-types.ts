@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    6.9-6.10-module-exec-config
 // slice:      F-codec
 // layer:      R0
 // wires-in:   none
@@ -89,6 +89,10 @@ export const CODEC_CONFIG = {
 
   // Label extraction
   LABEL_MAX_LENGTH:     100,
+
+  // Module execution — structured response (findings, plans, audits)
+  MODULE_EXEC_MAX_TOKENS:  1024,
+  MODULE_EXEC_TEMPERATURE: 0,
 } as const
 
 // ─── Mechanical Encode Mappings ───────────────────────────────────────────────

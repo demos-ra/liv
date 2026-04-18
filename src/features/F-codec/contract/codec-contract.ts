@@ -1,25 +1,26 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-codec/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    w3-19-memory-exports, w3-20-admin-exports, phase-b-item2
+// standard:   LIV-Standard v1.5.1
+// amended:    w3-19-memory-exports, w3-20-admin-exports, phase-b-item2, 6.1-global-seed, 6.11-module-surface
 // slice:      F-codec
 // layer:      R3
 // wires-in:
-//   W-FN  encodeLLM()                   ←  F-codec/R2
-//   W-FN  registerCodecSubscriptions()  ←  F-codec/R2
-//   W-FN  processMessage()              ←  F-codec/R2 (codec-orchestrate)
-//   W-FN  executeMemoryAction()         ←  F-codec/R2 (codec-memory-actions)
-//   W-FN  getDecodedState()             ←  F-codec/R2 (codec-read)
-//   W-FN  seedGlobalNode()              ←  F-codec/R2 (codec-admin-actions)
-//   W-FN  ingestExternal()              ←  F-codec/R2 (codec-admin-actions)
-//   W-FN  removeNode()                  ←  F-codec/R2 (codec-admin-actions)
+//   W-INJECT encodeLLM()                   ←  F-codec/R2
+//   W-INJECT registerCodecSubscriptions()  ←  F-codec/R2
+//   W-INJECT processMessage()              ←  F-codec/R2 (codec-orchestrate)
+//   W-INJECT executeMemoryAction()         ←  F-codec/R2 (codec-memory-actions)
+//   W-INJECT getDecodedState()             ←  F-codec/R2 (codec-read)
+//   W-INJECT seedGlobalNode()              ←  F-codec/R2 (codec-admin-actions)
+//   W-INJECT ingestExternal()              ←  F-codec/R2 (codec-admin-actions)
+//   W-INJECT removeNode()                  ←  F-codec/R2 (codec-admin-actions)
+//   W-INJECT batchSeedAndTraverse()        ←  F-codec/R2 (codec-admin-actions)
 // wires-out:
 //   W-HOOK  encode()                →  F-chat (post-integration)
 //   W-HOOK  processMessage()        →  F-chat (post-integration, replaces encode)
-//   W-FN    registerSubscriptions() →  F-event-system/R2 (startup)
+//   W-HOOK  registerSubscriptions() →  F-event-system/R2 (startup)
 // deps:
 //   R2  ../app/codec-encode
 //   R2  ../app/codec-subscribe
@@ -85,9 +86,9 @@ export type { GlobalSeedInput, IngestionSource, GlobalAdminAction, GlobalGraphSu
 // ─── Memory actions (w3-19-memory-exports) ───────────────────────────────────
 // A3: public surface for memory API routes. Routes import from contract, not app/.
 export { executeMemoryAction } from '../app/codec-memory-actions'
-export { getDecodedState } from '../app/codec-read'
+export { getDecodedState, getArtifactsForMode } from '../app/codec-read'
 
 // ─── Admin actions (w3-20-admin-exports) ──────────────────────────────────────
 // A3: public surface for admin API routes. Routes import from contract, not app/.
-export { seedGlobalNode, ingestExternal, removeNode } from '../app/codec-admin-actions'
+export { seedGlobalNode, ingestExternal, removeNode, batchSeedAndTraverse, getModulesForClient } from '../app/codec-admin-actions'
 export { classifyGraph } from '../domain/codec-decode'

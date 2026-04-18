@@ -1,34 +1,29 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-memory/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write, 6.1-global-seed
 // slice:      F-memory
 // layer:      R3
 // wires-in:
-//   W-INJECT  runTraversal     F-memory/R2 (memory-service)
-//   W-INJECT  getPresentState  F-memory/R2 (memory-service)
-//   W-INJECT  onBoot           F-memory/R2 (memory-service)
-//   W-INJECT  getGraph         F-memory/R2 (memory-service)
-//   W-INJECT  getUserGraph     F-memory/R2 (memory-service)
-//   W-INJECT  getArms          F-memory/R2 (memory-service)
-//   W-INJECT  getUserArms      F-memory/R2 (memory-service)
-//   W-INJECT  seedGlobalNode   F-memory/R2 (memory-admin-service)
-//   W-INJECT  removeGlobalNode F-memory/R2 (memory-admin-service)
+//   W-ATOM   GlobalSeedNode    F-memory/R0 (memory-seed-data)
 // wires-out:
-//   W-ATOM  traverse          →  F-chat/R4 (lm-io)
-//   W-ATOM  getPresentState   →  F-chat/R4 (lm-io)
-//   W-ATOM  onBoot            →  F-event-system/R2 (startup)
-//   W-ATOM  getGlobalGraph    →  F-codec/R2 (codec-orchestrate)
-//   W-ATOM  getUserGraph      →  F-codec/R2 (codec-orchestrate)
-//   W-ATOM  getGlobalArms     →  F-codec/R2 (codec-orchestrate)
-//   W-ATOM  getUserArms       →  F-codec/R2 (codec-orchestrate)
-//   W-ATOM  seedGlobalNode    →  F-codec/R2 (codec-admin-actions)
-//   W-ATOM  removeGlobalNode  →  F-codec/R2 (codec-admin-actions)
+//   W-HOOK  traverse           →  F-chat/R4 (lm-io)
+//   W-HOOK  getPresentState    →  F-chat/R4 (lm-io)
+//   W-HOOK  onBoot             →  F-event-system/R2 (startup)
+//   W-HOOK  reloadGlobalGraph  →  app/R4 (seed route)
+//   W-HOOK  getGlobalGraph     →  F-codec/R2 (codec-orchestrate)
+//   W-HOOK  getUserGraph       →  F-codec/R2 (codec-orchestrate)
+//   W-HOOK  getGlobalArms      →  F-codec/R2 (codec-orchestrate)
+//   W-HOOK  getUserArms        →  F-codec/R2 (codec-orchestrate)
+//   W-HOOK  seedGlobalNode     →  F-codec/R2 (codec-admin-actions)
+//   W-HOOK  removeGlobalNode   →  F-codec/R2 (codec-admin-actions)
+//   W-HOOK  seedAndTraverseGlobal → F-codec/R2 (codec-admin-actions)
 // deps:
 //   R0  ../config/memory-types
+//   R0  ../config/memory-seed-data
 //   R2  ../app/memory-service
 //   R2  ../app/memory-admin-service
 // validated:  pending
@@ -69,6 +64,7 @@ import {
   runTraversal,
   getPresentState as _getPresentState,
   onBoot as _onBoot,
+  reloadGlobalGraph as _reloadGlobalGraph,
   getGraph as _getGraph,
   getUserGraph as _getUserGraph,
   getArms as _getArms,
@@ -78,7 +74,10 @@ import {
 import {
   seedGlobalNode as _seedGlobalNode,
   removeGlobalNode as _removeGlobalNode,
+  seedAndTraverseGlobal as _seedAndTraverseGlobal,
 } from '../app/memory-admin-service'
+
+import type { GlobalSeedNode } from '../config/memory-seed-data'
 
 // ─── traverse ─────────────────────────────────────────────────────────────────
 // §20: real-time traversal for specific query context.
@@ -115,6 +114,13 @@ export function getPresentState(userId: string): PresentState {
 
 export async function onBoot(): Promise<void> {
   return _onBoot()
+}
+
+// ─── reloadGlobalGraph ────────────────────────────────────────────────────────
+// 6.1-global-seed: force-reload global graph from DB after batch seed.
+// Bypasses onBoot() idempotency guard. Admin-only.
+export async function reloadGlobalGraph(): Promise<void> {
+  return _reloadGlobalGraph()
 }
 
 // ─── Graph Read Surface (w3-17-contract-ext) ──────────────────────────────────
@@ -160,6 +166,14 @@ export async function removeGlobalNode(nodeId: string): Promise<Result<void>> {
   return _removeGlobalNode(nodeId)
 }
 
+// Batch seed + self-traversal. Phase 6.1.
+// Caller must call reloadGlobalGraph() after completion to reload global graph.
+export async function seedAndTraverseGlobal(
+  nodes: GlobalSeedNode[],
+): Promise<Result<{ seeded: number; traversed: number }>> {
+  return _seedAndTraverseGlobal(nodes)
+}
+
 // ─── Re-exports for consumers ─────────────────────────────────────────────────
 // A3: atoms only cross slice boundaries.
 export type {
@@ -174,3 +188,5 @@ export type {
   MLayer,
   EdgePrimitiveType,
 } from '../config/memory-types'
+
+export type { GlobalSeedNode, GlobalSeedEdge } from '../config/memory-seed-data'

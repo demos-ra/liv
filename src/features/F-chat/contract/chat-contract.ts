@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5
-// amended:    w2-item10, w2-item-12, phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit
+// amended:    w2-item10, w2-item-12, phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.9-6.10-module-dispatch
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -221,7 +221,50 @@ export async function POST_message(
     })
   }
 
-  // ── 5. Default: AI chat with decoded context ───────────────────────────────
+  // ── 5. Dispatch-module: framework module streaming (6.9/6.10) ──────────────
+  // Same streaming pattern as dispatch-planner. Module result is injected into
+  // system context so the LLM presents it naturally — user never sees framework internals.
+  // If moduleResult is absent (execution failed), falls through to default chat.
+  if (route.type === 'dispatch-module' && route.moduleResult) {
+    const moduleResult = route.moduleResult
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: unknown) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+
+        try {
+          const systemParts: string[] = [decodedContext.systemPromptBlock]
+          systemParts.push(`${moduleResult.module.label} result:\n${moduleResult.response}`)
+          systemParts.push('Present these findings to the user in a clear, natural way.')
+
+          for await (const chunk of sendMessage({
+            projectId,
+            content,
+            modelId,
+            userId: session.userId,
+            systemContext: systemParts.filter(Boolean).join('\n\n'),
+          })) {
+            send({ chunk })
+          }
+          send({ done: true })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'unknown_error'
+          send({ error: message })
+        } finally {
+          controller.close()
+        }
+      },
+    })
+    return new Response(stream, {
+      headers: {
+        'Content-Type':  'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection:      'keep-alive',
+      },
+    })
+  }
+
+  // ── 6. Default: AI chat with decoded context ───────────────────────────────
   const stream = new ReadableStream({
     async start(controller) {
       const send = (data: unknown) =>

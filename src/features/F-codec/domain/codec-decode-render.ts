@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-codec/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    6.8-artifact-decode
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -13,7 +13,7 @@
 //   W-ATOM  DecodedStructure  F-codec/R0
 //   W-ATOM  DECODE_MAX_TOKENS F-codec/R0
 //   W-ATOM  MLayer            F-memory/R0
-// wires-out:  none (consumed by R2 codec-encode and future #19 memory program)
+// wires-out:  none (consumed by R2 codec-orchestrate and memory program)
 // deps:
 //   R0  ../config/codec-decode-types
 // validated:  pending
@@ -58,7 +58,8 @@ export function renderForSystemPrompt(decoded: DecodeOutput): DecodedContext {
     decoded.relations.length +
     decoded.claims.length +
     decoded.sequences.length +
-    decoded.tensions.length
+    decoded.tensions.length +
+    decoded.artifacts.length
 
   if (totalStructures === 0) {
     return { systemPromptBlock: '', structureCount: 0 }
@@ -137,6 +138,27 @@ export function renderForSystemPrompt(decoded: DecodeOutput): DecodedContext {
     })
   }
 
+  // ── Artifacts ──────────────────────────────────────────────────────────────
+  // 6.8: rendered with schema fields as natural language.
+  // Sorted by energy descending (most active artifacts first).
+  const sortedArtifacts = [...decoded.artifacts].sort((a, b) => b.energy - a.energy)
+
+  for (const artifact of sortedArtifacts) {
+    const fieldLines = Object.entries(artifact.fields)
+      .filter(([_, v]) => v && v.length > 0)
+      .map(([k, v]) => `  ${k}: ${v}`)
+      .join('\n')
+
+    const artifactText = fieldLines
+      ? `[Artifact: ${artifact.title}] (${artifact.mode}, v${artifact.version})\n${fieldLines}`
+      : `[Artifact: ${artifact.title}] (${artifact.mode}, v${artifact.version})`
+
+    lines.push({
+      text: artifactText,
+      energy: artifact.energy,
+    })
+  }
+
   // ── Truncate to token budget ───────────────────────────────────────────────
   // Estimate ~4 chars per token. Remove lowest-energy lines until under budget.
   const maxChars = DECODE_MAX_TOKENS * 4
@@ -192,6 +214,9 @@ export function renderForUI(decoded: DecodeOutput): DecodedStructure[] {
   for (const t of decoded.tensions) {
     // Tensions: invert bridge weight — weakest bridge = most interesting
     all.push({ structure: t, sortKey: t.bridgeWeight > 0 ? 1 / t.bridgeWeight : 1 })
+  }
+  for (const a of decoded.artifacts) {
+    all.push({ structure: a, sortKey: a.energy })
   }
 
   all.sort((a, b) => b.sortKey - a.sortKey)

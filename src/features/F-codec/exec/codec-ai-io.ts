@@ -1,17 +1,17 @@
-// @liv-standard v1.4
+// @liv-standard v1.5
 // [F-codec/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
-// amended:    phase-b-item1
+// standard:   LIV-Standard v1.5.1
+// amended:    phase-b-item1, 6.9-6.10-module-exec
 // slice:      F-codec
 // layer:      R4
 // wires-in:
 //   W-ATOM  CODEC_CONFIG  ←  F-codec/R0
-//   W-FN    getApiKey()   ←  F-user-profile/R3 (deferred — env var until per-user key threading)
 // wires-out:
-//   W-FN  classifyAndLabel()  →  F-codec/R3 (codec-inject)
+//   W-HOOK  classifyAndLabel()    →  F-codec/R3 (codec-inject)
+//   W-HOOK  executeModuleCall()   →  F-codec/R3 (codec-inject)
 // deps:
 //   R0  ../config/codec-types
 // validated:  pending
@@ -79,6 +79,58 @@ export async function classifyAndLabel(
     }
 
     // Extract text from response
+    const textBlock = data.content?.find(b => b.type === 'text')
+    if (!textBlock?.text) {
+      return { ok: false, error: { code: 'LLM_EMPTY_RESPONSE', message: 'no text block in response' } }
+    }
+
+    return { ok: true, data: textBlock.text }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LLM_CALL_ERROR', message } }
+  }
+}
+
+// ─── Execute Module Call (Structured Response) ─────────────────────────────
+// Non-streaming call for module execution (discovery, planning, verification).
+// Larger token budget than classify. Same HTTP pattern, different config.
+
+export async function executeModuleCall(
+  prompt:  string,
+  modelId: string,
+): Promise<Result<string>> {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      return { ok: false, error: { code: 'NO_API_KEY', message: 'ANTHROPIC_API_KEY not set' } }
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':      'application/json',
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:       modelId,
+        max_tokens:  CODEC_CONFIG.MODULE_EXEC_MAX_TOKENS,
+        temperature: CODEC_CONFIG.MODULE_EXEC_TEMPERATURE,
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '(unreadable)')
+      return { ok: false, error: { code: 'LLM_CALL_FAILED', message: `HTTP ${response.status} ${body}` } }
+    }
+
+    const data = await response.json() as {
+      content?: Array<{ type: string; text?: string }>
+    }
+
     const textBlock = data.content?.find(b => b.type === 'text')
     if (!textBlock?.text) {
       return { ok: false, error: { code: 'LLM_EMPTY_RESPONSE', message: 'no text block in response' } }

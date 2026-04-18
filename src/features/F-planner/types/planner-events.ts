@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-planner/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5
+// amended:    6.12-payload-enrichment
 // slice:      F-planner
 // layer:      R0
 // wires-in:   none
@@ -38,9 +38,11 @@ export type PipelineStartedPayload = {
 }
 
 export type PipelineCompletedPayload = {
-  jobId:     string
-  projectId: string
-  userId:    string
+  jobId:         string
+  projectId:     string
+  userId:        string
+  featureIntent: string | null   // from IfContract.featureIntent — what the build was for
+  outcome:       string | null   // from PipelineReport.outcome — 'complete' | 'failed' | 'escalated' | null
 }
 
 export type PipelineFailedPayload = {

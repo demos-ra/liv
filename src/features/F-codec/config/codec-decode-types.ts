@@ -1,15 +1,16 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    6.8-artifact-decode
 // slice:      F-codec
 // layer:      R0
 // wires-in:
 //   W-ATOM  MLayer              F-memory/R0
 //   W-ATOM  EdgePrimitiveType   F-memory/R0
+//   W-ATOM  FrameworkMode       F-codec/R0
 // wires-out:
 //   W-ATOM  DecodeCategory      →  F-codec/*
 //   W-ATOM  RelationType        →  F-codec/*
@@ -19,6 +20,7 @@
 //   W-ATOM  DECODE_MAX_TOKENS   →  F-codec/*
 // deps:
 //   R0  ../../F-memory/config/memory-types
+//   R0  ./codec-module-types
 // validated:  pending
 
 // Decode classification types.
@@ -26,12 +28,14 @@
 // CA5: observable transition — classifications are deterministic structural reads.
 
 import type { MLayer, EdgePrimitiveType } from '@/features/F-memory/config/memory-types'
+import type { FrameworkMode } from './codec-module-types'
 
 // ─── Classification Category ─────────────────────────────────────────────────
-// The 5 structural forms a graph produces when read.
+// The 6 structural forms a graph produces when read.
+// 6.8: artifact added for framework module outputs.
 // CA8: derived from graph topology, not LLM inference.
 
-export type DecodeCategory = 'entity' | 'relation' | 'claim' | 'sequence' | 'tension'
+export type DecodeCategory = 'entity' | 'relation' | 'claim' | 'sequence' | 'tension' | 'artifact'
 
 // ─── Relation Type ───────────────────────────────────────────────────────────
 // Derived from edge primitive_type. Maps the 5 write primitives + null to
@@ -49,6 +53,7 @@ export type DecodedStructure =
   | { category: 'claim';    nodeId: string; name: string; confidence: number; supportCount: number; energy: number }
   | { category: 'sequence'; nodeIds: string[]; labels: string[]; direction: 'forward'; armId: string | null }
   | { category: 'tension';  nodeIdA: string; nodeIdB: string; nameA: string; nameB: string; bridgeWeight: number }
+  | { category: 'artifact'; nodeId: string; moduleId: string; version: number; title: string; mode: FrameworkMode; fields: Record<string, string>; energy: number }
 
 // ─── Decode Output ───────────────────────────────────────────────────────────
 // The full decode result — all classified structures from a graph, bucketed.
@@ -59,6 +64,7 @@ export type DecodeOutput = {
   claims:     Extract<DecodedStructure, { category: 'claim' }>[]
   sequences:  Extract<DecodedStructure, { category: 'sequence' }>[]
   tensions:   Extract<DecodedStructure, { category: 'tension' }>[]
+  artifacts:  Extract<DecodedStructure, { category: 'artifact' }>[]
 }
 
 // ─── Decoded Context ─────────────────────────────────────────────────────────

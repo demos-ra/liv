@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-codec/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    6.8-artifact-decode
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -17,10 +17,14 @@
 //   W-ATOM  ScopedGraphSet      F-memory/R0
 //   W-ATOM  DecodeOutput        F-codec/R0
 //   W-ATOM  RelationType        F-codec/R0
-// wires-out:  none (consumed by R2 codec-encode and future #17 routing)
+//   W-ATOM  ARTIFACT_PREFIX     F-codec/R0
+//   W-ATOM  ARTIFACT_DATA_PREFIX F-codec/R0
+//   W-ATOM  FrameworkMode       F-codec/R0
+// wires-out:  none (consumed by R2 codec-orchestrate and R1 codec-decode-render)
 // deps:
 //   R0  ../../F-memory/config/memory-types
 //   R0  ../config/codec-decode-types
+//   R0  ../config/codec-artifact-types
 // validated:  pending
 
 // Decode classifier — the read side of the codec.
@@ -43,6 +47,9 @@ import type {
   RelationType,
   DecodedStructure,
 } from '../config/codec-decode-types'
+
+import { ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX } from '../config/codec-artifact-types'
+import type { FrameworkMode } from '../config/codec-module-types'
 
 // ─── Primitive → Relation mapping ────────────────────────────────────────────
 // A6: declared at module scope, deterministic map.
@@ -192,6 +199,7 @@ export function classifyGraph(
   // ── Pass 1: Entities ───────────────────────────────────────────────────────
   // Node with cachedLayer ≤ 2 and degree ≥ 2.
   // Energy = sum of incoming edge weights.
+  // 6.8: skip artifact nodes and artifact-data companion nodes — they have their own pass.
 
   const entityIds = new Set<string>()
   const entities: Extract<DecodedStructure, { category: 'entity' }>[] = []
@@ -199,6 +207,8 @@ export function classifyGraph(
   for (const [nodeId, node] of merged.nodes) {
     if (node.cachedLayer > 2) continue
     if (nodeDegree(nodeId, merged, incoming) < 2) continue
+    if (node.content.startsWith(ARTIFACT_PREFIX)) continue
+    if (node.content.startsWith(ARTIFACT_DATA_PREFIX)) continue
 
     entityIds.add(nodeId)
 
@@ -469,11 +479,149 @@ export function classifyGraph(
     }
   }
 
+  // ── Pass 6: Artifacts ──────────────────────────────────────────────────────
+  // 6.8: Nodes whose content starts with ARTIFACT_PREFIX.
+  // Parse moduleId, version, title from content string.
+  // Find companion data node (ARTIFACT_DATA_PREFIX) via outgoing edges for field values.
+
+  const artifacts: Extract<DecodedStructure, { category: 'artifact' }>[] = []
+
+  for (const [nodeId, node] of merged.nodes) {
+    if (!node.content.startsWith(ARTIFACT_PREFIX)) continue
+
+    // Parse: "[artifact:{moduleId}:{version}] {title}"
+    const parsed = parseArtifactContent(node.content)
+    if (!parsed) continue
+
+    // Find companion data node via outgoing edges
+    const fields = findArtifactFields(nodeId, parsed.moduleId, parsed.version, merged)
+
+    // Determine mode: follow categorical edge to mode node, or fallback to static map
+    const mode = resolveArtifactMode(nodeId, parsed.moduleId, merged)
+
+    // Energy: sum of incoming edge weights
+    const inEdges = incoming.get(nodeId) ?? []
+    let energy = 0
+    for (const e of inEdges) energy += e.weight
+
+    artifacts.push({
+      category: 'artifact',
+      nodeId,
+      moduleId: parsed.moduleId,
+      version:  parsed.version,
+      title:    parsed.title,
+      mode,
+      fields,
+      energy,
+    })
+  }
+
   return {
     entities,
     relations,
     claims,
     sequences,
     tensions,
+    artifacts,
   }
+}
+
+// ─── Artifact Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Parse artifact content string: "[artifact:{moduleId}:{version}] {title}"
+ */
+function parseArtifactContent(
+  content: string,
+): { moduleId: string; version: number; title: string } | null {
+  // Format: "[artifact:{moduleId}:{version}] {title}"
+  const closeBracket = content.indexOf(']')
+  if (closeBracket === -1) return null
+
+  const inner = content.slice(ARTIFACT_PREFIX.length, closeBracket)
+  const colonIdx = inner.lastIndexOf(':')
+  if (colonIdx === -1) return null
+
+  const moduleId = inner.slice(0, colonIdx)
+  const version = parseInt(inner.slice(colonIdx + 1), 10)
+  if (isNaN(version) || !moduleId) return null
+
+  const title = content.slice(closeBracket + 1).trimStart()
+  return { moduleId, version, title }
+}
+
+/**
+ * Find companion data node fields via outgoing edges from artifact node.
+ * Companion content format: "[artifact-data:{moduleId}:{version}] {JSON}"
+ */
+function findArtifactFields(
+  artifactNodeId: string,
+  moduleId: string,
+  version: number,
+  merged: MemGraph,
+): Record<string, string> {
+  const prefix = `${ARTIFACT_DATA_PREFIX}${moduleId}:${version}]`
+  const outEdges = merged.edges.get(artifactNodeId) ?? []
+
+  for (const edge of outEdges) {
+    const targetNode = merged.nodes.get(edge.toId)
+    if (!targetNode) continue
+    if (!targetNode.content.startsWith(prefix)) continue
+
+    // Extract JSON after "] "
+    const jsonStr = targetNode.content.slice(prefix.length).trimStart()
+    try {
+      const parsed = JSON.parse(jsonStr)
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, string>
+      }
+    } catch {
+      // Malformed JSON — return empty
+    }
+  }
+
+  // Also check all nodes (companion may not be directly linked yet — physics may
+  // have created the edge via bind, not via direct outgoing edge from artifact)
+  for (const [_, node] of merged.nodes) {
+    if (!node.content.startsWith(prefix)) continue
+    const jsonStr = node.content.slice(prefix.length).trimStart()
+    try {
+      const parsed = JSON.parse(jsonStr)
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed as Record<string, string>
+      }
+    } catch {
+      // Malformed JSON — skip
+    }
+  }
+
+  return {}
+}
+
+// Static moduleId → mode fallback map for known modules.
+const MODULE_MODE_MAP: Record<string, FrameworkMode> = {
+  'build':     'generative',
+  'discovery': 'epistemic',
+  'planning':  'structural',
+}
+
+/**
+ * Resolve artifact mode from graph topology or static fallback.
+ * R1: pure — no registry access. Reads mode from graph edges to global mode nodes.
+ */
+function resolveArtifactMode(
+  artifactNodeId: string,
+  moduleId: string,
+  merged: MemGraph,
+): FrameworkMode {
+  // Check outgoing edges for connection to a global mode node.
+  // Mode node IDs follow convention: 'global-seed-mode-{modeName}' (from 6.1 seed).
+  const outEdges = merged.edges.get(artifactNodeId) ?? []
+  for (const edge of outEdges) {
+    const idMatch = edge.toId.match(/global-seed-mode-(epistemic|structural|generative|verificative)$/)
+    if (idMatch) return idMatch[1] as FrameworkMode
+  }
+
+  // Fallback: static map
+  return MODULE_MODE_MAP[moduleId] ?? 'generative'
 }

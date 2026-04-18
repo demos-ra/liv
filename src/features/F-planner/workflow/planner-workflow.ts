@@ -1,9 +1,9 @@
-// @liv-standard v1.4
-// [F-planner/workflow/planner-workflow.ts]
+// @liv-standard v1.5
+// [F-planner/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.4
+// standard:   LIV-Standard v1.5
 // amended:    phase-4.2
 // slice:      F-planner
 // layer:      R2
@@ -715,7 +715,7 @@ export async function runPipeline(
   await emitEvent({
     type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
     slice:   'F-planner',
-    payload: { jobId: jobId as string, projectId: job.projectId, userId: job.userId } satisfies PipelineCompletedPayload,
+    payload: { jobId: jobId as string, projectId: job.projectId, userId: job.userId, featureIntent: job.ifContract?.featureIntent ?? null, outcome: job.pipelineReport?.outcome ?? null } satisfies PipelineCompletedPayload,
   })
 }
 
@@ -1626,7 +1626,7 @@ export async function advanceStage(
     await emitEvent({
       type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
       slice:   'F-planner',
-      payload: { jobId: input.jobId, projectId: job.projectId, userId: job.userId } satisfies PipelineCompletedPayload,
+      payload: { jobId: input.jobId, projectId: job.projectId, userId: job.userId, featureIntent: job.ifContract?.featureIntent ?? null, outcome: job.pipelineReport?.outcome ?? null } satisfies PipelineCompletedPayload,
     })
     return doneResult
   }

@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5
 // [F-memory/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -164,6 +164,46 @@ export async function onBoot(): Promise<void> {
 
   console.log(JSON.stringify({
     level: 'info', event: 'memory.boot.complete',
+    nodeCount: _globalGraph.nodes.size,
+    edgeCount: Array.from(_globalGraph.edges.values()).reduce((s, e) => s + e.length, 0),
+    armCount: _globalArms.length,
+    timestamp: new Date().toISOString(),
+  }))
+}
+
+// ─── Reload Global Graph ──────────────────────────────────────────────────────
+// 6.1-global-seed: force-reload global graph from DB after batch seed.
+// Unlike onBoot(), this bypasses the _booted idempotency guard.
+// Admin-only. Called via R3 contract after seedAndTraverseGlobal completes.
+
+export async function reloadGlobalGraph(): Promise<void> {
+  const loadResult = await loadGraph(null)
+  if (!loadResult.ok) {
+    console.error(JSON.stringify({
+      level: 'error', event: 'memory.reload.load-failed',
+      error: loadResult.error.message,
+      timestamp: new Date().toISOString(),
+    }))
+    return
+  }
+
+  _globalGraph = loadResult.data.graph
+  _globalArms = loadResult.data.arms
+  _globalDominanceMap = loadResult.data.dominanceMap
+  _globalThresholds = computeThresholds(_globalGraph)
+
+  // Invalidate all per-user present state caches so they recompute
+  // with the updated global graph on next access
+  for (const [userId, state] of _userStates) {
+    state.presentState = computePresentState(
+      { user: state.graph, global: _globalGraph },
+      state.arms,
+      _globalArms,
+    )
+  }
+
+  console.log(JSON.stringify({
+    level: 'info', event: 'memory.reload.complete',
     nodeCount: _globalGraph.nodes.size,
     edgeCount: Array.from(_globalGraph.edges.values()).reduce((s, e) => s + e.length, 0),
     armCount: _globalArms.length,

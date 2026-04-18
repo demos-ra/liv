@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5
-// amended:    phase3-planet, phase4-page-transitions, phase5-remediation, phase5-focus, phase-5.4
+// amended:    phase3-planet, phase4-page-transitions, phase5-remediation, phase5-focus, phase-5.4, 6.11-framework-programs
 // slice:      core/app
 // layer:      R4
 // wires-in:
@@ -19,7 +19,7 @@
 //   W-ATOM  ChatUI             @/features/F-chat/contract/chat-ui
 //   W-ATOM  AuthPage           @/features/F-identity/contract/auth-pages
 //   W-ATOM  AccountPage        @/features/F-user-profile/contract/account-page  (dynamic import — deferred)
-//   W-ATOM  PlannerRegister    @/features/F-planner/contract/planner-register
+//   W-ATOM  FrameworkProgramRegister  @/features/F-codec/contract/framework-program-register
 //   W-ATOM  AdminRegister      @/features/F-admin/contract/admin-register
 //   W-ATOM  MemoryRegister     @/features/F-codec/contract/memory-register
 // wires-out:  none  (mount point)
@@ -34,7 +34,7 @@
 //   R3  @/features/F-identity/contract/auth-pages       (A5)
 //   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R3  @/features/F-user-profile/contract/account-page (A5)
-//   R3  @/features/F-planner/contract/planner-register  (A5 — composition root)
+//   R3  @/features/F-codec/contract/framework-program-register  (A5 — composition root)
 //   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
 //   R3  @/features/F-codec/contract/memory-register     (A5 — composition root)
 //   R5  react
@@ -94,7 +94,7 @@ import { Brand, StatusDot } from '@/features/F-design-system/contract/primitives
 import { usePlanet } from '@/features/F-design-system/exec/use-planet'
 import { usePageTransition } from '@/features/F-design-system/exec/use-page-transition'
 import { ATTACK } from '@/features/F-design-system/config/board'
-import { PlannerRegister }  from '@/features/F-planner/contract/planner-register'
+import { FrameworkProgramRegister } from '@/features/F-codec/contract/framework-program-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
 import { MemoryRegister }   from '@/features/F-codec/contract/memory-register'
 
@@ -189,7 +189,7 @@ export default function Home() {
   return (
     <>
       {/* ── Program registrations (composition root — A1) ── */}
-      <PlannerRegister />
+      <FrameworkProgramRegister />
       {state.isAdmin && <AdminRegister />}
       <MemoryRegister />
 

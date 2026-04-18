@@ -46,6 +46,7 @@ const CATEGORIES: Array<{ value: DecodeCategory | null; label: string }> = [
   { value: 'claim',    label: 'Claims' },
   { value: 'sequence', label: 'Sequences' },
   { value: 'tension',  label: 'Tensions' },
+  { value: 'artifact', label: 'Artifacts' },
 ]
 
 const LAYER_LABELS: Record<number, string> = {
@@ -151,6 +152,22 @@ function buildTree(decoded: DecodeOutput, filter: DecodeCategory | null): Memory
         category:   'tension',
         layer:      null,
         energy:     t.bridgeWeight,
+        confidence: null,
+        children:   [],
+        expandable: false,
+      })
+    }
+  }
+
+  // Artifacts — framework output nodes
+  if (!filter || filter === 'artifact') {
+    for (const a of decoded.artifacts) {
+      nodes.push({
+        id:         `artifact-${a.nodeId}`,
+        label:      a.title,
+        category:   'artifact',
+        layer:      null,
+        energy:     a.energy,
         confidence: null,
         children:   [],
         expandable: false,
@@ -570,6 +587,7 @@ function categoryColor(cat: DecodeCategory): React.CSSProperties {
     case 'claim':    return { background: 'var(--color-success-subtle, #1a3a2a)', color: 'var(--color-success, #6ec96e)' }
     case 'sequence': return { background: 'var(--color-warning-subtle, #3a3a1a)', color: 'var(--color-warning, #ddb56e)' }
     case 'tension':  return { background: 'var(--color-danger-subtle, #3a1a1a)',  color: 'var(--color-danger, #fe6e6e)' }
+    case 'artifact': return { background: 'var(--color-artifact-subtle, #2a1a3a)', color: 'var(--color-artifact, #b06efe)' }
   }
 }
 
