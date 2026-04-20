@@ -12,6 +12,7 @@
 //   W-ATOM  AppError  →  all slices
 //   W-ATOM  NodeId    →  all slices (Artifact Standard v1.0, Living Memory, future consumers)
 //   W-ATOM  Semver    →  all slices (Artifact Standard v1.0, framework version pins)
+//   W-ATOM  CognitivePrimitive → Artifact Standard v1.1, Cognitive Standard consumers, Living Memory
 // deps:       none
 // validated:  pending
 
@@ -21,6 +22,7 @@ import { randomUUID } from 'crypto'
 // Phase 3: added canonical Result<T> and AppError per LIV-Standard T1.6 (AK-RES).
 // Slices may define scoped result aliases (e.g. ProjectResult<T>) that use this shape.
 // Artifact Standard v1.0 landing: added NodeId + Semver (AK-REF branded) for cross-standard use.
+// Artifact Standard v1.1 landing: added CognitivePrimitive for cross-standard cognitive-primitive references.
 
 // ── Canonical Result<T> and AppError ─────────────────────────────────────────
 // AK-RES: the only permitted shape for fallible operation return values. (T1.6 R4)
@@ -68,6 +70,24 @@ export type NodeId = string & { readonly _brand: 'NodeId' }
 // consumers needing version pins as typed atoms rather than free strings.
 
 export type Semver = string & { readonly _brand: 'Semver' }
+
+// ─── Cognitive primitive (cross-standard) ─────────────────────────────────────
+// CognitivePrimitive: the six codec primitives per Cognitive Standard.
+// Cross-standard primitive consumed by:
+//   - Cognitive Standard (codec — source of semantics)
+//   - Artifact Standard v1.1 (ArtifactWriteA4.primitive per §8)
+//   - Living Memory v1.1 (MemEdge.primitiveType via EdgePrimitiveType)
+// A1: declared once, at R5 core. Slices import — never redeclare.
+// Backlog: F-codec retrofit to import this canonical type (currently declared
+//          locally in src/features/F-codec/config/codec-types.ts).
+
+export type CognitivePrimitive =
+  | 'anchor'
+  | 'relate'
+  | 'restructure'
+  | 'reinforce'
+  | 'suppress'
+  | 'reference'
 
 // ─── R Layers ────────────────────────────────────────────────────────────────
 

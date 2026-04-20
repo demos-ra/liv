@@ -1,6 +1,6 @@
 # core/standards
 
-Artifact Standard v1.0 landed. Canonical document at `artifact-standard.md`. R5 constants at `core/constants/artifact-standard.ts`. Types at `core/types/artifact-standard.types.ts`. See Manual §II when registered at L3.
+Artifact Standard v1.1 landed. Canonical document at `artifact-standard.md`. R5 constants at `core/constants/artifact-standard.ts`. Types at `core/types/artifact-standard.types.ts`. See Manual §II when registered at L3. v1.1 amendment: writes.a4 carries `primitive` (not `category`); ArA4 edge completeness clarified (two always-present + two conditional); CognitivePrimitive canonical at `core/types/primitives.ts` (§6.5).
 
 Plan Standard v1.0 landed. Canonical document at `plan-standard.md`. R5 constants at `core/constants/plan-standard.ts`. Types at `core/types/plan-standard.types.ts`. Carried by Artifact Standard v1.0 (payload domain: `plan`).
 

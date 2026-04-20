@@ -9,16 +9,15 @@
 // wires-in: none
 // wires-out:
 //   W-ATOM ARTIFACT_AXIOMS     → any slice emitting artifacts
-//   W-ATOM DECODE_CATEGORIES   → F-codec, F-memory, any artifact emitter
 //   W-ATOM ARTIFACT_EDGE_KINDS → any artifact emitter
 //   W-ATOM CHAIN_WRITE_POINTS  → any slice iterating chain positions
 // deps: none
 // validated: pending
 
 // ═══════════════════════════════════════════════════════════════
-// ARTIFACT STANDARD v1.0 — R5 CONSTANTS
+// ARTIFACT STANDARD v1.1 — R5 CONSTANTS
 // ═══════════════════════════════════════════════════════════════
-// Canonical constants for Artifact Standard v1.0.
+// Canonical constants for Artifact Standard v1.1.
 // Governs framework-emitted artifact nodes per ArA1–ArA5.
 // See: src/core/standards/artifact-standard.md
 // A1: declared once, at R5 core. Slices import — never redeclare.
@@ -34,20 +33,6 @@ export const ARTIFACT_AXIOMS = {
   EDGE_COMPLETENESS:           'ArA4',
   EVOLUTION_VIA_PRIMITIVES:    'ArA5',
 } as const
-
-// ─── Decode categories ────────────────────────────────────────────────────────
-// Category set for A4 (codec classification) and A7 (artifact anchor).
-// Per Artifact Standard §8 writes.a4.category union + 'artifact' added for a7.
-// Source of truth for codec classification output shape.
-
-export const DECODE_CATEGORIES = [
-  'entity',
-  'relation',
-  'claim',
-  'sequence',
-  'tension',
-  'artifact',
-] as const
 
 // ─── Artifact edge kinds ──────────────────────────────────────────────────────
 // Edge kinds per Artifact Standard §4.2 Composition and §4.3 Lineage.

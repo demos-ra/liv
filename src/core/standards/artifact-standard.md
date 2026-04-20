@@ -1,4 +1,23 @@
-# Artifact Standard v1.0
+# Artifact Standard v1.1
+
+## Changelog
+
+### v1.1 (amendment from v1.0)
+
+Re-derivation corrected two gaps in v1.0:
+
+1. §8 writes.a4: replaced `category` field (decode-time projection, not write-time output) with `primitive` field per Manual I.1 and verified F-codec `EncodeResult` shape.
+2. ArA4: removed "null-pointing if first of its identity" clause. Version edge is now explicitly conditional per §4.3 derivation.
+3. §8 writes.a7: dropped `category: 'artifact'` (trivially true, zero information).
+4. Removed `DECODE_CATEGORIES` constant and `DecodeCategory` type — zero post-amendment consumers.
+5. Added §6.4 three-layer fidelity framing.
+6. Added §6.5 declaring CognitivePrimitive canonical location at core/R5 `primitives.ts`.
+
+No axiom additions. No primitive changes. Four axes unchanged. ArA1, ArA2, ArA3, ArA5 unchanged.
+
+### v1.0
+
+Initial landing (AS-BB-1).
 
 ## 1. Identity
 
@@ -6,7 +25,7 @@
 |---|---|
 | Name | Artifact Standard |
 | Level | L3 (Framework) |
-| Version | v1.0 |
+| Version | v1.1 |
 | Mode | generative (structured → produced) + structural (known → structured) — both, since the standard governs both emission (generative) and shape (structural) of framework outputs |
 | Primitive | artifact node |
 | Consumed by | every framework program that emits structured output (Plan, Multi-Instance, Builder, Research, Verify, etc.) |
@@ -54,7 +73,7 @@ Per B.5 literal, an artifact emission produces four product classes:
 |---|---|
 | Classification lineage | Every artifact anchor references its same-turn A4 classification node via a lineage edge. |
 | Dependency lineage | When the artifact was produced from inputs (e.g., Builder consumes Plan), dependency edges point to input artifacts. |
-| Version lineage | When an artifact supersedes a prior version of the same conceptual identity, a version edge points to the prior. |
+| Version lineage | Version edge present iff the artifact supersedes a prior of the same conceptual identity. Points from current to prior. |
 | Split lineage | When an artifact was produced by upstream split (PA10 in Plan Standard), provenance edge points to pre-split parent. |
 
 ### 4.4 Evolution
@@ -91,6 +110,20 @@ Domain standards declare content payload schemas. Artifact Standard declares car
 
 This means Plan Standard's draft-2 section 8 schema (PlanArtifact { planId, shape, intent, capacity, limit }) is the payload content deposited into the companion data node of an artifact emission. Same for Multi-Instance's RunReport.
 
+### 6.4 Three-layer fidelity preservation
+
+Signals across the transfer chain are preserved with orthogonal ownership:
+
+- **Codec layer (raw).** Cognitive Standard owns A4/A5/A6 signals — primitive, label, bind quality, mode. Stored on graph nodes and edges at write time. Retrievable via graph traversal.
+- **Artifact layer (structured).** Artifact Standard owns A7 signals — schema, anchor, companion, content. Stored as ArtifactEmission + graph structure.
+- **Present State (condensed).** Living Memory owns the scored, time-indexed projection across layers. Retrievable via `getPresentState`.
+
+Each layer preserves its signals in full fidelity within its scope. Each is retrievable independently. No layer duplicates another's custody.
+
+### 6.5 With core primitives
+
+Artifact Standard's `ArtifactWriteA4.primitive` references `CognitivePrimitive`, a cross-standard primitive declared canonically at `src/core/types/primitives.ts`. Cognitive Standard is the semantic owner; the canonical type declaration lives at R5 to prevent A1 violations by cross-slice re-declaration. Three consumers: Cognitive Standard, Artifact Standard, Living Memory (edge stamps).
+
 ## 7. Axioms (ArA1–ArA5)
 
 | ID | Rule |
@@ -98,7 +131,7 @@ This means Plan Standard's draft-2 section 8 schema (PlanArtifact { planId, shap
 | ArA1 | Two-point emission. Every framework-engaged turn writes at both A4 (codec classification) and A7 (framework artifact). Asymmetric writes (A7 without A4, or A4 absent when a framework applied) are fidelity leaks. Non-framework turns write at A4 only. |
 | ArA2 | Companion preservation. Every artifact anchor node has exactly one companion data node holding its typed JSON payload verbatim. One-to-one binding, preserved across persistence. |
 | ArA3 | Traversed semantic closure. An artifact's semantic content is traversed into the graph via codec primitives at emission. No content remains only in JSON — structured concepts surface as content nodes with edges. The graph's structured portion expands per I.5. |
-| ArA4 | Edge completeness. Every artifact anchor node has, minimum, a categorical edge (to mode node) + version edge (to prior, or null-pointing if first of its identity) + classification-lineage edge (to same-turn A4 node). Dependency edges exist when inputs are present. Absent any required edge = invalid emission. |
+| ArA4 | Edge completeness. Every artifact anchor node emits two always-present edges plus conditional edges of two kinds (version, dependency). Always present: (1) **categorical edge** to the mode node the artifact belongs to; (2) **classification-lineage edge** to the same-turn A4 classification node. Conditional: (3) **version edge** to the prior artifact of the same conceptual identity, present iff a prior exists; (4) **dependency edges** to input artifacts, present iff inputs exist. Absent any required edge, or presence of a conditional edge without its condition, = invalid emission. |
 | ArA5 | Evolution via primitives. Artifacts evolve only via Cognitive Standard primitives (Anchor / Relate / Reinforce / Restructure / Suppress / Reference). Direct mutation of artifact content is forbidden. Version-lineage records evolution history. |
 
 ## 8. Output artifact schema — ArtifactEmission
@@ -114,14 +147,13 @@ ArtifactEmission {
   writes: {
     a4: {                                             // always present — ArA1
       classificationNodeId: NodeId
-      category:             'entity' | 'relation' | 'claim' | 'sequence' | 'tension'
+      primitive:            'anchor' | 'relate' | 'restructure' | 'reinforce' | 'suppress' | 'reference'
       confidence:           number
     }
     a7?: {                                            // present iff framework applied — ArA1
       artifactAnchorNodeId:  NodeId
       companionDataNodeId:   NodeId                   // ArA2
       contentNodeIds:        NodeId[]                 // ArA3 traversed content
-      category:              'artifact'
     }
   }
 
