@@ -1,24 +1,26 @@
-// @liv-standard v1.3
-// [core/types/primitives.ts]
+// @liv-standard v1.5.1
+// [core/R5]
 // Built with LIV · livai.dev
-
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
-// slice:      core
-// layer:      R5
-// wires-in:   none
+// standard: LIV-Standard v1.5.1
+// amended: none
+// slice: core
+// layer: R5
+// wires-in: none
 // wires-out:
 //   W-ATOM  Result    →  all slices
 //   W-ATOM  AppError  →  all slices
+//   W-ATOM  NodeId    →  all slices (Artifact Standard v1.0, Living Memory, future consumers)
+//   W-ATOM  Semver    →  all slices (Artifact Standard v1.0, framework version pins)
 // deps:       none
-// validated:  2026-03-12
+// validated:  pending
+
+import { randomUUID } from 'crypto'
 
 // R5: shared infrastructure. Zero domain logic. Zero slice-specific types.
 // Phase 3: added canonical Result<T> and AppError per LIV-Standard T1.6 (AK-RES).
 // Slices may define scoped result aliases (e.g. ProjectResult<T>) that use this shape.
-
-import { randomUUID } from 'crypto'
+// Artifact Standard v1.0 landing: added NodeId + Semver (AK-REF branded) for cross-standard use.
 
 // ── Canonical Result<T> and AppError ─────────────────────────────────────────
 // AK-RES: the only permitted shape for fallible operation return values. (T1.6 R4)
@@ -43,12 +45,29 @@ export function generateId(prefix?: string): string {
 }
 
 // ─── Identity types ───────────────────────────────────────────────────────────
+// Backlog: retrofit existing plain aliases (UserId..CommitId) to AK-REF branded.
+//          Tracked separately; not in scope for Artifact Standard v1.0 landing.
 
 export type UserId      = string
 export type ProjectId   = string
 export type SliceId     = string
 export type EventId     = string
 export type CommitId    = string
+
+// ─── Graph identity (AK-REF branded) ──────────────────────────────────────────
+// NodeId: canonical node identifier across Living Memory, Artifact Standard, and
+//         any future graph-aware standard. AK-REF pattern per T1.6 atom taxonomy.
+// A1: declared once, at R5 core. Slices import — never redeclare.
+// Backlog: F-memory retrofit to import this branded type (currently uses plain string).
+
+export type NodeId = string & { readonly _brand: 'NodeId' }
+
+// ─── Versioning (AK-REF branded) ──────────────────────────────────────────────
+// Semver: semantic version string. AK-REF pattern per T1.6.
+// Used by Artifact Standard v1.0 (framework.version, domainVersion) and future
+// consumers needing version pins as typed atoms rather than free strings.
+
+export type Semver = string & { readonly _brand: 'Semver' }
 
 // ─── R Layers ────────────────────────────────────────────────────────────────
 
