@@ -23,6 +23,8 @@ import { randomUUID } from 'crypto'
 // Slices may define scoped result aliases (e.g. ProjectResult<T>) that use this shape.
 // Artifact Standard v1.0 landing: added NodeId + Semver (AK-REF branded) for cross-standard use.
 // Artifact Standard v1.1 landing: added CognitivePrimitive for cross-standard cognitive-primitive references.
+// Artifact Standard v2.1 landing: CreateArtifactInput / ArtifactEmission regenerated against metaframework v2.4;
+//                                  no new primitives needed (UserId reused via existing plain alias).
 
 // ── Canonical Result<T> and AppError ─────────────────────────────────────────
 // AK-RES: the only permitted shape for fallible operation return values. (T1.6 R4)

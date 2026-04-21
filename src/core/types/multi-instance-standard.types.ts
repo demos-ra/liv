@@ -9,11 +9,13 @@
 // wires-in:
 //   W-ATOM Semver            ← core/R5 primitives
 //   W-ATOM NodeId            ← core/R5 primitives
+//   W-ATOM UserId            ← core/R5 primitives
 //   W-ATOM Result            ← core/R5 primitives
 //   W-ATOM DeclId            ← core/R5 plan-standard.types
 //   W-ATOM OpaqueDescriptor  ← core/R5 plan-standard.types
 // wires-out:
-//   W-ATOM RunReportContent        → Phase 4+ engine, RunReport consumers
+//   W-ATOM MIInput                 → all M-I callers (Builder, Verify, etc.)
+//   W-ATOM RunReportContent        → Phase 4b engine, RunReport consumers
 //   W-ATOM InstanceResult          → RunReport consumers
 //   W-ATOM InstanceError           → RunReport consumers
 //   W-ATOM SetViolation            → RunReport consumers
@@ -35,32 +37,38 @@
 // validated: pending
 
 // ═══════════════════════════════════════════════════════════════
-// MULTI-INSTANCE STANDARD v1.0 — TYPE DECLARATIONS
+// MULTI-INSTANCE STANDARD v2.2 — TYPE DECLARATIONS
 // ═══════════════════════════════════════════════════════════════
-// Matches Multi-Instance Standard v1.0 §8 payload schema.
+// Matches Multi-Instance Standard v2.2 §8 input schema (MIInput) and §9
+// output schema (RunReportContent).
+// Regenerated against metaframework v2.4 (MA-G5c custody, MA-G5d provenance).
+// v2.2: AI adapter is an LIV-Standard R4 runtime dependency, injected when
+// F-M-I slice is wired (Phase 4b); not a spec concern. MIInput carries
+// signal W-ATOMs only.
+//
 // Immutability: RunReport is emitted once on run completion and is not mutated
 // post-emission (Artifact Standard ArA5 + M-I §10 carrier validity).
 // Shape members are `readonly` throughout.
 //
-// TypedAtom (§8 instanceResults[].output, aggregation.finalOutput):
+// TypedAtom (§9 instanceResults[].output, aggregation.finalOutput):
 // Carries actual typed output content, not a schema identifier. Declared as
 // `Record<string, unknown> & _brand` for deferred tightening — distinct role
 // from Plan's descriptor-based TypedAtomSchema. A3 audit: one forced
 // Record<string, unknown> here; justified because output payload must be
 // property-readable for observability/validation/aggregation.
 //
-// Co-occurrence constraints (§8):
+// Co-occurrence constraints (§9):
 // - InstanceResult.output? present iff status === 'complete'
 // - Aggregation.finalOutput? absent iff outcome === 'failed'
 // - Aggregation.partialSuccess? present iff topology + policy allow
-// All represented as spec-literal optional per brief; runtime enforces.
+// All represented as spec-literal optional; runtime enforces.
 //
 // Framework registry (DescriptorResolver, FrameworkRegistry):
 // Shape declared here per IA6 (binding-driven execution). Descriptors in
 // content.binding resolve through this registry at engine runtime. Registry
 // implementation lands at F-la-config; shape is canonical at this layer.
 
-import type { Semver, NodeId, Result } from './primitives'
+import type { Semver, NodeId, UserId, Result } from './primitives'
 import type { DeclId, OpaqueDescriptor } from './plan-standard.types'
 import type {
   MI_ERROR_CLASSES,
@@ -70,7 +78,7 @@ import type {
 } from '../constants/multi-instance-standard'
 
 // ─── Milliseconds alias ───────────────────────────────────────────────────────
-// Per §8 epochMs, durationMs.
+// Per §9 epochMs, durationMs.
 
 export type EpochMs = number
 
@@ -83,52 +91,47 @@ export type SetTerminalState      = typeof MI_SET_TERMINAL_STATES[number]
 
 // FailsafeKey: default set from constants, widened to admit domain-declared
 // failsafes per Plan Standard §4.4 (content.limit.perSet.domainFailsafes).
-// The `string & {}` idiom preserves IDE completion for the default labels
-// while accepting domain-declared strings at assignment sites.
 export type FailsafeKey = typeof MI_FAILSAFE_KEYS[number] | (string & {})
 
-// Per §8 errors[].resolution enum.
+// Per §9 errors[].resolution enum.
 export type ErrorResolution = 'retried' | 'escalated' | 'terminal'
 
 // Aggregation topology: mirrors Plan Standard's PlanTopology set. Declared
-// locally as a literal union per §8 literal rather than imported, because
-// the aggregation topology identifier is the RunReport's own categorization —
-// it happens to match Plan's topology labels but is semantically separate
-// (one is authoring intent, the other is execution categorization).
+// locally as a literal union per §9 literal rather than imported, because
+// the aggregation topology identifier is the RunReport's own categorization.
 export type AggregationTopology = 'sequence' | 'tier' | 'loop' | 'singleton'
 
 // ─── TypedAtom (deferred tightening) ──────────────────────────────────────────
-// Payload carrier for instance outputs per §8. Distinct from Plan's
-// TypedAtomSchema (which is a descriptor identifier via Mechanism C).
+// Payload carrier for instance outputs per §9. Distinct from Plan's
+// TypedAtomSchema (which is a descriptor identifier via OpaqueDescriptor).
 // TypedAtom carries actual output data and must remain property-readable for
 // observability, validation against output contract, and aggregation.
-// TODO: Tighten once domain atom-type conventions stabilize. Deferred per
-//       brief A3 note; one forced Record<string, unknown> usage.
+// TODO: Tighten once domain atom-type conventions stabilize.
 
 export type TypedAtom = Record<string, unknown> & {
   readonly _brand: 'TypedAtom'
 }
 
-// ─── InstanceResult sub-shapes (§8) ───────────────────────────────────────────
+// ─── InstanceResult sub-shapes (§9) ───────────────────────────────────────────
 
 export interface InstanceError {
   readonly class:      ErrorClass
-  readonly reason:     string                       // e.g., 'capacity-breach' per IA7
+  readonly reason:     string                       // e.g., 'capacity-breach' per IA7a
   readonly message:    string
   readonly resolution: ErrorResolution
 }
 
 export interface InstanceResult {
-  readonly declId:     DeclId                       // pins to content.shape.declarations[].id
-  readonly status:     InstanceTerminalState
-  readonly output?:    TypedAtom                    // typed per declaration's outputContract; absent on failure
-  readonly tokenCount: number
-  readonly durationMs: number
-  readonly retries:    number
-  readonly errors:     readonly InstanceError[]
+  readonly declId:     DeclId                       // provenance: PlanArtifactContent.shape.declarations[].id (verbatim)
+  readonly status:     InstanceTerminalState        // provenance: runtime-derived per IA1
+  readonly output?:    TypedAtom                    // provenance: AI adapter output, validated per IA3
+  readonly tokenCount: number                       // provenance: AI adapter response metadata
+  readonly durationMs: number                       // provenance: runtime-measured
+  readonly retries:    number                       // provenance: runtime-accumulated per IA7b
+  readonly errors:     readonly InstanceError[]     // provenance: runtime-captured per failure
 }
 
-// ─── SetViolation (§8) ────────────────────────────────────────────────────────
+// ─── SetViolation (§9) ────────────────────────────────────────────────────────
 
 export interface SetViolation {
   readonly failsafe:   FailsafeKey
@@ -136,7 +139,7 @@ export interface SetViolation {
   readonly reason:     string
 }
 
-// ─── Aggregation (§8) ─────────────────────────────────────────────────────────
+// ─── Aggregation (§9) ─────────────────────────────────────────────────────────
 
 export interface PartialSuccessResult {
   readonly required:  number
@@ -145,45 +148,56 @@ export interface PartialSuccessResult {
 }
 
 export interface Aggregation {
-  readonly topology:        AggregationTopology
-  readonly finalOutput?:    TypedAtom               // per §4.1 aggregation rule; absent if outcome = failed
+  readonly topology:        AggregationTopology     // provenance: PlanArtifactContent.shape.topology (verbatim)
+  readonly finalOutput?:    TypedAtom               // per §4.1.a aggregation rule; absent if outcome = failed
   readonly partialSuccess?: PartialSuccessResult
 }
 
-// ─── RunReportContent (§8 top-level) ──────────────────────────────────────────
+// ─── MIInput (§8 input W-ATOM) ────────────────────────────────────────────────
+// W-ATOM consumed by M-I's dispatch entry point at R3.
+// v2.2: AI adapter is a runtime R4 dependency (LIV-Standard wiring), not a
+// spec input field. The engine slice injects the adapter at invocation time;
+// MIInput carries signal atoms only.
+
+export interface MIInput {
+  readonly planAnchorNodeId: NodeId                 // provenance: caller (content framework)
+  readonly userId:           UserId                 // provenance: F-identity session
+}
+
+// ─── RunReportContent (§9 top-level output W-ATOM) ────────────────────────────
 // This is the `payload.content` shape carried by an Artifact Standard emission
-// (per Artifact Standard §8). planAnchorNodeId carries the graph-layer join;
-// planId carries the content-layer pin; Artifact Standard's dependency edge
-// carries the carrier-layer traversal. Three-way redundancy is by design
-// per §8.1 — each identifier serves a distinct join concern.
+// (per Artifact Standard v2.1 §8). planAnchorNodeId carries the graph-layer
+// join; planId carries the content-layer pin; Artifact Standard's dependency
+// edge carries the carrier-layer traversal. Three-way redundancy is by design
+// per §9.1 — each identifier serves a distinct join concern.
 
 export interface RunReportContent {
-  readonly planId:               string             // PlanArtifact identity, immutable pin
-  readonly planAnchorNodeId:     NodeId             // pins to the PlanArtifact anchor node in graph
-  readonly planVersion:          Semver
-  readonly bindingDomainId:      string             // replay/audit without full PlanArtifact read
-  readonly bindingDomainVersion: Semver
+  readonly planId:               string             // provenance: PlanArtifactContent.planId (verbatim)
+  readonly planAnchorNodeId:     NodeId             // provenance: input.planAnchorNodeId (verbatim)
+  readonly planVersion:          Semver             // provenance: PlanArtifactContent.planVersion (verbatim)
+  readonly bindingDomainId:      string             // provenance: binding.domainId (verbatim)
+  readonly bindingDomainVersion: Semver             // provenance: binding.domainVersion (verbatim)
 
-  readonly runId:       string
-  readonly startedAt:   EpochMs
-  readonly completedAt: EpochMs
+  readonly runId:       string                      // provenance: runtime-generated (UUID v4)
+  readonly startedAt:   EpochMs                     // provenance: runtime-captured at dispatch start
+  readonly completedAt: EpochMs                     // provenance: runtime-captured at set terminal
 
-  readonly outcome: SetTerminalState
+  readonly outcome: SetTerminalState                // provenance: runtime-derived per §4.1.a
 
-  readonly instanceResults: readonly InstanceResult[]
+  readonly instanceResults: readonly InstanceResult[]  // provenance: runtime-accumulated
 
-  readonly setViolations: readonly SetViolation[]
+  readonly setViolations: readonly SetViolation[]   // provenance: runtime-captured on IA4a/IA4b
 
-  readonly aggregation: Aggregation
+  readonly aggregation: Aggregation                 // provenance: runtime-computed per topology
 }
 
 // ═══════════════════════════════════════════════════════════════
 // FRAMEWORK REGISTRY (IA6 — binding-driven execution)
 // ═══════════════════════════════════════════════════════════════
-// Shape declaration for the descriptor resolution mechanism introduced by
-// Plan Standard §6.1 Mechanism C. Descriptors in content.binding carry only
-// { domainId, schemaRef } identity; concrete behavior resolves through this
-// registry at engine runtime.
+// Shape declaration for the descriptor resolution mechanism used by the
+// engine. Descriptors in content.binding carry only { domainId, schemaRef }
+// identity; concrete behavior resolves through this registry at engine
+// runtime.
 //
 // Each resolver kind is typed with its resolver signature — never a shared
 // Map<string, Function>, which would violate A3 (typed boundaries).
@@ -194,8 +208,7 @@ export interface RunReportContent {
 
 // ─── DescriptorResolver<I, O> ─────────────────────────────────────────────────
 // One resolver instance = one (domainId, schemaRef) descriptor kind.
-// The resolve function takes typed input I and returns Result<O> (default
-// AppError per primitives.ts convention).
+// The resolve function takes typed input I and returns Result<O>.
 
 export interface DescriptorResolver<I, O> {
   readonly domainId:  string
@@ -206,8 +219,7 @@ export interface DescriptorResolver<I, O> {
 // ─── FrameworkRegistry ────────────────────────────────────────────────────────
 // Register-by-kind / resolve-by-descriptor interface. Consumer (F-la-config
 // binding builder) registers resolvers; engine resolves descriptors at
-// invocation time. Both operations return Result envelopes per primitives.ts
-// AK-RES convention.
+// invocation time. Both operations return Result envelopes.
 
 export interface FrameworkRegistry {
   readonly register: <I, O>(resolver: DescriptorResolver<I, O>) => Result<void>

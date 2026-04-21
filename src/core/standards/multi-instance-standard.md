@@ -1,16 +1,27 @@
-# Multi-Instance Standard v1.0
+# Multi-Instance Standard v2.2
+
+**Level:** L3 · **Kind:** Framework · **Mode:** generative · **Carrier:** Artifact Standard v2.1 · **Authority:** L1 Protocol via L2 metaframework v2.4 · **Confirmed by:** L0
 
 ## Change log
 
 | From | Change | Source |
 |---|---|---|
-| draft-2 | §2 scope tightened: Multi-Instance consumes a PlanArtifact by graph identity; it reads content from the companion data node per Artifact Standard | Artifact Standard integration |
-| draft-2 | §6 domain parameterization reworded: `renderContract` / `validateContract` accessed via `content.binding` inside the companion data node | Carrier/content separation |
-| draft-2 | §8 RunReport: pins to PlanArtifact by graph identity (`planAnchorNodeId`) in addition to `planId`; RunReport itself is emitted as an artifact per Artifact Standard | RunReport-as-artifact |
-| draft-2 | §9 consumption contract reworded: engine receives anchor node id, reads content, returns RunReport-as-artifact | Consistent with §8 |
-| draft-2 | §10 validity extended: RunReport emission validity includes Artifact Standard ArA1–ArA5 | Carrier compliance |
-| draft-2 | IA1–IA7 unchanged in substance; wording tightened to reference "declaration in the PlanArtifact content" | Readability |
-| draft-3 | §7 IA6 "Engine deletability" removed; renumbered IA7→IA6, IA8→IA7. Deletability concern reframed as consumer-responsibility note — does not satisfy LIV-Standard A7 on behalf of consumers. | Semantic drift correction |
+| v2.1 | `aiAdapter: AIAdapter` removed from `MIInput`. It was a function-handle misclassification — a runtime dependency, not a signal W-ATOM. Corrected per the metaframework's W-ATOM definition ("typed shape a signal takes when crossing a framework's boundary"). | L0 gap ruling — author execution error; signal vs dependency boundary. |
+| v2.1 | §8 adds non-normative note: AI adapter is an LIV-Standard R4 runtime dependency, injected when F-M-I slice is wired; not a spec concern. | Boundary clarity. |
+| v2.1 | §5 Execution.Temporal resolved to `adapterVersion: string` (runtime-captured). Removed `AIAdapter` type reference. | E5 atomic descriptor. |
+| v2.1 | §7.2 caller-program row: adapter handle removed from M-I's consumption list; replaced with signal W-ATOMs. | Boundary clarity. |
+| v2.1 | Author dry-run updated: dummy `MIInput` = `{planAnchorNodeId, userId}`. | §12. |
+| v2.0 | Regenerated against metaframework v2.4 (adds MA-G5c custody, MA-G5d provenance as required axioms). | Metaframework v2.4 binary-audit requirement. |
+| v2.0 | §9 output schema — per-field provenance added for every `RunReportContent` and `InstanceResult` field. Three source types: verbatim-from-PlanArtifact, runtime-generated, adjacent-framework-sourced. | MA-G5d (output-field provenance). |
+| v2.0 | Carrier updated to `Artifact Standard v2.1`. | AS version bump. |
+| v1.0 | Regenerated under metaframework v2.1. Full re-derivation through 12-step generation procedure. | Same generator gaps as AS v1.1 likely latent in v1.0. |
+| v1.0 | Carrier declared `Artifact Standard v2.0` (was "Carried by Artifact Standard v1.0" prose-only). | metaframework §4.2 Carrier sub-axis; H5 carrier exclusivity. |
+| v1.0 | IA4 decomposed → IA4a (override) + IA4b (terminal). | E6 axiom atomicity. |
+| v1.0 | IA7 decomposed → IA7a (emit CLASS_2) + IA7b (budget consumption) + IA7c (no engine-side mutation). | E6 axiom atomicity. |
+| v1.0 | Input W-ATOM declared: reference to PlanArtifact by `planAnchorNodeId`. | E4 schema closure. |
+| v1.0 | Custody table explicit. | E2 orthogonality. |
+| v1.0 | Universal-variable cells resolved to atomic descriptors. | E5 variable resolution. |
+| v1.0 | Consumer responsibility note (engine deletability, LIV-Standard A7) kept as non-normative — does not introduce a new axiom. | LIV-Standard A7 is already declared elsewhere; re-declaring here violates E2 orthogonality. |
 
 ---
 
@@ -19,24 +30,34 @@
 | Field | Value |
 |---|---|
 | Name | Multi-Instance Standard |
-| Level | L3 (Framework) |
-| Version | v1.0 |
+| Level | L3 |
+| Kind | Framework |
 | Mode | generative (structured → produced) |
 | Primitive | instance |
-| Consumes | PlanArtifact (per Plan Standard v1.0) located by graph identity |
-| Produces | RunReport (carried on an Artifact Standard emission) |
-| Consumed by | programs that dispatch 1..N instances (Builder, Plan, Research, etc.) |
-| Carried by | Artifact Standard v1.0 (both the consumed input and the produced output are artifact emissions) |
+| Version | v2.2 |
+| Ownership (template) | Human (L0) |
+| Ownership (applied) | System under L0 |
+| State (template) | declared |
+| State (applied) | runtime |
+| Carrier | Artifact Standard v2.1 |
+| Consumes | PlanArtifact (per Plan Standard) located by `planAnchorNodeId` |
+| Produces | RunReport (payload inside AS emission) |
+| Consumed by | programs that dispatch 1..N instances (Builder, Research, Verify, etc.) |
+| Adjacent frameworks | Plan Standard, Artifact Standard, Living Memory |
 
 ## 2. Scope
 
-Governs the execution of PlanArtifacts: the dispatch of 1..N instances, per-instance invocation, retry and error handling, aggregation of results, and termination under declared bounds. Multi-Instance executes declarations; it does not author them. It does not embed domain logic — domain behavior is supplied by the `DomainBinding` captured inside the PlanArtifact content (PA9).
-
-**Content vs. carrier.** Multi-Instance Standard declares the **execution semantics** and the **RunReport payload schema**. It does **not** govern emission mechanics of the RunReport artifact — those are Artifact Standard's concern (ArA1–ArA5). Multi-Instance reads inputs as artifacts, produces outputs as artifacts, and relies on Artifact Standard to govern the carrier.
+| In scope | Out of scope |
+|---|---|
+| Dispatch semantics for 1..N instances | Plan authoring (Plan Standard) |
+| Per-instance invocation + retry + validation | Emission mechanics (Artifact Standard) |
+| Aggregation rule per topology | Domain behavior (owned by per-domain framework, resolved via DomainBinding) |
+| Termination under declared bounds | Graph physics (Living Memory) |
+| RunReport payload schema | Code structure (LIV-Standard) |
 
 ## 3. Primitive
 
-**Instance** — one execution of one declared role against its typed input contract, producing a typed output or a terminal failure. Cardinality N derives from the declaration count in the consumed PlanArtifact content. N=1 is the singleton case and is not structurally distinct.
+**Instance** — one execution of one declaration from a consumed PlanArtifact against its typed input contract, producing a typed output or a terminal failure. Cardinality N derives from declaration count in the PlanArtifact. N=1 is not structurally distinct.
 
 ## 4. Axes (3)
 
@@ -48,160 +69,266 @@ Governs the execution of PlanArtifacts: the dispatch of 1..N instances, per-inst
 
 ### 4.1 Shape
 
-| Sub-axis | Content |
+| Sub-axis | Leaf |
 |---|---|
-| Execution topology | Interpreted from `content.shape.topology`: `sequence → serial`, `tier → parallel-within-tier`, `loop → iterative`, `singleton → single call` |
-| Data propagation | Carries outputs along edges declared in `content.shape.declarations[].dataFlow` |
-| Aggregation rule | Per-topology, stated below |
+| Topology | `sequence \| tier \| loop \| singleton` (from `PlanArtifactContent.shape.topology`) |
+| Dispatch pattern per topology | sequence → serial; tier → parallel-within-tier; loop → iterative; singleton → single call |
+| Data propagation | edges from `PlanArtifactContent.shape.declarations[].dataFlow` |
+| Aggregation rule | per topology (table 4.1.a) |
 
-**Aggregation rules (definitive):**
+**4.1.a Aggregation table**
 
-| Topology | `finalOutput` | Outcome on partial failure |
+| Topology | `finalOutput` | Set outcome on partial failure |
 |---|---|---|
-| `sequence` | Output of the last *completed* instance. If any non-final instance fails, `outcome = failed`; later declarations are not dispatched. | `failed` |
-| `tier` | Collection of all tier outputs, keyed by declId. Partial tier failures are governed by the partial-success policy (§4.3). | `complete` \| `partial` \| `failed` |
-| `loop` | Output of the terminal iteration (loop exit). | `complete` \| `failed` \| `escalated` |
-| `singleton` | Output of the sole instance. | `complete` \| `failed` \| `escalated` |
+| `sequence` | output of last completed instance; if any non-final fails, set = `failed`; later declarations not dispatched | `failed` |
+| `tier` | dict keyed by `declId`, value = each tier output | `complete \| partial \| failed` per partial-success policy |
+| `loop` | output of terminal iteration (loop exit) | `complete \| failed \| escalated` |
+| `singleton` | output of sole instance | `complete \| failed \| escalated` |
 
 ### 4.2 Execution
 
-| Sub-axis | Content |
+| Sub-axis | Leaf |
 |---|---|
-| Invocation | Materialize input contract via `content.binding.renderContract` → invoke AI adapter → capture raw output |
-| Handoff validation | Output conforms to declared output contract via `content.binding.validateContract`. Invalid output = instance not complete; retry applies. |
-| Result capture | Typed output + metadata (tokens, duration, retry count, terminal state) |
+| Invocation | materialize input via `content.binding.renderContract(decl, upstreamOutputs)` → invoke AI adapter → capture raw output |
+| Handoff validation | `content.binding.validateContract(decl, output)` → boolean. Invalid → retry (IA3) |
+| Result capture | `InstanceResult { declId, status, output?, tokenCount, durationMs, retries, errors[] }` |
 
 ### 4.3 Bounds
 
-| Sub-axis | Content |
+| Sub-axis | Leaf |
 |---|---|
-| Error classification | Two classes: CLASS_2 (output-quality / validation / capacity-breach per IA7) → retry-with-context; CLASS_3 (infrastructure) → infra-retry then escalate |
-| Retry policy | Per-declaration budget from `content.limit.perDecl`. Exhaustion is terminal for that instance. |
-| Failsafe policy | Per-set limits from `content.limit.perSet` checked pre-transition. Breach is terminal for the set (overrides retry budgets per IA4). |
+| Error class | `CLASS_2` (output-quality / validation / capacity-breach) → retry-with-context; `CLASS_3` (infrastructure) → infra-retry then escalate |
+| Retry policy | per-declaration budget from `content.limit.perDecl[declId].retryBudget`. Exhaustion terminal for instance. |
+| Failsafe policy | per-set limits from `content.limit.perSet` checked pre-transition. Breach terminal for set (IA4a). |
 | Instance terminal states | `complete \| failed \| escalated` |
-| Set terminal states | `complete \| failed \| escalated \| partial`. The `partial` state is reachable only if `content.limit.perSet.partialSuccess.allowed === true` **and** `achieved >= minSuccesses` (when `minSuccesses` is declared). Absent explicit policy allowance, `partial` is never emitted — any instance failure propagates to `failed` per topology rules. |
+| Set terminal states | `complete \| failed \| escalated \| partial`. `partial` reachable iff `content.limit.perSet.partialSuccess.allowed === true` AND `achieved >= minSuccesses`. |
 
-## 5. Universal variables
+## 5. Universal variables per axis
 
 | Axis | Temporal | Categorical | Relational | Positional |
 |---|---|---|---|---|
-| Shape | engine version | topology type | edge realization | dispatched / settled |
-| Execution | adapter version | role class | input/output atoms | pending / running / complete / failed |
-| Bounds | policy version | error class | scope (inst vs set) | within / breached |
+| Shape | `PlanArtifactContent.planVersion` | topology enum `sequence \| tier \| loop \| singleton` | `declaration → declaration` (via dataFlow edges) | `dispatched \| settled` |
+| Execution | `adapterVersion: string` (runtime-captured per invocation) | role class from `content.intent[declId].role` (enum resolved at binding) | `input atom → output atom` (typed by `inputContract`/`outputContract`) | `pending \| running \| complete \| failed \| escalated` |
+| Bounds | `RunReport.runId` (per run) | error class enum `CLASS_2 \| CLASS_3` | scope enum `instance \| set` | `within \| breached` |
 
-## 6. Domain parameterization
+## 6. Axioms (IA1–IA10)
 
-Multi-Instance reads domain behavior from `content.binding` (IA6), where `content` is the PlanArtifact payload retrieved from the companion data node of the consumed artifact. Two function slots consumed:
+One mechanical condition per axiom. E6 atomicity enforced.
 
-| Slot | Consumed from | Purpose |
-|---|---|---|
-| `renderContract` | `content.binding.renderContract` | Materializes a declaration's input into the concrete prompt / message payload for the AI adapter |
-| `validateContract` | `content.binding.validateContract` | Checks an instance's output against its declared output contract |
-
-No other domain-specific logic lives inside the engine. The engine does not know what a "file", "finding", "bundle", or "probe" is — it only knows declarations, invocations, handoffs, and bounds.
-
-## 7. Axioms (IA1–IA7)
-
-| ID | Rule |
+| ID | Condition |
 |---|---|
-| IA1 | **Conservation of progress.** Every dispatched instance reaches a terminal state (`complete \| failed \| escalated`). No silent drops. |
-| IA2 | **Declaration fidelity.** An instance executes exactly the declaration it was given in the PlanArtifact content. The engine does not rewrite intent, decompose, or substitute content. Any decomposition lives upstream in Plan (PA7). |
-| IA3 | **Handoff integrity.** An instance's output is validated against its declared output contract (via `content.binding.validateContract`) before propagation. Invalid output does not propagate; it triggers retry within budget or terminal failure. |
-| IA4 | **Bounds supremacy.** Set-level failsafes override per-declaration retry budgets. Failsafe breach is terminal for the set and cannot be retried. |
-| IA5 | **Topology isolation.** Per-instance failure does not cascade to siblings unless the topology's aggregation rule + partial-success policy declare it. Cascade is Shape-level, not Execution-level. |
-| IA6 | **Binding-driven execution.** All domain-specific materialization and validation resolves through `content.binding`. The engine contains no domain-specific code paths. |
-| IA7 | **Runtime capacity breach.** When an instance's materialized invocation exceeds runtime capacity (context overflow, token budget breach, domain-declared limit), the engine emits CLASS_2 failure with reason `capacity-breach`. The breach consumes one retry budget unit per `content.limit.perDecl`. Budget exhaustion is terminal for the instance; the producing program may re-plan on receipt of RunReport. The engine does not split, resize, or rewrite the declaration. |
+| **IA1** | Every dispatched instance reaches one of `complete \| failed \| escalated`. |
+| **IA2** | The engine executes the declaration as given; no engine-side mutation of `decl.role`, `decl.inputContract`, `decl.outputContract`, `decl.dataFlow`, or `decl.dependsOn`. |
+| **IA3** | Every instance's output is validated via `content.binding.validateContract` before propagation to downstream declarations; validation failure blocks propagation. |
+| **IA4a** | Set-level failsafe breach overrides per-declaration retry budgets: on breach, no further per-declaration retry attempts are dispatched. |
+| **IA4b** | Set-level failsafe breach transitions the set to `failed` or `escalated` (non-retryable). |
+| **IA5** | Per-instance failure does not cascade to sibling instances unless the active topology's aggregation rule (per 4.1.a) or a declared partial-success policy calls for it. |
+| **IA6** | All domain-specific materialization and validation resolves through `content.binding`; the engine contains no domain-specific code paths. |
+| **IA7a** | When materialized invocation exceeds runtime capacity (context overflow, token budget, domain-declared limit), the engine emits a CLASS_2 failure with `reason = 'capacity-breach'`. |
+| **IA7b** | A capacity-breach failure consumes exactly one retry budget unit from `content.limit.perDecl[declId].retryBudget`. |
+| **IA7c** | On capacity breach, the engine does not split, resize, or rewrite the declaration; re-planning is the producer program's responsibility upon RunReport receipt. |
 
-**Consumer responsibility note.** Removing the Multi-Instance engine does not leave consumers in a working state by default: each consumer must implement a singleton fallback path that invokes the AI adapter + render + validate directly, bypassing the engine. Plan Standard emission of a singleton PlanArtifact remains valid input to the engine when present; removing the engine means consumers bypass Plan entirely for N=1. This is a consumer-side responsibility, not a framework guarantee — it does not satisfy LIV-Standard A7 (deletability) on behalf of Multi-Instance consumers.
+## 7. Cross-framework handoff
 
-## 8. Payload schema — RunReport content
+### 7.1 Custody table
 
-RunReport is itself emitted as an artifact per Artifact Standard. This schema is the **payload** carried inside the Artifact Standard emission's `payload.content` field. It is not a free-standing artifact shape.
+| Atom | Owner | Consumers |
+|---|---|---|
+| `PlanArtifactContent` | Plan Standard | M-I (input, by reference) |
+| `DeclId`, `TypedAtomRef`, `RoleClassId`, `TierClass`, `DomainBinding` | Plan Standard | M-I (consumes from `content`) |
+| `NodeId` | Living Memory | M-I (references `planAnchorNodeId`) |
+| `Semver`, `UserId` | LIV-Standard / F-identity | M-I |
+| `ArtifactEmission`, `ArtifactPayload` | Artifact Standard | M-I (output rides inside) |
+| `RunReportContent` | M-I (this framework) | AS (as payload), Verify (as input), dashboard |
+| `InstanceResult` | M-I | M-I only (internal composition) |
+| Error-class enum `CLASS_2 \| CLASS_3` | M-I | M-I |
+| Terminal-state enums | M-I | M-I; read by consumers from `RunReportContent.outcome` |
+
+### 7.2 Handoff contracts
+
+| Adjacent | M-I consumes | M-I emits |
+|---|---|---|
+| Plan Standard | `planAnchorNodeId` reference; reads `PlanArtifactContent` via F-memory R3 | — |
+| Artifact Standard | — | `RunReportContent` as `ArtifactPayload.content`; `framework.id = 'multi-instance'`; dependency edge to PlanArtifact anchor (via AS ArA4d on `dependsOn = [planAnchorNodeId]`) |
+| Living Memory | F-memory R3 read of companion data node at `planAnchorNodeId` | — |
+| caller program (Builder, Verify, etc.) | `planAnchorNodeId`, `userId` (signal W-ATOMs) | `RunReport` (AS emission receipt) |
+
+### 7.3 Carrier relation (H5)
+
+M-I `carrier = Artifact Standard v2.1`. M-I declares **content only** (`RunReportContent`). M-I does **not** emit carrier mechanics (no anchor, no companion, no edges from M-I's own code). Those are Artifact Standard's concern. M-I invokes `createArtifact({ framework: {id:'multi-instance', version}, payload: {domain:'multi-instance', content: RunReportContent}, dependsOn: [planAnchorNodeId], ... })` and receives an `ArtifactEmission`.
+
+## 8. Input schema — consumption contract
+
+M-I accepts exactly one input W-ATOM:
+
+```
+MIInput {
+  planAnchorNodeId: NodeId      // provenance: caller (content framework — Builder, etc.)
+  userId:           UserId      // provenance: F-identity session
+}
+```
+
+**Resolution path:**
+1. Read `PlanArtifactContent` via F-memory R3 one-hop from `planAnchorNodeId` → companion data node.
+2. Trust Plan Standard validity (PA1–PA12 enforced at Plan emission, not re-validated here).
+3. Resolve declarations through `content.binding`.
+4. Execute per IA1–IA10.
+5. Emit RunReport via AS with `dependsOn = [planAnchorNodeId]`.
+
+**Note on runtime dependencies (non-normative, LIV-Standard concern).** The F-M-I implementation slice requires an AI adapter to invoke declarations. The adapter handle is not a field of `MIInput` — it is a runtime dependency injected at LIV-Standard's R4 layer when the slice is wired. Naming which adapter provider/model to use (if M-I needs that metadata) would be a signal (e.g., `AIAdapterDescriptor = { providerId, modelId }`) — not a function handle. Current M-I does not require this metadata at the boundary; the adapter selection is fully a consuming-program + LIV-Standard concern.
+
+## 9. Output schema — RunReportContent (payload inside AS emission)
 
 ```
 RunReportContent {
-  planId:               string                      // PlanArtifact identity, immutable pin
-  planAnchorNodeId:     NodeId                      // pins to the PlanArtifact anchor node in graph
-  planVersion:          semver
-  bindingDomainId:      string                      // replay/audit without full PlanArtifact read
-  bindingDomainVersion: semver
+  planId:               string          // provenance: consumed PlanArtifactContent.planId (verbatim)
+  planAnchorNodeId:     NodeId          // provenance: input.planAnchorNodeId (verbatim)
+  planVersion:          Semver          // provenance: consumed PlanArtifactContent.planVersion (verbatim)
+  bindingDomainId:      string          // provenance: consumed PlanArtifactContent.binding.domainId (verbatim)
+  bindingDomainVersion: Semver          // provenance: consumed PlanArtifactContent.binding.domainVersion (verbatim)
 
-  runId:                string
-  startedAt:            epochMs
-  completedAt:          epochMs
+  runId:                string          // provenance: runtime-generated (UUID v4 per run)
+  startedAt:            epochMs         // provenance: runtime-captured at dispatch start
+  completedAt:          epochMs         // provenance: runtime-captured at set terminal state
 
   outcome:              'complete' | 'failed' | 'escalated' | 'partial'
+                                        // provenance: runtime-derived per §4.1.a aggregation rule
 
-  instanceResults: Array<{
-    declId:       DeclId                            // pins to content.shape.declarations[].id
-    status:       'complete' | 'failed' | 'escalated'
-    output?:      TypedAtom                         // typed per declaration's outputContract; absent on failure
-    tokenCount:   number
-    durationMs:   number
-    retries:      number
-    errors:       Array<{
-                    class:      2 | 3
-                    reason:     string              // e.g., 'capacity-breach' per IA7
-                    message:    string
-                    resolution: 'retried' | 'escalated' | 'terminal'
-                  }>
-  }>
+  instanceResults: InstanceResult[]     // provenance: runtime-accumulated; one entry per dispatched declaration
 
-  setViolations: Array<{
+  setViolations: Array<{                // provenance: runtime-captured on failsafe breach (IA4a/IA4b)
     failsafe:   'maxTime' | 'maxTransitions' | 'maxReentries' | string
     breachedAt: epochMs
     reason:     string
   }>
 
-  aggregation: {
-    topology:     'sequence' | 'tier' | 'loop' | 'singleton'
-    finalOutput?: TypedAtom                         // per §4.1 aggregation rule; absent if outcome = failed
-    partialSuccess?: {
+  aggregation: {                        // provenance: runtime-computed per topology aggregation rule
+    topology:        'sequence' | 'tier' | 'loop' | 'singleton'
+                                        // provenance: consumed PlanArtifactContent.shape.topology (verbatim)
+    finalOutput?:    TypedAtom          // provenance: last terminal instance output per §4.1.a
+    partialSuccess?: {                  // provenance: runtime-computed vs content.limit.perSet.partialSuccess
       required:  number
       achieved:  number
       satisfied: boolean
     }
   }
 }
+
+InstanceResult {
+  declId:     DeclId                    // provenance: consumed PlanArtifactContent.shape.declarations[].id (verbatim)
+  status:     'complete' | 'failed' | 'escalated'
+                                        // provenance: runtime-derived per instance terminal state (IA1)
+  output?:    TypedAtom                 // provenance: AI adapter invocation output, validated by binding.validateContract (IA3)
+  tokenCount: number                    // provenance: AI adapter response metadata
+  durationMs: number                    // provenance: runtime-measured around adapter invocation
+  retries:    number                    // provenance: runtime-accumulated per retry budget consumption
+  errors: Array<{                       // provenance: runtime-captured per failure
+    class:      2 | 3                   // provenance: runtime-classified per IA7a (capacity) or infrastructure
+    reason:     string
+    message:    string
+    resolution: 'retried' | 'escalated' | 'terminal'
+  }>
+}
 ```
 
-### 8.1 Carrier envelope
+**Provenance summary — three distinct source types across output fields:**
+1. **Verbatim from consumed PlanArtifactContent** — `planId`, `planAnchorNodeId`, `planVersion`, `bindingDomainId`, `bindingDomainVersion`, `aggregation.topology`, `InstanceResult.declId`
+2. **Runtime-generated / runtime-captured** — `runId`, `startedAt`, `completedAt`, `outcome`, `aggregation.finalOutput`, `aggregation.partialSuccess`, `setViolations`, `InstanceResult.{status, durationMs, retries}`, `errors`
+3. **Adjacent-framework-sourced** — `InstanceResult.output` (via AI adapter + `binding.validateContract`), `InstanceResult.tokenCount` (AI adapter metadata)
 
-When the engine completes a run, it emits a RunReport per Artifact Standard §8 `ArtifactEmission`:
+No output field has ambiguous or undeclared source.
 
-- An **artifact anchor node** with category `artifact`, domain `multi-instance`, schema `RunReportContent`.
-- A **companion data node** holding `RunReportContent` verbatim as JSON.
-- **Content nodes** traversed from `RunReportContent.instanceResults` per ArA3 (allows per-instance output to surface as queryable graph content).
-- **Edges** per ArA4 — including a **dependency edge** to the consumed PlanArtifact anchor node (`planAnchorNodeId`), binding RunReport to its source plan in the graph.
+### 9.1 Carrier envelope (AS provides, M-I consumes)
 
-This means the `(PlanArtifact, RunReport)` pair is natively joinable via graph traversal — no separate index or pointer table required. Observability and audit queries follow the dependency edge.
-
-## 9. Consumption contract
-
-Multi-Instance accepts exactly one input shape: a reference to a valid PlanArtifact emission by graph identity (anchor node id or `planId`). The engine:
-
-1. Reads the companion data node to obtain `PlanArtifactContent`.
-2. Verifies the content passed Plan Standard validity at its own emission (trusts producer; does not re-validate PA axioms).
-3. Resolves all declarations against `content.binding`.
-4. Executes per IA1–IA7.
-5. Emits a RunReport as an artifact per Artifact Standard, with `planAnchorNodeId` set to the input's anchor node.
-
-The engine **never mutates** the consumed PlanArtifact content or its graph representation.
+Per Artifact Standard v2.1:
+- Anchor node: `framework.id = 'multi-instance'`, `framework.version = '2.0'`
+- Companion data node: holds `RunReportContent` verbatim
+- Content nodes: ≥ 1, traversed from `RunReportContent.instanceResults`
+- Edges: classification-lineage + categorical always; dependency to `planAnchorNodeId` (from `dependsOn`); version edge iff prior run exists for same `(framework.id, userId)`
 
 ## 10. Validity
 
 A Multi-Instance run is valid iff:
-- IA1–IA7 all hold across the run (execution semantics).
-- The produced RunReport emission satisfies Artifact Standard ArA1–ArA5 (carrier compliance).
+1. IA1–IA10 all hold across execution (execution validity).
+2. The emitted RunReport satisfies Artifact Standard ArA1–ArA7 (carrier validity, AS's responsibility).
 
-Execution validity is a runtime property; carrier validity is an emission property. Both are required. A run that violates any IA axiom is a defect in engine implementation. A RunReport that violates any ArA axiom is a defect in emission implementation. These are separable failure modes.
+Execution validity and carrier validity are separable failure modes.
 
-## 11. Open questions (Layer 0)
+## 11. Validity tests (metaframework v2.4 gates)
 
-1. **Axiom prefix IA.** Flagged as a future Rule 7 extension. Not blocking.
-2. **Handoff Brief v10 / Playbook v2.** Names align. No conflict observed. (Prior draft-2 referenced IA6 deletability matching LIV-Standard A7; that claim withdrawn — see draft-3 change log.)
-3. **Backlog J.6.** Superseded by this draft. Confirm J.6 rewrites to reference Multi-Instance Standard v1.0 as execution layer and Artifact Standard v1.0 as carrier.
-4. **Phase 4 active-status conflict.** Brief vs. Spec V.Active disagree. Not blocking draft; blocking dispatch.
-5. **Registration.** Multi-Instance registers as L3 at runtime. Deploy State III.4 standards table to add row.
-6. **R5 constants file.** Implementation artifact: `src/core/constants/multi-instance-standard.ts` for IA1–IA7 IDs, topology enum, error-class enum, terminal-state enum. Matches LIV-Standard's existing `src/core/constants/` convention (R5 per T1.1 layer model).
-7. **IN-DIAGNOSE modeling.** Flagged to LIV-Standard DomainBinding design; foreign to this draft's scope.
+| Gate | Pass/fail | Evidence |
+|---|---|---|
+| E1 Completeness | pass | Leaves in §4.1–§4.3 captureable in one function signature each. |
+| E2 Orthogonality | pass | §7.1 declares every cross-standard atom; no re-ownership; LIV-Standard A7 not re-declared. |
+| E3 Terminology | pass | "instance", "declaration", "set" consistent across axis + implementation levels. |
+| E4 Schema closure | pass | §8 input declared (with provenance); §9 output declared (with per-field provenance — MA-G5d); §7.1 custody declared (MA-G5c); §7.2 handoff declared; §1 carrier declared. |
+| E5 Variable resolution | pass | §5 cells are W-ATOM references or enum values. |
+| E6 Axiom atomicity | pass | §6 IA1–IA10 single-condition each. IA4 → IA4a+IA4b; IA7 → IA7a+IA7b+IA7c. |
+| E7 Dry-run (author) | pass (§12) | Walkthrough below. |
+| E8 Dry-run (L0) | pending | Awaiting L0. |
+
+## 12. Author dry-run (E7)
+
+Dummy input:
+```
+MIInput {
+  planAnchorNodeId: 'node_plan_123',
+  userId:           'user_demo'
+}
+```
+
+(AI adapter injected at runtime via LIV-Standard R4 wiring; not a spec input field.)
+
+Plan content retrieved (tier topology, 3 declarations, no partial-success policy).
+
+Walk axiom-by-axiom:
+
+| Axiom | Field / behavior | Provenance | Outcome |
+|---|---|---|---|
+| IA1 | every instance transitions to terminal state | self | all 3 instances complete |
+| IA2 | engine does not mutate decl.role/inputContract/etc. | self | no mutation path in R2/R3 code |
+| IA3 | validateContract called per instance output | Plan `content.binding` | passes; output propagates |
+| IA4a | no failsafe breach → rule not exercised | self | N/A in this run |
+| IA4b | same | self | N/A |
+| IA5 | one instance fails mid-tier; non-partial-success policy | self + Plan | per 4.1.a: outcome = `failed` |
+| IA6 | all materialization through `content.binding.renderContract` | Plan | passes |
+| IA7a | no capacity breach in this run | self | N/A |
+| IA7b | same | self | N/A |
+| IA7c | same | self | N/A |
+
+RunReport emitted via AS v2.1 `createArtifact` with:
+- `framework = { id: 'multi-instance', version: '2.0' }`
+- `payload.content = RunReportContent` (as above, outcome=`failed`)
+- `dependsOn = ['node_plan_123']` → AS emits dependency edge (ArA4d)
+
+All fields trace. RunReportContent schema matches §9. Dry-run passes.
+
+## 13. Consumer responsibility note (non-normative)
+
+Removing the Multi-Instance engine does not leave consumers in a working state by default. Each consumer must implement a singleton fallback path that invokes the AI adapter + renderContract + validateContract directly, bypassing the engine. This is a consumer-side responsibility, not an M-I axiom. LIV-Standard A7 (slice deletability) applies to consumer slices, not to M-I — M-I does not guarantee A7 compliance on behalf of its consumers.
+
+## 14. Vocabulary
+
+| Term | Meaning |
+|---|---|
+| instance | one execution of one declaration; produces typed output or terminal failure |
+| declaration | atomic statement in a PlanArtifact: `{ id, role, inputContract, outputContract, ... }` |
+| set | the group of instances from one PlanArtifact run |
+| dispatch | act of starting an instance |
+| capacity breach | materialized invocation exceeds runtime limit (context, token, domain-declared) |
+| DomainBinding | Plan-authored slot for domain-specific `renderContract` + `validateContract` |
+| run | one full invocation of M-I on one PlanArtifact; identified by `runId` |
+
+## 15. Implementation pointers (non-normative)
+
+| Artifact | Path |
+|---|---|
+| R0 types | `src/core/types/multi-instance-standard.types.ts` |
+| R5 constants | `src/core/constants/multi-instance-standard.ts` (IA IDs, topology enum, error classes, terminal states) |
+| Runtime slice | TBD Phase 4b (engine slice) |
+| Plan content types | `src/core/types/plan-standard.types.ts` |
+| AS emission types | `src/core/types/artifact-standard.types.ts` |
+
+---
+
+**End of Multi-Instance Standard v2.2. L0 dry-run (E8) required before runtime build.**

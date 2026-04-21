@@ -8,7 +8,9 @@
 // layer: R5
 // wires-in:
 //   W-ATOM Semver ← core/R5 primitives
+//   W-ATOM UserId ← core/R5 primitives
 // wires-out:
+//   W-ATOM PlanInput                 → any Plan authoring program (Builder, Research, etc.)
 //   W-ATOM PlanArtifactContent       → Multi-Instance Standard, Phase 4+ plan consumers
 //   W-ATOM DomainBinding             → Plan authors, Multi-Instance executors
 //   W-ATOM PlanShape                 → any plan consumer
@@ -39,29 +41,31 @@
 // validated: pending
 
 // ═══════════════════════════════════════════════════════════════
-// PLAN STANDARD v1.0 — TYPE DECLARATIONS
+// PLAN STANDARD v2.1 — TYPE DECLARATIONS
 // ═══════════════════════════════════════════════════════════════
-// Matches Plan Standard v1.0 §8 payload schema and §6.1 DomainBinding shape.
+// Matches Plan Standard v2.1 §8 input schema (PlanInput) and §9 output schema
+// (PlanArtifactContent, DomainBinding).
+// Regenerated against metaframework v2.4 (MA-G5c custody, MA-G5d provenance).
 // PA5 (plan immutability), PA9 (binding immutability) — shape members are
 // `readonly` where the standard implies post-emission immutability.
-// PA10 split lineage: splitLineage.parentDeclId is a provenance reference; its
-// target is NOT an element of shape.declarations. Type layer cannot express
-// this negative constraint — enforced at emission time (§9 validity).
+// PA10b split lineage: splitLineage.parentDeclId is a provenance reference;
+// its target is NOT an element of shape.declarations. Type layer cannot
+// express this negative constraint — enforced at emission time (§10 validity).
 //
-// Descriptor mechanism (§6.1 "Descriptor resolution"):
+// Descriptor mechanism (§9 DomainBinding):
 // All descriptors carry only { domainId, schemaRef } identity — uniform shape.
 // Concrete behavior (and concrete values, including capacity budgets) lives in
 // the domain's L3 framework registration, not in the binding struct.
 // Each descriptor kind is a branded intersection over OpaqueDescriptor —
 // uniform shape (A3 serializability) + nominal separation (A1 ownership).
 
-import type { Semver } from './primitives'
+import type { Semver, UserId } from './primitives'
 import type {
   PLAN_TOPOLOGIES,
   PLAN_TIER_CLASSES,
 } from '../constants/plan-standard'
 
-// ─── Primitives (AK-REF branded, declared locally per brief D3) ───────────────
+// ─── Primitives (AK-REF branded, declared locally per Plan ownership) ─────────
 // Plan-specific branded strings — not core primitives, no cross-standard reuse.
 
 export type DeclId       = string & { readonly _brand: 'DeclId' }
@@ -69,7 +73,7 @@ export type TypedAtomRef = string & { readonly _brand: 'TypedAtomRef' }
 export type RoleClassId  = string & { readonly _brand: 'RoleClassId' }
 
 // ─── Milliseconds alias ───────────────────────────────────────────────────────
-// Per §8 epochMs, maxTime.
+// Per §9 epochMs, maxTime.
 
 export type Ms = number
 
@@ -79,14 +83,15 @@ export type Ms = number
 export type PlanTopology = typeof PLAN_TOPOLOGIES[number]
 
 // TierClass: default set from constants, widened to admit domain-declared
-// tiers per §6.2. The `string & {}` idiom preserves IDE completion for the
-// default labels while accepting any string at assignment sites.
+// tiers per §9 binding.tierLimits. The `string & {}` idiom preserves IDE
+// completion for the default labels while accepting any string at assignment.
 export type TierClass = typeof PLAN_TIER_CLASSES[number] | (string & {})
 
-// ─── OpaqueDescriptor (Mechanism C canonical shape) ───────────────────────────
+// ─── OpaqueDescriptor (canonical descriptor shape) ────────────────────────────
 // Uniform serializable shape for all descriptor kinds. Concrete behavior and
 // concrete values live in the domain's L3 framework registration; this struct
-// carries identity only. See Plan Standard §6.1 "Descriptor resolution".
+// carries identity only. See Plan Standard v2.1 §9 DomainBinding and
+// Multi-Instance Standard §7.1 FrameworkRegistry.
 
 export interface OpaqueDescriptor {
   readonly domainId:  string
@@ -107,7 +112,7 @@ export type FailsafeRule               = OpaqueDescriptor & { readonly _brand: '
 export type RenderContractDescriptor   = OpaqueDescriptor & { readonly _brand: 'RenderContractDescriptor' }
 export type ValidateContractDescriptor = OpaqueDescriptor & { readonly _brand: 'ValidateContractDescriptor' }
 
-// ─── DomainBinding sub-shapes (§6.1) ──────────────────────────────────────────
+// ─── DomainBinding sub-shapes (§9) ────────────────────────────────────────────
 
 export interface RoleClassDescriptor {
   readonly inputType:  TypedAtomSchema
@@ -115,9 +120,9 @@ export interface RoleClassDescriptor {
   readonly tierHint:   TierClass
 }
 
-// ─── DomainBinding (§6.1) ─────────────────────────────────────────────────────
-// Concrete shape per brief. Descriptor-typed slots carry identity only;
-// resolution is Multi-Instance's concern via framework registry.
+// ─── DomainBinding (§9) ───────────────────────────────────────────────────────
+// Descriptor-typed slots carry identity only; resolution is Multi-Instance's
+// concern via framework registry.
 // PA9: frozen at emission, captured inside PlanArtifactContent.
 
 export interface DomainBinding {
@@ -131,24 +136,24 @@ export interface DomainBinding {
   readonly validateContract: ValidateContractDescriptor
 }
 
-// ─── PlanArtifactContent sub-shapes (§8) ──────────────────────────────────────
+// ─── PlanArtifactContent sub-shapes (§9) ──────────────────────────────────────
 
 export interface PlanDeclaration {
   readonly id:        DeclId
-  readonly dependsOn: readonly DeclId[]             // PA2
+  readonly dependsOn: readonly DeclId[]             // PA2a closure, PA2b acyclic
   readonly dataFlow:  readonly {
-    readonly from: DeclId
-    readonly wire: TypedAtomRef
+    readonly from: DeclId                           // PA11 closure
+    readonly wire: TypedAtomRef                     // PA12 typing
   }[]
 }
 
 export interface PlanShape {
   readonly topology:     PlanTopology
-  readonly declarations: readonly PlanDeclaration[]
+  readonly declarations: readonly PlanDeclaration[] // length >= 1
 }
 
 export interface PlanIntentEntry {
-  readonly role:           RoleClassId             // resolved against binding (PA8)
+  readonly role:           RoleClassId              // resolved against binding (PA3, PA8)
   readonly inputContract:  TypedAtomRef
   readonly outputContract: TypedAtomRef
   readonly tierHint:       TierClass
@@ -156,14 +161,14 @@ export interface PlanIntentEntry {
 
 export interface PlanCapacityEntry {
   readonly estimatedCost: number
-  readonly splitLineage?: {                         // PA10 provenance only
-    readonly parentDeclId: DeclId                   // NOT in shape.declarations
+  readonly splitLineage?: {                         // PA10b provenance only
+    readonly parentDeclId: DeclId                   // NOT in shape.declarations (PA10a)
     readonly splitAxis:    string
   }
 }
 
 export interface PlanLimitPerDecl {
-  readonly retryBudget: number
+  readonly retryBudget: number                      // PA4a
 }
 
 export interface PlanLimitPartialSuccess {
@@ -171,12 +176,17 @@ export interface PlanLimitPartialSuccess {
   readonly minSuccesses?: number
 }
 
+// PA4b: maxTime, maxTransitions, maxReentries required per-set.
+// domainFailsafes: per v2.1 §9, typed as FailsafeRule descriptors
+// (passthrough from DomainBinding.domainFailsafes). v1.0 typed values as
+// number — corrected per E2 orthogonality (domain ownership).
+
 export interface PlanLimitPerSet {
   readonly maxTime:          Ms
   readonly maxTransitions:   number
   readonly maxReentries:     number
   readonly partialSuccess:   PlanLimitPartialSuccess
-  readonly domainFailsafes?: { readonly [key: string]: number }
+  readonly domainFailsafes?: { readonly [key: string]: FailsafeRule }
 }
 
 export interface PlanLimit {
@@ -184,31 +194,45 @@ export interface PlanLimit {
   readonly perSet:  PlanLimitPerSet
 }
 
-// ─── PlanArtifactContent (§8 top-level) ───────────────────────────────────────
+// ─── PlanInput (§8 input W-ATOM) ──────────────────────────────────────────────
+// W-ATOM consumed by Plan's emission entry point at R3.
+
+export interface PlanInput {
+  readonly authoringProgram: {
+    readonly programId:      string                 // provenance: caller R0
+    readonly programVersion: Semver                 // provenance: caller R0
+  }
+  readonly userId:           UserId                 // provenance: F-identity session
+  readonly turnId:           string                 // provenance: caller turn context
+  readonly domainBinding:    DomainBinding          // provenance: domain standard (by-value)
+  readonly preplanInputs:    unknown                // provenance: authoring program; typed per domain
+}
+
+// ─── PlanArtifactContent (§9 top-level output W-ATOM) ─────────────────────────
 // This is the `payload.content` shape carried by an Artifact Standard emission
-// (per Artifact Standard §8). planId pins to the artifact anchor node's
-// identity (§8.1 Carrier envelope).
+// (per Artifact Standard v2.1 §8). planId pins to the artifact anchor node's
+// identity (§9.1 Carrier envelope).
 
 export interface PlanArtifactContent {
-  readonly planId:      string                      // pins to artifact anchor node's identity
-  readonly planVersion: Semver
-  readonly producedBy:  {
+  readonly planId:      string                      // provenance: runtime-generated at emission
+  readonly planVersion: Semver                      // provenance: authoring program (PA5)
+  readonly producedBy:  {                           // provenance: input.authoringProgram (verbatim)
     readonly programId:      string
     readonly programVersion: Semver
   }
-  readonly producedAt: Ms
+  readonly producedAt: Ms                           // provenance: runtime-captured at emission
 
-  readonly binding: DomainBinding                   // frozen per PA9
+  readonly binding: DomainBinding                   // provenance: input.domainBinding (verbatim, frozen per PA9)
 
-  readonly shape: PlanShape
+  readonly shape: PlanShape                         // provenance: authoring-program-computed
 
-  readonly intent: {
+  readonly intent: {                                // PA3, PA8 resolve against binding
     readonly [declId: string]: PlanIntentEntry
   }
 
-  readonly capacity: {
+  readonly capacity: {                              // PA7; PA10b for split lineage
     readonly [declId: string]: PlanCapacityEntry
   }
 
-  readonly limit: PlanLimit
+  readonly limit: PlanLimit                         // PA4a perDecl, PA4b perSet
 }
