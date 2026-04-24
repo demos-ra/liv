@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R0
 // wires-in:   none
@@ -105,21 +105,21 @@
 // @wire
 // type:    W-EVENT
 // id:      W-EVENT-node-created
-// payload: { nodeId: string }
+// payload: { nodeId: NodeId }
 // version: 1
 // status:  active
 
 // @wire
 // type:    W-EVENT
 // id:      W-EVENT-layer-changed
-// payload: { nodeId: string; from: MLayer; to: MLayer }
+// payload: { nodeId: NodeId; from: MLayer; to: MLayer }
 // version: 1
 // status:  active
 
 // @wire
 // type:    W-EVENT
 // id:      W-EVENT-source-pruned
-// payload: { nodeId: string }
+// payload: { nodeId: NodeId }
 // version: 1
 // status:  active
 

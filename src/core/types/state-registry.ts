@@ -1,4 +1,4 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [core/types/state-registry.ts]
 // Built with LIV · livai.dev
 // R5 — pure namespace declaration. Zero dependencies.
@@ -10,6 +10,7 @@ import type { FSlice } from './primitives'
 // Step 4: F-types, F-state-registry removed (absorbed into core/types/).
 //         F-workspace reserved for Phase 2 (IDE surface).
 // Step 3: F-executor added — Docker code execution. Count parity with FSlice maintained.
+// Phase 4b: F-artifact + F-multi-instance added (AS v2.2 + M-I v2.3 runtimes).
 export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-executor':        'executor',      // Step 3
   'F-design-system':   'designSystem',
@@ -32,10 +33,12 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
   'F-memory':          'memory',
-  'F-codec':           'codec',       // W3 — cognitive codec slice
-  'F-planner':         'planner',    // Phase 4
-  'F-intake':          'intake',     // Phase 5
-  'F-output':          'output',     // Phase 6
+  'F-codec':           'codec',            // W3 — cognitive codec slice
+  'F-planner':         'planner',          // Phase 4
+  'F-intake':          'intake',           // Phase 5
+  'F-output':          'output',           // Phase 6
+  'F-artifact':        'artifact',         // Phase 4b — AS v2.2 runtime
+  'F-multi-instance':  'multiInstance',    // Phase 4b — M-I v2.3 runtime
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

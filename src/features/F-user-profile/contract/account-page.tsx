@@ -1,9 +1,9 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-user-profile/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    phase4-page-transitions, phase5-remediation, phase-5.4
 // slice:      F-user-profile
 // layer:      R3

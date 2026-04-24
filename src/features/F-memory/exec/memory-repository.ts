@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1, w3-20-admin-write
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, w3-20-admin-write, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R4
 // wires-in:
+//   W-ATOM  NodeId           core/R5 (primitives)
 //   W-ATOM  MemNode          F-memory/R0
 //   W-ATOM  MemEdge          F-memory/R0
 //   W-ATOM  MemArm           F-memory/R0
@@ -19,6 +20,7 @@
 // deps:
 //   R0  ../config/memory-types
 //   R5  @/core/db/client
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Living Memory v1.1 — all Postgres CRUD.
@@ -33,9 +35,18 @@
 //   upsertEdge: 3→6 columns, ON CONFLICT scoped by COALESCE(user_id, '__global__')
 //   upsertArm: +user_id column
 //   upsertDominance: +user_id in scope
+//
+// 4b-nodeid-propagation:
+//   DB reads are the external-origin ingress boundary. Raw `row.id`,
+//   `row.from_id`, `row.to_id`, `row.node_id`, `row.node_ids` are DB-origin
+//   strings that become branded NodeIds at this slice boundary.
+//   Every cast site tagged `// brand: external origin`.
+//   Scalar nodeId params (deleteNode, updateNodeSourceText, updateNodeLayer,
+//   touchNodeTraversal, deleteEdge, loadEdgesForNode) accept NodeId from
+//   F-memory-internal callers — no cast needed at those signatures.
 
 import { db } from '@/core/db/client'
-import type { Result, AppError } from '@/core/types/primitives'
+import type { Result, AppError, NodeId } from '@/core/types/primitives'
 import type {
   MemNode,
   MemEdge,
@@ -80,7 +91,7 @@ export async function upsertNode(node: MemNode): Promise<Result<void>> {
   }
 }
 
-export async function deleteNode(nodeId: string): Promise<Result<void>> {
+export async function deleteNode(nodeId: NodeId): Promise<Result<void>> {
   try {
     await db.query(`DELETE FROM mem_node WHERE id = $1`, [nodeId])
     return { ok: true, data: undefined }
@@ -89,7 +100,7 @@ export async function deleteNode(nodeId: string): Promise<Result<void>> {
   }
 }
 
-export async function updateNodeSourceText(nodeId: string, sourceText: string | null): Promise<Result<void>> {
+export async function updateNodeSourceText(nodeId: NodeId, sourceText: string | null): Promise<Result<void>> {
   try {
     await db.query(
       `UPDATE mem_node SET source_text = $2 WHERE id = $1`,
@@ -102,7 +113,7 @@ export async function updateNodeSourceText(nodeId: string, sourceText: string | 
 }
 
 export async function updateNodeLayer(
-  nodeId: string,
+  nodeId: NodeId,
   layer: MLayer,
   closure: number,
   asymmetry: number,
@@ -118,7 +129,7 @@ export async function updateNodeLayer(
   }
 }
 
-export async function touchNodeTraversal(nodeId: string, timestamp: number): Promise<Result<void>> {
+export async function touchNodeTraversal(nodeId: NodeId, timestamp: number): Promise<Result<void>> {
   try {
     await db.query(
       `UPDATE mem_node SET last_traversed = to_timestamp($2::double precision / 1000) WHERE id = $1`,
@@ -148,7 +159,7 @@ export async function upsertEdge(edge: MemEdge): Promise<Result<void>> {
   }
 }
 
-export async function deleteEdge(fromId: string, toId: string): Promise<Result<void>> {
+export async function deleteEdge(fromId: NodeId, toId: NodeId): Promise<Result<void>> {
   try {
     await db.query(
       `DELETE FROM mem_edge WHERE from_id = $1 AND to_id = $2`,
@@ -203,7 +214,8 @@ export async function loadArms(userId: string | null): Promise<Result<MemArm[]>>
         id:        row.id,
         userId:    row.user_id,
         label:     row.label,
-        nodeIds:   row.node_ids,
+        // brand: external origin — DB row strings become NodeId[] at F-memory ingress
+        nodeIds:   row.node_ids as NodeId[],
         depth:     row.depth,
         updatedAt: new Date(row.updated_at).getTime(),
       })),
@@ -232,16 +244,18 @@ export async function upsertDominance(entry: DominanceEntry): Promise<Result<voi
 }
 
 // Amendment 3: +userId param, IS NOT DISTINCT FROM for null-safe filtering (A4)
-export async function loadDominance(userId: string | null): Promise<Result<Map<string, DominanceEntry>>> {
+export async function loadDominance(userId: string | null): Promise<Result<Map<NodeId, DominanceEntry>>> {
   try {
     const result = await db.query<{
       node_id: string; convergence: number; computed_at: string
     }>(`SELECT node_id, convergence, computed_at FROM mem_dominance WHERE user_id IS NOT DISTINCT FROM $1`, [userId])
 
-    const map = new Map<string, DominanceEntry>()
+    const map = new Map<NodeId, DominanceEntry>()
     for (const row of result.rows) {
-      map.set(row.node_id, {
-        nodeId:      row.node_id,
+      // brand: external origin — DB row node_id becomes NodeId at F-memory ingress
+      const nodeId = row.node_id as NodeId
+      map.set(nodeId, {
+        nodeId,
         convergence: row.convergence,
         computedAt:  new Date(row.computed_at).getTime(),
       })
@@ -255,7 +269,7 @@ export async function loadDominance(userId: string | null): Promise<Result<Map<s
 // ─── Graph load ───────────────────────────────────────────────────────────────
 
 // Amendment 3: +userId param, IS NOT DISTINCT FROM for null-safe filtering (A4)
-export async function loadAllNodes(userId: string | null): Promise<Result<Map<string, MemNode>>> {
+export async function loadAllNodes(userId: string | null): Promise<Result<Map<NodeId, MemNode>>> {
   try {
     const result = await db.query<{
       id: string; content: string; embedding: string | null; source_text: string | null
@@ -264,10 +278,12 @@ export async function loadAllNodes(userId: string | null): Promise<Result<Map<st
       user_id: string | null
     }>(`SELECT id, content, embedding, source_text, created_at, last_traversed, cached_layer, cached_closure, cached_asymmetry, user_id FROM mem_node WHERE user_id IS NOT DISTINCT FROM $1`, [userId])
 
-    const nodes = new Map<string, MemNode>()
+    const nodes = new Map<NodeId, MemNode>()
     for (const row of result.rows) {
-      nodes.set(row.id, {
-        id:              row.id,
+      // brand: external origin — DB row id becomes NodeId at F-memory ingress
+      const nodeId = row.id as NodeId
+      nodes.set(nodeId, {
+        id:              nodeId,
         userId:          row.user_id,
         content:         row.content,
         embedding:       row.embedding ? parseEmbedding(row.embedding) : null,
@@ -288,25 +304,28 @@ export async function loadAllNodes(userId: string | null): Promise<Result<Map<st
 // Amendment 1+3: +userId param, SELECT includes primitive_type + created_at + user_id.
 // Maps primitive_type (snake_case DB) → primitiveType (camelCase TS).
 // Maps created_at timestamp → unix ms number.
-export async function loadAllEdges(userId: string | null): Promise<Result<Map<string, MemEdge[]>>> {
+export async function loadAllEdges(userId: string | null): Promise<Result<Map<NodeId, MemEdge[]>>> {
   try {
     const result = await db.query<{
       from_id: string; to_id: string; weight: number
       primitive_type: EdgePrimitiveType | null; created_at: string; user_id: string | null
     }>(`SELECT from_id, to_id, weight, primitive_type, created_at, user_id FROM mem_edge WHERE user_id IS NOT DISTINCT FROM $1`, [userId])
 
-    const edges = new Map<string, MemEdge[]>()
+    const edges = new Map<NodeId, MemEdge[]>()
     for (const row of result.rows) {
-      const list = edges.get(row.from_id) ?? []
+      // brand: external origin — DB row from_id/to_id become NodeId at F-memory ingress
+      const fromId = row.from_id as NodeId
+      const toId   = row.to_id as NodeId
+      const list = edges.get(fromId) ?? []
       list.push({
-        fromId:        row.from_id,
-        toId:          row.to_id,
+        fromId,
+        toId,
         weight:        row.weight,
         primitiveType: row.primitive_type,
         createdAt:     new Date(row.created_at).getTime(),
         userId:        row.user_id,
       })
-      edges.set(row.from_id, list)
+      edges.set(fromId, list)
     }
     return { ok: true, data: edges }
   } catch (err) {
@@ -318,9 +337,9 @@ export async function loadAllEdges(userId: string | null): Promise<Result<Map<st
 // A4: I/O at R4. Used by R2 admin service for cascade delete.
 
 export async function loadEdgesForNode(
-  nodeId: string,
+  nodeId: NodeId,
   userId: string | null,
-): Promise<Result<Array<{ fromId: string; toId: string }>>> {
+): Promise<Result<Array<{ fromId: NodeId; toId: NodeId }>>> {
   try {
     const result = await db.query<{ from_id: string; to_id: string }>(
       `SELECT from_id, to_id FROM mem_edge
@@ -329,7 +348,8 @@ export async function loadEdgesForNode(
     )
     return {
       ok: true,
-      data: result.rows.map((row) => ({ fromId: row.from_id, toId: row.to_id })),
+      // brand: external origin — DB row from_id/to_id become NodeId at F-memory ingress
+      data: result.rows.map((row) => ({ fromId: row.from_id as NodeId, toId: row.to_id as NodeId })),
     }
   } catch (err) {
     return { ok: false, error: dbError('EDGES_FOR_NODE_LOAD_FAILED', err) }

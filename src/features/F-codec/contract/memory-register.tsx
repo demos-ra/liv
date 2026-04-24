@@ -1,9 +1,9 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    phase-5.4
 // slice:      F-codec
 // layer:      R3

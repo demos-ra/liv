@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId                core/R5 (primitives)
 //   W-ATOM  MemGraph              F-memory/R0
 //   W-ATOM  ScopedGraphSet        F-memory/R0
 //   W-ATOM  MemArm                F-memory/R0
@@ -19,6 +20,7 @@
 // wires-out:  none (consumed by R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Living Memory v1.1 — Present State Layer.
@@ -26,6 +28,7 @@
 // §18: the bridge between living process and immediate usability.
 // A pure R1 function: computePresentState(graphs, userArms, globalArms) → PresentState.
 // Never stored. Always derived from current graph state. Never stale.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 //
 // G1: graceful fallback for weak arm structure.
 //     Must produce useful output even when the graph has no clear community
@@ -59,6 +62,7 @@ import {
   M3_CONTEXT,
   M4_INPUT,
 } from '../config/memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Compute Present State ────────────────────────────────────────────────────
 // §18: reads all nodes from both graphs, weighted by recency + layer depth.
@@ -78,7 +82,7 @@ export function computePresentState(
   const now = Date.now()
 
   // Build arm lookup: nodeId → arm label (span both arm sets)
-  const nodeToArm = new Map<string, string | null>()
+  const nodeToArm = new Map<NodeId, string | null>()
   for (const arm of userArms) {
     for (const nodeId of arm.nodeIds) {
       if (!nodeToArm.has(nodeId)) {
@@ -99,7 +103,7 @@ export function computePresentState(
 
   // Collect user graph nodes
   // Amendment 3: user nodes always included — they are the primary workspace
-  const userEmbeddings: Array<{ nodeId: string; embedding: number[] }> = []
+  const userEmbeddings: Array<{ nodeId: NodeId; embedding: number[] }> = []
 
   for (const [nodeId, node] of graphs.user.nodes) {
     if (node.cachedLayer === M4_INPUT) continue
@@ -143,7 +147,7 @@ export function computePresentState(
 // ─── Score a single node ──────────────────────────────────────────────────────
 
 type ScoredNode = {
-  nodeId:     string
+  nodeId:     NodeId
   content:    string
   arm:        string | null
   source:     string | null
@@ -154,9 +158,9 @@ type ScoredNode = {
 }
 
 function scoreNode(
-  nodeId: string,
+  nodeId: NodeId,
   node: MemNode,
-  nodeToArm: Map<string, string | null>,
+  nodeToArm: Map<NodeId, string | null>,
   now: number,
 ): ScoredNode {
   // §18: recency = EMA-weighted traversal recency
@@ -196,7 +200,7 @@ function scoreNode(
 
 function isNearDuplicate(
   globalEmbedding: number[],
-  userEmbeddings: Array<{ nodeId: string; embedding: number[] }>,
+  userEmbeddings: Array<{ nodeId: NodeId; embedding: number[] }>,
 ): boolean {
   for (const { embedding } of userEmbeddings) {
     const sim = cosine(globalEmbedding, embedding)

@@ -1,10 +1,10 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    none
+// amended:    4b-discovery-unregister
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -14,14 +14,17 @@
 //   W-HOOK   executeModule()                         F-codec/R3 (codec-inject)
 //   W-HOOK   getPresentState()                       F-memory/R3
 //   W-INJECT createArtifact()                        F-codec/R2 (codec-artifact, 6.7)
+//   W-INJECT unregisterModule()                      F-codec/R2 (codec-registry)
 // wires-out:
-//   W-INJECT  executeDiscovery()  → F-codec/R2 (codec-orchestrate)
-//   W-ATOM    DISCOVERY_MODULE    → F-codec/R2 (codec-orchestrate, registration)
+//   W-INJECT  executeDiscovery()     → F-codec/R2 (codec-orchestrate)
+//   W-INJECT  unregisterDiscovery()  → F-codec/R2 (codec-orchestrate, teardown)
+//   W-ATOM    DISCOVERY_MODULE       → F-codec/R2 (codec-orchestrate, registration)
 // deps:
 //   R0  ../config/codec-module-types
 //   R0  ../config/codec-types
 //   R0  ../config/codec-artifact-types
 //   R2  ./codec-artifact
+//   R2  ./codec-registry
 //   R3  ../contract/codec-inject
 //   R3  @/features/F-memory/contract/memory-contract
 // validated:  pending
@@ -29,6 +32,14 @@
 // Phase 6.9 — Discovery module (epistemic).
 // R2: orchestration. Uses LLM to execute discovery against confirmed axes.
 // Pipeline: graph context → structured prompt → LLM call → parse → artifact → result.
+//
+// Phase 4b (4b-discovery-unregister):
+//   Adds the symmetric deregistration path. The brief made Discovery the
+//   canonical case for deletability (A7) + directional symmetry; the
+//   registry-level unregisterModule() landed in codec-registry, and
+//   unregisterDiscovery() here is the ergonomic wrapper that matches the
+//   existing `registerModule(DISCOVERY_MODULE)` call pattern at codec-orchestrate
+//   startup. No cascading artifact cleanup — see codec-registry.ts comment.
 
 import type { Result } from '@/core/types/primitives'
 import type { FrameworkModule, ModuleExecutionResult } from '../config/codec-module-types'
@@ -37,6 +48,7 @@ import { CODEC_CONFIG } from '../config/codec-types'
 import { executeModule } from '../contract/codec-inject'
 import { getPresentState } from '@/features/F-memory/contract/memory-contract'
 import { createArtifact } from './codec-artifact'
+import { unregisterModule } from './codec-registry'
 
 // ─── Module Definition ──────────────────────────────────────────────────────
 
@@ -186,4 +198,20 @@ function parseDiscoveryResponse(
       openQuestions: '',
     }
   }
+}
+
+// ─── Unregister Discovery (4b-discovery-unregister) ─────────────────────────
+// Symmetric counterpart to `registerModule(DISCOVERY_MODULE)` at codec-orchestrate
+// startup. Removes Discovery from the routing registry. Returns true iff the
+// module was present (and removed); false if already absent.
+//
+// Contract:
+//   - Does not remove Discovery artifacts already persisted in the graph.
+//     Existing artifacts remain queryable; the mode simply stops receiving
+//     new invocations.
+//   - Idempotent: second call returns false.
+//   - Typical call sites: tests, hot reload, controlled teardown.
+
+export function unregisterDiscovery(): boolean {
+  return unregisterModule(DISCOVERY_MODULE.mode)
 }

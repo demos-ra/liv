@@ -1,6 +1,6 @@
 # F-memory Slice
 
-**Living Memory v1.1 · LIV-Standard v1.3**
+**Living Memory v1.1 · LIV-Standard v1.5.1**
 
 ## Declaration
 
@@ -105,6 +105,16 @@ F-memory/
 │
 └── SLICE.md                    This file
 ```
+
+## NodeId Discipline (post-4b Build A)
+
+NodeId discipline (post-4b Build A). F-memory consumes `NodeId` from core/R5
+primitives. All public R0 types (MemNode.id, MemEdge.fromId/toId, MemArm.nodeIds,
+GraphMutation fields carrying node ids, DominanceEntry.nodeId, BindingResult
+and TraversalResult node-id fields, ActivationMap, MemGraph.{nodes,edges}) use
+NodeId. Ingress casts tagged `// brand: external origin` (DB reads, seed loads,
+API input) or `// brand: locally minted` (F-memory-internal ID synthesis).
+Consumers outside F-memory receive NodeId via contract — zero cast sites outside the slice for consumption of F-memory-produced NodeIds. Locally-minted NodeIds (e.g., F-codec admin synth, UI tree-key reconstruction) are permitted and must be tagged `// brand: locally minted`.
 
 ## Events (§19)
 

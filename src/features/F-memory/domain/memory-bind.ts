@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId         core/R5 (primitives)
 //   W-ATOM  MemNode        F-memory/R0
 //   W-ATOM  MemGraph       F-memory/R0
 //   W-ATOM  BindingResult  F-memory/R0
@@ -16,14 +17,16 @@
 // wires-out:  none (consumed by R1 traverse, R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v1.0 — binding functions.
+// Living Memory v1.1 — binding functions.
 // R1: pure functions, zero I/O, zero side effects.
 // §7 bind(): binding score = cosine similarity × log(neighbor count + 1).
 // MA2: binding IS the first step of propagation — the input projects onto
 // the graph's embedding space and the activation distribution across resonant
 // nodes is the natural decomposition.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 
 import type {
   MemGraph,
@@ -31,6 +34,7 @@ import type {
   GraphThresholds,
 } from '../config/memory-types'
 import { MEMORY_CONFIG } from '../config/memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Cosine similarity ────────────────────────────────────────────────────────
 // Pure, sync. Used in bind() and arm affinity.
@@ -81,7 +85,7 @@ export function bind(
   graph: MemGraph,
   thresholds: GraphThresholds,
 ): BindingResult {
-  const resonant: Array<{ nodeId: string; similarity: number; score: number }> = []
+  const resonant: Array<{ nodeId: NodeId; similarity: number; score: number }> = []
 
   for (const [nodeId, node] of graph.nodes) {
     if (!node.embedding) continue

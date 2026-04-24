@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R4]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R4
 // wires-in:
+//   W-ATOM  NodeId          core/R5 (primitives)
 //   W-ATOM  MemGraph        F-memory/R0
 //   W-ATOM  GraphMutation   F-memory/R0
 //   W-ATOM  MemArm          F-memory/R0
@@ -18,6 +19,7 @@
 // deps:
 //   R0  ../config/memory-types
 //   R5  @/core/db/client
+//   R5  @/core/types/primitives
 //   R4  ./memory-repository
 // validated:  pending
 
@@ -27,6 +29,7 @@
 //     A single runTraversal() can produce node creates, edge upserts, edge deletes,
 //     node deletes, source text prunes, AND layer updates. All or nothing.
 // MA2: one traversal = one mutation set = one transaction.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 //
 // lm-v1.1 changes:
 //   loadGraph: +userId param, passed to all repository load calls
@@ -37,14 +40,12 @@
 //   touchTraversedNodes: +userId param, scoped UPDATE
 
 import { db } from '@/core/db/client'
-import type { Result, AppError } from '@/core/types/primitives'
+import type { Result, AppError, NodeId } from '@/core/types/primitives'
 import type {
   MemGraph,
-  MemNode,
   MemArm,
   DominanceEntry,
   GraphMutation,
-  MLayer,
 } from '../config/memory-types'
 import {
   loadAllNodes,
@@ -60,7 +61,7 @@ import {
 export type LoadedGraph = {
   graph:        MemGraph
   arms:         MemArm[]
-  dominanceMap: Map<string, DominanceEntry>
+  dominanceMap: Map<NodeId, DominanceEntry>
 }
 
 export async function loadGraph(userId: string | null): Promise<Result<LoadedGraph>> {
@@ -293,7 +294,7 @@ export async function persistDominance(
 // Amendment 3: +userId param, scoped UPDATE (A4).
 
 export async function touchTraversedNodes(
-  nodeIds: string[],
+  nodeIds: NodeId[],
   timestamp: number,
   userId: string | null,
 ): Promise<Result<void>> {

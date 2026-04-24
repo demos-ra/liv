@@ -1,8 +1,8 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-chat/R2]
 // Built with LIV · livai.dev
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit
 // slice:      F-chat
 // layer:      R2

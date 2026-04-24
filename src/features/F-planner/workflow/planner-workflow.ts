@@ -1,9 +1,9 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-planner/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    phase-4.2
 // slice:      F-planner
 // layer:      R2

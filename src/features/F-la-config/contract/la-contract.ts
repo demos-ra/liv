@@ -1,4 +1,4 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-la-config/contract/la-contract.ts]
 // Built with LIV · livai.dev
 // R3 — HTTP contract for LA validation trigger.
@@ -9,6 +9,11 @@
 //   requirePermission now imported from F-permissions/contract/permissions-contract
 //   instead of F-permissions/app/permissions-workflow.
 //   Axiom cite: A5 — cross-slice calls via R3 contract only, never R2/app directly.
+//
+// Phase 4b Build D (4b-remediation):
+//   LIVStandardDomainBinding re-export withdrawn. DomainBinding arrives at M-I
+//   verbatim via plan.binding per Plan v2.2 PA9; authoring-program composition
+//   is Phase 5/6 scope. No binding instance surfaces from F-la-config at 4b.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { triggerValidation } from '../app/la-runner'

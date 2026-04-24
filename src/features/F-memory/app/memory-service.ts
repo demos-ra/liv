@@ -1,10 +1,10 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-memory/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed
+// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -106,7 +106,7 @@ import { encode } from '../exec/embedding-service'
 // R3 — event bus (A2-event-bus-r3: documented amendment, same as F-planner/F-output)
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
-import type { Result } from '@/core/types/primitives'
+import type { Result, NodeId } from '@/core/types/primitives'
 import { generateId } from '@/core/types/primitives'
 
 // ─── Module-level state ───────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ import { generateId } from '@/core/types/primitives'
 // Global graph — loaded once on boot, shared read-only
 let _globalGraph: MemGraph = { nodes: new Map(), edges: new Map() }
 let _globalArms: MemArm[] = []
-let _globalDominanceMap: Map<string, DominanceEntry> = new Map()
+let _globalDominanceMap: Map<NodeId, DominanceEntry> = new Map()
 let _globalThresholds: GraphThresholds = { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 }
 let _booted = false
 
@@ -123,7 +123,7 @@ let _booted = false
 type UserGraphState = {
   graph:        MemGraph
   arms:         MemArm[]
-  dominanceMap: Map<string, DominanceEntry>
+  dominanceMap: Map<NodeId, DominanceEntry>
   thresholds:   GraphThresholds
   presentState: PresentState
   loaded:       boolean
@@ -326,7 +326,7 @@ export async function runTraversal(
   }
 
   // Track all changed nodes for layer recomputation
-  const changedNodeIds = new Set<string>()
+  const changedNodeIds = new Set<NodeId>()
 
   // Initialize mutation
   const mutation: GraphMutation = {
@@ -344,7 +344,7 @@ export async function runTraversal(
   const topMatch = binding.nodes.length > 0 ? binding.nodes[0] : null
   const skipCreate = topMatch !== null && topMatch.similarity >= MEMORY_CONFIG.LABEL_REUSE_THRESHOLD
 
-  let activeNodeId: string
+  let activeNodeId: NodeId
 
   if (skipCreate && topMatch) {
     // Amendment 2: reuse existing node — reinforce instead of create
@@ -363,7 +363,8 @@ export async function runTraversal(
   } else {
     // ── Step 3: create new M4 node ────────────────────────────────────────────
     // Amendment 2: normalizeLabel() on content (A6)
-    activeNodeId = generateId('mem')
+    // brand: locally minted — synthesized inside F-memory via generateId('mem')
+    activeNodeId = generateId('mem') as NodeId
     const newNode: MemNode = {
       id:              activeNodeId,
       userId,                                  // Amendment 3: scoped to user (A6)
@@ -611,11 +612,11 @@ export function getUserArms(userId: string): MemArm[] {
   return state?.arms ?? []
 }
 
-export function getDominanceMap(): Map<string, DominanceEntry> {
+export function getDominanceMap(): Map<NodeId, DominanceEntry> {
   return _globalDominanceMap
 }
 
-export function setDominanceMap(map: Map<string, DominanceEntry>): void {
+export function setDominanceMap(map: Map<NodeId, DominanceEntry>): void {
   _globalDominanceMap = map
 }
 
@@ -624,7 +625,7 @@ export function setDominanceMap(map: Map<string, DominanceEntry>): void {
 
 async function commitAndUpdate(
   mutation: GraphMutation,
-  changedNodeIds: Set<string>,
+  changedNodeIds: Set<NodeId>,
   timestamp: number,
   userId: string,
   userGraph: MemGraph,

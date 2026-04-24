@@ -1,10 +1,10 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [core/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
-// amended:    w2-item-12, phase-5-audit
+// standard:   LIV-Standard v1.5.1
+// amended:    w2-item-12, phase-5-audit, 4b-stamp-fix
 // slice:      core
 // layer:      R1
 // wires-in:   none

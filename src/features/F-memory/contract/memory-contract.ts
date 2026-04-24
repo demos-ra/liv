@@ -1,10 +1,10 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-memory/R3]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write, 6.1-global-seed
+// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R3
 // wires-in:
@@ -58,7 +58,7 @@ import type {
   MemNode,
   MemEdge,
 } from '../config/memory-types'
-import type { Result } from '@/core/types/primitives'
+import type { Result, NodeId } from '@/core/types/primitives'
 
 import {
   runTraversal,
@@ -162,7 +162,11 @@ export async function seedGlobalNode(
 }
 
 // Remove a global node and all connected edges. Cascade delete.
-export async function removeGlobalNode(nodeId: string): Promise<Result<void>> {
+// 4b-nodeid-propagation: scalar nodeId typed NodeId. Upstream callers
+// (HTTP route handlers) brand raw body strings `as NodeId` at the external-origin
+// ingress site per amended Confirm 3 — this R3 signature receives NodeId and
+// passes through.
+export async function removeGlobalNode(nodeId: NodeId): Promise<Result<void>> {
   return _removeGlobalNode(nodeId)
 }
 

@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-codec/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    4b-nodeid-propagation
 // slice:      F-codec
 // layer:      R3
 // wires-in:
+//   W-ATOM  NodeId            core/R5 (primitives)
 //   W-ATOM  MemoryTreeNode    F-codec/R0
 //   W-ATOM  MemoryAction      F-codec/R0
 //   W-ATOM  MemoryViewState   F-codec/R0
@@ -20,6 +21,7 @@
 //   R0  ../config/codec-memory-types   (type only)
 //   R0  ../config/codec-decode-types   (type only)
 //   R0  ../../F-memory/config/memory-types  (type only)
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Memory program — dashboard program rendering the user's memory graph
@@ -30,6 +32,8 @@
 // A4: I/O (fetch) at component level — R3 component delegates to R4 API routes.
 // A5: uses CSS custom properties from F-design-system — no internal imports.
 // CA8: tree structure derived from decode output, not authored.
+// 4b-nodeid-propagation: extractNodeId brands tree IDs back to NodeId at the
+//     UI layer for MemoryAction construction.
 
 'use client'
 
@@ -37,6 +41,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { DecodeOutput, DecodeCategory, DecodedStructure } from '../config/codec-decode-types'
 import type { MLayer } from '@/features/F-memory/config/memory-types'
 import type { MemoryTreeNode, MemoryAction } from '../config/codec-memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 
@@ -186,12 +191,18 @@ function findEntityName(decoded: DecodeOutput, nodeId: string): string {
 // ─── Extract real node ID from tree ID ───────────────────────────────────────
 // Tree IDs may be prefixed (claim-, tension-, rel-, seq-). Extract the
 // underlying graph node ID for actions that need it.
+// 4b-nodeid-propagation: tree IDs are UI-layer display keys. Extraction
+// recovers the underlying graph NodeId that was stamped into the display key
+// at buildTree time. Brand as NodeId since extraction reverses a previously
+// valid NodeId → display-key projection.
 
-function extractNodeId(treeId: string): string {
-  if (treeId.startsWith('claim-'))   return treeId.slice(6)
-  if (treeId.startsWith('seq-step-')) return treeId.slice(9)
+function extractNodeId(treeId: string): NodeId {
+  // brand: locally minted — reconstructed NodeId from UI-layer display key,
+  // whose underlying value originated from a F-memory atom at buildTree time.
+  if (treeId.startsWith('claim-'))    return treeId.slice(6) as NodeId
+  if (treeId.startsWith('seq-step-')) return treeId.slice(9) as NodeId
   // Entity nodes use their raw nodeId as tree ID
-  return treeId
+  return treeId as NodeId
 }
 
 // ─── Diff flash ──────────────────────────────────────────────────────────────

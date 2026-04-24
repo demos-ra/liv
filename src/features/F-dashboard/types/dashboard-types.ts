@@ -1,9 +1,9 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-dashboard/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    step5b-phaseA, phase-5.2, phase-5-audit
 // slice:      F-dashboard
 // layer:      R0

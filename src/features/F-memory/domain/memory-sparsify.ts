@@ -1,22 +1,24 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId         core/R5 (primitives)
 //   W-ATOM  MemGraph       F-memory/R0
 //   W-ATOM  GraphMutation  F-memory/R0
 //   W-ATOM  MEMORY_CONFIG  F-memory/R0
 // wires-out:  none (consumed by R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v1.0 — sparsification.
+// Living Memory v1.1 — sparsification.
 // R1: pure function, zero I/O.
 // §6/§7: two sub-operations within each traversal:
 //   1. Edge pruning (post-traversal): edges below weight threshold removed.
@@ -24,18 +26,20 @@
 // MA1: no hysteresis — conservation model prevents flicker.
 // MA3: connectivity is persistence. Isolation is the only death.
 // MA6: any node can be removed and the system re-equilibrates.
+// 4b-nodeid-propagation: NodeId on node-id-shaped fields in SparsifyResult.
 
 import type {
   MemGraph,
 } from '../config/memory-types'
 import { MEMORY_CONFIG } from '../config/memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Sparsify result ──────────────────────────────────────────────────────────
 // Returns edges to delete and nodes to delete (isolated after pruning).
 
 export type SparsifyResult = {
-  edgeDeletes: Array<{ fromId: string; toId: string }>
-  nodeDeletes: string[]
+  edgeDeletes: Array<{ fromId: NodeId; toId: NodeId }>
+  nodeDeletes: NodeId[]
 }
 
 // ─── Sparsify ─────────────────────────────────────────────────────────────────
@@ -45,11 +49,11 @@ export type SparsifyResult = {
 // Does not mutate the graph — returns the mutation set for atomic commit (G3).
 
 export function sparsify(graph: MemGraph): SparsifyResult {
-  const edgeDeletes: Array<{ fromId: string; toId: string }> = []
+  const edgeDeletes: Array<{ fromId: NodeId; toId: NodeId }> = []
   const pruneFraction = MEMORY_CONFIG.EDGE_PRUNE_FRACTION
 
   // Track which nodes still have edges after pruning
-  const hasEdgeAfterPrune = new Set<string>()
+  const hasEdgeAfterPrune = new Set<NodeId>()
 
   // ── Edge pruning ────────────────────────────────────────────────────────────
   // For each node: compute mean outgoing weight, prune edges below fraction × mean.
@@ -86,7 +90,7 @@ export function sparsify(graph: MemGraph): SparsifyResult {
 
   // ── Isolate removal ─────────────────────────────────────────────────────────
   // MA3: degree 0 after pruning → deleted. MA6: deletability.
-  const nodeDeletes: string[] = []
+  const nodeDeletes: NodeId[] = []
 
   for (const [nodeId] of graph.nodes) {
     if (!hasEdgeAfterPrune.has(nodeId)) {

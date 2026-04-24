@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
+// standard:   LIV-Standard v1.5.1
+// amended:    4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId           core/R5 (primitives)
 //   W-ATOM  MemNode          F-memory/R0
 //   W-ATOM  MemGraph         F-memory/R0
 //   W-ATOM  MLayer           F-memory/R0
@@ -16,13 +17,15 @@
 // wires-out:  none (consumed by R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v1.0 — layer computation.
+// Living Memory v1.1 — layer computation.
 // R1: pure functions, zero I/O.
 // §7 computeLayer(): decision tree, cheapest checks first.
 // MA5: M0 is computed, never declared. The highest-density attractor basin.
 // §9: non-collapse guarantees — each transition adds a qualitatively new invariant.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 
 import type {
   MemNode,
@@ -38,6 +41,7 @@ import {
   M3_CONTEXT,
   M4_INPUT,
 } from '../config/memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Compute Layer ────────────────────────────────────────────────────────────
 // §7: decision tree, cheapest checks first:
@@ -57,7 +61,7 @@ export function computeLayer(
   node: MemNode,
   graph: MemGraph,
   thresholds: GraphThresholds,
-  dominanceMap: Map<string, DominanceEntry>,
+  dominanceMap: Map<NodeId, DominanceEntry>,
 ): MLayer {
   // Step 1: degree = 0 → M4 (cheapest check)
   const outDegree = (graph.edges.get(node.id) ?? []).length
@@ -102,17 +106,17 @@ export function computeLayer(
 // Returns layer updates for changed nodes.
 
 export type LayerUpdate = {
-  nodeId:    string
+  nodeId:    NodeId
   layer:     MLayer
   closure:   number
   asymmetry: number
 }
 
 export function updateLayersLocally(
-  changedNodeIds: Set<string>,
+  changedNodeIds: Set<NodeId>,
   graph: MemGraph,
   thresholds: GraphThresholds,
-  dominanceMap: Map<string, DominanceEntry>,
+  dominanceMap: Map<NodeId, DominanceEntry>,
 ): LayerUpdate[] {
   const updates: LayerUpdate[] = []
 
@@ -142,7 +146,7 @@ export function updateLayersLocally(
 // Computed via k-hop reachability (k=3 for performance).
 // High closure → self-sustaining structure (M2 invariant).
 
-export function computeClosure(nodeId: string, graph: MemGraph): number {
+export function computeClosure(nodeId: NodeId, graph: MemGraph): number {
   const outEdges = graph.edges.get(nodeId) ?? []
   if (outEdges.length === 0) return 0
 
@@ -165,7 +169,7 @@ export function computeClosure(nodeId: string, graph: MemGraph): number {
 // No history storage — purely structural.
 // High stability → reactivatable from partial cues (M2 invariant).
 
-export function computeStability(nodeId: string, graph: MemGraph): number {
+export function computeStability(nodeId: NodeId, graph: MemGraph): number {
   const outEdges = graph.edges.get(nodeId) ?? []
   const inEdges  = getIncomingEdges(nodeId, graph)
 
@@ -184,7 +188,7 @@ export function computeStability(nodeId: string, graph: MemGraph): number {
 // P(activate B|A) ≠ P(activate A|B).
 // High asymmetry → directional bias (M1 invariant).
 
-export function computeAsymmetry(nodeId: string, graph: MemGraph): number {
+export function computeAsymmetry(nodeId: NodeId, graph: MemGraph): number {
   const outEdges = graph.edges.get(nodeId) ?? []
   if (outEdges.length === 0) return 0
 
@@ -206,7 +210,7 @@ export function computeAsymmetry(nodeId: string, graph: MemGraph): number {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function countIncoming(nodeId: string, graph: MemGraph): number {
+function countIncoming(nodeId: NodeId, graph: MemGraph): number {
   let count = 0
   for (const [, edges] of graph.edges) {
     for (const edge of edges) {
@@ -216,8 +220,8 @@ function countIncoming(nodeId: string, graph: MemGraph): number {
   return count
 }
 
-function getIncomingEdges(nodeId: string, graph: MemGraph): Array<{ fromId: string; weight: number }> {
-  const incoming: Array<{ fromId: string; weight: number }> = []
+function getIncomingEdges(nodeId: NodeId, graph: MemGraph): Array<{ fromId: NodeId; weight: number }> {
+  const incoming: Array<{ fromId: NodeId; weight: number }> = []
   for (const [fromId, edges] of graph.edges) {
     for (const edge of edges) {
       if (edge.toId === nodeId) {
@@ -229,11 +233,11 @@ function getIncomingEdges(nodeId: string, graph: MemGraph): Array<{ fromId: stri
 }
 
 function canReach(
-  fromId: string,
-  targetId: string,
+  fromId: NodeId,
+  targetId: NodeId,
   graph: MemGraph,
   maxHops: number,
-  visited: Set<string>,
+  visited: Set<NodeId>,
 ): boolean {
   if (maxHops <= 0) return false
 

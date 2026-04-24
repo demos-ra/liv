@@ -1,13 +1,14 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.9-6.10-module-exec-config
+// amended:    6.9-6.10-module-exec-config, 4b-nodeid-propagation
 // slice:      F-codec
 // layer:      R0
-// wires-in:   none
+// wires-in:
+//   W-ATOM  NodeId    core/R5 (primitives)
 // wires-out:
 //   W-ATOM  CognitivePrimitive   →  F-codec/*
 //   W-ATOM  MutatingPrimitive    →  F-codec/*
@@ -15,13 +16,17 @@
 //   W-ATOM  EncodeResult         →  F-codec consumers
 //   W-ATOM  CODEC_CONFIG         →  F-codec/*
 //   W-ATOM  MECHANICAL_MAPPINGS  →  F-codec/R2
-// deps:       none
+// deps:
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Cognitive Standard v1.2 — primitive vocabulary and codec configuration.
-// A6: declared at R0. Zero dependencies.
-// CA3: 6 primitives from 3 axes (binding × structural × weight).
+// A6: declared at R0. CA3: 6 primitives from 3 axes.
 // CA4: unique mutation signature each.
+// 4b-nodeid-propagation: EncodeResult.boundToNodeId carries a F-memory NodeId
+//     (from TraversalResult.topNodes) or null.
+
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Cognitive Primitives ─────────────────────────────────────────────────────
 // The 6 atomic operations on the graph.
@@ -74,7 +79,7 @@ export type ClassifyResult = {
 export type EncodeResult = {
   primitive:     CognitivePrimitive
   label:         string | null     // normalized label. null for Reference (read-only).
-  boundToNodeId: string | null     // existing node if bind hit. null if new.
+  boundToNodeId: NodeId | null     // existing node if bind hit. null if new.
   userId:        string
   source:        'llm' | 'mechanical'
 }

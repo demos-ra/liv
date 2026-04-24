@@ -1,13 +1,14 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-memory/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    w3-20-admin-write, 6.1-global-seed
+// amended:    w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R2
 // wires-in:
+//   W-ATOM   NodeId                                                        core/R5 (primitives)
 //   W-ATOM   MemNode, MemEdge, GraphMutation, MemGraph, GraphThresholds  F-memory/R0
 //   W-ATOM   ActivationMap, M4_INPUT, M3_CONTEXT                         F-memory/R0
 //   W-ATOM   GlobalSeedNode                                               F-memory/R0
@@ -26,10 +27,14 @@
 //   R4  ../exec/memory-graph-io
 //   R4  ../exec/memory-repository
 //   R4  ../exec/embedding-service
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Admin write service — global graph seed, remove, and batch seed+traverse.
 // R2: orchestration. Composes R1 pure functions + R4 I/O.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures. Two locally-
+//     minted node-id sites: `global-seed-${node.key}` synthesized from seed-file
+//     key at batch phase 1 and phase 2 traversal.
 //
 // 6.1-global-seed:
 //   seedAndTraverseGlobal() — batch seed all nodes, then self-traverse.
@@ -37,7 +42,7 @@
 //   After completion, caller calls onBoot() to force global graph reload
 //   in memory-service.ts. No mutable state accessors needed.
 
-import type { Result } from '@/core/types/primitives'
+import type { Result, NodeId } from '@/core/types/primitives'
 import type {
   MemNode,
   MemEdge,
@@ -120,7 +125,7 @@ export async function seedGlobalNode(
 // Cascade delete: query connected edges via R4, build single atomic mutation.
 // A4: I/O delegated to R4 (loadEdgesForNode + persistMutations).
 
-export async function removeGlobalNode(nodeId: string): Promise<Result<void>> {
+export async function removeGlobalNode(nodeId: NodeId): Promise<Result<void>> {
   const edgeResult = await loadEdgesForNode(nodeId, null)
   if (!edgeResult.ok) {
     return {
@@ -182,7 +187,8 @@ export async function seedAndTraverseGlobal(
   const graph: MemGraph = loadResult.data.graph
 
   for (const node of nodes) {
-    const nodeId = `global-seed-${node.key}`
+    // brand: locally minted — synthesized from seed-file key inside F-memory
+    const nodeId = `global-seed-${node.key}` as NodeId
 
     // Idempotency: skip if already exists
     if (graph.nodes.has(nodeId)) continue
@@ -202,7 +208,8 @@ export async function seedAndTraverseGlobal(
 
     const edges: MemEdge[] = node.edges.map(e => ({
       fromId:        nodeId,
-      toId:          `global-seed-${e.key}`,
+      // brand: locally minted — synthesized from seed-file edge key inside F-memory
+      toId:          `global-seed-${e.key}` as NodeId,
       weight:        0.5,
       primitiveType: e.primitiveType,
       createdAt:     now,
@@ -246,7 +253,8 @@ export async function seedAndTraverseGlobal(
     const seedNode = nodeByKey.get(key)
     if (!seedNode) continue
 
-    const nodeId = `global-seed-${key}`
+    // brand: locally minted — synthesized from seed-file key inside F-memory
+    const nodeId = `global-seed-${key}` as NodeId
     const node = fullGraph.nodes.get(nodeId)
     if (!node) continue
 
@@ -287,7 +295,7 @@ export async function seedAndTraverseGlobal(
     // ── Bind ──────────────────────────────────────────────────────────────────
     const binding = bind(embedding, fullGraph, thresholds)
 
-    const changedNodeIds = new Set<string>()
+    const changedNodeIds = new Set<NodeId>()
     changedNodeIds.add(nodeId)
 
     const mutation: GraphMutation = {

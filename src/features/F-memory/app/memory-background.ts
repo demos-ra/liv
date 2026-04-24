@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R2]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1, A2-event-bus-r3
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, A2-event-bus-r3, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R2
 // wires-in:
+//   W-ATOM  NodeId           core/R5 (primitives)
 //   W-ATOM  MemGraph         F-memory/R0
 //   W-ATOM  DominanceEntry   F-memory/R0
 //   W-ATOM  MEMORY_CONFIG    F-memory/R0
@@ -22,6 +23,7 @@
 //   R2  ./memory-service
 //   R4  ../exec/memory-graph-io
 //   R3  @/features/F-event-system/contract/event-bus (A2-event-bus-r3)
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Living Memory v1.1 — background dominance recomputation.
@@ -29,6 +31,7 @@
 // §6: one background process — recomputeDominance().
 // Detects M1→M0 transitions via random walk convergence analysis.
 // Acceptable latency because M0 transitions are rare.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 //
 // lm-v1.1 changes (Amendment 3):
 //   recomputeDominance: +userId param. null = global graph, string = per-user graph.
@@ -40,6 +43,7 @@ import type {
 } from '../config/memory-types'
 import { MEMORY_CONFIG } from '../config/memory-types'
 import { MEMORY_EVENTS } from '../config/memory-events'
+import type { NodeId } from '@/core/types/primitives'
 
 import { getGraph, getUserGraph, getDominanceMap, setDominanceMap } from './memory-service'
 import { persistDominance } from '../exec/memory-graph-io'
@@ -75,7 +79,7 @@ export async function recomputeDominance(userId: string | null): Promise<void> {
 
   // Update in-memory dominance map (global only — per-user dominance stored in UserGraphState)
   if (userId === null) {
-    const newMap = new Map<string, DominanceEntry>()
+    const newMap = new Map<NodeId, DominanceEntry>()
     for (const entry of entries) {
       newMap.set(entry.nodeId, entry)
     }
@@ -115,9 +119,9 @@ export async function recomputeDominance(userId: string | null): Promise<void> {
 // High convergence → the graph "wants" to flow through this node → attractor.
 
 function computeNodeConvergence(
-  targetId: string,
+  targetId: NodeId,
   graph: MemGraph,
-  allNodeIds: string[],
+  allNodeIds: NodeId[],
 ): number {
   if (allNodeIds.length <= 1) return 1.0
 

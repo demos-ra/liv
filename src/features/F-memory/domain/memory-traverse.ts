@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId          core/R5 (primitives)
 //   W-ATOM  MemGraph        F-memory/R0
 //   W-ATOM  MemEdge         F-memory/R0
 //   W-ATOM  ActivationMap   F-memory/R0
@@ -16,6 +17,7 @@
 // wires-out:  none (consumed by R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Living Memory v1.1 — propagation and learning.
@@ -24,6 +26,7 @@
 // §7 learn(): inline reinforcement — Δw = lr × flow × (1 - w/sum_outgoing).
 // MA1: Σ activations = 1 throughout. Energy conserved, never created or destroyed.
 // MA2: read, write, and learning are one pass.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 //
 // lm-v1.1 changes:
 //   learn() returns 6-field MemEdge (Amendment 1+3):
@@ -40,6 +43,7 @@ import {
   MEMORY_CONFIG,
   M1_PURPOSE,
 } from '../config/memory-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Propagate ────────────────────────────────────────────────────────────────
 // §7: spread activation through graph, biased by M1 field.
@@ -66,7 +70,7 @@ export function propagate(
   const allEdgeMutations: MemEdge[] = []
 
   for (let step = 0; step < MEMORY_CONFIG.PROPAGATION_STEPS; step++) {
-    const next = new Map<string, number>()
+    const next = new Map<NodeId, number>()
 
     // Self-retention: 10% stays at current node
     for (const [nodeId, a] of activation) {
@@ -212,7 +216,7 @@ function normalize(map: ActivationMap): ActivationMap {
 
   if (total === 0) return new Map()
 
-  const result = new Map<string, number>()
+  const result = new Map<NodeId, number>()
   for (const [k, v] of map) {
     result.set(k, v / total)
   }

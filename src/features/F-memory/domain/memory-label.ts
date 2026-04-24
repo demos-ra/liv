@@ -1,9 +1,9 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
+// standard:   LIV-Standard v1.5.1
 // amended:    lm-v1.1
 // slice:      F-memory
 // layer:      R1

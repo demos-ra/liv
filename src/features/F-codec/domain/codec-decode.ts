@@ -1,13 +1,14 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R1]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation
 // slice:      F-codec
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId              core/R5 (primitives)
 //   W-ATOM  MemGraph            F-memory/R0
 //   W-ATOM  MemNode             F-memory/R0
 //   W-ATOM  MemEdge             F-memory/R0
@@ -25,12 +26,16 @@
 //   R0  ../../F-memory/config/memory-types
 //   R0  ../config/codec-decode-types
 //   R0  ../config/codec-artifact-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Decode classifier — the read side of the codec.
 // R1: pure function. No I/O, no side effects.
 // CA8: graph is context — classifications derived from topology alone.
 // CA5: observable transition — same graph = same output, deterministic.
+// 4b-nodeid-propagation: NodeId flows from F-memory atoms through F-codec
+//     internal maps and into DecodedStructure. Local helpers retyped to
+//     NodeId; internal incoming/pairEdges/armEdges maps keyed by NodeId.
 
 import type {
   MemGraph,
@@ -50,6 +55,7 @@ import type {
 
 import { ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX } from '../config/codec-artifact-types'
 import type { FrameworkMode } from '../config/codec-module-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Primitive → Relation mapping ────────────────────────────────────────────
 // A6: declared at module scope, deterministic map.
@@ -74,7 +80,7 @@ type GraphStats = {
   incomingWeightStdDev: number
 }
 
-function computeGraphStats(incomingEdges: Map<string, MemEdge[]>): GraphStats {
+function computeGraphStats(incomingEdges: Map<NodeId, MemEdge[]>): GraphStats {
   // Collect total incoming weight per node
   const totals: number[] = []
   for (const edges of incomingEdges.values()) {
@@ -105,8 +111,8 @@ function computeGraphStats(incomingEdges: Map<string, MemEdge[]>): GraphStats {
 // Builds toId → MemEdge[] from MemGraph's fromId → MemEdge[] index.
 // Single pass over all edge lists.
 
-function buildIncomingIndex(graph: MemGraph): Map<string, MemEdge[]> {
-  const incoming = new Map<string, MemEdge[]>()
+function buildIncomingIndex(graph: MemGraph): Map<NodeId, MemEdge[]> {
+  const incoming = new Map<NodeId, MemEdge[]>()
   for (const edges of graph.edges.values()) {
     for (const edge of edges) {
       const list = incoming.get(edge.toId)
@@ -124,9 +130,9 @@ function buildIncomingIndex(graph: MemGraph): Map<string, MemEdge[]> {
 // Total degree = outgoing + incoming.
 
 function nodeDegree(
-  nodeId: string,
+  nodeId: NodeId,
   graph: MemGraph,
-  incoming: Map<string, MemEdge[]>,
+  incoming: Map<NodeId, MemEdge[]>,
 ): number {
   const outCount = graph.edges.get(nodeId)?.length ?? 0
   const inCount = incoming.get(nodeId)?.length ?? 0
@@ -138,8 +144,8 @@ function nodeDegree(
 // Returns a single merged view — nodes and edges combined, user wins on conflict.
 
 function mergeGraphs(scoped: ScopedGraphSet): MemGraph {
-  const nodes = new Map<string, MemNode>()
-  const edges = new Map<string, MemEdge[]>()
+  const nodes = new Map<NodeId, MemNode>()
+  const edges = new Map<NodeId, MemEdge[]>()
 
   // Global first (lower priority)
   for (const [id, node] of scoped.global.nodes) nodes.set(id, node)
@@ -187,7 +193,7 @@ export function classifyGraph(
   const stats = computeGraphStats(incoming)
 
   // Build arm membership: nodeId → armId
-  const nodeToArm = new Map<string, string>()
+  const nodeToArm = new Map<NodeId, string>()
   // Global first, user overwrites
   for (const arm of globalArms) {
     for (const nid of arm.nodeIds) nodeToArm.set(nid, arm.id)
@@ -201,7 +207,7 @@ export function classifyGraph(
   // Energy = sum of incoming edge weights.
   // 6.8: skip artifact nodes and artifact-data companion nodes — they have their own pass.
 
-  const entityIds = new Set<string>()
+  const entityIds = new Set<NodeId>()
   const entities: Extract<DecodedStructure, { category: 'entity' }>[] = []
 
   for (const [nodeId, node] of merged.nodes) {
@@ -289,7 +295,7 @@ export function classifyGraph(
   // maintain chronological order.
 
   const sequences: Extract<DecodedStructure, { category: 'sequence' }>[] = []
-  const sequenceVisited = new Set<string>()
+  const sequenceVisited = new Set<NodeId>()
 
   // Only consider edges between entities with createdAt, grouped by arm
   type ArmEdge = MemEdge & { createdAt: number }
@@ -320,7 +326,7 @@ export function classifyGraph(
     edges.sort((a, b) => a.createdAt - b.createdAt)
 
     // Outgoing map within this arm: fromId → edges sorted by createdAt
-    const armOutgoing = new Map<string, ArmEdge[]>()
+    const armOutgoing = new Map<NodeId, ArmEdge[]>()
     for (const e of edges) {
       const list = armOutgoing.get(e.fromId)
       if (list) list.push(e)
@@ -329,10 +335,10 @@ export function classifyGraph(
 
     // Find chain starts: entity nodes with outgoing arm-edges that aren't
     // the target of another arm-edge (or haven't been visited)
-    const hasIncoming = new Set<string>()
+    const hasIncoming = new Set<NodeId>()
     for (const e of edges) hasIncoming.add(e.toId)
 
-    const starts = new Set<string>()
+    const starts = new Set<NodeId>()
     for (const e of edges) {
       if (!hasIncoming.has(e.fromId)) starts.add(e.fromId)
     }
@@ -344,7 +350,7 @@ export function classifyGraph(
     for (const startId of starts) {
       if (sequenceVisited.has(startId)) continue
 
-      const chain: string[] = [startId]
+      const chain: NodeId[] = [startId]
       let current = startId
       let lastTime = -Infinity
 
@@ -393,7 +399,7 @@ export function classifyGraph(
   const tensionSeen = new Set<string>()
 
   // Build entity energy lookup for strong-node/weak-bridge detection
-  const entityEnergy = new Map<string, number>()
+  const entityEnergy = new Map<NodeId, number>()
   for (const e of entities) entityEnergy.set(e.nodeId, e.energy)
 
   // High energy threshold: entities with energy > μ + 1σ (same as claim threshold)
@@ -427,7 +433,12 @@ export function classifyGraph(
 
     if (hasPositive && hasNegative) {
       tensionSeen.add(pairKey)
-      const [idA, idB] = pairKey.split('|')
+      // brand: locally minted — pairKey is a composite of NodeIds joined by '|',
+      // split-and-rebrand is an F-codec-internal decomposition of an existing
+      // NodeId pair, not a new atom construction.
+      const [idAStr, idBStr] = pairKey.split('|')
+      const idA = idAStr as NodeId
+      const idB = idBStr as NodeId
       const nodeA = merged.nodes.get(idA)
       const nodeB = merged.nodes.get(idB)
       if (!nodeA || !nodeB) continue
@@ -555,7 +566,7 @@ function parseArtifactContent(
  * Companion content format: "[artifact-data:{moduleId}:{version}] {JSON}"
  */
 function findArtifactFields(
-  artifactNodeId: string,
+  artifactNodeId: NodeId,
   moduleId: string,
   version: number,
   merged: MemGraph,
@@ -610,7 +621,7 @@ const MODULE_MODE_MAP: Record<string, FrameworkMode> = {
  * R1: pure — no registry access. Reads mode from graph edges to global mode nodes.
  */
 function resolveArtifactMode(
-  artifactNodeId: string,
+  artifactNodeId: NodeId,
   moduleId: string,
   merged: MemGraph,
 ): FrameworkMode {

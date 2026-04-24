@@ -1,8 +1,8 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
-// standard: LIV-Standard v1.5
+// standard: LIV-Standard v1.5.1
 // amended: v1.5
 // slice: core
 // layer: R5
@@ -20,7 +20,7 @@ import type {
 
 export const LIV_STANDARD: LivStandard = {
 
-  version: 'v1.5',
+  version: 'v1.5.1',
 
   axioms: {
     A1: { id: 'A1', name: 'Single ownership',       text: 'Every construct belongs to exactly one category and one owner.', frozen: true },

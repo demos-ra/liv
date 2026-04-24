@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R1]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1-arm-userid
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1-arm-userid, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R1
 // wires-in:
+//   W-ATOM  NodeId         core/R5 (primitives)
 //   W-ATOM  MemGraph       F-memory/R0
 //   W-ATOM  MemArm         F-memory/R0
 //   W-ATOM  MemEdge        F-memory/R0
@@ -16,15 +17,17 @@
 // deps:
 //   R0  ../config/memory-types
 //   R1  ./memory-bind (cosine)
+//   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v1.0 — arm detection and affinity.
+// Living Memory v1.1 — arm detection and affinity.
 // R1: pure functions, zero I/O.
 // §5: arms are overlapping subgraphs detected by community structure (modularity).
 // Not separate from the graph — soft constraints on traversal.
 // arm_affinity = edge weight × embedding similarity.
 // Traversal amplified within arms via shared_arm_weight modifier.
 // A ping activates the entire arm across layers, gated by affinity threshold.
+// 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 
 import type {
   MemGraph,
@@ -33,14 +36,15 @@ import type {
 } from '../config/memory-types'
 import { MEMORY_CONFIG } from '../config/memory-types'
 import { cosine } from './memory-bind'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Arm Affinity ─────────────────────────────────────────────────────────────
 // §5: arm_affinity = edge weight × embedding similarity.
 // Used to assign nodes to arms and to modulate traversal within arms.
 
 export function armAffinity(
-  nodeIdA: string,
-  nodeIdB: string,
+  nodeIdA: NodeId,
+  nodeIdB: NodeId,
   graph: MemGraph,
 ): number {
   const nodeA = graph.nodes.get(nodeIdA)
@@ -81,7 +85,7 @@ export function detectArms(graph: MemGraph): MemArm[] {
   const nodeIds = Array.from(graph.nodes.keys())
 
   // Initialize: each node is its own community
-  const labels = new Map<string, string>()
+  const labels = new Map<NodeId, NodeId>()
   for (const id of nodeIds) {
     labels.set(id, id)
   }
@@ -99,7 +103,7 @@ export function detectArms(graph: MemGraph): MemArm[] {
       if (outEdges.length === 0) continue
 
       // Count neighbor labels weighted by affinity
-      const labelWeights = new Map<string, number>()
+      const labelWeights = new Map<NodeId, number>()
       for (const edge of outEdges) {
         const neighborLabel = labels.get(edge.toId)
         if (!neighborLabel) continue
@@ -153,7 +157,7 @@ export function detectArms(graph: MemGraph): MemArm[] {
   }
 
   // Group nodes by label → form arms
-  const communities = new Map<string, string[]>()
+  const communities = new Map<NodeId, NodeId[]>()
   for (const [nodeId, label] of labels) {
     const list = communities.get(label) ?? []
     list.push(nodeId)
@@ -190,8 +194,8 @@ export function detectArms(graph: MemGraph): MemArm[] {
 // If source and target are in the same arm, effective weight is multiplied.
 
 export function sharedArmWeight(
-  fromId: string,
-  toId: string,
+  fromId: NodeId,
+  toId: NodeId,
   arms: MemArm[],
 ): number {
   for (const arm of arms) {

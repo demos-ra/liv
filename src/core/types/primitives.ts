@@ -99,6 +99,7 @@ export type RLayer = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 //         F-workspace deferred to Phase 2 (IDE surface) — not yet built.
 //         Axiom cite: A7 — deletability. Phantom slices removed.
 // Step 3: F-executor added — Docker execution slice. FSlice count +1; STATE_NAMESPACES parity maintained.
+// Phase 4b: F-artifact (AS v2.2 runtime) + F-multi-instance (M-I v2.3 runtime) added.
 export type FSlice =
   | 'F-executor'      // Step 3 — Docker code execution
   | 'F-design-system'
@@ -125,6 +126,8 @@ export type FSlice =
   | 'F-planner'     // Phase 4 — pipeline orchestration
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
+  | 'F-artifact'         // Phase 4b — AS v2.2 createArtifact runtime
+  | 'F-multi-instance'   // Phase 4b — M-I v2.3 executeRun runtime
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

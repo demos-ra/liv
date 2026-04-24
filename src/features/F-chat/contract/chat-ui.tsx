@@ -1,9 +1,9 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5
+// standard:   LIV-Standard v1.5.1
 // amended:    phase2-account-extraction, phase5-focus, w2-item-13b, phase-5.3
 // slice:      F-chat
 // layer:      R3

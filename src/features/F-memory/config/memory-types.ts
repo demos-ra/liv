@@ -1,13 +1,14 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-memory/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    lm-v1.1
+// standard:   LIV-Standard v1.5.1
+// amended:    lm-v1.1, 4b-nodeid-propagation
 // slice:      F-memory
 // layer:      R0
-// wires-in:   none
+// wires-in:
+//   W-ATOM  NodeId            core/R5 (primitives)
 // wires-out:
 //   W-ATOM  MemNode           →  F-memory/*
 //   W-ATOM  MemEdge           →  F-memory/*
@@ -22,11 +23,12 @@
 //   W-ATOM  EdgePrimitiveType →  F-memory/*
 //   W-ATOM  GraphScope        →  F-memory/*
 //   W-ATOM  ScopedGraphSet    →  F-memory/*
-// deps:       none
+// deps:
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Living Memory v1.1 — all domain types.
-// A6: declared at R0. Zero dependencies. Everything else imports from here.
+// A6: declared at R0. Imports NodeId from core/R5 primitives (AK-REF brand).
 // MA5: no NodeType — layer is computed from connectivity, never assigned.
 // MA1: no decay constants — conservation + rebalancing.
 // MA2: one action (traversal) — no separate read/write types.
@@ -36,6 +38,15 @@
 //   Amendment 3: userId on MemNode, MemArm; GraphScope, ScopedGraphSet
 //   Amendment 4: primitiveType on TraversalOptions
 //   Amendment 2: LABEL_REUSE_THRESHOLD in MEMORY_CONFIG
+//
+// 4b-nodeid-propagation:
+//   All node-id-shaped fields (MemNode.id, MemEdge.fromId/toId, MemArm.nodeIds,
+//   GraphMutation node-id carriers, DominanceEntry.nodeId, BindingResult,
+//   TraversalResult.topNodes[].nodeId, ActivationMap, MemGraph.{nodes,edges})
+//   typed as NodeId (AK-REF brand from core/R5 primitives). A3: typed boundary
+//   at every R0 atom that carries a node identifier.
+
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── M-Layer ──────────────────────────────────────────────────────────────────
 // Five layers. Numeric for comparison: M0=0 (deepest) .. M4=4 (shallowest).
@@ -62,7 +73,7 @@ export type EdgePrimitiveType = 'anchor' | 'relate' | 'restructure' | 'reinforce
 // userId (Amendment 3): null = global graph, string = per-user graph. A6: scope at origin.
 
 export type MemNode = {
-  id:              string
+  id:              NodeId
   userId:          string | null    // null = global, string = per-user (Amendment 3, A6)
   content:         string           // semantic label or summary
   embedding:       number[] | null  // VECTOR(1536), null until encoded
@@ -80,8 +91,8 @@ export type MemNode = {
 // Amendment 1: primitiveType + createdAt. Amendment 3: userId for scope.
 
 export type MemEdge = {
-  fromId:         string
-  toId:           string
+  fromId:         NodeId
+  toId:           NodeId
   weight:         number
   primitiveType:  EdgePrimitiveType | null  // null = pre-v1.1 or learning sub-op (Amendment 1, A6)
   createdAt:      number                    // unix ms (Amendment 1, A6)
@@ -93,8 +104,8 @@ export type MemEdge = {
 // Single source of truth during runtime.
 
 export type MemGraph = {
-  nodes: Map<string, MemNode>
-  edges: Map<string, MemEdge[]>  // fromId → outgoing edges
+  nodes: Map<NodeId, MemNode>
+  edges: Map<NodeId, MemEdge[]>  // fromId → outgoing edges
 }
 
 // ─── Scope (Amendment 3) ──────────────────────────────────────────────────────
@@ -118,7 +129,7 @@ export type MemArm = {
   id:        string
   userId:    string | null    // null = global, string = per-user (Amendment 3, A6)
   label:     string | null    // semantic label, null until detectable
-  nodeIds:   string[]         // nodes in this arm
+  nodeIds:   NodeId[]         // nodes in this arm
   depth:     number           // how many M-layers this arm spans (1–5)
   updatedAt: number           // unix ms
 }
@@ -127,7 +138,7 @@ export type MemArm = {
 // Async random walk convergence analysis for M1→M0 transitions.
 
 export type DominanceEntry = {
-  nodeId:     string
+  nodeId:     NodeId
   convergence: number         // random walk convergence score
   computedAt: number          // unix ms
 }
@@ -135,7 +146,7 @@ export type DominanceEntry = {
 // ─── Activation ───────────────────────────────────────────────────────────────
 // MA1: Σ activations = 1. Conserved throughout propagation.
 
-export type ActivationMap = Map<string, number>
+export type ActivationMap = Map<NodeId, number>
 
 // ─── Graph Mutation ───────────────────────────────────────────────────────────
 // G3: a single runTraversal() produces one mutation set.
@@ -145,10 +156,10 @@ export type ActivationMap = Map<string, number>
 export type GraphMutation = {
   nodeCreates:    MemNode[]
   edgeUpserts:    MemEdge[]
-  edgeDeletes:    Array<{ fromId: string; toId: string }>
-  nodeDeletes:    string[]          // node ids removed by sparsify (isolate removal)
-  sourcePrunes:   string[]          // node ids whose source_text is set to NULL (M3→M2)
-  layerUpdates:   Array<{ nodeId: string; layer: MLayer; closure: number; asymmetry: number }>
+  edgeDeletes:    Array<{ fromId: NodeId; toId: NodeId }>
+  nodeDeletes:    NodeId[]          // node ids removed by sparsify (isolate removal)
+  sourcePrunes:   NodeId[]          // node ids whose source_text is set to NULL (M3→M2)
+  layerUpdates:   Array<{ nodeId: NodeId; layer: MLayer; closure: number; asymmetry: number }>
 }
 
 // ─── Traversal Result ─────────────────────────────────────────────────────────
@@ -156,7 +167,7 @@ export type GraphMutation = {
 
 export type TraversalResult = {
   activation: ActivationMap
-  topNodes:   Array<{ nodeId: string; content: string; score: number; layer: MLayer }>
+  topNodes:   Array<{ nodeId: NodeId; content: string; score: number; layer: MLayer }>
 }
 
 // ─── Traversal Options ────────────────────────────────────────────────────────
@@ -192,7 +203,7 @@ export type PresentState = {
 
 export type BindingResult = {
   score:    number
-  nodes:    Array<{ nodeId: string; similarity: number }>
+  nodes:    Array<{ nodeId: NodeId; similarity: number }>
 }
 
 // ─── Vital Signs ──────────────────────────────────────────────────────────────

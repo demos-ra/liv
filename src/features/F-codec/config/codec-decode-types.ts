@@ -1,13 +1,14 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R0]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation
 // slice:      F-codec
 // layer:      R0
 // wires-in:
+//   W-ATOM  NodeId              core/R5 (primitives)
 //   W-ATOM  MLayer              F-memory/R0
 //   W-ATOM  EdgePrimitiveType   F-memory/R0
 //   W-ATOM  FrameworkMode       F-codec/R0
@@ -21,14 +22,18 @@
 // deps:
 //   R0  ../../F-memory/config/memory-types
 //   R0  ./codec-module-types
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Decode classification types.
 // A6: declared at R0 — consumed by R1 decode + render.
 // CA5: observable transition — classifications are deterministic structural reads.
+// 4b-nodeid-propagation: node-id-shaped fields typed NodeId. F-codec reads
+//     MemNode.id from F-memory atoms and republishes through DecodedStructure.
 
 import type { MLayer, EdgePrimitiveType } from '@/features/F-memory/config/memory-types'
 import type { FrameworkMode } from './codec-module-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ─── Classification Category ─────────────────────────────────────────────────
 // The 6 structural forms a graph produces when read.
@@ -48,12 +53,12 @@ export type RelationType = 'depends-on' | 'derived-from' | 'contradicts' | 'supp
 // Discriminated union on category — each form carries only what it needs.
 
 export type DecodedStructure =
-  | { category: 'entity';   nodeId: string; name: string; layer: MLayer; energy: number }
-  | { category: 'relation'; fromNodeId: string; toNodeId: string; relationType: RelationType; weight: number; primitiveType: EdgePrimitiveType | null }
-  | { category: 'claim';    nodeId: string; name: string; confidence: number; supportCount: number; energy: number }
-  | { category: 'sequence'; nodeIds: string[]; labels: string[]; direction: 'forward'; armId: string | null }
-  | { category: 'tension';  nodeIdA: string; nodeIdB: string; nameA: string; nameB: string; bridgeWeight: number }
-  | { category: 'artifact'; nodeId: string; moduleId: string; version: number; title: string; mode: FrameworkMode; fields: Record<string, string>; energy: number }
+  | { category: 'entity';   nodeId: NodeId; name: string; layer: MLayer; energy: number }
+  | { category: 'relation'; fromNodeId: NodeId; toNodeId: NodeId; relationType: RelationType; weight: number; primitiveType: EdgePrimitiveType | null }
+  | { category: 'claim';    nodeId: NodeId; name: string; confidence: number; supportCount: number; energy: number }
+  | { category: 'sequence'; nodeIds: NodeId[]; labels: string[]; direction: 'forward'; armId: string | null }
+  | { category: 'tension';  nodeIdA: NodeId; nodeIdB: NodeId; nameA: string; nameB: string; bridgeWeight: number }
+  | { category: 'artifact'; nodeId: NodeId; moduleId: string; version: number; title: string; mode: FrameworkMode; fields: Record<string, string>; energy: number }
 
 // ─── Decode Output ───────────────────────────────────────────────────────────
 // The full decode result — all classified structures from a graph, bucketed.

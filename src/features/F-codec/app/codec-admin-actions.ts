@@ -1,13 +1,14 @@
-// @liv-standard v1.5
+// @liv-standard v1.5.1
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.1-global-seed, 6.11-modules-for-client
+// amended:    6.1-global-seed, 6.11-modules-for-client, 4b-nodeid-propagation
 // slice:      F-codec
 // layer:      R2
 // wires-in:
+//   W-ATOM  NodeId             core/R5 (primitives)
 //   W-ATOM  GlobalSeedInput    F-codec/R0
 //   W-ATOM  IngestionSource    F-codec/R0
 //   W-ATOM  GlobalSeedNode     F-memory/R0 (via F-memory/R3)
@@ -20,6 +21,7 @@
 //   R0  ../config/codec-admin-types
 //   R1  ../domain/codec-label
 //   R3  ../../F-memory/contract/memory-contract
+//   R5  @/core/types/primitives
 // validated:  pending
 
 // Admin write operations — three actions on the global graph.
@@ -27,8 +29,12 @@
 // Moral principle: global graph contains only knowledge whose provenance
 // is verifiable — admin-authored or externally sourced. No per-user content
 // flows upward. All writes use userId: null.
+// 4b-nodeid-propagation: `nodeId` synthesized from timestamp+random is a
+//     locally-minted NodeId. Cast `as NodeId` with `// brand: locally minted`
+//     at synthesis site. removeNode accepts NodeId — upstream HTTP route
+//     brands raw body string at DELETE handler per amended Confirm 3.
 
-import type { Result } from '@/core/types/primitives'
+import type { Result, NodeId } from '@/core/types/primitives'
 import type { GlobalSeedInput, IngestionSource } from '../config/codec-admin-types'
 import type { MemNode, MemEdge } from '@/features/F-memory/config/memory-types'
 import type { GlobalSeedNode } from '@/features/F-memory/contract/memory-contract'
@@ -47,7 +53,8 @@ import {
 export async function seedGlobalNode(input: GlobalSeedInput): Promise<Result<void>> {
   const label = normalizeLabel(input.label)
   const now = Date.now()
-  const nodeId = `global-${now}-${Math.random().toString(36).slice(2, 8)}`
+  // brand: locally minted — synthesized from timestamp+random inside F-codec admin
+  const nodeId = `global-${now}-${Math.random().toString(36).slice(2, 8)}` as NodeId
 
   // A6: declared shape — MemNode with global defaults (M4, closure 0, asymmetry 0)
   const node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'> = {
@@ -100,7 +107,7 @@ export async function ingestExternal(source: IngestionSource): Promise<Result<vo
 // Admin removes a global node and all connected edges.
 // Cascade: query edges, include in mutation, atomic commit.
 
-export async function removeNode(nodeId: string): Promise<Result<void>> {
+export async function removeNode(nodeId: NodeId): Promise<Result<void>> {
   return persistRemove(nodeId)
 }
 
