@@ -1,0 +1,524 @@
+// @liv-standard v1.5.1
+// [core/R5]
+// Built with LIV · livai.dev
+// @manifest
+// standard: LIV-Standard v1.5.1
+// amended: none
+// slice: core
+// layer: R5
+// wires-in:
+//   W-ATOM NodeId              ← core/R5 primitives
+//   W-ATOM Semver              ← core/R5 primitives
+//   W-ATOM Result              ← core/R5 primitives
+//   W-ATOM AppError            ← core/R5 primitives
+//   W-ATOM ArtifactEmission    ← core/R5 ./artifact-standard.types
+// wires-out:
+//   W-ATOM ScopeKey                → all graph-aware consumers (AK-REF branded)
+//   W-ATOM NodeRef                 → all graph-aware consumers
+//   W-ATOM EdgeRef                 → all graph-aware consumers
+//   W-ATOM MLayer                  → F-codec, M-I runtime
+//   W-ATOM EdgePrimitiveType       → F-codec routing, AS v2.2 edge-kind roles
+//   W-ATOM EdgeKind                → all graph-aware consumers
+//   W-ATOM MemNode                 → F-codec, AS v2.2 (anchor/companion/content role carrier)
+//   W-ATOM MemEdge                 → F-codec, AS v2.2 (edge-kind role carrier)
+//   W-ATOM ActivationMap           → LM internal
+//   W-ATOM SubstancePositional     → LM internal, framework-audit
+//   W-ATOM SubstanceDecision       → LM internal (LMA7)
+//   W-ATOM SubstanceDynamicsPhase  → LM internal, framework-audit
+//   W-ATOM TraversalState          → LM internal, framework-audit
+//   W-ATOM MutationCommitRef       → LM internal
+//   W-ATOM BindingResult           → LM internal
+//   W-ATOM GraphMutation           → LM internal
+//   W-ATOM DerivationKind          → LM internal, framework-audit
+//   W-ATOM GraphThresholds         → LM internal
+//   W-ATOM DominanceEntry          → LM internal
+//   W-ATOM MemArm                  → F-codec
+//   W-ATOM ArmMembership           → LM internal
+//   W-ATOM LayerRef                → LM internal
+//   W-ATOM ConfidenceTier          → F-chat present-state consumers
+//   W-ATOM PresentStateStatement   → F-chat present-state consumers
+//   W-ATOM MemGraph                → F-codec (getGraph read surface)
+//   W-ATOM TraversalOptions        → F-chat, F-codec (traverse callers)
+//   W-ATOM TraverseInput           → F-chat, F-codec (traverse callers)
+//   W-ATOM PresentStateInput       → F-chat (present-state callers)
+//   W-ATOM GraphReadInput          → F-chat, F-codec
+//   W-ATOM DirectInsertInput       → F-codec admin (authorized callers)
+//   W-ATOM DirectInsertBatchInput  → F-codec admin
+//   W-ATOM GraphReadRef            → LM internal
+//   W-ATOM TraversalResult         → F-chat, F-codec
+//   W-ATOM PresentState            → F-chat
+//   W-ATOM MemoryVitalSigns        → dashboard (R3 hook)
+//   W-ATOM LMHandoffRuleInstance   → framework-audit
+//   W-ATOM LMGateResult            → framework-audit
+//   W-ATOM LMDimensionResult       → framework-audit
+//   W-ATOM LMCustodyRow            → framework-audit
+//   W-ATOM LivingMemoryError       → LM callers (error surface)
+//   W-ATOM TraverseResult          → LM callers (Result-wrapped)
+//   W-ATOM DirectInsertResult      → LM callers (Result-wrapped)
+//   W-ATOM DirectInsertBatchResult → LM callers (Result-wrapped)
+//   W-ATOM PresentStateResult      → F-chat
+//   W-ATOM GraphReadResult         → F-codec
+//   W-ATOM ArmsReadResult          → F-codec
+//   W-ATOM VitalSignsResult        → dashboard
+//   W-ATOM BootResult              → boot lifecycle
+// deps:
+//   R5 ./primitives
+//   R5 ./artifact-standard.types
+//   R5 ../constants/living-memory
+// validated: pending
+
+// ═══════════════════════════════════════════════════════════════
+// LIVING MEMORY v2.1 — TYPE DECLARATIONS
+// ═══════════════════════════════════════════════════════════════
+// Living Memory v2.1 landing: regenerated against metaframework-v3-1
+// (cycle-5 audit pass-all). 20 axioms (LMA1..LMA19 with LMA13 split).
+// Mode = generative; carrier = self; scope-parameterized single-graph.
+// Canonical spec: src/core/standards/living-memory.md
+// A1: declared once, at R5 core. Slices import — never redeclare.
+
+// living-memory.types.ts
+// R5 type atoms for Living Memory v2.1
+// Generated against metaframework-v3-1 via generation-procedure-v1-0
+// Cross-framework calibration: Artifact Standard v2.2 / Plan Standard v2.2 / Multi-Instance Standard v2.3 (frozen inputs)
+//
+// Consumes: primitives.ts (NodeId, Semver, Result, AppError)
+//           artifact-standard.types.ts (ArtifactEmission — AS write payload lands as MemNode+MemEdge records)
+//
+// Discipline: no implementation logic; type declarations only.
+// Custody: every atom declared here has a row in living-memory-v2-1.md §6.5 Custody.
+// Constraint: no R5 typed substrate atoms at this regen (post-beta per brief §Constraints).
+
+import type {
+  NodeId,
+  Semver,
+  Result,
+  AppError,
+} from './primitives'
+
+import type {
+  ArtifactEmission,
+} from './artifact-standard.types'
+
+// ─── Framework-local identifiers ─────────────────────────────────────────────
+// Declared once at R5 per substrate §10.2 PR1; referenced elsewhere by identifier.
+
+/**
+ * Scope identifier — non-empty ownerId string (LMA2). One independent living
+ * graph per distinct ScopeKey value.
+ */
+export type ScopeKey = string & { readonly _brand: 'ScopeKey' }
+
+/**
+ * Node reference alias — same as primitives.NodeId for clarity at LM's boundary.
+ */
+export type NodeRef = NodeId
+
+/**
+ * Edge reference — (fromId, toId) pair identifying one MemEdge instance.
+ */
+export type EdgeRef = {
+  fromId: NodeRef
+  toId:   NodeRef
+}
+
+// ─── M-layer and edge-primitive-type enums (§3.5 leaves) ─────────────────────
+
+/**
+ * M-layer — computed position derived from topology (LMA14–LMA17).
+ * Integer enum M0..M4 (M4 = input, M0 = identity).
+ * Distinct from LIV-Standard R-layers.
+ */
+export type MLayer = 0 | 1 | 2 | 3 | 4
+
+export const M4_INPUT = 4 as const
+export const M3_CONTEXT = 3 as const
+export const M2_KNOWLEDGE = 2 as const
+export const M1_MEANING = 1 as const
+export const M0_IDENTITY = 0 as const
+
+/**
+ * Edge primitive type — Cognitive Standard v1.2 primitive tagging.
+ * Distinct from metaframework "primitive" (which for LM = 'living graph').
+ */
+export type EdgePrimitiveType =
+  | 'anchor'
+  | 'relate'
+  | 'restructure'
+  | 'reinforce'
+  | 'suppress'
+
+/**
+ * Edge kind — EdgePrimitiveType or null (null for unbound / system-tagged edges).
+ * Used in the Substance axis Categorical universal-variable cell.
+ */
+export type EdgeKind = EdgePrimitiveType | null
+
+// ─── Substance axis atoms (§3.4 Substance sub-axes) ──────────────────────────
+
+/**
+ * MemNode — the held atomic unit. Scope-partitioned by ownerId per LMA2 + LMA3.
+ * Cached layer/closure/asymmetry fields are derived per LMA14..LMA16 + LMA18.
+ */
+export type MemNode = {
+  id:              NodeRef
+  ownerId:         ScopeKey              // LMA2
+  content:         string
+  embedding:       number[]              // LIV-Standard R4 encode() output
+  sourceText:      string | null         // LMA1 lifecycle: null iff cachedLayer <= M2_KNOWLEDGE
+  createdAt:       number                // epoch ms
+  lastTraversed:   number                // epoch ms; updated per touch
+  cachedLayer:     MLayer                // LMA14 = M4_INPUT at creation; LMA16 equivalence
+  cachedClosure:   number                // derived per LMA18
+  cachedAsymmetry: number                // derived per LMA18
+}
+
+/**
+ * MemEdge — directed weighted relation between MemNodes in the same scope (LMA3).
+ */
+export type MemEdge = {
+  fromId:        NodeRef
+  toId:          NodeRef
+  weight:        number
+  primitiveType: EdgeKind
+  createdAt:     number                  // epoch ms
+  ownerId:       ScopeKey                // LMA2
+}
+
+/**
+ * Conserved energy scalar (LMA4): Σ values = 1 invariant per-traversal-step.
+ * Runtime representation of the Substance/energy leaf.
+ */
+export type ActivationMap = Map<NodeRef, number>
+
+/**
+ * Positional state for Substance axis (universal-variables table §3.8).
+ */
+export type SubstancePositional = 'declared' | 'persisted'
+
+// ─── Dynamics axis atoms (§3.4 Dynamics sub-axes) ────────────────────────────
+
+/**
+ * Substance decision tag — per LMA7, one decision per runTraversal invocation.
+ * Non-null at commit (G-LM7).
+ */
+export type SubstanceDecision = 'create' | 'reinforce'
+
+/**
+ * Dynamics phase enum — Categorical universal-variable cell for Dynamics axis.
+ */
+export type SubstanceDynamicsPhase =
+  | 'reception'
+  | 'redistribution'
+  | 'reinforcement'
+  | 'pruning'
+  | 'commit'
+
+/**
+ * Traversal state — Positional universal-variable cell for Dynamics axis.
+ */
+export type TraversalState =
+  | 'pending'
+  | 'binding'
+  | 'propagating'
+  | 'committed'
+  | 'aborted'
+
+/**
+ * Mutation commit reference — Relational universal-variable cell for Dynamics.
+ * Points to a single committed GraphMutation with its substanceDecision tag.
+ */
+export type MutationCommitRef = {
+  mutationId:        string
+  committedAt:       number                // epoch ms
+  scope:             ScopeKey
+  substanceDecision: SubstanceDecision
+}
+
+/**
+ * BindingResult — output of Dynamics/reception's bind step.
+ */
+export type BindingResult = {
+  matched:    boolean
+  nodeId:     NodeRef | null              // non-null iff matched
+  similarity: number                      // 0..1; threshold compared to LABEL_REUSE_THRESHOLD per LMA7
+}
+
+/**
+ * GraphMutation — aggregated write payload, committed atomically per LMA11.
+ * substanceDecision is non-null at commit per LMA7.
+ */
+export type GraphMutation = {
+  nodeCreates:       MemNode[]
+  edgeUpserts:       MemEdge[]
+  edgeDeletes:       Array<{ fromId: NodeRef; toId: NodeRef }>
+  nodeDeletes:       NodeRef[]
+  sourcePrunes:      NodeRef[]            // M3 -> M2 transitions (LMA19 event)
+  layerUpdates:      Array<{
+    nodeId:    NodeRef
+    layer:     MLayer
+    closure:   number
+    asymmetry: number
+  }>
+  substanceDecision: SubstanceDecision    // LMA7 non-null at commit
+  ownerId:           ScopeKey             // LMA2
+}
+
+// ─── Derivation axis atoms (§3.4 Derivation sub-axes) ────────────────────────
+
+/**
+ * Derivation kind — Categorical universal-variable cell for Derivation axis.
+ */
+export type DerivationKind =
+  | 'metric'
+  | 'layer'
+  | 'dominance'
+  | 'arm'
+  | 'present-state'
+
+/**
+ * Graph-relative thresholds — derived from graph statistics (μ + kσ).
+ * No absolute numeric thresholds per §3.9 Vocabulary graph-relative-threshold.
+ */
+export type GraphThresholds = {
+  bind:  number
+  dom:   number
+  prune: number
+  close: number
+}
+
+/**
+ * DominanceEntry — random-walk convergence score per LMA13a.
+ * computedAt produced exclusively by recomputeDominance (LMA13a G-LM13a).
+ */
+export type DominanceEntry = {
+  nodeId:      NodeRef
+  ownerId:     ScopeKey                   // LMA2
+  convergence: number
+  computedAt:  number
+}
+
+/**
+ * MemArm — emergent subgraph from community-structure detection (LMA18 reconstructible).
+ */
+export type MemArm = {
+  id:        string
+  ownerId:   ScopeKey                     // LMA2
+  label:     string | null
+  nodeIds:   NodeRef[]
+  depth:     number                       // M-layer span of arm (1-5)
+  updatedAt: number                       // epoch ms
+}
+
+/**
+ * Arm membership — Relational universal-variable cell for Derivation axis.
+ */
+export type ArmMembership = {
+  armId:  string
+  nodeId: NodeRef
+}
+
+/**
+ * Layer reference — Relational universal-variable cell for Derivation axis.
+ */
+export type LayerRef = {
+  nodeId: NodeRef
+  layer:  MLayer
+}
+
+/**
+ * Confidence tier — PresentState statement confidence classification.
+ */
+export type ConfidenceTier =
+  | 'identity'
+  | 'purpose'
+  | 'consolidated'
+  | 'recent'
+  | 'new'
+
+/**
+ * PresentStateStatement — one statement in the present-state projection.
+ */
+export type PresentStateStatement = {
+  arm:        string | null               // null per G1 fallback when arms weak
+  value:      string
+  source:     string | null               // sourceText if cachedLayer >= M3_CONTEXT; null otherwise per LMA1
+  layer:      MLayer
+  confidence: ConfidenceTier
+  recency:    number                      // EMA-weighted
+}
+
+// ─── Runtime in-memory graph representation (§2.2 output W-ATOM) ─────────────
+
+/**
+ * MemGraph — runtime representation of one scope's living graph.
+ */
+export type MemGraph = {
+  nodes: Map<NodeRef, MemNode>
+  edges: Map<NodeRef, MemEdge[]>          // fromId -> outgoing edges
+}
+
+// ─── Input W-ATOMs (schema.input per MA-S1; §2.1) ────────────────────────────
+
+export type TraversalOptions = {
+  returnActivation?: boolean              // true = read path; false/undefined = write-only
+  primitiveType?:    EdgePrimitiveType   // edge tag for this traversal
+}
+
+export type TraverseInput = {
+  text:    string
+  ownerId: ScopeKey                       // non-empty (LMA2)
+  options?: TraversalOptions
+}
+
+export type PresentStateInput = {
+  ownerId: ScopeKey                       // non-empty (LMA2)
+}
+
+export type GraphReadInput = {
+  ownerId: ScopeKey                       // non-empty (LMA2)
+}
+
+export type DirectInsertInput = {
+  ownerId: ScopeKey                       // non-empty (LMA2)
+  node:    Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'>
+  edges:   MemEdge[]                      // all edges must satisfy LMA3 (same ownerId)
+}
+
+export type DirectInsertBatchInput = {
+  ownerId: ScopeKey                       // non-empty (LMA2)
+  nodes:   DirectInsertInput[]            // each item references same ownerId
+}
+
+/**
+ * Graph read reference — Relational universal-variable cell for Substance axis
+ * when observing read-path invocations against the graph.
+ */
+export type GraphReadRef = {
+  scope:    ScopeKey
+  consumer: 'traversal' | 'present-state' | 'vital-signs' | 'admin-read'
+}
+
+// ─── Output W-ATOMs (§2.2) ───────────────────────────────────────────────────
+
+export type TraversalResult = {
+  activation: ActivationMap               // Σ = 1 per LMA4
+  topNodes:   Array<{
+    nodeId:  NodeRef
+    content: string
+    score:   number
+    layer:   MLayer
+  }>
+}
+
+export type PresentState = {
+  statements: PresentStateStatement[]
+}
+
+export type MemoryVitalSigns = {
+  activationEntropy:    number
+  top1ActivationRatio:  number
+  meanDegree:           number
+  layerDistribution:    Record<string, number>   // key: `"0"` .. `"4"` serialization of MLayer
+  closureMean:          number
+  asymmetryMean:        number
+  attractorStability:   number
+  armCount:             number
+  armDepthDistribution: number[]
+}
+
+// ─── Handoff rule instance (per substrate §8.2 P6 amended) ───────────────────
+
+/**
+ * LM-local handoff rule instance. Consumed by framework-audit X3 C5 captureShape check.
+ * Shape conforms to substrate §8.2 HandoffRulePrimitive amended.
+ */
+export type LMHandoffRuleInstance = {
+  id:                     string          // e.g., 'HR-LM1'
+  direction: {
+    from: { id: string; version: Semver } // FrameworkRef shape
+    to:   { id: string; version: Semver }
+  }
+  carrierApplicability:   Array<'self' | 'named' | 'none'>
+  invariant:              string          // declared invariant text
+  captureShape?: {
+    capturedFields: string[]
+    captureTarget:  'registry' | 'audit-trail' | 'custom'
+    queryInterface?: string
+  }
+  diagnosticSignificance: boolean
+}
+
+// ─── Gate / dimension / custody result shapes (framework-audit consumption) ──
+
+/**
+ * GateResult consumed by framework-audit SelfAuditRecord shape.
+ * Shape mirrors framework-audit-v1-3 §8.1 GateResult.
+ */
+export type LMGateResult = {
+  gateId:    string                        // e.g., 'G-LM1', 'PG1', 'G-U5'
+  result:    'passed' | 'failed' | 'pending'
+  timestamp: string                        // ISO 8601
+  evidence?: string                        // optional, populated for failed gates
+}
+
+/**
+ * DimensionResult consumed by framework-audit when evaluating LM.
+ * Shape mirrors framework-audit-v1-3 §8.1 DimensionResult.
+ */
+export type LMDimensionResult = {
+  dimensionId: string                      // 'X1'..'X10'
+  result:      'pass' | 'fail' | 'n/a'
+  basis?:      string                      // required for 'n/a'
+  details:     string
+}
+
+/**
+ * Framework-local custody row. Consumed by framework-audit custody-check.
+ * Shape mirrors substrate §4 A-04 CustodyRow.
+ */
+export type LMCustodyRow = {
+  atomId:           string
+  ownerFrameworkId: string
+  layer:            string
+  consumers:        string[]
+}
+
+// ─── Error payload (emission surface) ────────────────────────────────────────
+
+/**
+ * LivingMemoryError — error payload returned by LM R3 surface.
+ * Extends canonical AppError from primitives.ts.
+ */
+export type LivingMemoryError = AppError & {
+  code:
+    | 'LM_INPUT_INVALID'                  // schema violation on input W-ATOM
+    | 'LM_BIND_INFRASTRUCTURE_FAILED'     // encode() R4 dependency failure
+    | 'LM_VALIDITY_FAILED'                // G-LM1..G-LM12 failure at commit-time (S5)
+    | 'LM_COMMIT_FAILED'                  // persistMutations DB transaction failure
+    | 'LM_SCOPE_NOT_FOUND'                // ownerId does not resolve to a known scope
+    | 'LM_PERMISSION_DENIED'              // caller lacks permission (enforced above LM)
+  failedAxiom?: string                    // e.g., 'LMA4', 'LMA7' — populated for LM_VALIDITY_FAILED
+  ownerId?:     ScopeKey                  // scope context when available
+}
+
+// ─── Operation result types (R3 emission surface per §6.8 operator interface) ─
+
+export type TraverseResult       = Result<TraversalResult | null, LivingMemoryError>
+export type DirectInsertResult   = Result<void,                   LivingMemoryError>
+export type DirectInsertBatchResult = Result<
+  { inserted: number; traversed: number },
+  LivingMemoryError
+>
+export type PresentStateResult   = Result<PresentState,           LivingMemoryError>
+export type GraphReadResult      = Result<MemGraph,               LivingMemoryError>
+export type ArmsReadResult       = Result<MemArm[],               LivingMemoryError>
+export type VitalSignsResult     = Result<MemoryVitalSigns,       LivingMemoryError>
+export type BootResult           = Result<void,                   LivingMemoryError>
+
+// ─── AS v2.2 cross-framework re-exports (declarative, for type-resolution clarity) ──
+// Declared by AS, consumed by LM at §6.11 emission-chain calibration.
+// Not re-owned; custody remains with artifact-standard (see §6.5 custody table).
+
+export type { ArtifactEmission }
+
+// ─── End of living-memory.types.ts ──────────────────────────────────────────

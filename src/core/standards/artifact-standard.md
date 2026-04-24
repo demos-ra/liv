@@ -1,307 +1,793 @@
-# Artifact Standard v2.1
+# artifact-standard-v2-2
 
-**Level:** L3 · **Kind:** Framework · **Mode:** generative · **Carrier:** `self` · **Authority:** L1 Protocol via L2 metaframework v2.4 · **Confirmed by:** L0
+**Kind:** Framework
+**Mode:** generative
+**Level:** L3
+**Version:** v2.2
+**Authority:** L0 pending (Phase: L3 regen wave cycle 1)
+**Consumes:** substrate-v1-1, metaframework-v3-1, primitives.ts (core/R5)
+**Consumed by:** Plan Standard, Multi-Instance Standard, and every content framework declaring `carrier = 'artifact-standard'`
+**Dependencies:** substrate-v1-1 (by reference, per HR1 inherited), metaframework-v3-1 (via HR6 receive-side output contract), generation-procedure-v1-0 (generator)
+**Versioning discipline:** additive only (per MA-L1)
+**Adjacent frameworks:** Cognitive Standard (upstream at A4), Living Memory (write carrier), LIV-Standard (Semver custodian)
 
-## Change log
+Artifact Standard is the L3 generative-mode framework governing emission mechanics at chain link A7. Its content is rendered from metaframework-v3-1 §3 structural template via generation-procedure-v1-0 S1–S3 (AS-specific three-step P8 procedure; distinct from generation-procedure's own S1–S12 which generates framework templates). This file is the `GeneratedFrameworkTemplate` emission per metaframework-v3-1 §2.2 output schema.
 
-| From | Change | Source |
-|---|---|---|
-| v2.0 | Regenerated against metaframework v2.4 (adds MA-G5c custody, MA-G5d provenance as required axioms). | Metaframework v2.4 binary-audit requirement. |
-| v2.0 | §9 output schema — per-field provenance added for every `ArtifactEmission` field. Three source types: verbatim-from-input, runtime-generated, adjacent-framework-sourced. | MA-G5d (output-field provenance). |
-| v1.1 | Regenerated under metaframework v2.1. Not a patch. Full re-derivation through 12-step generation procedure. | Gap radius: 10 gaps in v1.1 all traced to Layer 1 test-gate absence. |
-| v1.1 | Mode resolved to exactly `generative` (was "generative + structural"). | MA-G1 (one mode per framework). |
-| v1.1 | Carrier declared `self`. | metaframework §4.2 Carrier sub-axis. |
-| v1.1 | `CognitivePrimitive`, `NodeId`, `Semver` — custody declared, not re-owned. | E2 orthogonality; gaps 1, 4, 7. |
-| v1.1 | Input W-ATOM schema added (`CreateArtifactInput`). | E4 schema closure; gaps 5, 6, 7. |
-| v1.1 | Mode node, version predecessor — resolution paths specified mechanically. | gaps 8, 10. |
-| v1.1 | ArA3 plural/singular resolved: `contentNodeIds.length ≥ 1`. | E3 terminology; gap 9. |
-| v1.1 | Evolution axis dropped as independent axis; folded into axioms (ArA5) — evolution is a constraint on post-emission state, not a dimension of emission. | E2 orthogonality. |
-| v1.1 | ArA4 decomposed from one compound axiom into 4 atomic axioms (ArA4a–ArA4d). | E6 axiom atomicity; gap 9 (edge-kind conflation). |
-| v1.1 | Universal-variables table cells resolved to atomic descriptors. | E5 variable resolution; gap 8. |
+**Generator provenance:**
+- `generatedByMetaframework`: `{id: 'metaframework', version: 'v3.2.1'}`
+- `generationProcedureRef`: `{id: 'generation-procedure', version: 'v1.1.1'}`
+- `sourceInputRef`: registry-archived `MetaframeworkInput` (reference-default per A-20)
+- `generationTimestamp`: 2026-04-23T00:00:00Z
 
 ---
 
-## 1. Identity
+## §1 Identity
 
 | Field | Value |
 |---|---|
 | Name | Artifact Standard |
-| Level | L3 |
-| Kind | Framework |
-| Mode | generative (structured → produced) |
-| Primitive | artifact node |
-| Version | v2.1 |
-| Ownership (template) | Human (L0) |
-| Ownership (applied) | System under L0 |
-| State (template) | declared |
-| State (applied) | runtime |
-| Carrier | `self` |
-| Consumed by | every framework whose output is an artifact (Plan, Multi-Instance, Builder, Verify, etc.) |
-| Adjacent frameworks | Cognitive Standard, Living Memory |
+| Kind | `Framework` |
+| Mode | `generative` |
+| Level | `L3` |
+| Version | `v2.2` |
+| Ownership (template) | `L0` |
+| Ownership (applied) | `System` (under L0 authority) |
+| State (template) | `declared` |
+| State (applied) | `declared` (initial; transitions to `applied` on first `createArtifact` invocation) |
+| Carrier | `self` (emits `ArtifactEmission` W-ATOM directly per MA-S2) |
+| Consumes | substrate-v1-1 (via inherited HR1), metaframework-v3-1 (via HR6 receive-side), primitives.ts core/R5 |
+| Consumed by | Plan Standard, Multi-Instance Standard, any content framework declaring `carrier = 'artifact-standard'` |
+| Authority | L0 pending (regen cycle output; ratified on post-cycle confirmation gate per §5.3) |
+| Genesis | `{bootstrapped: false, genesisEvent: 'generation-procedure-v1-0 S3 emission at L3 regen wave cycle 1'}` |
+| scopeOut | `['domain payload content (owned by content framework — Plan, M-I, etc.)', 'codec classification at A4 (owned by Cognitive Standard)', 'graph physics — node/energy/traversal (owned by Living Memory)', 'code structure (owned by LIV-Standard)', 'framework registry dispatch runtime (owned by each framework)', 'B-direction symmetric re-encoding at B3 (post-beta)']` |
 
-## 2. Scope
+**MA-G13 four-property test (framework classification):**
 
-| In scope | Out of scope |
+| Property | Satisfied by |
 |---|---|
-| Emission mechanics at chain link A7 | Domain payload content (owned by content framework — Plan, M-I, etc.) |
-| Artifact anchor + companion data + content traversal + edge topology | Codec classification at A4 (Cognitive Standard) |
-| Lineage edges (classification, version, dependency, categorical) | Graph physics — node/energy/traversal (Living Memory) |
-| Post-emission evolution restriction (ArA5) | Code structure (LIV-Standard) |
-| B3 symmetric emission (post-beta, same axioms, different chain position) | Framework registry, dispatch, runtime (each framework's own concern) |
+| Own state | `{stateTemplate, stateApplied}` ∈ substrate §9 `LifecycleState` enum; `{declared, applied, terminated, deprecated}` transitions declared at §5.1 |
+| Own I/O | input: `CreateArtifactInput` (§2.1); output: `ArtifactEmission` (§2.2) |
+| Own invariants | 11 axis-bound structural-transformation axioms (ArA1–ArA8 with ArA4a–ArA4d) per §3.3; + 35 axis-bound + 1 universal MA-G13 inherited from metaframework-v3-1 §3.2 |
+| Own discipline | three P8 step procedure (§3.4 S1–S3 under Stages {2, 3, 5}); axiom gates G-Ar1–G-Ar8 at §4.2; handoff rules HR-Ar1–HR-Ar4 at §6.2 |
 
-## 3. Primitive
-
-**artifact node** — a graph node produced at chain link A7 by a framework that:
-1. carries a domain-typed payload in a 1:1 companion data node;
-2. references traversed content nodes produced at emission;
-3. carries typed lineage edges per ArA4a–ArA4d;
-4. is evolution-restricted per ArA5.
-
-Artifact status is earned through emission mechanics; not a declared node kind.
-
-## 4. Axes (3)
-
-| Axis | Governs | Atomic question |
-|---|---|---|
-| **Emission** | Where in the transfer chain writes occur, and what is written | At which chain link is each write made, and what atom is deposited? |
-| **Composition** | What nodes and edges result from one emission | What products does one framework turn produce? |
-| **Lineage** | How the emitted artifact connects to prior state | What edges connect this artifact to classification, predecessor, and inputs? |
-
-Evolution folded into ArA5 (a post-emission constraint); not an orthogonal axis of emission.
-
-### 4.1 Emission
-
-| Sub-axis | Leaf |
-|---|---|
-| Chain position (A-direction) | `A4` (codec) \| `A7` (framework) |
-| Chain position (B-direction, post-beta) | `B3` (framework output re-encoding) |
-| Write ownership at A4 | Cognitive Standard (not AS) |
-| Write ownership at A7 | Artifact Standard (this framework) |
-| Conditional application | A7 emission iff framework applied on turn |
-
-### 4.2 Composition
-
-| Sub-axis | Leaf |
-|---|---|
-| Artifact anchor node | `NodeId`. Exactly 1 per emission. Carries `framework.id`, `framework.version`, `turnId`, `emissionId`. |
-| Companion data node | `NodeId`. Exactly 1 per emission. Holds `payload` as JSON verbatim. |
-| Content node set | `NodeId[]`. Cardinality ≥ 1. Produced by traversal of `payload.content` via F-memory `traverse()`. |
-| Edge set | `ArtifactEdge[]`. Cardinality = 2 always + conditional per ArA4c, ArA4d. |
-
-### 4.3 Lineage
-
-| Sub-axis | Leaf |
-|---|---|
-| Classification-lineage edge | `anchor → classificationNodeId`. Always. |
-| Categorical edge | `anchor → modeNode`. Always. `modeNode` resolved by `framework.id → modeNodeId` lookup via F-memory R3. |
-| Version-lineage edge | `anchor → priorAnchor` iff prior exists. Prior defined mechanically as most-recent anchor with same `framework.id` and same `userId`. Resolved via F-memory R3 one-hop query. |
-| Dependency edges | `anchor → inputAnchor[i]` for each element of `input.dependsOn[]`. Present iff `dependsOn` non-empty. |
-
-## 5. Universal variables per axis
-
-| Axis | Temporal | Categorical | Relational | Positional |
-|---|---|---|---|---|
-| Emission | `framework.version` (semver) | chain position enum `A4 \| A7 \| B3` | write → graph | `unwritten \| written` |
-| Composition | `emissionId` (UUID v4) | product enum `anchor \| companion \| content \| edge` | anchor ↔ companion (1:1); anchor → content[N]; anchor → edge[M] | `unassembled \| assembled \| persisted` |
-| Lineage | `version-lineage chain depth` (int) | edge kind enum `classification-lineage \| categorical \| version \| dependency` | `anchor → target` (directional) | `unlinked \| linked` |
-
-## 6. Axioms (ArA1–ArA7)
-
-One mechanical condition per axiom. E6 atomicity enforced.
-
-| ID | Condition |
-|---|---|
-| **ArA1** | Every framework-engaged turn produces exactly one `ArtifactEmission` with `writes.a4` populated. Non-framework turns produce no emission. |
-| **ArA2** | Every emission has `writes.a7.artifactAnchorNodeId` and `writes.a7.companionDataNodeId` in 1:1 binding by `emissionId`. |
-| **ArA3** | Every emission has `writes.a7.contentNodeIds.length ≥ 1`. Content traversal produces at least one content node via Cognitive Standard primitives. |
-| **ArA4a** | Every emission has exactly one `classification-lineage` edge: `anchor → writes.a4.classificationNodeId`. |
-| **ArA4b** | Every emission has exactly one `categorical` edge: `anchor → modeNode`, where `modeNode` is resolved by `framework.id` via F-memory R3 one-hop. |
-| **ArA4c** | Every emission has one `version` edge: `anchor → priorAnchor` iff a prior anchor exists for the same `(framework.id, userId)` pair. Absent iff no prior. No null-pointing edge. |
-| **ArA4d** | Every emission has one `dependency` edge per entry of `input.dependsOn[]`. Cardinality = `input.dependsOn.length`. Absent iff `dependsOn` empty or undefined. |
-| **ArA5** | Post-emission mutation of anchor or companion content is forbidden. State changes produce a new emission with a `version` edge to the prior. Evolution routes through Cognitive Standard primitives only. |
-
-## 7. Cross-framework handoff
-
-### 7.1 Custody table
-
-| Atom | Owner | Consumers |
-|---|---|---|
-| `CognitivePrimitive` | Cognitive Standard (canonical at core/R5 `primitives.ts`) | AS, Cognitive Standard, Living Memory |
-| `NodeId` | Living Memory (canonical at core/R5) | AS, Cognitive Standard, every framework |
-| `Semver` | LIV-Standard (canonical at core/R5) | AS, every framework |
-| `UserId` | F-identity (canonical at core/R5) | AS, every framework |
-| `classificationNodeId` | Cognitive Standard (produced by A4 write) | AS (input, by reference) |
-| `primitive` (value) | Cognitive Standard | AS (input, by reference) |
-| `confidence` | Cognitive Standard | AS (input, by reference) |
-| `modeNode` (graph node for framework's mode) | Living Memory (stored); resolved by AS at emission | AS |
-| `artifactAnchorNode` | Artifact Standard | Living Memory (stores); content frameworks (reference) |
-| `companionDataNode` | Artifact Standard | Living Memory (stores) |
-| `payload` | content framework (Plan, M-I, etc.) | AS (carries verbatim; does not inspect) |
-
-### 7.2 Handoff contracts
-
-| Adjacent | AS consumes | AS emits |
-|---|---|---|
-| Cognitive Standard | `classificationNodeId`, `primitive`, `confidence` (at A4 → A7 boundary, same turn) | — |
-| Living Memory | traverse() writes for anchor, companion, content; one-hop queries for modeNode and priorAnchor | anchor + companion + content nodes; edge set |
-| content framework (Plan, M-I, etc.) | `framework.id`, `framework.version`, `payload`, optional `dependsOn` | `ArtifactEmission` (receipt) |
-
-### 7.3 Carrier relation (H5)
-
-AS `carrier = self`. AS emits own carrier mechanics. Content frameworks (Plan, M-I, etc.) have `carrier = Artifact Standard`. Those frameworks declare payload content only and do not emit carrier mechanics.
-
-## 8. Input schema — CreateArtifactInput
-
-W-ATOM consumed by `createArtifact` at R3:
-
-```
-CreateArtifactInput {
-  framework: {
-    id:      string      // provenance: caller (content framework) R0
-    version: Semver      // provenance: caller R0
-  }
-  turnId:               string               // provenance: caller's turn context (F-chat message ID, F-planner job ID, etc.)
-  userId:               UserId               // provenance: F-identity session
-  payload:              ArtifactPayload      // provenance: caller (content framework) output
-  classificationNodeId: NodeId               // provenance: Cognitive Standard R3 encodeLLM (prior call, same turn)
-  primitive:            CognitivePrimitive   // provenance: same encodeLLM call
-  confidence:           number               // provenance: same encodeLLM call
-  dependsOn?:           NodeId[]             // provenance: caller's prior-artifact references
-}
-
-ArtifactPayload {
-  domain:        string                      // e.g., 'plan', 'multi-instance'
-  domainVersion: Semver
-  schemaRef:     string                      // identifies payload schema per content framework
-  content:       unknown                     // typed per domain schema, opaque to AS
-}
-```
-
-**Provenance rule (E4):** every field traces to a named owning framework or external source.
-
-## 9. Output schema — ArtifactEmission
-
-W-ATOM emitted by `createArtifact`:
-
-```
-ArtifactEmission {
-  emissionId:  string                        // provenance: runtime-generated (UUID v4 per call)
-  framework:   { id: string, version: Semver }  // provenance: input.framework (verbatim)
-  turnId:      string                        // provenance: input.turnId (verbatim)
-
-  writes: {
-    a4: {                                    // ArA1 — always; provenance: input (verbatim copy)
-      classificationNodeId: NodeId           // provenance: input.classificationNodeId (Cognitive Standard origin)
-      primitive:            CognitivePrimitive  // provenance: input.primitive (Cognitive Standard origin)
-      confidence:           number           // provenance: input.confidence (Cognitive Standard origin)
-    }
-    a7: {                                    // present iff framework applied — ArA1
-      artifactAnchorNodeId: NodeId           // provenance: F-memory traverse() at R2 step 4
-      companionDataNodeId:  NodeId           // provenance: F-memory traverse() at R2 step 5; ArA2
-      contentNodeIds:       NodeId[]         // provenance: F-memory traverse() at R2 step 3; ArA3, length ≥ 1
-    }
-  }
-
-  edges: ArtifactEdge[]                      // provenance: F-memory traverse() at R2 step 9; ArA4a–ArA4d
-
-  payload: ArtifactPayload                   // provenance: input.payload (verbatim); present iff a7 present
-}
-
-ArtifactEdge {
-  fromId: NodeId                             // provenance: anchor NodeId (output or resolved)
-  toId:   NodeId                             // provenance: per edge kind — input.classificationNodeId (ArA4a) | modeNode via F-memory (ArA4b) | priorAnchor via F-memory (ArA4c) | input.dependsOn[i] (ArA4d)
-  kind:   'classification-lineage' | 'categorical' | 'version' | 'dependency'   // provenance: derived per ArA4a–ArA4d
-}
-```
-
-Edge-kind enum is exhaustive. `split-lineage` from v1.1 dropped — not surfaced by any axiom; Plan Standard handles split via its own axioms.
-
-**Provenance summary — three distinct source types across output fields:**
-1. **Verbatim from input** — `framework`, `turnId`, `writes.a4.*`, `payload`
-2. **Runtime-generated** — `emissionId`
-3. **Adjacent-framework-sourced** — `writes.a7.*`, `edges` (via F-memory `traverse()`)
-
-No output field has ambiguous or undeclared source.
-
-## 10. Validity
-
-Emission is valid iff ArA1–ArA7 hold at write time. Invalid emission is rejected; no partial write commits (atomicity inherited from F-memory transaction layer, not re-declared).
-
-## 11. Consumer contract
-
-| Consumer | Call pattern |
-|---|---|
-| content framework | (1) call Cognitive Standard R3 `encodeLLM()` → `EncodeResult`. (2) construct `CreateArtifactInput` with `classificationNodeId = <bind result>, primitive = result.primitive, confidence = result.confidence`. (3) call AS R3 `createArtifact(input)`. (4) receive `ArtifactEmission`. |
-| Memory program, dashboard, audit | Read via standard graph traversal. Anchor identified by edges of kind `classification-lineage` + `categorical`. |
-| Verify / replay | Query by `emissionId` (unique). |
-
-## 12. Validity tests (metaframework v2.4 gates)
-
-| Gate | Pass/fail | Evidence |
-|---|---|---|
-| E1 Completeness | pass | Every leaf in §4.1–§4.3 captureable in one function signature. |
-| E2 Orthogonality | pass | §7.1 custody table declares every cross-standard atom; no re-ownership. |
-| E3 Terminology | pass | "artifact" at axis level (general); "artifact anchor node" at implementation level (specific). No interchange. |
-| E4 Schema closure | pass | §8 input declared (with provenance); §9 output declared (with per-field provenance — MA-G5d); §7.2 handoff declared; §7.1 custody declared (MA-G5c); `identity.carrier = self` declared in §1. |
-| E5 Variable resolution | pass | §5 cells are W-ATOM names or enum values, not concept pointers. |
-| E6 Axiom atomicity | pass | §6 axioms ArA1–ArA7 single-condition each. ArA4 decomposed to ArA4a–ArA4d. |
-| E7 Dry-run (author) | pass (§13) | Walkthrough below. |
-| E8 Dry-run (L0) | pending | Awaiting L0 confirmation. |
-
-## 13. Author dry-run (E7)
-
-Dummy input:
-```
-CreateArtifactInput {
-  framework:            { id: 'plan', version: '1.0.0' },
-  turnId:               'msg_abc123',
-  userId:               'user_demo',
-  payload:              { domain: 'plan', domainVersion: '1.0.0', schemaRef: 'PlanArtifact-v1', content: {...} },
-  classificationNodeId: 'node_xyz789',
-  primitive:            'anchor',
-  confidence:           0.92,
-  dependsOn:            []
-}
-```
-
-Walk axiom-by-axiom:
-
-| Axiom | Field consumed | Provenance | Output |
-|---|---|---|---|
-| ArA1 | `writes.a4` populated from `classificationNodeId`, `primitive`, `confidence` | Cognitive Standard (input atoms) | a4 block populated |
-| ArA2 | emissionId = uuid; anchor created via traverse(); companion created via traverse() | self | 1:1 binding |
-| ArA3 | traverse(payload.content) → content node IDs, length ≥ 1 | self (via Living Memory) | contentNodeIds populated |
-| ArA4a | anchor, classificationNodeId | self, input | edge `anchor → classificationNodeId` kind=`classification-lineage` |
-| ArA4b | anchor, modeNode (F-memory R3 lookup by framework.id) | self, Living Memory | edge `anchor → modeNode` kind=`categorical` |
-| ArA4c | anchor, priorAnchor (F-memory R3 lookup by framework.id + userId, most recent) | self, Living Memory | edge present iff prior found; absent here (first emission for this user+framework) |
-| ArA4d | anchor, dependsOn[] | input | absent (dependsOn empty) |
-| ArA5 | no post-emission mutation path exposed by R3 | self | R3 surface has no mutation function |
-
-All fields trace. Output matches §9 schema. Dry-run passes.
-
-## 14. Vocabulary
-
-| Term | Meaning |
-|---|---|
-| artifact | graph node emitted at A7 per this standard's axioms. Role, not kind. |
-| emission | one invocation of `createArtifact` producing one `ArtifactEmission`. |
-| anchor | the central node of an emission; identified by edges of kind `classification-lineage` + `categorical`. |
-| companion | the 1:1 JSON-payload-holding node bound to anchor by emissionId. |
-| content node | a node produced by traversing `payload.content` at emission time. |
-| prior anchor | most recent anchor in graph with same `(framework.id, userId)`. |
-| mode node | graph node representing one of the 4 modes (epistemic / structural / generative / verificative); one per mode, globally scoped. |
-
-## 15. Implementation pointers (non-normative)
-
-| Artifact | Path |
-|---|---|
-| R0 types | `src/core/types/artifact-standard.types.ts` |
-| R5 constants | `src/core/constants/artifact-standard.ts` |
-| Cross-standard primitives | `src/core/types/primitives.ts` |
-| Runtime slice | `src/features/F-artifact/` (Phase 4a) |
-| F-memory `traverse` | `src/features/F-memory/contract/memory-contract.ts` |
-| F-codec `encodeLLM` | `src/features/F-codec/contract/codec-contract.ts` |
+All four properties declared. MA-G13 passes. Artifact Standard is classified as framework (not state store; not protocol; not substrate).
 
 ---
 
-**End of Artifact Standard v2.1. L0 dry-run (E8) required before runtime build. Phase 4a brief regenerates against this document.**
+## §2 Schema
+
+### §2.1 Input — `CreateArtifactInput`
+
+Per MA-S1 (schema.input declared as typed atom) + carrier-applicability rule for carrier=self.
+
+```
+CreateArtifactInput = {
+  framework: {
+    id:      string,              // caller (content framework) identifier
+    version: Semver               // caller version
+  },
+  turnId:               string,               // caller turn context
+  userId:               UserId,               // F-identity session
+  payload:              ArtifactPayload,      // caller output, verbatim carry
+  classificationNodeId: NodeId,               // Cognitive Standard R3 encodeLLM() result, same turn
+  primitive:            CognitivePrimitive,   // Cognitive Standard R3 encodeLLM() result
+  confidence:           number,               // Cognitive Standard R3 encodeLLM() result; range [0, 1]
+  dependsOn?:           NodeId[]              // caller-declared prior-artifact references
+}
+
+ArtifactPayload = {
+  domain:        string,        // content framework id (e.g., 'plan', 'multi-instance')
+  domainVersion: Semver,        // content framework version
+  schemaRef:     string,        // payload schema identifier (content-framework-owned)
+  content:       unknown        // typed per domain schema; opaque to AS
+}
+```
+
+### §2.2 Output — `ArtifactEmission`
+
+Per MA-S2 (carrier=self → output is W-ATOM).
+
+```
+ArtifactEmission = {
+  emissionId: string,                           // runtime-generated UUID v4 per call
+  framework: {
+    id:      string,
+    version: Semver
+  },
+  turnId:    string,
+  userId:    UserId,
+
+  writes: {
+    a4: ArtifactWriteA4,                        // always populated per ArA1
+    a7: ArtifactWriteA7                         // always populated per ArA1
+  },
+
+  edges:     ArtifactEdge[],                    // per ArA4a–ArA4d + ArA6
+  payload:   ArtifactPayload,                   // verbatim from input.payload per ArA7
+
+  timestamp: string                             // ISO 8601; runtime-generated
+}
+
+ArtifactWriteA4 = {
+  classificationNodeId: NodeId,
+  primitive:            CognitivePrimitive,
+  confidence:           number
+}
+
+ArtifactWriteA7 = {
+  artifactAnchorNodeId: NodeId,                 // per ArA2
+  companionDataNodeId:  NodeId,                 // per ArA2 (1:1 with artifactAnchorNodeId by emissionId)
+  contentNodeIds:       NodeId[]                // per ArA3 (cardinality >= 1)
+}
+
+ArtifactEdge = {
+  fromId: NodeId,
+  toId:   NodeId,
+  kind:   ArtifactEdgeKind                      // enum exhaustive per §3.5
+}
+
+ArtifactEdgeKind = 'classification-lineage' | 'categorical' | 'version' | 'dependency'
+```
+
+### §2.3 Consumed types (from substrate-v1-1, by reference)
+
+| Type | Home |
+|---|---|
+| `Mode` | substrate §2 |
+| `AuthorityLevel` | substrate §5 |
+| `AuthorityClaim` | substrate §5 |
+| `WAtom` | substrate §4 A-01 |
+| `AxiomRef` | substrate §4 A-02 |
+| `FrameworkRef` | substrate §4 A-09 |
+| `Semver` | substrate §7 |
+| `Kind` | substrate §4 A-10 (string-typed at this regen per spec-as-regen-v3-1 §Constraints; no R5 typed substrate atoms cycle) |
+| `Ownership` | substrate §4 A-11 (string-typed this regen) |
+| `LifecycleState` | substrate §9 (string-typed this regen) |
+| `Carrier` | substrate §9 (string-typed this regen) |
+| `ActivationTrigger` | substrate §4 A-12 (string-typed this regen) |
+| `OperatorInterface` | substrate §4 A-13 (string-typed this regen) |
+| `GenesisDeclaration` | substrate §4 A-14 (string-typed this regen) |
+| `Stage` | substrate §8.3 |
+| `StageContentKind` | substrate §8.3 |
+| `CaptureShape` | substrate §8.2 |
+| `Judgment` | substrate §6 |
+| `JudgmentId` | substrate §6 |
+
+### §2.4 Consumed types (from primitives.ts core/R5, by reference)
+
+| Type | Home |
+|---|---|
+| `NodeId` | primitives.ts core/R5 (branded string) |
+| `UserId` | primitives.ts core/R5 |
+| `Semver` | primitives.ts core/R5 (branded string) |
+| `CognitivePrimitive` | primitives.ts core/R5 (cross-standard enum, Cognitive Standard owns semantics) |
+| `Result<T, E>` | primitives.ts core/R5 |
+| `AppError` | primitives.ts core/R5 |
+
+Custody verification per spec-as-regen-v3-1 inputs clause: these five atoms are declared at primitives.ts; AS consumes by reference; AS does not regenerate primitives.ts.
+
+### §2.5 Consumed types (from metaframework-v3-1, by reference)
+
+| Type | Home |
+|---|---|
+| `GeneratedFrameworkTemplate` | metaframework-v3-1 §2.2 (this file is an emitted instance) |
+| `MetaframeworkInput` | metaframework-v3-1 §2.1 (sourceInputRef target) |
+| `DimensionResult` | framework-audit-v1-2 §8.1 (by reference via metaframework schema) |
+
+### §2.6 AS-local atoms (declared at point of use in §3)
+
+Declared inline at first use per PR1 (substrate §10.2) + MA-St5 (every term has declared home):
+
+`ArtifactChainPosition`, `ArtifactEdgeKind`, `ArtifactCompositionProduct`, `ArtifactEmissionPositional`, `ArtifactCompositionPositional`, `ArtifactLineagePositional`, `ArtifactPayload`, `CreateArtifactInput`, `ArtifactEmission`, `ArtifactEdge`, `ArtifactWriteA4`, `ArtifactWriteA7`, `ArtifactProcedureStage`, `ArtifactProcedureKind`, `ArtifactProcedureStepId`, `ArtifactProcedureStepInstance`, `ArtifactGateResult`, `ArtifactDimensionResult`, `ArtifactCustodyRow`, `ArtifactHandoffRuleInstance`, `ArtifactError`, `CreateArtifactResult`.
+
+All atoms have R5 type declaration in `artifact-standard.types.ts` and custody row in §6.5.
+
+### §2.7 Schema rules (ScR-series)
+
+Inherited from metaframework-v3-1 §2.5 (by reference to v3-1-spec §3.3). No AS-local ScR additions.
+
+### §2.8 Custody pointer
+
+Full custody table in §6.5. Pointer-only reference per A-08 single-source-via-reference.
+
+---
+
+## §3 Structure
+
+### §3.1 Axes (inherited)
+
+AS inherits metaframework-v3-1's seven-axis decomposition (A1 Identity, A2 Schema, A3 Structure, A4 Validity, A5 Lifecycle, A6 Coupling, A7 Judgment). Per substrate §1.3 S-03 permitted-multi-execution: axes are declared once at metaframework and consumed at multiple sites. AS does not redeclare.
+
+Per v3-1-spec §4.4 file-specific placement, AS's own structural content populates §3.3–§3.8 below: three P1 Axis instances (AS-local), sub-axis instances, leaves, axioms (ArA1–ArA8), and the three-step P8 procedure.
+
+### §3.2 Primitive instance counts
+
+Per substrate §8 + §8.6 empty-declaration derivation:
+
+| Primitive | Count | Basis |
+|---|---|---|
+| P1 Axis | 3 | `{primitiveKind: P1, instanceCount: 3, basis: "AS-local domain axes declared at §3.3: Emission, Composition, Lineage. Seven metaframework axes (A1–A7) are the framework-file shape shell per substrate §9 File-shape applicability; AS-local P1 instances populate §3 Structure under the inherited shell."}` |
+| P2 Sub-axis | 5 | Emission: `chainPositionA` + `chainPositionB`; Composition: `products` + `cardinality`; Lineage: `edgeSet`. Declared §3.4. |
+| P3 Leaf | 11 | One leaf per axiom condition per MA-St2 leaf atomicity; ArA1..ArA8 with ArA4a-d split → 11 leaves. Declared §3.5. |
+| P4 Axiom | 11 | ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d, ArA5, ArA6, ArA7, ArA8. Declared §3.6. |
+| P5 Gate | 11 | G-Ar1..G-Ar8 with G-Ar4a..G-Ar4d. One primary gate per axiom per G-M1. Declared §4.2. |
+| P6 Handoff rule | 4 | HR-Ar1 (Cognitive Standard receive), HR-Ar2 (Living Memory write), HR-Ar3 (content framework receive), HR-Ar4 (content framework emit receipt). Declared §6.2. |
+| P7 Judgment input | 0 | `{primitiveKind: P7, instanceCount: 0, basis: "AS's createArtifact procedure is fully mechanical per MA-J4 emptyDeclared; every axiom condition reduces to substrate §6.3 mechanical-criterion ground (cardinality + reference resolution + structural property). No judgment inputs consumed at S1–S3."}` |
+| P8 Procedure step | 3 | S1 (compose), S2 (gate-execute), S3 (emit). Declared §3.7. |
+
+Positive empty-declaration marker for P7 per substrate §8.6. No implicit absence.
+
+### §3.3 P1 Axis instances (AS-local)
+
+Three domain axes. MECE over AS's concern space (emission mechanics at A7).
+
+| id | Axis | Concern |
+|---|---|---|
+| `Emission` | Emission | Where in transfer chain writes occur; what atom is deposited at each chain position |
+| `Composition` | Composition | What nodes and edges result from one emission; product cardinality |
+| `Lineage` | Lineage | How emitted artifact connects to classification, predecessor, and declared inputs |
+
+**MECE verification:**
+- Orthogonality: Emission governs "where + what atom" (chain-link concern); Composition governs "what-products + cardinality" (output-shape concern); Lineage governs "edges-connecting-to-prior-state" (cross-artifact concern). No pair-overlap.
+- Exhaustiveness: every `ArtifactEmission` field traces to exactly one AS-local axis (verified §3.8 traceability table).
+- No axis exceeds boundary: each axis's content strictly within its declared concern.
+
+### §3.4 P2 Sub-axis instances
+
+Per P1 axis per substrate §8.2:
+
+**Emission sub-axes:**
+
+| id | Sub-axis | Leaf set (P3 refs) |
+|---|---|---|
+| `Emission/chainPositionA` | A-direction chain position | `leaf-chain-A4`, `leaf-chain-A7` |
+| `Emission/chainPositionB` | B-direction chain position (post-beta scope-out) | `leaf-chain-B3` |
+
+**Composition sub-axes:**
+
+| id | Sub-axis | Leaf set |
+|---|---|---|
+| `Composition/products` | Product kinds produced per emission | `leaf-anchor`, `leaf-companion`, `leaf-content`, `leaf-edge` |
+| `Composition/cardinality` | Cardinality rules per product | `leaf-anchor-card`, `leaf-companion-card`, `leaf-content-card`, `leaf-edge-card` |
+
+**Lineage sub-axis:**
+
+| id | Sub-axis | Leaf set |
+|---|---|---|
+| `Lineage/edgeSet` | Edge kinds emitted per ArA4a–ArA4d | `leaf-edge-classification`, `leaf-edge-categorical`, `leaf-edge-version`, `leaf-edge-dependency` |
+
+### §3.5 P3 Leaf instances
+
+Per MA-St2 (every leaf atomic per substrate leaf primitive shape):
+
+| Leaf id | atomicity | shape |
+|---|---|---|
+| `leaf-chain-A4` | `property` | `ArtifactChainPosition` enum literal `'A4'` |
+| `leaf-chain-A7` | `property` | `ArtifactChainPosition` enum literal `'A7'` |
+| `leaf-chain-B3` | `property` | `ArtifactChainPosition` enum literal `'B3'` |
+| `leaf-anchor` | `descriptor` | `NodeId` (carries `framework.id`, `framework.version`, `turnId`, `emissionId` as node properties) |
+| `leaf-companion` | `descriptor` | `NodeId` (holds `payload` as JSON verbatim per ArA7) |
+| `leaf-content` | `descriptor` | `NodeId[]` (produced by traversal of `payload.content` via Living Memory) |
+| `leaf-edge` | `descriptor` | `ArtifactEdge[]` |
+| `leaf-anchor-card` | `property` | `1` (cardinality literal per ArA2) |
+| `leaf-companion-card` | `property` | `1` (cardinality literal per ArA2) |
+| `leaf-content-card` | `property` | `number` with predicate `>= 1` per ArA3 |
+| `leaf-edge-card` | `property` | `number` with predicate `>= 2` (classification-lineage + categorical always present per ArA4a + ArA4b) |
+| `leaf-edge-classification` | `axiom` | `ArtifactEdgeKind` literal `'classification-lineage'` |
+| `leaf-edge-categorical` | `axiom` | `ArtifactEdgeKind` literal `'categorical'` |
+| `leaf-edge-version` | `axiom` | `ArtifactEdgeKind` literal `'version'` |
+| `leaf-edge-dependency` | `axiom` | `ArtifactEdgeKind` literal `'dependency'` |
+
+### §3.6 P4 Axiom instances (ArA1–ArA8)
+
+Per AxR1 (every axiom binds to exactly one axis) + AxR2 (one mechanical condition directly) + MA-St4 (primitive-atomicity) + MA-V1 (every axiom has ≥1 gate).
+
+| Axiom | Attached to | Mechanical condition | Ground class (per substrate §6.3) |
+|---|---|---|---|
+| **ArA1** | `Emission/chainPositionA` | Every `createArtifact` invocation produces an `ArtifactEmission` with `writes.a4` populated AND `writes.a7` populated. Both blocks non-null. | structural property (field presence) |
+| **ArA2** | `Composition/cardinality` / `leaf-anchor-card` + `leaf-companion-card` | Every emission has `writes.a7.artifactAnchorNodeId` and `writes.a7.companionDataNodeId` bound 1:1 by `emissionId`. Cardinality: exactly one anchor and exactly one companion per emission. | cardinality |
+| **ArA3** | `Composition/cardinality` / `leaf-content-card` | Every emission has `writes.a7.contentNodeIds.length >= 1`. | cardinality |
+| **ArA4a** | `Lineage/edgeSet` / `leaf-edge-classification` | Every emission has exactly one edge with `kind = 'classification-lineage'` where `fromId = writes.a7.artifactAnchorNodeId` AND `toId = writes.a4.classificationNodeId`. | cardinality + reference resolution |
+| **ArA4b** | `Lineage/edgeSet` / `leaf-edge-categorical` | Every emission has exactly one edge with `kind = 'categorical'` where `fromId = writes.a7.artifactAnchorNodeId` AND `toId = modeNode` resolved by `framework.id → modeNodeId` lookup via Living Memory one-hop query. | cardinality + reference resolution |
+| **ArA4c** | `Lineage/edgeSet` / `leaf-edge-version` | Every emission has one edge with `kind = 'version'` IFF a prior anchor exists for the tuple `(input.framework.id, input.userId)`. Prior defined as most-recent anchor with matching tuple per Living Memory one-hop query. Absent IFF no prior. No null-pointing edge. | cardinality (0 or 1) + reference resolution |
+| **ArA4d** | `Lineage/edgeSet` / `leaf-edge-dependency` | Every emission has one edge with `kind = 'dependency'` per entry of `input.dependsOn[]`. Edge count equals `input.dependsOn.length`. Absent iff `dependsOn` empty or undefined. | cardinality (= input.dependsOn.length) |
+| **ArA5** | `Emission/chainPositionA` / `leaf-chain-A7` | Post-emission mutation of `writes.a7.artifactAnchorNodeId` or `writes.a7.companionDataNodeId` content is forbidden. State changes produce a new emission with a `kind: 'version'` edge to the prior anchor per ArA4c. | structural property (mutation-rejection predicate on persisted node) |
+| **ArA6** | `Lineage/edgeSet` | `ArtifactEmission.edges` contains only entries with `kind ∈ ArtifactEdgeKind` enum. Enum exhaustive: `{'classification-lineage', 'categorical', 'version', 'dependency'}`. No out-of-enum kinds permitted. | enum membership |
+| **ArA7** | `Composition/products` / `leaf-companion` | `ArtifactEmission.payload` is the verbatim, byte-identical value of `input.payload`. AS does not inspect or transform `payload.content`. | deterministic-function result (identity function over input.payload) |
+| **ArA8** | `Composition/products` | Every emission has a unique `emissionId` across all prior emissions in registry scope. Uniqueness tested via Living Memory one-hop query on `emissionId` field. | reference resolution (uniqueness predicate) |
+
+**AxR1 self-check:** each axiom binds to exactly one axis/sub-axis/leaf per attachment column. Pass.
+**AxR2 self-check:** each condition is one mechanical predicate stated directly. No "X passes gate Y" form. Pass.
+**AxR3 self-check:** axiom set additively versioned from v2.1 (v2.1 had ArA1–ArA5 with ArA4 split into ArA4a–ArA4d; v2.2 adds ArA6, ArA7, ArA8 to close edge-set-exhaustive, payload-verbatim, emissionId-uniqueness gaps surfaced by MA-St3 orthogonality and MA-V1 gate-per-axiom review). Pass.
+**AxR4 self-check:** all axiom text declarative (no imperative mood, no "should/must" — stated as invariant conditions). Pass.
+
+### §3.7 P8 Procedure step instances
+
+Three steps. PR4 stage monotonicity + PR5 stage-content-kind alignment enforced.
+
+| id | order | stage | kind | input | output | kind-specific field |
+|---|---|---|---|---|---|---|
+| **S1** | 1 | 2 | `mechanical` | `CreateArtifactInput` | composed `(anchor, companion, content, edges)` tuple with `emissionId` generated | `derivation = "generate emissionId via UUID v4; resolve anchor NodeId via Living Memory node-create with properties {framework.id, framework.version, turnId, emissionId}; resolve companion NodeId via Living Memory node-create with payload = input.payload verbatim; traverse input.payload.content via Living Memory traverse() producing contentNodeIds[] with cardinality >= 1; compute edges[] per ArA4a (classification-lineage), ArA4b (categorical via mode-node lookup), ArA4c (version via prior-anchor lookup, conditional), ArA4d (dependency per input.dependsOn[])"` |
+| **S2** | 2 | 3 | `gate-execution` | composed tuple from S1 + framework-tier gate bundle | per-gate results + overall pass/fail | `gates = [PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8, G-I1, G-I2, G-I3, G-I4, G-I5, G-S1, G-S2, G-S3, G-St1, G-St2, G-St3, G-St4, G-St5, G-V1, G-V2, G-V3, G-V4, G-V5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-J1, G-J2, G-J3, G-J4, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4]` (52 framework-tier gates: 7 PG + 35 axiom inherited + 1 MA-G13 + 5 F-69 + 4 meta; NB: AS-own axiom gates G-Ar1..G-Ar8 with ArA4 split = 11 gates replace the inherited PG/axiom gates at the AS-specific level; AS's own gate suite is G-Ar1..G-Ar8 per MA-V1) |
+| **S3** | 3 | 5 | `mechanical` | validated composed tuple | `ArtifactEmission` W-ATOM emitted to caller; Living Memory node+edge writes committed via Living Memory transaction | `derivation = "construct ArtifactEmission per §2.2 output schema from composed tuple; invoke Living Memory commit for anchor + companion + content nodes and edge set atomically per Living Memory transaction contract; return ArtifactEmission W-ATOM to caller; on Living Memory commit rejection, return Result { ok: false, error: ArtifactError { code: 'ARTIFACT_EMISSION_REJECTED' } } per Result<T, E> shape from primitives.ts"` |
+
+**Disambiguation note on S2 gates field:** AS's S2 gate-execution step declares the full 52 framework-tier gate bundle per metaframework `MetaframeworkGateIdSet` atom (metaframework §6.5), PLUS AS's own 11 axiom gates (G-Ar1..G-Ar8 with ArA4 split). The inherited axiom gates (G-I1..G-J4, 35 entries) test metaframework's own 35 axis-bound axioms when AS is the target framework — i.e., they test AS's conformance to metaframework axioms (MA-I1..MA-J4). AS's own axiom gates (G-Ar1..G-Ar8) test AS's own 11 axioms (ArA1..ArA8). Total per-invocation gate count at S2: 52 metaframework-tier + 11 AS-own = 63 gates. Substrate-tier gates (SG1–SG4) excluded per substrate §11.5 tier-1 "run once, not per framework" semantics.
+
+### §3.8 Universal-variables table
+
+Per substrate §3.5 (each axis expressed across all four variables, producing a four-cell row). Per MA-St3 (no content under more than one axis). MA-G6 strict: every cell is named type, enum literal, or inlined shape.
+
+| Axis (P1) | Temporal | Categorical | Relational | Positional |
+|---|---|---|---|---|
+| `Emission` | `Semver` (bound to `input.framework.version`) | `ArtifactChainPosition` enum `'A4' \| 'A7' \| 'B3'` | `ArtifactEmission.writes.a4: ArtifactWriteA4` paired with `ArtifactEmission.writes.a7: ArtifactWriteA7` (dual typed-field reference within one emission; `writes.a4` sourced from Cognitive Standard, `writes.a7` sourced from AS, both co-emitted per ArA1) | `ArtifactEmissionPositional` enum `'unwritten' \| 'written'` |
+| `Composition` | `string` (bound to `emissionId`; UUID v4 per invocation) | `ArtifactCompositionProduct` enum `'anchor' \| 'companion' \| 'content' \| 'edge'` | `artifactAnchorNodeId` 1:1 `companionDataNodeId`; `artifactAnchorNodeId` 1:N `contentNodeIds`; `artifactAnchorNodeId` 1:M `edges` | `ArtifactCompositionPositional` enum `'unassembled' \| 'assembled' \| 'persisted'` |
+| `Lineage` | `number` (version-lineage chain depth; integer; traversal count via ArA4c) | `ArtifactEdgeKind` enum `'classification-lineage' \| 'categorical' \| 'version' \| 'dependency'` | `ArtifactEdge.fromId: NodeId` paired with `ArtifactEdge.toId: NodeId` (directional dual typed-field reference per edge; `fromId` pinned to `ArtifactEmission.writes.a7.artifactAnchorNodeId` per ArA4a–d) | `ArtifactLineagePositional` enum `'unlinked' \| 'linked'` |
+
+All Relational cells express dependency order via named-type + typed-field reference per MA-G6.
+
+### §3.9 Vocabulary
+
+Framework-local terms declared at point of use per PR1 (substrate §10.2). Substrate terms referenced by identifier per S1. Cross-framework atoms consumed by reference per A-08.
+
+| Term | Declared | Definition |
+|---|---|---|
+| `ArtifactChainPosition` | §2 Schema + `artifact-standard.types.ts` | enum `'A4' \| 'A7' \| 'B3'` |
+| `ArtifactEdgeKind` | §2 Schema + `artifact-standard.types.ts` | enum `'classification-lineage' \| 'categorical' \| 'version' \| 'dependency'` |
+| `ArtifactCompositionProduct` | §3.8 + `artifact-standard.types.ts` | enum `'anchor' \| 'companion' \| 'content' \| 'edge'` |
+| `ArtifactEmissionPositional` | §3.8 + `artifact-standard.types.ts` | enum `'unwritten' \| 'written'` |
+| `ArtifactCompositionPositional` | §3.8 + `artifact-standard.types.ts` | enum `'unassembled' \| 'assembled' \| 'persisted'` |
+| `ArtifactLineagePositional` | §3.8 + `artifact-standard.types.ts` | enum `'unlinked' \| 'linked'` |
+| `ArtifactPayload` | §2.1 | typed shape per §2.1 block |
+| `CreateArtifactInput` | §2.1 | W-ATOM input typed shape |
+| `ArtifactEmission` | §2.2 | W-ATOM output typed shape |
+| `ArtifactEdge` | §2.2 | typed shape per §2.2 block |
+| `ArtifactWriteA4` | §2.2 | typed shape per §2.2 block |
+| `ArtifactWriteA7` | §2.2 | typed shape per §2.2 block |
+| `ArtifactProcedureStepInstance` | §3.7 + `artifact-standard.types.ts` | P8 instance shape per substrate §8.3 amended |
+| `mode node` (`modeNode`) | §3.6 ArA4b | Living Memory graph node representing one of the four substrate §2 Mode values; resolved by `framework.id → modeNodeId` lookup via Living Memory one-hop query. One per Mode, globally scoped. |
+| `prior anchor` | §3.6 ArA4c | most-recent anchor in Living Memory graph with matching tuple `(framework.id, userId)`. |
+| `NodeId`, `UserId`, `Semver`, `CognitivePrimitive`, `Result`, `AppError` | primitives.ts core/R5 | consumed by reference |
+
+---
+
+## §4 Validity
+
+### §4.1 Gate count
+
+AS declares **11 own axiom gates** (G-Ar1..G-Ar8 with G-Ar4 split into G-Ar4a..G-Ar4d). All 52 metaframework framework-tier gates are inherited by reference per substrate §1.3 S-03 permitted-multi-execution; AS consumes them through the `MetaframeworkGateIdSet` atom (metaframework §6.5).
+
+| Category | Count | Source |
+|---|---|---|
+| AS-own axiom gates (one per ArA axiom per MA-V1) | 11 | §4.2 (this framework) |
+| Inherited primitive gates (PG1–PG7) | 7 | metaframework §4 (per-framework-tier) |
+| Inherited axiom gates (G-I1–G-J4) | 35 | metaframework §4 (test metaframework axioms; AS conforms) |
+| Inherited universal MA-G13 gate | 1 | metaframework §4 (declared at substrate §11.4) |
+| Inherited F-69 universal gates | 5 | metaframework §4 (G-U1–G-U5) |
+| Inherited meta-gates | 4 | metaframework §4 (G-M1–G-M4) |
+| **Total framework-tier gates at S2 execution** | **63** | **52 metaframework-tier + 11 AS-own** |
+
+Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics.
+
+### §4.2 AS-own axiom gates
+
+Per MA-V1 (every axiom has ≥1 gate) + MA-V2 (gates test conditions directly, no test-by-reference) + G-M1 (axiom-gate 1:1 mapping integrity):
+
+| Gate | Tests axiom | Mechanical test body | Ground (substrate §6.3) |
+|---|---|---|---|
+| **G-Ar1** | ArA1 | `emission.writes.a4 !== null && emission.writes.a7 !== null` | structural property |
+| **G-Ar2** | ArA2 | `emission.writes.a7.artifactAnchorNodeId !== null && emission.writes.a7.companionDataNodeId !== null && [single emission] count(anchor | emissionId) === 1 && count(companion | emissionId) === 1` | cardinality |
+| **G-Ar3** | ArA3 | `emission.writes.a7.contentNodeIds.length >= 1` | cardinality |
+| **G-Ar4a** | ArA4a | `count(e ∈ emission.edges where e.kind === 'classification-lineage') === 1 && e.fromId === emission.writes.a7.artifactAnchorNodeId && e.toId === emission.writes.a4.classificationNodeId` | cardinality + reference resolution |
+| **G-Ar4b** | ArA4b | `count(e ∈ emission.edges where e.kind === 'categorical') === 1 && e.fromId === emission.writes.a7.artifactAnchorNodeId && e.toId === resolveModeNode(emission.framework.id)` (resolver = Living Memory one-hop) | cardinality + reference resolution |
+| **G-Ar4c** | ArA4c | `let p = resolvePriorAnchor(emission.framework.id, emission.userId); if (p !== null) count(e ∈ emission.edges where e.kind === 'version') === 1 && e.fromId === emission.writes.a7.artifactAnchorNodeId && e.toId === p; else count(e ∈ emission.edges where e.kind === 'version') === 0` | cardinality (conditional 0 or 1) + reference resolution |
+| **G-Ar4d** | ArA4d | `count(e ∈ emission.edges where e.kind === 'dependency') === (input.dependsOn?.length ?? 0) && forall i ∈ [0, input.dependsOn.length): exists e ∈ emission.edges where e.kind === 'dependency' && e.fromId === emission.writes.a7.artifactAnchorNodeId && e.toId === input.dependsOn[i]` | cardinality + reference resolution |
+| **G-Ar5** | ArA5 | For persisted emission E: Living Memory mutation attempts on E.writes.a7.artifactAnchorNodeId or E.writes.a7.companionDataNodeId properties are rejected by Living Memory write-protection predicate (predicate: `node.emissionId !== null → write.rejected = true`). | structural property (mutation-rejection predicate) |
+| **G-Ar6** | ArA6 | `forall e ∈ emission.edges: e.kind ∈ {'classification-lineage', 'categorical', 'version', 'dependency'}` | enum membership |
+| **G-Ar7** | ArA7 | `deepEqual(emission.payload, input.payload) === true` (byte-identical; no normalization) | deterministic-function result (identity) |
+| **G-Ar8** | ArA8 | `count(e ∈ registry where e.emissionId === emission.emissionId) === 1` (at write time; uniqueness predicate via Living Memory one-hop) | reference resolution (uniqueness) |
+
+**MA-V1 coverage:** 11 axioms ↔ 11 primary gates. 1:1 mapping. G-M1 passes.
+**MA-V2 coverage:** every gate test body is a direct mechanical predicate; no test references another gate. Pass.
+**MA-V3 coverage:** every gate result ∈ `{'passed', 'failed', 'pending'}` per `ArtifactGateResult` shape (artifact-standard.types.ts). Binary-plus-pending ternary. Pass.
+**MA-V4 coverage:** gate re-verification on state change — AS state changes occur only via emission (post-emission immutability per ArA5); each emission invokes S2 gate-execution. Pass.
+**MA-V5 coverage:** gate set enumerable via framework-audit X1–X10 dimensions. G-V5 tests gate-to-dimension mapping completeness; AS provides 11 own gates + 52 inherited = 63 total coverage against X1–X10 dimensions. See §4.4 dimension-gate mapping. Pass (self-declared; framework-audit first-run verifies).
+
+### §4.3 Inherited gate execution at S2
+
+Per substrate §1.3 S-03: metaframework framework-tier gates declared once at metaframework; executed at AS's S2 gate-execution step. No redeclaration.
+
+Inherited gate IDs consumed by reference as `MetaframeworkGateIdSet` (metaframework §6.5):
+
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1, G-I2, G-I3, G-I4, G-I5, G-S1, G-S2, G-S3, G-St1, G-St2, G-St3, G-St4, G-St5, G-V1, G-V2, G-V3, G-V4, G-V5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-J1, G-J2, G-J3, G-J4, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4.`
+
+Total: 52 framework-tier gates per metaframework §4.7.
+
+### §4.4 Dimension–gate mapping (per MA-V5)
+
+Per framework-audit-v1-3 §3.3 X1–X10 dimensions: AS's gate set covers all ten dimensions.
+
+| Dimension | AS-own gates | Inherited gates |
+|---|---|---|
+| X1 Temporal / lifecycle | — | G-I4 (Semver), G-L1, G-L2, G-L3 |
+| X2 Determinism | G-Ar1..G-Ar8 (all mechanical) | G-S1, G-S2, G-S3, G-J2 |
+| X3 Observability | — | G-C4 (handoff captureShape), G-V2, G-C3 (provenance) |
+| X4 Negative space | — (scopeOut at §1) | G-I1 (Mode declared), G-L2 (amendment trigger) |
+| X5 Scale / composition | G-Ar3, G-Ar4d (cardinality scaling) | G-St1..G-St5 |
+| X6 Operator / human | — | G-C6 (OperatorInterface; see §6.6) |
+| X7 Failure taxonomy | G-Ar5 (mutation rejection) | G-L4 (escalation state), G-M4 |
+| X8 Bootstrapping | — | G-L6 (activation-flow), G-L7 (bootstrap non-re-entrancy) |
+| X9 Termination | — | G-L1, G-L3, G-L5 (judgment deprecation path) |
+| X10 Activation flow | — | G-L6, G-M3 (gate execution order) |
+
+All 10 dimensions reachable from ≥1 gate. MA-V5 satisfied.
+
+### §4.5 Gate execution order
+
+Per substrate §11.5:
+1. Tier 1 — Substrate gates (SG1–SG4): excluded from AS's per-invocation path; run once at substrate audit.
+2. Tier 2 — Primitive + axiom gates (PG1–PG7 + G-I1..G-J4 inherited + G-Ar1..G-Ar8 own): run at S2.
+3. Tier 3 — Universal gates (G-G13, G-U1–G-U5): run at S2 after tier 2 pass.
+4. Tier 4 — Meta-gates (G-M1–G-M4): run at S2 after tier 3 pass.
+
+Failure at any tier halts subsequent tiers per substrate §11.5.
+
+### §4.6 Meta-gate backward-invalidation
+
+Per metaframework §4.5 (v3-1-spec §3.4 A-24):
+- G-M failure → universal gates re-run.
+- Universal gate failure → axiom gates re-verified.
+- Substrate-tier failure: terminal; escalates to L0 per substrate §14.6 bootstrap restore.
+
+### §4.7 Gate rules (GR-series)
+
+Inherited from metaframework §4.6 by reference (v3-1-spec §3.4, unchanged from original spec).
+
+### §4.8 Current gate results
+
+**All 63 per-invocation gates: state = `not-yet-run`.** First-run pending framework-audit post-beta per §8 deferrals.
+
+Gate ID enumeration (canonical set):
+
+AS-own (11): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8`.
+
+Inherited (52, per `MetaframeworkGateIdSet`): enumerated §4.3.
+
+---
+
+## §5 Lifecycle
+
+### §5.1 Version transition
+
+v2.1 → v2.2. Additive per MA-L1 (v2.1's 8 axiom-conditions preserved as ArA1..ArA5+ArA4a-d; v2.2 adds ArA6, ArA7, ArA8 to close edge-set-exhaustive / payload-verbatim / emissionId-uniqueness gaps; seven-axis shell rendered per metaframework-v3-1 §3.1 replacing v2.1's three-axis shape which was the metaframework v2.4 shell; no v2.1 axiom text removed, no axiom condition weakened). Regen against metaframework-v3-1 + generation-procedure-v1-0 via generation-procedure S1–S12 template-generation path.
+
+**v2.1 → v2.2 structural changes:**
+- Seven-axis shell (A1–A7) replaces v2.1's three-axis top level. v2.1's Emission/Composition/Lineage become AS-local P1 axis instances under the inherited A3 Structure shell.
+- P8 procedure added (three steps S1–S3 under Stages 2, 3, 5) per substrate §8.3 + PR4 + PR5.
+- HR-Ar1..HR-Ar4 handoff rules declared with captureShape + diagnosticSignificance per substrate §8.2 amended P6 shape.
+- Custody table refreshed with owner + layer + consumer per substrate SG3.
+- Provenance field populated per metaframework-v3-1 §2.2 output schema (reference-default per A-20).
+- ArA6–ArA8 added (edge-set enum exhaustive, payload verbatim-carry, emissionId uniqueness).
+
+### §5.2 Amendment trigger
+
+Gap-driven + L0-directive. Amendment triggers declared ∈ `{'vision', 'gap', 'L0-directive'}` per MA-L2.
+
+**Amendments active at delivery:** none (v2.2 initial delivery).
+
+**v2.2 regen trigger:** L0-directive (metaframework v2.4 → v3.1 transition mandates regen of all L3 frameworks against new seven-axis + amended P6/P8 primitives + new MA-L6/MA-L7 axioms).
+
+### §5.3 Confirmation gate
+
+Confirmation by L0 pending post-cycle (L3 regen wave cycle 1). Monotonic per MA-L3 (confirmation once given not retracted; future amendment requires new confirmation).
+
+### §5.4 Escalation state
+
+`{status: 'none', gap: null, requiredMode: null}` — no active escalation at delivery.
+
+### §5.5 Judgment deprecations
+
+Empty at delivery per MA-L5 + §3.2 P7=0 basis (AS has no judgment inputs; no deprecation events possible at this version).
+
+### §5.6 Failure modes
+
+Per metaframework-v3-1 §5.7 + v3-1-spec §3.3 output-schema `lifecycle` field V5-verification additions:
+
+| Step | Failure mode | Recovery |
+|---|---|---|
+| S1 (compose) | `input` schema violation (missing required field, invalid type, confidence out of range) | return `Result { ok: false, error: ArtifactError { code: 'ARTIFACT_INPUT_INVALID' } }`; no Living Memory write; state unchanged |
+| S1 (compose) | Living Memory traversal of `payload.content` returns empty → ArA3 pre-commit violation | return `Result { ok: false, error: ArtifactError { code: 'ARTIFACT_COMPOSITION_FAILED' } }`; no Living Memory commit |
+| S2 (gate-execution) | Any of 11 AS-own gates or 52 inherited gates fails | apply metaframework §4.5 backward-invalidation rule (tier 4 fail → re-run tier 3; tier 3 fail → re-verify tier 2; tier 1 fail terminal, escalates to L0 per substrate §14.6); emission not produced; return `ArtifactError { code: 'ARTIFACT_GATE_FAILED' }` |
+| S3 (emit) | Living Memory transaction commit rejected (consistency violation, lock contention) | rollback; return `ArtifactError { code: 'ARTIFACT_EMISSION_REJECTED' }`; no partial write per Living Memory transaction atomicity |
+
+### §5.7 Scale bounds
+
+Per v3-1-spec §3.3 V5-verification additions. Bounded by:
+- Input cardinality: `input.dependsOn.length` unbounded in schema; per-invocation gate cost scales as O(N) in dependsOn entries via G-Ar4d.
+- Content traversal: `writes.a7.contentNodeIds.length >= 1`; upper bound declared per Living Memory traversal limits (not AS-owned).
+- Gate execution: O(63) per-invocation (constant).
+- Living Memory write throughput: per substrate §13.4 atomicity table.
+
+### §5.8 Atomicity declarations
+
+Per substrate §13.4 "Owned framework execution: interruptible" row:
+- S1 (compose) — atomic at step boundary; recovery point = S1 order value. On interrupt: discard composed tuple; no commit.
+- S2 (gate-execution) — atomic at step boundary; recovery point = S2 order value. Per-gate results accumulated idempotently.
+- S3 (emit) — Living Memory transaction atomic (per substrate §13.4 "Registry write" row equivalent). No partial write commits.
+
+AS emission end-to-end (S1 → S2 → S3) is not atomic across steps; each step is atomic individually; inter-step failure returns `Result { ok: false, error }` with no Living Memory side effect prior to S3 commit.
+
+### §5.9 Version history
+
+| Version | Date | Change | Authority |
+|---|---|---|---|
+| v1.1 | pre-2026-03 | Initial regen under metaframework v2.1 (pre-v3.0). Not traced here; pre-regen-wave file history. | L0 |
+| v2.0 | pre-2026-04 | Regenerated against metaframework v2.4 (adds MA-G5c custody, MA-G5d provenance). | L0 |
+| v2.1 | pre-2026-04-23 | §9 output schema per-field provenance added; MA-G5d satisfied. | L0 |
+| v2.2 | 2026-04-23 (L3 regen wave cycle 1) | Regenerated against metaframework-v3-1 via generation-procedure-v1-0. Seven-axis shell adopted; v2.1 three-axis top-level folded into AS-local P1 axis instances under A3 Structure. Three P8 steps (S1–S3) under Stages {2, 3, 5} per substrate §8.3 + PR4 + PR5. Four handoff rules (HR-Ar1..HR-Ar4) with captureShape + diagnosticSignificance per substrate §8.2 amended P6 shape. ArA6 (edge-set enum exhaustive), ArA7 (payload verbatim-carry), ArA8 (emissionId uniqueness) added per MA-St3 orthogonality review. Custody table refreshed with owner + layer + consumers per substrate SG3. Provenance field populated per metaframework §2.2 (reference-default per A-20). | L0 (pending regen-cycle confirmation) |
+
+---
+
+## §6 Coupling
+
+### §6.1 Carrier
+
+Artifact Standard carrier = `self`. AS emits own artifact (`ArtifactEmission` W-ATOM) directly per HR-Ar2 (Living Memory write) + HR-Ar4 (content framework receipt). Content frameworks (Plan, Multi-Instance, etc.) have `carrier = 'artifact-standard'`; those frameworks declare payload content only and do not emit own carrier mechanics — their emission flows through AS.
+
+### §6.2 Handoff rules
+
+Four framework-local HR instances. All AS-owned handoffs with declared `captureShape` per substrate §8.2 amended P6 + X3 C5 requirement.
+
+| ID | Direction | Carrier applicability | Diagnostic significance | CaptureShape |
+|---|---|---|---|---|
+| **HR-Ar1** | cognitive-standard → artifact-standard | `['self']` | `true` | declared §6.3 |
+| **HR-Ar2** | artifact-standard → living-memory | `['self']` | `true` | declared §6.3 |
+| **HR-Ar3** | content-framework → artifact-standard | `['self', 'named']` | `true` | declared §6.3 |
+| **HR-Ar4** | artifact-standard → content-framework | `['self', 'named']` | `false` | n/a (receipt contract; captured via HR-Ar2 Living Memory write) |
+
+**Inherited HRs referencing AS:**
+
+| HR | Owning declaration | AS's role |
+|---|---|---|
+| HR1 | metaframework §6.2 | substrate → AS type consumption; AS consumes substrate types by receive pattern |
+| HR6 | metaframework §6.2 | metaframework → generated L3 frameworks; AS is the generated L3 template output contract |
+| HR5 | metaframework §6.2 | metaframework → registry; registry records AS's emissions per provenance contract (see §6.5) |
+
+Per substrate §1.3 S-03: these HRs are referenced, not redeclared, by AS.
+
+### §6.3 Capture shapes (per P6 amended shape, substrate §8.2)
+
+**HR-Ar1 — Cognitive Standard → Artifact Standard (classification input):**
+```
+captureShape = {
+  capturedFields: ['classificationNodeId', 'primitive', 'confidence', 'turnId', 'timestamp'],
+  captureTarget: 'audit-trail',
+  queryInterface: 'framework-audit §8.3 AuditRunRecord query path'
+}
+```
+
+**HR-Ar2 — Artifact Standard → Living Memory (write):**
+```
+captureShape = {
+  capturedFields: ['emissionId', 'artifactAnchorNodeId', 'companionDataNodeId', 'contentNodeIds', 'edges', 'timestamp'],
+  captureTarget: 'registry',
+  queryInterface: 'living-memory node-by-emissionId query; framework-audit §8.3 via registry cross-reference'
+}
+```
+
+**HR-Ar3 — Content framework → Artifact Standard (createArtifact invocation):**
+```
+captureShape = {
+  capturedFields: ['framework.id', 'framework.version', 'turnId', 'userId', 'payload.domain', 'payload.domainVersion', 'emissionId', 'timestamp'],
+  captureTarget: 'audit-trail',
+  queryInterface: 'framework-audit §8.3 AuditRunRecord query path'
+}
+```
+
+**HR-Ar4:** no captureShape declared (`diagnosticSignificance: false`); receipt-only contract; diagnostic data captured at HR-Ar2.
+
+### §6.4 Handoff axioms satisfaction
+
+Per MA-C1..MA-C6 (metaframework §3.2 Coupling axis):
+
+- **MA-C1** (carrier declared per substrate §5): §6.1 declares `carrier = 'self'`.
+- **MA-C2** (custody per atom): §6.5 enumerates every AS-local atom with owner + layer + consumers.
+- **MA-C3** (handoff-invariant symmetry): HR-Ar1..HR-Ar4 send/receive shapes matched by construction; capture contracts symmetric.
+- **MA-C4** (provenance per output field): §2.2 every `ArtifactEmission` field has declared provenance trace; §6.5 custody.
+- **MA-C5** (carrier-consistent emission): `carrier = 'self'` → output is W-ATOM per MA-S2; §2.2 `ArtifactEmission` is W-ATOM.
+- **MA-C6** (no re-ownership): custody table §6.5 declares single owner per atom; atoms consumed by AS from substrate/primitives/metaframework are not re-owned.
+
+### §6.5 Custody table
+
+Every atom consumed or declared, with owner + layer + consumers per substrate SG3.
+
+| Atom | Owner | Layer | Consumers |
+|---|---|---|---|
+| `NodeId` | primitives.ts | core/R5 | artifact-standard, cognitive-standard, living-memory, every graph-aware framework |
+| `UserId` | primitives.ts | core/R5 | artifact-standard, every session-aware framework |
+| `Semver` | primitives.ts | core/R5 | artifact-standard, every versioned framework |
+| `CognitivePrimitive` | primitives.ts | core/R5 | artifact-standard (ArA attachment), cognitive-standard (origin semantics), living-memory (edge-primitive type) |
+| `Result<T, E>` | primitives.ts | core/R5 | artifact-standard (S3 return), every fallible-operation framework |
+| `AppError` | primitives.ts | core/R5 | artifact-standard (ArtifactError extends), every error-carrying framework |
+| `Mode` | substrate | L1 (substrate §2) | artifact-standard (§1 Identity `Mode = generative`) |
+| `AuthorityLevel` | substrate | L1 (substrate §5) | artifact-standard (§1 Identity `Level = L3`) |
+| `AuthorityClaim` | substrate | L1 (substrate §5) | artifact-standard (§5.3 confirmation-gate provenance) |
+| `WAtom` | substrate | L1 (substrate §4 A-01) | artifact-standard (§2.1 input W-ATOM, §2.2 output W-ATOM) |
+| `AxiomRef` | substrate | L1 (substrate §4 A-02) | artifact-standard (§4.3 inherited gate references to metaframework axioms) |
+| `FrameworkRef` | substrate | L1 (substrate §4 A-09) | artifact-standard (HR direction endpoints §6.2, provenance §6.6) |
+| `Kind` | substrate | L1 (substrate §4 A-10; string-typed this regen) | artifact-standard (§1 Identity `Kind = Framework`) |
+| `Ownership` | substrate | L1 (substrate §4 A-11; string-typed this regen) | artifact-standard (§1 Identity ownership rows) |
+| `LifecycleState` | substrate | L1 (substrate §9; string-typed this regen) | artifact-standard (§1 Identity state rows, §5 Lifecycle transitions) |
+| `Carrier` | substrate | L1 (substrate §9; string-typed this regen) | artifact-standard (§6.1 carrier declaration) |
+| `ActivationTrigger` | substrate | L1 (substrate §4 A-12; string-typed this regen) | artifact-standard (inherited via HR-Ar3 content-framework invocation pattern) |
+| `OperatorInterface` | substrate | L1 (substrate §4 A-13; string-typed this regen) | artifact-standard (§6.7 operator-interface declaration) |
+| `GenesisDeclaration` | substrate | L1 (substrate §4 A-14; string-typed this regen) | artifact-standard (§1 Identity genesis row) |
+| `Stage` | substrate | L1 (substrate §8.3) | artifact-standard (§3.7 P8 stage field) |
+| `StageContentKind` | substrate | L1 (substrate §8.3) | artifact-standard (§3.7 PR5 self-check) |
+| `CaptureShape` | substrate | L1 (substrate §8.2) | artifact-standard (§6.3 captureShape declarations) |
+| `Judgment` | substrate | L1 (substrate §6) | artifact-standard (not directly consumed; declared empty per §3.2 P7=0; custody row retained for substrate §12 consumer-registry completeness) |
+| `JudgmentId` | substrate | L1 (substrate §6) | artifact-standard (empty-declaration basis per MA-J4) |
+| `MetaframeworkGateIdSet` | metaframework | L2 (metaframework §6.5) | artifact-standard (§4.3 inherited gate enumeration reference) |
+| `GeneratedFrameworkTemplate` | metaframework | L2 (metaframework §2.2) | artifact-standard (this file is an instance per HR6 output contract) |
+| `MetaframeworkInput` | metaframework | L2 (metaframework §2.1) | artifact-standard (sourceInputRef target per provenance §6.6) |
+| `DimensionResult` | framework-audit | L2 (framework-audit §8.1) | artifact-standard (§8.2 dimension results schema reference) |
+| `ArtifactChainPosition` | artifact-standard | L3 (this file §2 + core/R5) | artifact-standard (internal), framework-audit (X1, X5 dimension checks) |
+| `ArtifactEdgeKind` | artifact-standard | L3 (this file §2 + core/R5) | artifact-standard (internal), content frameworks (reference at payload-attribute references), framework-audit |
+| `ArtifactCompositionProduct` | artifact-standard | L3 (this file §3.8 + core/R5) | artifact-standard (internal), framework-audit |
+| `ArtifactEmissionPositional` | artifact-standard | L3 (this file §3.8 + core/R5) | artifact-standard (internal) |
+| `ArtifactCompositionPositional` | artifact-standard | L3 (this file §3.8 + core/R5) | artifact-standard (internal) |
+| `ArtifactLineagePositional` | artifact-standard | L3 (this file §3.8 + core/R5) | artifact-standard (internal) |
+| `ArtifactPayload` | artifact-standard | L3 (this file §2.1 + core/R5) | artifact-standard (§2.1 input, §2.2 output), content frameworks (populate at caller site) |
+| `CreateArtifactInput` | artifact-standard | L3 (this file §2.1 + core/R5) | artifact-standard (§3.7 S1 input), content frameworks (construct at caller site) |
+| `ArtifactEmission` | artifact-standard | L3 (this file §2.2 + core/R5) | artifact-standard (§3.7 S3 output), content frameworks (receive at HR-Ar4), living-memory (store), framework-audit (observe via registry) |
+| `ArtifactEdge` | artifact-standard | L3 (this file §2.2 + core/R5) | artifact-standard (§2.2 emission.edges), living-memory (store) |
+| `ArtifactWriteA4` | artifact-standard | L3 (this file §2.2 + core/R5) | artifact-standard (§2.2 writes.a4), cognitive-standard (data origin) |
+| `ArtifactWriteA7` | artifact-standard | L3 (this file §2.2 + core/R5) | artifact-standard (§2.2 writes.a7), living-memory (store) |
+| `ArtifactProcedureStepInstance` | artifact-standard | L3 (§3.7 + core/R5) | artifact-standard (internal), framework-audit (X10 stage-declaration check) |
+| `ArtifactGateResult` | artifact-standard | L3 (§4 + core/R5) | artifact-standard (internal), framework-audit (SelfAuditRecord consumption) |
+| `ArtifactDimensionResult` | artifact-standard | L3 (§4.4 + core/R5) | artifact-standard (internal), framework-audit (SelfAuditRecord consumption) |
+| `ArtifactCustodyRow` | artifact-standard | L3 (§6.5 + core/R5) | artifact-standard (internal), framework-audit (custody-check X2/X5) |
+| `ArtifactHandoffRuleInstance` | artifact-standard | L3 (§6.2 + core/R5) | artifact-standard (internal), framework-audit (X3 C5 captureShape check) |
+| `ArtifactError` | artifact-standard | L3 (core/R5) | artifact-standard (internal); extends primitives.ts `AppError` per Result<T, E> shape |
+| `CreateArtifactResult` | artifact-standard | L3 (core/R5) | artifact-standard (S3 return type), content frameworks (consume at HR-Ar4) |
+
+### §6.6 Provenance contract
+
+Per MA-C4 + A-20 reference-default declaration: this file's `provenance` field (GeneratedFrameworkTemplate top-level) populates:
+
+- `generatedByMetaframework`: `{id: 'metaframework', version: 'v3.2.1'}`
+- `generationProcedureRef`: `{id: 'generation-procedure', version: 'v1.1.1'}`
+- `generationTimestamp`: 2026-04-23T00:00:00Z
+- `sourceInputRef`: AtomRef pointing to registry-archived `MetaframeworkInput` (regen-cycle input, reference-default per A-20)
+- `sourceInputValue`: absent (by-value retention not opted in at this regen)
+
+Every output field of `ArtifactEmission` §2.2 has declared provenance row:
+
+| Field | Provenance kind | Source |
+|---|---|---|
+| `emissionId` | runtime-generated | UUID v4 generated at S1 |
+| `framework.id`, `framework.version` | verbatim | `input.framework.id`, `input.framework.version` |
+| `turnId` | verbatim | `input.turnId` |
+| `userId` | verbatim | `input.userId` |
+| `writes.a4.classificationNodeId` | verbatim | `input.classificationNodeId` (Cognitive Standard origin per HR-Ar1) |
+| `writes.a4.primitive` | verbatim | `input.primitive` (Cognitive Standard origin per HR-Ar1) |
+| `writes.a4.confidence` | verbatim | `input.confidence` (Cognitive Standard origin per HR-Ar1) |
+| `writes.a7.artifactAnchorNodeId` | adjacent-framework-sourced | Living Memory node-create at S1 |
+| `writes.a7.companionDataNodeId` | adjacent-framework-sourced | Living Memory node-create at S1 |
+| `writes.a7.contentNodeIds` | adjacent-framework-sourced | Living Memory `traverse(payload.content)` at S1 |
+| `edges` | adjacent-framework-sourced + derived | Living Memory one-hop queries at S1 (ArA4a/b/c) + input.dependsOn[] (ArA4d) |
+| `payload` | verbatim | `input.payload` per ArA7 |
+| `timestamp` | runtime-generated | ISO 8601 at S3 |
+
+No field with ambiguous or undeclared source.
+
+### §6.7 Carrier-applicability enforcement
+
+Per v3-1-spec §3.5 + substrate §9 A-13:
+
+| HR | Applicability | Meaning |
+|---|---|---|
+| HR-Ar1 | `['self']` | Applies only when consuming framework's carrier = 'self' (AS is self-carrier) |
+| HR-Ar2 | `['self']` | Applies only when AS carrier = 'self' (Living Memory write path; B3 post-beta named-carrier path deferred) |
+| HR-Ar3 | `['self', 'named']` | Applies when content framework carrier ∈ {self, named}; carrier='none' content frameworks invoke AS through AxiomRef path (post-beta) |
+| HR-Ar4 | `['self', 'named']` | Symmetric receipt contract; matches HR-Ar3 by construction |
+
+AS carrier = 'self', so HR-Ar1 + HR-Ar2 apply in the self-application direction.
+
+### §6.8 OperatorInterface (per substrate §4 A-13 + V5 verification)
+
+```
+operatorInterface = {
+  invocationEntry:  'HR-Ar3 receive-side: createArtifact(input: CreateArtifactInput): CreateArtifactResult',
+  outputRetrieval:  'HR-Ar2 Living Memory query: readByEmissionId(emissionId: string); registry lookup via framework-audit §8.3 AuditRunRecord path',
+  auditQuery:       'framework-audit §8.3 AuditRunRecord query path; cross-reference via metaframework HR3',
+  runtimeState:     'declared'
+}
+```
+
+Runtime implementation deferred post-beta per §1 scopeOut row "framework registry dispatch runtime". Declaration-only at this delivery.
+
+---
+
+## §7 Judgment
+
+### §7.1 Declared J-inputs
+
+**AS declares zero judgment inputs.** Per §3.2 P7=0 basis + MA-J4 emptyDeclared field.
+
+Empty-declaration marker per substrate §8.6:
+```
+{primitiveKind: P7, instanceCount: 0, basis: "AS's createArtifact procedure is fully mechanical. Every axiom condition (ArA1–ArA8) reduces to substrate §6.3 mechanical-criterion ground: cardinality (ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d), structural property (ArA5), enum membership (ArA6), deterministic-function result (ArA7), reference resolution (ArA8). No non-mechanical derivation required at S1, S2, or S3. MA-J4 emptyDeclared satisfied."}
+```
+
+### §7.2 Axis status
+
+Empty (not populated). Zero judgment-input instances per §3.2 P7=0. Empty-declaration rule (substrate §8.6) applies.
+
+### §7.3 Judgment provenance
+
+Not applicable at this delivery (no judgment inputs declared). MA-J4 coverage: empty Judgment axis explicitly declared; MA-J1..MA-J3 vacuously satisfied.
+
+Future amendment path (per MA-L5): if AS acquires a judgment input (e.g., post-beta cardinality-bound judgment on `dependsOn[]` pruning), declare at this section + amend P7 count at §3.2 + add judgment provenance record.
+
+---
+
+## §8 Self-audit results
+
+### §8.1 Gate results
+
+**All 63 per-invocation gates: state = `not-yet-run`.** First-run pending framework-audit execution post-beta per §1 scopeOut + §5 lifecycle.
+
+AS-own gate ID enumeration (11): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8`.
+
+Inherited gate ID enumeration (52, via `MetaframeworkGateIdSet`): see metaframework-v3-1 §4.7 canonical enumeration + §6.5 atom declaration. Not restated here per single-source via reference (A-08).
+
+### §8.2 Dimension audit results
+
+**All 10 framework-audit dimensions (X1–X10): state = `pending-first-run`.** Uniform state; compact summary per sprint-mode directive.
+
+Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-3 §3.3.
+
+**X3 extended criterion C5 relevance.** Framework-audit Phase 1.2 extended X3 with C5 (captureShape required per P6 instance with diagnosticSignificance=true). AS declares three HRs with `diagnosticSignificance: true` (HR-Ar1, HR-Ar2, HR-Ar3) with populated `captureShape` at §6.3; author-side self-check declares pass for C5. Independent re-verification at framework-audit first-run.
+
+**X10 extended predicate relevance.** Framework-audit Phase 1.2 extended X10 with three bullets (stage declaration per substrate §8.3, PR4 monotonicity, PR5 kind alignment). X10 applies directly to AS's three P8 instances. Self-check: PR4 stages (2, 3, 5) non-decreasing across order (1, 2, 3); PR5 kinds aligned (stage:2 ↔ mechanical ✓; stage:3 ↔ gate-execution ✓; stage:5 ↔ mechanical ✓). Author-side self-check passes; framework-audit first-run verifies independently.
+
+### §8.3 Last audit event
+
+```
+{
+  status: 'pending-first-run',
+  timestamp: null,
+  auditorRef: null
+}
+```
+
+### §8.4 Self-application basis
+
+Per G-U1 (self-application at metaframework §4.3): framework-audit runs X1–X10 against AS post-beta. At this regen delivery, self-audit is declared-placeholder state. No gate has executed; no dimension has evaluated. First execution ratifies initial state.
+
+**SelfAuditRecord shape** (per framework-audit §8.1, consumed by reference):
+
+```
+{
+  frameworkRef:         { id: 'artifact-standard', version: 'v2.2' },
+  auditedByFrameworkRef: null,                    // pending first run
+  auditTimestamp:       null,                      // pending first run
+  frameworkStateHash:   null,                      // pending first run
+
+  gateResults:       [],                          // populated first run; 63 GateResult entries expected
+  dimensionResults:  [],                          // populated first run; 10 DimensionResult entries expected
+  overallResult:     'pending'
+}
+```
+
+---
+
+## §9 Change log
+
+| Version | Date | Change | Authority |
+|---|---|---|---|
+| v2.2 | 2026-04-23 | Initial regeneration against metaframework-v3-1 via generation-procedure-v1-0 (L3 regen wave cycle 1). Rendered as `GeneratedFrameworkTemplate` per metaframework §2.2 output schema. Seven-axis shell (A1–A7) inherited; AS-local P1 axes (Emission, Composition, Lineage) declared under A3 Structure. Eleven axioms ArA1..ArA8 with ArA4a–ArA4d split declared under AxR1/AxR2/AxR3/AxR4 discipline. Eleven AS-own axiom gates G-Ar1..G-Ar8 declared per MA-V1. Three P8 procedure steps S1–S3 under substrate §8.3 Stages {2, 3, 5} with PR4 + PR5 compliance. Four HRs (HR-Ar1..HR-Ar4) with captureShape + diagnosticSignificance per substrate §8.2 amended P6. Custody table refreshed per substrate SG3. Provenance field populated reference-default per A-20. Scope-out declared per X4 dimension. Operator-interface declared per A-13 + V5 verification. | L0 (pending regen-cycle confirmation) |
+
+---
+
+## End of artifact-standard-v2-2
