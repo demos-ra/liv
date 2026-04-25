@@ -4,13 +4,14 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules
+// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM  CodecPipelineResult, BuildConfirmation, CODEC_ROUTING_EVENTS, RouteBuildPayload  ←  F-codec/R0
 //   W-ATOM  ScopedGraphSet  ←  F-memory/R0
 //   W-ATOM  FrameworkModule  ←  F-codec/R0
+//   W-FN    generateId  ←  core/R5 primitives  (phase-6-sprint-b — turnId mint)
 //   W-HOOK  getPresentState()             ←  F-memory/R3
 //   W-HOOK  getGlobalGraph()              ←  F-memory/R3
 //   W-HOOK  getUserGraph()                ←  F-memory/R3
@@ -21,12 +22,10 @@
 //   W-INJECT registerModule              ←  F-codec/R2 (codec-registry)
 //   W-INJECT hasModule                   ←  F-codec/R2 (codec-registry)
 //   W-INJECT getModule                   ←  F-codec/R2 (codec-registry)
-//   W-INJECT executeDiscovery            ←  F-codec/R2 (codec-discovery)
-//   W-INJECT executePlanning             ←  F-codec/R2 (codec-planning)
-//   W-INJECT executeVerification         ←  F-codec/R2 (codec-verify)
 //   W-ATOM   DISCOVERY_MODULE            ←  F-codec/R2 (codec-discovery)
-//   W-ATOM   PLANNING_MODULE             ←  F-codec/R2 (codec-planning)
+//   W-ATOM   PLANNING_MODULE             ←  F-codec/R2 (codec-planning, unhooked phase-6-sprint-b)
 //   W-ATOM   VERIFY_MODULE               ←  F-codec/R2 (codec-verify)
+//   W-ATOM   PLAN_MODULE                 ←  F-plan/R3 (plan-module, phase-6-sprint-b)
 //   W-ATOM   ModuleExecutionResult       ←  F-codec/R0
 // wires-out:
 //   W-HOOK  processMessage()  →  F-codec/R3
@@ -44,6 +43,7 @@
 //   R3  @/features/F-memory/contract/memory-contract
 //   R3  @/features/F-event-system/contract/event-bus
 //   R3  @/features/F-planner/contract/planner-contract
+//   R3  @/features/F-plan/contract/plan-module                 (phase-6-sprint-b — A7 surface: F-codec's first F-plan import)
 //   R5  @/core/types/primitives
 // validated:  pending
 
@@ -58,6 +58,7 @@
 //   A5: cross-slice via R3 contract only.
 
 import type { Result } from '@/core/types/primitives'
+import { generateId } from '@/core/types/primitives'
 import type { ScopedGraphSet } from '@/features/F-memory/config/memory-types'
 import type { CodecPipelineResult, RouteBuildPayload } from '../config/codec-routing-types'
 import type { BuildConfirmation } from '../config/codec-routing-types'
@@ -81,12 +82,36 @@ import { handleBuildRequest } from '@/features/F-planner/contract/planner-contra
 // Register the existing build pipeline as the generative framework module.
 // Module-level side effect — runs once on first import.
 // 6.6: registry is now live — classifyDomain queries hasModule, determineRoute queries getModule.
+//
+// phase-6-sprint-b changes:
+//   - F-plan PLAN_MODULE registered (Sprint B A7 surface — F-codec's first
+//     F-plan import).
+//   - PLANNING_MODULE registration commented out per D-PLANNING-UNHOOK.
+//     codec-planning becomes orphaned-but-registered until T-CODEC-01.
+//   - BUILD_MODULE gains a stub executor — generative-mode messages always
+//     route to dispatch-planner (handleBuildRequest path), never to
+//     dispatch-module, so executor is never invoked at runtime. Stub returns
+//     a typed unreachable error if the route ever bypasses dispatch-planner.
 
 import { registerModule, hasModule, getModule } from './codec-registry'
-import type { FrameworkModule } from '../config/codec-module-types'
-import { DISCOVERY_MODULE, executeDiscovery } from './codec-discovery'
-import { PLANNING_MODULE, executePlanning } from './codec-planning'
-import { VERIFY_MODULE, executeVerification } from './codec-verify'
+import type { FrameworkModule, ModuleExecutor } from '../config/codec-module-types'
+import { DISCOVERY_MODULE } from './codec-discovery'
+// import { PLANNING_MODULE } from './codec-planning'  // D-PLANNING-UNHOOK — see registerModule block below
+import { VERIFY_MODULE } from './codec-verify'
+import { PLAN_MODULE } from '@/features/F-plan/contract/plan-module'
+
+// BUILD_MODULE stub executor — never invoked. Generative-mode messages route
+// to `dispatch-planner` (synchronous handleBuildRequest W-HOOK), not to
+// dispatch-module. The executor field exists solely to satisfy the
+// FrameworkModule type. T-CODEC-01 territory: collapse build dispatch into
+// the unified module executor pattern.
+const buildModuleStubExecutor: ModuleExecutor = async () => ({
+  ok:    false,
+  error: {
+    code:    'BUILD_MODULE_EXECUTOR_UNREACHABLE',
+    message: 'BUILD_MODULE.executor is a stub — generative-mode messages route to dispatch-planner (handleBuildRequest), not to dispatch-module. Reaching this code indicates a routing bug.',
+  },
+})
 
 const BUILD_MODULE: FrameworkModule = {
   id:    'build',
@@ -100,12 +125,18 @@ const BUILD_MODULE: FrameworkModule = {
       { key: 'outcome',        label: 'Outcome',         required: false },
     ],
   },
+  executor: buildModuleStubExecutor,
 }
 
 registerModule(BUILD_MODULE)
 registerModule(DISCOVERY_MODULE)
-registerModule(PLANNING_MODULE)
+// D-PLANNING-UNHOOK (phase-6-sprint-b): structural-mode now routes to
+// PLAN_MODULE. PLANNING_MODULE constant + executePlanning function retained
+// intact in codec-planning.ts for T-CODEC-01 retirement; import is dropped
+// from this file (above) so registration site is fully unhooked. Re-import
+// and re-register to revert.
 registerModule(VERIFY_MODULE)
+registerModule(PLAN_MODULE)   // phase-6-sprint-b — structural-mode authoritative module
 
 // ─── Process Message ─────────────────────────────────────────────────────────
 // The full codec pipeline for one user message.
@@ -130,6 +161,13 @@ export async function processMessage(
   modelId?:   string,
 ): Promise<Result<CodecPipelineResult>> {
   try {
+    // phase-6-sprint-b: mint turnId at pipeline entry. One turnId per
+    // processMessage call — threaded through to module executors that need it
+    // for AS carrier identity (CreateArtifactInput.turnId). T-TURNID-ATOM:
+    // branded TurnId atom pending at next iteration; string per existing
+    // convention this sprint.
+    const turnId = generateId('turn')
+
     // 1. Encode — classify primitive + label + traverse graph
     const encodeResult = await encodeLLM(content, userId)
     if (!encodeResult.ok) {
@@ -205,8 +243,9 @@ export async function processMessage(
 
     // 7c. Dispatch-module — execute framework modules (6.9–6.13).
     // Execution only. Observability emission happens at step 8 (unconditional ROUTE_COMPLETE).
+    // phase-6-sprint-b: dispatchModule now delegates to module.executor pointer.
     if (route.type === 'dispatch-module') {
-      const execResult = await dispatchModule(route.module, content, userId, projectId, modelId)
+      const execResult = await dispatchModule(route.module, content, userId, projectId, turnId, modelId)
 
       if (execResult.ok) {
         route = {
@@ -248,19 +287,17 @@ export async function processMessage(
 }
 
 // ─── Module Dispatch ─────────────────────────────────────────────────────────
+// phase-6-sprint-b: switch-on-id replaced by uniform executor-pointer pattern.
+// Modules declare their own executor at registration; this is now a thin
+// passthrough. Adding a new module = new file + register + done. No edit here.
 
 async function dispatchModule(
-  module:     FrameworkModule,
-  content:    string,
-  userId:     string,
-  projectId?: string,
-  modelId?:   string,
+  module:    FrameworkModule,
+  content:   string,
+  userId:    string,
+  projectId: string | undefined,
+  turnId:    string,
+  modelId:   string | undefined,
 ): Promise<Result<ModuleExecutionResult>> {
-  switch (module.id) {
-    case 'discovery':     return executeDiscovery(content, userId, projectId, modelId)
-    case 'planning':      return executePlanning(content, userId, projectId, modelId)
-    case 'verification':  return executeVerification(content, userId, projectId, modelId)
-    default:
-      return { ok: false, error: { code: 'UNKNOWN_MODULE', message: `no executor for module: ${module.id}` } }
-  }
+  return module.executor(content, userId, projectId, turnId, modelId)
 }

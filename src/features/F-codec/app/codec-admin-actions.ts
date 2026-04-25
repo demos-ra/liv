@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.1-global-seed, 6.11-modules-for-client, 4b-nodeid-propagation
+// amended:    6.1-global-seed, 6.11-modules-for-client, 4b-nodeid-propagation, phase-6-cleanup
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -124,10 +124,20 @@ export async function batchSeedAndTraverse(
 // ─── getModulesForClient (6.11) ──────────────────────────────────────────────
 // Returns registered framework modules for the client-side program registry.
 // No auth required — module definitions are not user-sensitive.
+//
+// phase-6-cleanup F012: returns FrameworkModuleSummary[] (transport shape, no
+// executor). Strips the runtime executor field via explicit `.map` — functions
+// don't serialize over JSON, and the transport type is what /api/modules
+// publishes. Closes T-MODULE-TRANSPORT.
 
 import { getRegisteredModules } from './codec-registry'
-import type { FrameworkModule } from '../config/codec-module-types'
+import type { FrameworkModuleSummary } from '../config/codec-module-types'
 
-export function getModulesForClient(): FrameworkModule[] {
-  return getRegisteredModules()
+export function getModulesForClient(): FrameworkModuleSummary[] {
+  return getRegisteredModules().map((m) => ({
+    id:             m.id,
+    mode:           m.mode,
+    artifactSchema: m.artifactSchema,
+    label:          m.label,
+  }))
 }

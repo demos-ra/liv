@@ -4,11 +4,11 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    none
+// amended:    phase-6-cleanup
 // slice:      F-codec
 // layer:      R3
 // wires-in:
-//   W-ATOM  FrameworkModule  F-codec/R0
+//   W-ATOM  FrameworkModuleSummary  F-codec/R0  (phase-6-cleanup F012)
 //   W-HOOK  useRegisterProgram  F-dashboard/R3 (dashboard-registry)
 // wires-out:
 //   W-ATOM  FrameworkProgramRegister  → src/app/page.tsx (composition root)
@@ -24,13 +24,18 @@
 // dashboard program via useRegisterProgram. Replaces PlannerRegister.
 // Fetch failure fallback: BUILD_FALLBACK ensures the Builder card is
 // always present — prevents regression vs unconditional PlannerRegister.
+//
+// phase-6-cleanup F012: FrameworkModule split into runtime + transport.
+// Client side uses FrameworkModuleSummary (no executor field). The
+// previous BUILD_FALLBACK executor stub is gone — the type no longer
+// requires one. Closes T-MODULE-TRANSPORT.
 
 'use client'
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRegisterProgram } from '@/features/F-dashboard/contract/dashboard-registry'
-import type { FrameworkModule } from '../config/codec-module-types'
+import type { FrameworkModuleSummary } from '../config/codec-module-types'
 
 const FrameworkProgram = dynamic(
   () => import('./framework-program').then(m => ({ default: m.FrameworkProgram })),
@@ -42,7 +47,7 @@ const FrameworkProgram = dynamic(
 // never loses the Builder card. This prevents a regression vs the unconditional
 // PlannerRegister it replaces.
 
-const BUILD_FALLBACK: FrameworkModule = {
+const BUILD_FALLBACK: FrameworkModuleSummary = {
   id:    'build',
   mode:  'generative',
   label: 'Builder',
@@ -57,7 +62,7 @@ const BUILD_FALLBACK: FrameworkModule = {
 }
 
 export function FrameworkProgramRegister() {
-  const [modules, setModules] = useState<FrameworkModule[]>([BUILD_FALLBACK])
+  const [modules, setModules] = useState<FrameworkModuleSummary[]>([BUILD_FALLBACK])
 
   useEffect(() => {
     fetch('/api/modules')
@@ -83,7 +88,7 @@ export function FrameworkProgramRegister() {
   )
 }
 
-function ModuleRegistration({ module }: { module: FrameworkModule }) {
+function ModuleRegistration({ module }: { module: FrameworkModuleSummary }) {
   const BoundProgram = useBoundProgram(module)
   useRegisterProgram({
     programId: module.id,
@@ -94,7 +99,7 @@ function ModuleRegistration({ module }: { module: FrameworkModule }) {
 }
 
 // Memoize the bound component so React identity is stable across renders.
-function useBoundProgram(module: FrameworkModule) {
+function useBoundProgram(module: FrameworkModuleSummary) {
   const [Component] = useState(() => {
     return function BoundFrameworkProgram() {
       return <FrameworkProgram module={module} />

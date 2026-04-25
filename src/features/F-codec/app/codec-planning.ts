@@ -58,6 +58,7 @@ export const PLANNING_MODULE: FrameworkModule = {
       { key: 'inputs',       label: 'Input artifacts',        required: false },
     ],
   },
+  executor: executePlanning,   // phase-6-sprint-b (unhooked from registry per D-PLANNING-UNHOOK)
 }
 
 // ─── Execute Planning ───────────────────────────────────────────────────────
@@ -70,12 +71,20 @@ export const PLANNING_MODULE: FrameworkModule = {
 // 6. Create artifact in graph (with dependency edges to findings)
 // 7. Build natural-language response
 // 8. Return ModuleExecutionResult
+//
+// phase-6-sprint-b: signature widened to ModuleExecutor shape. PLANNING_MODULE
+// is unhooked from registry at orchestrate per D-PLANNING-UNHOOK; this
+// function is dead code pending T-CODEC-01 retirement. Signature still
+// updated to keep the module type-conformant for the file-as-archive period.
 
 export async function executePlanning(
   content:    string,
   userId:     string,
-  projectId?: string,
-  modelId?:   string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _projectId: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _turnId:    string,
+  modelId:    string | undefined,
 ): Promise<Result<ModuleExecutionResult>> {
   try {
     // 1. Get graph context

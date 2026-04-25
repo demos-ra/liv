@@ -58,6 +58,7 @@ export const VERIFY_MODULE: FrameworkModule = {
       { key: 'resolution',  label: 'Resolution status',          required: false },
     ],
   },
+  executor: executeVerification,   // phase-6-sprint-b
 }
 
 // ─── Execute Verification ───────────────────────────────────────────────────
@@ -70,12 +71,18 @@ export const VERIFY_MODULE: FrameworkModule = {
 // 6. Create artifact in graph (with dependency edge to verified subject)
 // 7. Build natural-language response
 // 8. Return ModuleExecutionResult
+//
+// phase-6-sprint-b: signature widened to ModuleExecutor shape. turnId unused
+// pending T-VERIFY-AS-WIRE.
 
 export async function executeVerification(
   content:    string,
   userId:     string,
-  projectId?: string,
-  modelId?:   string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _projectId: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _turnId:    string,
+  modelId:    string | undefined,
 ): Promise<Result<ModuleExecutionResult>> {
   try {
     // 1. Get graph context

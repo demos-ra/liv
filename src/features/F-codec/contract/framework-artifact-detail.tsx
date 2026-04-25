@@ -8,7 +8,7 @@
 // slice:      F-codec
 // layer:      R3
 // wires-in:
-//   W-ATOM  FrameworkModule, ModuleArtifactSummary, ArtifactSchema, ArtifactField  F-codec/R0
+//   W-ATOM  FrameworkModuleSummary, ModuleArtifactSummary, ArtifactSchema, ArtifactField  F-codec/R0  (phase-6-cleanup F012)
 // wires-out:  none (leaf UI component)
 // deps:
 //   R0  ../config/codec-module-types
@@ -22,11 +22,11 @@
 
 'use client'
 
-import type { FrameworkModule, ModuleArtifactSummary } from '../config/codec-module-types'
+import type { FrameworkModuleSummary, ModuleArtifactSummary } from '../config/codec-module-types'
 
 type FrameworkArtifactDetailProps = {
   artifact: ModuleArtifactSummary
-  module:   FrameworkModule
+  module:   FrameworkModuleSummary
 }
 
 export function FrameworkArtifactDetail({ artifact, module }: FrameworkArtifactDetailProps) {

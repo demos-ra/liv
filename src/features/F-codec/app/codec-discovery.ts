@@ -66,6 +66,7 @@ export const DISCOVERY_MODULE: FrameworkModule = {
       { key: 'openQuestions', label: 'Open questions',      required: false },
     ],
   },
+  executor: executeDiscovery,   // phase-6-sprint-b
 }
 
 // ─── Execute Discovery ──────────────────────────────────────────────────────
@@ -77,12 +78,19 @@ export const DISCOVERY_MODULE: FrameworkModule = {
 // 5. Create artifact in graph
 // 6. Build natural-language response
 // 7. Return ModuleExecutionResult
+//
+// phase-6-sprint-b: signature widened to ModuleExecutor shape.
+// turnId accepted but unused — discovery does not currently emit AS-carried
+// artifacts that need turn correlation. Will land in T-DISCOVERY-AS-WIRE.
 
 export async function executeDiscovery(
   content:    string,
   userId:     string,
-  projectId?: string,
-  modelId?:   string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _projectId: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _turnId:    string,
+  modelId:    string | undefined,
 ): Promise<Result<ModuleExecutionResult>> {
   try {
     // 1. Get graph context

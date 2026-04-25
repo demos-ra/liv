@@ -8,7 +8,8 @@
 // slice:      F-codec
 // layer:      R3
 // wires-in:
-//   W-ATOM  FrameworkModule, ModuleArtifactSummary  F-codec/R0
+// wires-in:
+//   W-ATOM  FrameworkModuleSummary, ModuleArtifactSummary  F-codec/R0  (phase-6-cleanup F012)
 //   W-ATOM  ArtifactSchema                          F-codec/R0
 // wires-out:  none (leaf UI component)
 // deps:
@@ -23,11 +24,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { FrameworkModule, ModuleArtifactSummary } from '../config/codec-module-types'
+import type { FrameworkModuleSummary, ModuleArtifactSummary } from '../config/codec-module-types'
 import { FrameworkArtifactDetail } from './framework-artifact-detail'
 
 type FrameworkProgramProps = {
-  module: FrameworkModule
+  module: FrameworkModuleSummary
 }
 
 const STATUS_INDICATORS: Record<string, { symbol: string; color: string }> = {
