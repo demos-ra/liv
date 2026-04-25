@@ -56,6 +56,18 @@
 //     scanProjectFiles, getVersionSnapshot, storeVersionSnapshot, storeExternalFileCache.
 //   All bound from planner-db.ts (R4). Filesystem and DB I/O at R4 only (A4).
 //   Axiom cite: A2 — R4 bound at R3 inject. A4 — I/O at R4.
+//
+// phase-5 (A5, A7):
+//   M-I dispatch swap — runPipeline now emits a Plan and delegates to
+//   F-multi-instance/R3 executeRun. Port surface for executeRun (graph, plan,
+//   cognitive) and the adapter wrap (createAdapterPort) are constructed
+//   per-pipeline-call inside runPipeline rather than as module-level bindings
+//   here. Rationale: the plan-store carrier in createPhase5StubSurface is
+//   build-scoped — a module-level binding would leak plan cache across runs
+//   and contradict A7. Long-lived dependencies (db, ai, executor, output)
+//   remain bound here as before. Real wiring in Phase 6/7 (F-memory R3
+//   primitives, F-codec R3 encodeLLM adapter) replaces createPhase5StubSurface
+//   without touching this file.
 
 import type { IPlannerDb, IAiAdapter, IExecutor, IOutputWriter } from '../workflow/planner-workflow'
 import {
@@ -79,6 +91,8 @@ import {
   dbGetVersionSnapshot,
   dbStoreVersionSnapshot,
   dbStoreExternalFileCache,
+  dbGetPriorPlanAnchor,
+  dbSetPlanAnchor,
 } from '../exec/planner-db'
 import {
   dbLookupExactFlowLibrary,
@@ -136,6 +150,9 @@ export function createPlannerDb(): IPlannerDb {
     getVersionSnapshot:     (projectId)                      => dbGetVersionSnapshot(projectId),
     storeVersionSnapshot:   (buildId, snapshot)              => dbStoreVersionSnapshot(buildId, snapshot),
     storeExternalFileCache: (buildId, files)                 => dbStoreExternalFileCache(buildId, files),
+    // ── Plan anchor persistence (phase-5 — PA5 re-entry) ─────────────────────
+    getPriorPlanAnchor:     (jobId)                          => dbGetPriorPlanAnchor(jobId),
+    setPlanAnchor:          (jobId, nodeId)                  => dbSetPlanAnchor(jobId, nodeId),
   }
 }
 

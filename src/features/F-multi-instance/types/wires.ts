@@ -81,8 +81,8 @@
 // caller:  F-multi-instance/R2 mi-execute (S1 binding capture; IA2)
 // purpose: provide DomainBinding instance for LIV-Standard-domain plans
 // version: 1
-// status:  deferred
-// deferred: binding arrives verbatim via plan.binding per Plan v2.2 PA9; authoring-program composition is Phase 5/6 scope.
+// status:  active
+// active:  Phase 5 — DomainBinding flows verbatim via plan.binding (PA9). Authoring program (F-planner R2 emitPlanForContract) captures LIV_STANDARD_DOMAIN_BINDING from F-la-config R3 at emission time; M-I S1 reads it back via planAnchorNodeId one-hop.
 
 // ─── W-HOOK (R3 entry point) ─────────────────────────────────────────────────
 

@@ -171,6 +171,15 @@ import {
   type StageFailedPayload,
 } from '../types/planner-events'
 import { PLANNER_CONST } from '../types/planner-const'
+
+// ── Phase 5 imports — M-I dispatch swap ──────────────────────────────────────
+import { emitPlanForContract } from './planner-plan-emit'
+import { executeRun, type MultiInstancePorts } from '@/features/F-multi-instance/contract/mi-contract'
+import type { RunReportContent } from '@/features/F-multi-instance/contract/mi-contract'
+import type { Semver, NodeId } from '@/core/types/primitives'
+import { createArtifactGraphPort, createPlanResolutionPort } from '@/features/F-memory/contract/memory-graph-contract'
+import { createCognitiveStub } from '../exec/phase8-cognitive-stub'
+import { createAdapterPort } from '../contract/planner-adapter-port'
 import {
   nextStage,
   canRetry,
@@ -249,6 +258,16 @@ export interface IPlannerDb {
   getVersionSnapshot(projectId: string): Promise<PlannerResult<FileSnapshot[] | null>>
   storeVersionSnapshot(buildId: string, snapshot: FileSnapshot[]): Promise<PlannerResult<void>>
   storeExternalFileCache(buildId: string, files: { path: string; content: string }[]): Promise<PlannerResult<void>>
+  // ── Plan anchor persistence (phase-5 — PA5 re-entry) ────────────────────
+  // Persists planAnchorNodeId from a successful emit so the next runPipeline
+  // invocation (after MIValidityError → re-entry) can pass it as
+  // priorPlanAnchorNodeId to emitPlanForContract, populating dependsOn and
+  // triggering ArA4c version-edge emission (PA5).
+  // Schema requirement (deploy-side): ALTER TABLE builds ADD COLUMN
+  //   plan_anchor_node_id TEXT NULL. NULL on first run; populated on first
+  //   successful emit; read on re-entry. F-planner sole writer (A1).
+  getPriorPlanAnchor(jobId: PlannerJobId): Promise<PlannerResult<NodeId | null>>
+  setPlanAnchor(jobId: PlannerJobId, nodeId: NodeId): Promise<PlannerResult<void>>
 }
 
 export interface IAiAdapter {
@@ -293,430 +312,375 @@ export interface IOutputWriter {
   writeFiles(jobId: string, files: FileEntry[]): Promise<PlannerResult<void>>
 }
 
-// ── runPipeline (step4b2-phase-c: retry loops, re-entry, failsafes) ───────────
-// Full sequential pipeline execution with retry and re-entry logic.
-// Called fire-and-forget from handleConfirmationTurn.
+// ── runPipeline (Phase 5 — M-I dispatch swap; phase-5-build-5 — re-entry + defensive wrap) ──
+// Phase 5 build 5 amendments:
+//   5a (PA5 re-entry mechanic): on failure branches, after writePipelineReport
+//      + failPipeline, check FAILSAFE.MAX_REENTRIES. If under cap:
+//        incrementReentry → re-invoke runPipeline fire-and-forget (fresh
+//        invocation reads bumped reentryCount → planVersion = '1.${n}.0').
+//      Prior planAnchorNodeId is read at start (getPriorPlanAnchor), passed
+//      to emitPlanForContract → ArA4c version edge fires on re-emit. The new
+//      anchor is persisted (setPlanAnchor) after every successful emit so the
+//      next re-entry chains forward.
+//   5b (defensive try/catch): entire post-pipelineStartedAt body wrapped in a
+//      single try/catch. Catch handler emits a terminal failure report + DB
+//      writes wrapped in `.catch(() => {})` so the fire-and-forget contract
+//      cannot leak an uncaught throw to handleBuildRequest's outer catch.
+//      `job` reference hoisted to outer scope so the catch handler can read
+//      userId / transitionCount / reentryCount when constructing the report.
+//   5c#4 (failure event stage from declId): PIPELINE_FAILED event's stage
+//      derived from miResult.error.declId via declIdToPipelineStage rather
+//      than hardcoded 'IN_BUILD'.
 //
-// Error handling per class:
-//   CLASS_2 (output wrong): retry with error context. Budget → re-entry to IN-MAIN.
-//   CLASS_3 (infrastructure): retry once (AI_RETRY_LIMIT). Second → 'escalated'.
+// Preserved:
+//   - Entry signature: (deps, jobId, readSnapshot)
+//   - Fire-and-forget contract: returns Promise<void>; never throws
+//   - pipeline_status writes ('running' → 'complete' | 'failed' | 'escalated')
+//   - PipelineReport DB write
+//   - PIPELINE_COMPLETED / PIPELINE_FAILED event emission
 //
-// Re-entry sequence:
-//   1. Write failure report to pipeline_report (failureReason set).
-//   2. Set pipeline_status = 'pending'. Increment reentry_count.
-//   3. Return — pipeline idle. Next user message routes back to handleInMainTurn.
-//
-// Failsafes checked before every stage transition via checkFailsafes() (R1).
+// Axiom cite:
+//   A1 — F-planner contains no instance lifecycle code; M-I owns dispatch.
+//   A2 — F-planner → F-multi-instance/R3 only.
+//   A4 — all I/O via injected interfaces.
+//   A7 — phase5StubSurface, adapterPort, plan-anchor R4 fns are deletable.
+//   PA5 (Plan v2.2) — re-plan emits new plan with bumped semver and
+//                     priorPlanAnchorNodeId in dependsOn.
 
 export async function runPipeline(
   deps:  { db: IPlannerDb; ai: IAiAdapter; executor: IExecutor; output: IOutputWriter },
   jobId: PlannerJobId,
-  readSnapshot: ReadSnapshot | null = null
+  _readSnapshot: ReadSnapshot | null = null
 ): Promise<void> {
   const pipelineStartedAt = Date.now()
 
-  const jobResult = await deps.db.getJob(jobId)
-  if (!jobResult.ok) {
-    console.error(JSON.stringify({ level: 'error', event: 'pipeline.load.failed', jobId, error: jobResult.error }))
-    return
-  }
-  const job      = jobResult.data
-  // N2 corrective: null check before cast — TypeScript can now verify both paths.
-  // job.ifContract is IfContract | null; guard null first, then narrow the type.
-  if (!job.ifContract) { await deps.db.failPipeline(jobId); return }
-  const contract = job.ifContract as IfContract
+  // 5b: hoist job to outer scope so the catch handler can synthesize a
+  // failure report even when the load step itself throws.
+  let job: PlannerJob | null = null
 
-  const providersResult = await deps.db.getAvailableProviders(job.userId)
-  if (!providersResult.ok) { await deps.db.failPipeline(jobId); return }
-  const providers = providersResult.data
+  try {
+    // ── 1. Load job + contract ───────────────────────────────────────────────
+    const jobResult = await deps.db.getJob(jobId)
+    if (!jobResult.ok) {
+      console.error(JSON.stringify({ level: 'error', event: 'pipeline.load.failed', jobId, error: jobResult.error }))
+      return
+    }
+    job = jobResult.data
+    if (!job.ifContract) { await deps.db.failPipeline(jobId); return }
+    const contract = job.ifContract as IfContract
 
-  // Fetch user model preferences (step4b2-phase-d). Non-fatal on failure — null
-  // falls back to MODEL_TIER_MAP defaults. resolveModel handles null gracefully.
-  const prefsResult = await deps.db.getModelPreferences(job.userId)
-  const preferences = prefsResult.ok ? prefsResult.data : null
+    await deps.db.setPipelineStatus(jobId, 'running')
 
-  await deps.db.setPipelineStatus(jobId, 'running')
+    // ── 2. Build port surface (Phase 5.5: graph+plan via F-memory R3; cognitive stubbed until Phase 8) ──
+    // Phase 5 used createPhase5StubSurface (per-call Maps); Phase 5.5 swaps to
+    // F-memory R3 process-warm storage. Same graph instance feeds plan emission
+    // (createArtifact) and executeRun (M-I S1 resolvePlan) — F-memory's R2
+    // singleton makes them one store, closing PA5 cross-turn re-entry.
+    const graph     = createArtifactGraphPort()
+    const plan      = createPlanResolutionPort()
+    const cognitive = createCognitiveStub()
+    const adapter   = createAdapterPort(deps.ai, job.userId)
 
-  let accumulatedFiles: FileEntry[] = []
-  const stageResults: InstanceCallResult[] = []
+    // PA5: planVersion bumps on re-entry. First run = '1.0.0'; bump minor per
+    // reentryCount. Re-invocation (5a) provides the bump automatically because
+    // reentryCount is read fresh on each runPipeline entry.
+    const planVersion = (`1.${job.reentryCount}.0`) as Semver
 
-  // ── Tier metadata tracking (phase-4.2) ──────────────────────────────────
-  // Maps stageResults index → BuildTierMetadata for report assembly.
-  // Populated when bundle results are collected from executeBundleBuild.
-  const tierMetadataMap = new Map<number, BuildTierMetadata>()
+    // PA5 prior anchor — populates dependsOn so AS ArA4c version edge fires.
+    // Read failure is non-fatal (treat as no prior); first run path returns null.
+    const priorAnchorResult = await deps.db.getPriorPlanAnchor(jobId)
+    const priorPlanAnchorNodeId = priorAnchorResult.ok ? priorAnchorResult.data : null
 
-  // ── Flow library exact-hit tracking (step4d-phase3) ──────────────────────
-  // Maps bundleName → libraryEntryId for bundles that used an exact library hit.
-  // Consulted at downstream failure points to trigger demotion.
-  const exactHitMap = new Map<string, string>()
+    // Cognitive classifier is the last surviving Phase 5 stub. F-codec R3
+    // adapter at Phase 8 replaces createCognitiveStub() and this comment.
+    const planCodec = await cognitive.classifyRunReport({
+      runReport: undefined as unknown as RunReportContent,  // shape-irrelevant for stub
+      userId:    job.userId,
+      runTurnId: jobId as string,
+    })
 
-  // ── Re-entry helper — called on retry exhaustion ──────────────────────────
-  // Writes failure report, resets to pending, increments reentry_count.
-  const reEnterInMain = async (stage: PipelineStage, reason: string): Promise<void> => {
-    const freshJob = await deps.db.getJob(jobId)
-    const reentryReport: PipelineReport = {
+    // ── 3. Emit plan ──────────────────────────────────────────────────────────
+    const planResult = await emitPlanForContract(contract, {
+      graph,
+      userId:                job.userId,
+      turnId:                jobId as string,
+      classificationNodeId:  planCodec.classificationNodeId,
+      primitive:             planCodec.primitive,
+      confidence:            planCodec.confidence,
+      planVersion,
+      priorPlanAnchorNodeId: priorPlanAnchorNodeId ?? undefined,
+    })
+
+    if (!planResult.ok) {
+      const reason = planResult.error.failedAxiom
+        ? `Plan validity failure (${planResult.error.failedAxiom}): ${planResult.error.message}`
+        : `Plan emission rejected: ${planResult.error.message}`
+
+      await writeFailure(deps, jobId, job, pipelineStartedAt, reason, {
+        stage: 'IN_MAIN',
+        axiomCite: planResult.error.failedAxiom ?? null,
+      })
+
+      // 5a: PA5 re-entry. Plan-emit failures are typically determinism issues
+      // (PA2b cycles) and re-emitting the same contract will hit the same
+      // failure — but we route through the same threshold to keep the
+      // mechanic uniform. Operator can break the loop by editing the contract
+      // (next handleInMainTurn) before retry budget exhausts.
+      await maybeReEnter(deps, jobId, job)
+      return
+    }
+
+    const planAnchorNodeId = planResult.data.planAnchorNodeId
+
+    // 5a: persist anchor for next re-entry's dependsOn. Non-fatal on failure —
+    // worst case is the next re-entry has no prior, breaking ArA4c chain but
+    // not the run.
+    await deps.db.setPlanAnchor(jobId, planAnchorNodeId).catch(() => {})
+
+    // ── 4. Dispatch via M-I ──────────────────────────────────────────────────
+    const ports: MultiInstancePorts = {
+      plan,
+      adapter,
+      cognitive,
+      graph,
+    }
+
+    const miResult = await executeRun(
+      {
+        planAnchorNodeId,
+        userId:    job.userId,
+        runTurnId: jobId as string,
+      },
+      ports,
+    )
+
+    // ── 5. Derive PipelineReport + status from M-I result ────────────────────
+    if (!miResult.ok) {
+      const reason = `M-I run failure (${miResult.error.code} at ${miResult.error.phase}): ${miResult.error.message}`
+
+      // 5c#4: derive failed-stage from MIValidityError.declId rather than
+      // hardcode. MIValidityError.declId is optional (M-I R3 contract);
+      // declIdToPipelineStage's default branch handles the absent case.
+      const failedStage = declIdToPipelineStage(String(miResult.error.declId ?? 'IN-BUILD'))
+
+      await writeFailure(deps, jobId, job, pipelineStartedAt, reason, {
+        stage:     failedStage,
+        axiomCite: miResult.error.testedAxiomId ?? null,
+      })
+
+      // 5a: trigger re-entry within MAX_REENTRIES.
+      await maybeReEnter(deps, jobId, job)
+      return
+    }
+
+    // Success — RunReportContent rides as artifact payload.
+    const emission   = miResult.data
+    const runReport  = emission.payload.content as RunReportContent
+
+    // Map RunReportContent → StageReportEntry[] for backward-compatible UI.
+    const stages: StageReportEntry[] = runReport.instanceResults.map(ir => ({
+      instanceId:   declIdToPipelineStage(String(ir.declId)),
+      model:        '',                               // surfaced via per-instance metadata in Phase 6+
+      startedAt:    runReport.startedAt as unknown as number,
+      completedAt:  (runReport.startedAt as unknown as number) + ir.durationMs,
+      tokenCount:   ir.tokenCount,
+      handoffValid: ir.status === 'complete',
+      retries:      ir.retries,
+      errors:       [],
+    }))
+
+    // If runReport outcome is not 'complete', surface the cause for the UI.
+    // Sources, in priority order: setViolations[0].reason → first instanceResult
+    // with errors → generic outcome label. Empty string would defeat the
+    // PipelineReport's failureReason contract.
+    const nonCompleteReason = runReport.outcome !== 'complete'
+      ? (runReport.setViolations[0]?.reason
+        ?? runReport.instanceResults.find(ir => ir.errors.length > 0)?.errors[0]?.message
+        ?? `M-I outcome: ${runReport.outcome}`)
+      : undefined
+
+    const report: PipelineReport = {
       buildId:          jobId as string,
       userId:           job.userId,
-      stages:           stageResults.map((r, idx) => {
-        const meta = tierMetadataMap.get(idx)
-        return {
-          instanceId:   r.instanceId,
-          model:        r.model,
-          startedAt:    r.startedAt,
-          completedAt:  r.completedAt,
-          tokenCount:   r.tokenCount,
-          handoffValid: r.handoffValid,
-          retries:      0,
-          errors:       [],
-          ...(meta ? { tierIndex: meta.tierIndex, decomposed: meta.decomposed, layerPasses: meta.layerPasses } : {}),
-        } satisfies StageReportEntry
-      }),
-      totalTransitions: freshJob.ok ? freshJob.data.transitionCount : job.transitionCount,
-      reentries:        (freshJob.ok ? freshJob.data.reentryCount : job.reentryCount) + 1,
-      outcome:          'failed',
-      failureReason:    `Re-entry triggered from ${stage}: ${reason}`,
+      stages,
+      totalTransitions: job.transitionCount,
+      reentries:        job.reentryCount,
+      outcome:          runReport.outcome === 'complete' ? 'complete'
+                      : runReport.outcome === 'escalated' ? 'escalated'
+                      : 'failed',
+      ...(nonCompleteReason ? { failureReason: nonCompleteReason } : {}),
       startedAt:        pipelineStartedAt,
       completedAt:      Date.now(),
     }
-    await deps.db.writePipelineReport(jobId, reentryReport)
-    await deps.db.setPipelineStatus(jobId, 'pending')
-    await deps.db.incrementReentry(jobId)
-    await emitEvent({
-      type:    PLANNER_EVENTS.STAGE_FAILED,
-      slice:   'F-planner',
-      payload: { jobId: jobId as string, stage, reason, axiomCite: null, retryCount: 0 } satisfies StageFailedPayload,
-    })
-  }
+    await deps.db.writePipelineReport(jobId, report)
 
-  // ── Escalation helper — CLASS_3 terminal ──────────────────────────────────
-  const escalate = async (stage: PipelineStage, reason: string): Promise<void> => {
-    await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-      stage, status: 'failed',
-      startedAt: Date.now(), completedAt: Date.now(),
-      message: `ESCALATED: ${reason}`, axiomCite: null, retryCount: 0,
+    if (runReport.outcome === 'complete') {
+      await deps.db.completePipeline(jobId)
+    } else {
+      await deps.db.failPipeline(jobId)
+      // 5a: non-complete terminal (escalated / partial / failed) also routes
+      // through the re-entry threshold. 'escalated' specifically respects
+      // the cap because escalation came from M-I's own failsafe path.
+      await maybeReEnter(deps, jobId, job)
+    }
+
+    // Event emission is best-effort. Outcome is already persisted via
+    // completePipeline / failPipeline + writePipelineReport above; a broken
+    // event bus must not flip a complete run into a 5b-caught "uncaught" record.
+    try {
+      await emitEvent({
+        type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
+        slice:   'F-planner',
+        payload: { jobId: jobId as string, projectId: job.projectId, userId: job.userId, featureIntent: contract.featureIntent ?? null, outcome: report.outcome } satisfies PipelineCompletedPayload,
+      })
+    } catch (emitErr) {
+      console.error(JSON.stringify({
+        level:     'warn',
+        event:     'pipeline.event-emit.failed',
+        jobId:     jobId as string,
+        cause:     emitErr instanceof Error ? emitErr.message : String(emitErr),
+        slice:     'F-planner',
+        timestamp: new Date().toISOString(),
+      }))
+    }
+  } catch (err) {
+    // 5b: defensive catch. Any uncaught throw — DB connectivity, port stub
+    // crashes, M-I runtime exception, event-bus failure — funnels here.
+    // All recovery I/O is `.catch(() => {})`-wrapped so the catch handler
+    // itself cannot throw.
+    const reason = `runPipeline uncaught: ${err instanceof Error ? err.message : String(err)}`
+    const report: PipelineReport = {
+      buildId:          jobId as string,
+      userId:           job?.userId ?? '',
+      stages:           [],
+      totalTransitions: job?.transitionCount ?? 0,
+      reentries:        job?.reentryCount ?? 0,
+      outcome:          'failed',
+      failureReason:    reason,
+      startedAt:        pipelineStartedAt,
+      completedAt:      Date.now(),
+    }
+    await deps.db.writePipelineReport(jobId, report).catch(() => {})
+    await deps.db.failPipeline(jobId).catch(() => {})
+
+    // Best-effort log so operators see the throw class even when DB write fails.
+    console.error(JSON.stringify({
+      level:     'error',
+      event:     'pipeline.uncaught',
+      jobId:     jobId as string,
+      reason,
+      slice:     'F-planner',
+      timestamp: new Date().toISOString(),
     }))
-    await deps.db.updateStage(jobId, stage, 'failed')
-    await deps.db.setPipelineStatus(jobId, 'escalated')
-    await emitEvent({
-      type:    PLANNER_EVENTS.PIPELINE_FAILED,
-      slice:   'F-planner',
-      payload: { jobId: jobId as string, projectId: job.projectId, stage, reason, axiomCite: null } satisfies PipelineFailedPayload,
-    })
   }
+}
 
-  // ── Hard fail helper — failsafe breach or unrecoverable ──────────────────
-  const hardFail = async (stage: PipelineStage, reason: string): Promise<void> => {
-    await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-      stage, status: 'failed',
-      startedAt: Date.now(), completedAt: Date.now(),
-      message: reason, axiomCite: null, retryCount: 0,
-    }))
-    await deps.db.failPipeline(jobId)
-    await emitEvent({
-      type:    PLANNER_EVENTS.PIPELINE_FAILED,
-      slice:   'F-planner',
-      payload: { jobId: jobId as string, projectId: job.projectId, stage, reason, axiomCite: null } satisfies PipelineFailedPayload,
-    })
-  }
-
-  // ── Failsafe check helper — called before every transition ────────────────
-  const assertSafe = async (stage: PipelineStage): Promise<boolean> => {
-    const freshJob = await deps.db.getJob(jobId)
-    const checkJob = freshJob.ok ? freshJob.data : job
-    const check = checkFailsafes(checkJob, pipelineStartedAt)
-    if (!check.safe) {
-      await hardFail(stage, check.reason ?? 'Failsafe breach')
-      return false
-    }
-    return true
-  }
-
-  // ── IN-BUILD — tiered parallel execution with stress decomposition (phase-4.2) ──
-  // classifyBundleTiers sorts bundles into dependency tiers by structural wires.
-  // Each tier executes concurrently via Promise.allSettled. Prior-tier R0 files
-  // passed as referenceContext to downstream tiers. assessBuildOutput checks for
-  // stress signals; stressed bundles decomposed into per-layer IN-BUILD calls.
-  // Axiom cite: A1 — bundle = single ownership. A2 — R0 reference context only.
-  // A3 — typed boundary atoms. A7 — all new code is deletable (fallback = v1.3 sequential).
-  const buildStage: PipelineStage = 'IN_BUILD'
-  if (!await assertSafe(buildStage)) return
-
-  await deps.db.updateStage(jobId, buildStage, 'running')
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage: buildStage, status: 'running',
-    startedAt: Date.now(), completedAt: null,
-    message: `Starting IN-BUILD for ${contract.bundleScope.length} bundles`,
-    axiomCite: null, retryCount: 0,
-  }))
-
-  const tiers = classifyBundleTiers(contract.bundleScope, contract.wireMap)
-  const tierCount = tiers.size
-
-  for (let tierIdx = 0; tierIdx < tierCount; tierIdx++) {
-    const tierBundles = tiers.get(tierIdx) ?? []
-    if (tierBundles.length === 0) continue
-
-    // ── Collect R0 reference context from all completed prior tiers ──────
-    // R0 path convention: src/features/F-xxx/types/*.ts and src/features/F-xxx/config/*.ts
-    // Must not match non-R0 files that happen to contain /types/ in path (A3).
-    const r0PathPattern = /^src\/features\/F-[^/]+\/(types|config)\/[^/]+\.ts$/
-    const referenceContext: FileEntry[] = tierIdx > 0
-      ? accumulatedFiles.filter(f => r0PathPattern.test(f.path))
-      : []
-
-    // ── Execute all bundles in this tier concurrently ────────────────────
-    const bundlePromises = tierBundles.map(bundleName => {
-      const bundle = contract.bundleScope.find(b => b.name === bundleName)!
-      return executeBundleBuild(
-        deps, jobId, job, contract, bundle, buildStage,
-        providers, preferences, referenceContext, tierIdx,
-        pipelineStartedAt, assertSafe, escalate, exactHitMap
-      )
-    })
-
-    const settled = await Promise.allSettled(bundlePromises)
-
-    for (let i = 0; i < settled.length; i++) {
-      const result = settled[i]
-      const bundleName = tierBundles[i]
-
-      if (result.status === 'rejected') {
-        await reEnterInMain(buildStage, `IN-BUILD rejected for bundle ${bundleName}: ${String(result.reason)}`)
-        return
-      }
-
-      const bundleResult = result.value
-      if (!bundleResult.ok) {
-        if (bundleResult.escalated) return  // already escalated
-        await reEnterInMain(buildStage, `IN-BUILD failed for bundle ${bundleName}: ${bundleResult.reason ?? 'unknown'}`)
-        return
-      }
-
-      accumulatedFiles = [...accumulatedFiles, ...bundleResult.files]
-      for (const sr of bundleResult.stageResults) {
-        const idx = stageResults.length
-        stageResults.push(sr)
-        tierMetadataMap.set(idx, bundleResult.metadata)
-      }
-    }
-  }
-
-  await deps.db.updateStage(jobId, buildStage, 'complete')
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage: buildStage, status: 'complete',
-    startedAt: pipelineStartedAt, completedAt: Date.now(),
-    message: `IN-BUILD complete. ${accumulatedFiles.length} files across ${contract.bundleScope.length} bundles. ${tierCount} tiers.`,
-    axiomCite: null, retryCount: 0,
-  }))
-  await emitEvent({
-    type:    PLANNER_EVENTS.STAGE_COMPLETED,
-    slice:   'F-planner',
-    payload: { jobId: jobId as string, stage: buildStage, message: `${accumulatedFiles.length} files` } satisfies StageCompletedPayload,
-  })
-
-  // ── IN-RESOLVE ────────────────────────────────────────────────────────────
-  if (!await assertSafe('IN_RESOLVE')) return
-  const resolveResult = await runRetryStage(
-    deps, jobId, job, 'IN_RESOLVE', 'IN-AUDIT', 'Medium', providers, preferences,
-    accumulatedFiles, contract, undefined, PLANNER_CONST.RETRY_LIMITS.IN_RESOLVE,
-    pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
-  )
-  if (!resolveResult.ok) {
-    // ── Demotion: exact-hit files failed IN-RESOLVE (step4d-phase3) ──────────
-    for (const [, entryId] of exactHitMap) {
-      deps.db.incrementReuseFailure(entryId).catch(() => {})
-    }
-    return
-  }
-  accumulatedFiles = resolveResult.files
-
-  // ── IN-AUDIT — failure routes back to IN-BUILD retry budget ───────────────
-  if (!await assertSafe('IN_AUDIT')) return
-  const auditResult = await runRetryStage(
-    deps, jobId, job, 'IN_AUDIT', 'IN-COMPILE', 'Medium', providers, preferences,
-    accumulatedFiles, contract, undefined, PLANNER_CONST.RETRY_LIMITS.IN_AUDIT,
-    pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
-  )
-  if (!auditResult.ok) {
-    // ── Demotion: exact-hit files failed IN-AUDIT (step4d-phase3) ────────────
-    for (const [, entryId] of exactHitMap) {
-      deps.db.incrementReuseFailure(entryId).catch(() => {})
-    }
-    return
-  }
-  accumulatedFiles = auditResult.files
-
-  // ── IN-COMPILE — tsc loop with stall detection + IN-DIAGNOSE sub-routine ──
-  if (!await assertSafe('IN_COMPILE')) return
-  const compileResult = await runCompileLoop(
-    deps, jobId, job, providers, preferences, accumulatedFiles, contract,
-    pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
-  )
-  if (!compileResult.ok) {
-    // ── Demotion: exact-hit files failed IN-COMPILE (step4d-phase3) ──────────
-    for (const [, entryId] of exactHitMap) {
-      deps.db.incrementReuseFailure(entryId).catch(() => {})
-    }
-    return
-  }
-  accumulatedFiles = compileResult.files
-  const compileLog  = compileResult.stdout
-
-  // ── IN-QA ─────────────────────────────────────────────────────────────────
-  if (!await assertSafe('IN_QA')) return
-  const qaResult = await runRetryStage(
-    deps, jobId, job, 'IN_QA', null, 'Medium', providers, preferences,
-    accumulatedFiles, contract, compileLog,
-    PLANNER_CONST.RETRY_LIMITS.IN_QA,
-    pipelineStartedAt, stageResults, reEnterInMain, escalate, assertSafe
-  )
-  if (!qaResult.ok) {
-    // ── Demotion: exact-hit files failed IN-QA (step4d-phase3) ───────────────
-    for (const [, entryId] of exactHitMap) {
-      deps.db.incrementReuseFailure(entryId).catch(() => {})
-    }
-    return
-  }
-
-  // ── Success ───────────────────────────────────────────────────────────────
-  const writeResult = await deps.output.writeFiles(jobId as string, accumulatedFiles)
-  if (!writeResult.ok) {
-    await hardFail('IN_QA', `Failed to write output files: ${writeResult.error.message}`)
-    return
-  }
-
-  const freshJob2 = await deps.db.getJob(jobId)
-  const finalReport: PipelineReport = {
+// ── Failure-write helper (5a/5b shared) ──────────────────────────────────────
+// Called from inside try{}; constructs PipelineReport + emits PIPELINE_FAILED.
+// DB writes are awaited normally — failures here do propagate to the outer
+// catch (5b). Event emission, however, is wrapped: a flaky event bus must
+// NOT prevent the re-entry trigger that follows this call. The failure record
+// is the source of truth; the event is best-effort observability.
+async function writeFailure(
+  deps:              { db: IPlannerDb },
+  jobId:             PlannerJobId,
+  job:               PlannerJob,
+  pipelineStartedAt: number,
+  reason:            string,
+  failureMeta:       { stage: PipelineStage; axiomCite: string | null },
+): Promise<void> {
+  const report: PipelineReport = {
     buildId:          jobId as string,
     userId:           job.userId,
-    stages:           stageResults.map((r, idx) => {
-      const meta = tierMetadataMap.get(idx)
-      return {
-        instanceId:   r.instanceId,
-        model:        r.model,
-        startedAt:    r.startedAt,
-        completedAt:  r.completedAt,
-        tokenCount:   r.tokenCount,
-        handoffValid: r.handoffValid,
-        retries:      0,
-        errors:       [],
-        ...(meta ? { tierIndex: meta.tierIndex, decomposed: meta.decomposed, layerPasses: meta.layerPasses } : {}),
-      } satisfies StageReportEntry
-    }),
-    totalTransitions: freshJob2.ok ? freshJob2.data.transitionCount : job.transitionCount,
-    reentries:        freshJob2.ok ? freshJob2.data.reentryCount : job.reentryCount,
-    outcome:          'complete',
+    stages:           [],
+    totalTransitions: job.transitionCount,
+    reentries:        job.reentryCount,
+    outcome:          'failed',
+    failureReason:    reason,
     startedAt:        pipelineStartedAt,
     completedAt:      Date.now(),
   }
-
-  await deps.db.writePipelineReport(jobId, finalReport)
-  await deps.db.completePipeline(jobId)
-
-  // ── Version assignment (step5e) ───────────────────────────────────────────
-  // Runs after completePipeline. Reads featureIntent as the description
-  // (through-line: confirmation → progress → completion → history → git commit).
-  // Looks up latest version for this project; applies minor bump, or 1.0.0 for
-  // the first build. setBuildVersion is non-fatal on failure — the build is
-  // already marked complete; version display simply won't appear in the UI.
-  // Default bump: minor. AI-determined bump (major/minor/patch from IF diff) is
-  // a future single-line change here.
-  // Axiom cite: A1 — F-planner owns version assignment. A4 — via injected interface.
-  {
-    const description = contract.featureIntent
-    const latestVersionResult = await deps.db.getLatestVersion(job.projectId)
-    const latestVersion       = latestVersionResult.ok ? latestVersionResult.data : null
-    const nextVersion         = latestVersion === null ? '1.0.0' : bumpVersion(latestVersion, 'minor')
-    await deps.db.setBuildVersion(jobId as string, nextVersion, description).catch(() => {
-      console.error(JSON.stringify({
-        level:     'error',
-        event:     'pipeline.version.set.failed',
-        jobId:     jobId as string,
-        slice:     'F-planner',
-        layer:     'R2',
-        timestamp: new Date().toISOString(),
-      }))
+  await deps.db.writePipelineReport(jobId, report)
+  await deps.db.failPipeline(jobId)
+  // Event emission isolated — a broken event bus must not block re-entry
+  // (which the caller invokes immediately after this returns).
+  try {
+    await emitEvent({
+      type:    PLANNER_EVENTS.PIPELINE_FAILED,
+      slice:   'F-planner',
+      payload: { jobId: jobId as string, projectId: job.projectId, stage: failureMeta.stage, reason, axiomCite: failureMeta.axiomCite } satisfies PipelineFailedPayload,
     })
+  } catch (emitErr) {
+    console.error(JSON.stringify({
+      level:     'warn',
+      event:     'pipeline.event-emit.failed',
+      jobId:     jobId as string,
+      cause:     emitErr instanceof Error ? emitErr.message : String(emitErr),
+      slice:     'F-planner',
+      timestamp: new Date().toISOString(),
+    }))
+  }
+}
+
+// ── PA5 re-entry trigger (5a) ────────────────────────────────────────────────
+// Called only after a typed failure was written. Threshold:
+//   reentryCount >= FAILSAFE.MAX_REENTRIES  → terminal; do not re-invoke.
+//   else                                    → incrementReentry, re-invoke
+//                                             runPipeline fire-and-forget.
+// The fresh invocation reads the bumped reentryCount → planVersion stamp
+// becomes '1.{n+1}.0'. priorPlanAnchorNodeId carries forward via getPriorPlanAnchor.
+//
+// Note: this function is called from within the outer try{}, so any throw it
+// produces (e.g. DB write errors) is caught by 5b's handler and converted to
+// an uncaught failure record. Re-invocation uses .catch(() => {}) on the
+// promise itself to harden the fire-and-forget edge.
+async function maybeReEnter(
+  deps:  { db: IPlannerDb; ai: IAiAdapter; executor: IExecutor; output: IOutputWriter },
+  jobId: PlannerJobId,
+  job:   PlannerJob,
+): Promise<void> {
+  if (job.reentryCount >= PLANNER_CONST.FAILSAFE.MAX_REENTRIES) {
+    // Failsafe boundary — no further re-entry. Terminal failure stands.
+    return
+  }
+  const incResult = await deps.db.incrementReentry(jobId)
+  if (!incResult.ok) {
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'pipeline.reentry.increment.failed',
+      jobId, error: incResult.error,
+    }))
+    return
   }
 
-  // ── Snapshot write (phase-4.3) ────────────────────────────────────────────
-  // After version assignment, before flow library write. Merges pipeline output
-  // with prior snapshot: new/modified files overwritten, untouched files carried
-  // forward, deleted files removed.
-  // Fire-and-forget: failure is non-fatal — version and build are already complete.
-  // Axiom cite: A4 — I/O via injected interface. A1 — LIV-produced files only.
-  {
-    const priorSnapshotResult = await deps.db.getVersionSnapshot(job.projectId)
-    const priorSnapshot = priorSnapshotResult.ok ? priorSnapshotResult.data : null
-
-    const outputPaths = new Set(accumulatedFiles.map(f => f.path))
-    const carried: FileSnapshot[] = priorSnapshot
-      ? priorSnapshot.filter(f => !outputPaths.has(f.path))
-      : []
-
-    const merged: FileSnapshot[] = [
-      ...carried,
-      ...accumulatedFiles.map(f => ({ path: f.path, content: f.content })),
-    ]
-
-    await deps.db.storeVersionSnapshot(jobId as string, merged).catch(() => {
-      console.error(JSON.stringify({
-        level: 'error', event: 'pipeline.snapshot.store.failed',
-        jobId: jobId as string, slice: 'F-planner', layer: 'R2',
-        timestamp: new Date().toISOString(),
-      }))
-    })
-
-    // Store external files detected during read phase (non-LIV files from scan).
-    // readSnapshot is threaded from handleInMainTurn → handleConfirmationTurn → runPipeline.
-    // Null when no read phase ran (backward compatible — §13 fallback).
-    if (readSnapshot && readSnapshot.foreignFiles.length > 0) {
-      const foreignFiles = readSnapshot.foreignFiles.map(f => ({ path: f.path, content: '' }))
-      deps.db.storeExternalFileCache(jobId as string, foreignFiles).catch(() => {})
-    }
-  }
-
-  // ── Flow library write path (step4d-phase3) ───────────────────────────────
-  // One entry per flowId per bundle. Uses accumulatedFiles filtered by bundle
-  // file prefix. Fire-and-forget: insert failures are non-fatal.
-  // ON CONFLICT DO NOTHING in DB — first write wins, duplicates silently skipped.
-  const stdVersion = contract.standardVersion
-  for (const bundle of contract.bundleScope) {
-    const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
-    const bundleWires = contract.wireMap.filter(
-      w => w.from === bundle.name || w.to === bundle.name
-    )
-    const atomHash   = deps.db.hashAtomShape(bundleAtoms)
-    const wireHash   = deps.db.hashWireSignature(bundleWires)
-    const slotValues = extractSlotValues(contract, bundle.name)
-
-    // Filter files to this bundle by path prefix convention
-    const bundlePrefix = `src/features/${bundle.name}/`
-    const bundleFiles  = accumulatedFiles
-      .filter(f => f.path.startsWith(bundlePrefix))
-      .map(f => ({ path: f.path, content: f.content }))
-
-    if (bundleFiles.length === 0) continue  // no files for this bundle — skip
-
-    for (const flowId of contract.flowSelection) {
-      deps.db.insertLibraryEntry({
-        flowId,
-        standardVersion:   stdVersion,
-        atomShapeHash:     atomHash,
-        wireSignatureHash: wireHash,
-        bundleName:        bundle.name,
-        slotValues,
-        outputFiles:       bundleFiles,
-        sourceBuildId:     jobId as string,
-      }).catch(() => {})  // non-fatal: library miss on write is recoverable
-    }
-  }
-
-  await emitEvent({
-    type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
-    slice:   'F-planner',
-    payload: { jobId: jobId as string, projectId: job.projectId, userId: job.userId, featureIntent: job.ifContract?.featureIntent ?? null, outcome: job.pipelineReport?.outcome ?? null } satisfies PipelineCompletedPayload,
+  // Fire-and-forget re-invocation. Inner runPipeline has its own 5b catch, so
+  // any throw becomes a logged failure record rather than a process crash.
+  // The .catch handler here is the absolute outer rail.
+  void runPipeline(deps, jobId, null).catch(err => {
+    console.error(JSON.stringify({
+      level:     'error',
+      event:     'pipeline.reentry.uncaught',
+      jobId:     jobId as string,
+      message:   err instanceof Error ? err.message : String(err),
+      slice:     'F-planner',
+      timestamp: new Date().toISOString(),
+    }))
   })
+}
+
+// PipelineStage uses underscore-form ('IN_BUILD'); RoleClassId/DeclId use
+// dash-form ('IN-BUILD'). Translate when surfacing M-I results to the existing UI.
+function declIdToPipelineStage(declId: string): PipelineStage {
+  switch (declId) {
+    case 'IN-MAIN':    return 'IN_MAIN'
+    case 'IN-BUILD':   return 'IN_BUILD'
+    case 'IN-RESOLVE': return 'IN_RESOLVE'
+    case 'IN-AUDIT':   return 'IN_AUDIT'
+    case 'IN-COMPILE': return 'IN_COMPILE'
+    case 'IN-QA':      return 'IN_QA'
+    case 'IN-DIAGNOSE': return 'IN_BUILD'   // no PipelineStage equiv; collapse
+    default:           return 'IN_BUILD'
+  }
 }
 
 // ── executeBundleBuild — internal: single bundle build with library, retry, stress ──

@@ -80,6 +80,7 @@ import type {
   PipelineReportSummary,
   PipelineStageEntry,
 } from '@/features/F-admin/types/admin-types'
+import type { NodeId } from '@/core/types/primitives'
 
 // ── Row type — typed R4 boundary (A3) ─────────────────────────────────────────
 // Mirrors the builds table schema after migration 006.
@@ -788,5 +789,54 @@ export async function dbStoreExternalFileCache(
     return { ok: true, data: undefined }
   } catch (e) {
     return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to store external file cache', context: { cause: String(e) } } }
+  }
+}
+
+// ── PLAN ANCHOR persistence (phase-5 — PA5 re-entry mechanic) ─────────────────
+// Reads/writes builds.plan_anchor_node_id. Populated by runPipeline on
+// successful emitPlanForContract; read on re-entry to pass as
+// priorPlanAnchorNodeId, populating dependsOn at next createArtifact call —
+// AS v2.2 ArA4c then writes the version edge automatically.
+//
+// Schema requirement (deploy-side):
+//   ALTER TABLE builds ADD COLUMN plan_anchor_node_id TEXT NULL;
+//
+// A1: F-planner is sole writer of this column (planAnchorNodeId is owned by
+// the plan emission, which lives in F-planner R2).
+// A4: I/O at R4 only.
+// A6: R4 declared at owner; R2 consumes via IPlannerDb (W-INJECT).
+
+export async function dbGetPriorPlanAnchor(
+  jobId: PlannerJobId
+): Promise<PlannerResult<NodeId | null>> {
+  try {
+    const result = await db.query<{ plan_anchor_node_id: string | null }>(
+      `SELECT plan_anchor_node_id FROM builds WHERE build_id = $1`,
+      [jobId]
+    )
+    if (!result.rows[0])
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Pipeline job not found' } }
+    const raw = result.rows[0].plan_anchor_node_id
+    return { ok: true, data: raw === null ? null : (raw as NodeId) }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to read plan anchor', context: { cause: String(e) } } }
+  }
+}
+
+export async function dbSetPlanAnchor(
+  jobId:  PlannerJobId,
+  nodeId: NodeId,
+): Promise<PlannerResult<void>> {
+  try {
+    await db.query(
+      `UPDATE builds
+       SET plan_anchor_node_id = $2,
+           updated_at          = now()
+       WHERE build_id = $1`,
+      [jobId, nodeId as string]
+    )
+    return { ok: true, data: undefined }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to write plan anchor', context: { cause: String(e) } } }
   }
 }
