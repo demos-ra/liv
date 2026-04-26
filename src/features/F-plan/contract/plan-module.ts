@@ -117,10 +117,8 @@ const planExecutorAdapter: ModuleExecutor = async (
 }
 
 // ─── PLAN_MODULE — F-codec FrameworkModule instance ──────────────────────────
-// Registered at codec-orchestrate startup. mode:'structural' competes with
-// PLANNING_MODULE in the F-codec registry; per D-PLANNING-UNHOOK,
-// PLANNING_MODULE registration is removed in Sprint B so structural-mode
-// routes deterministically to PLAN_MODULE.
+// Registered at codec-orchestrate startup as the structural-mode authoritative
+// module.
 //
 // artifactSchema describes the PlanArtifactContent shape projected into the
 // dashboard card / chat-render surface — three fields covering the three

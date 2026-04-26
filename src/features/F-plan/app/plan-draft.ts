@@ -81,7 +81,7 @@ export type R2Deps = {
   epochNow:   () => EpochMs
 }
 
-// ─── ARTIFACT_PREFIX (mirror codec-planning convention) ─────────────────────
+// ─── ARTIFACT_PREFIX ────────────────────────────────────────────────────────
 // Per spec §3.3.2: F-plan does not introduce new F-memory queries this sprint.
 // The prefix string is owned by F-codec/R0 codec-artifact-types — but importing
 // across slices for a single string constant would create a coupling that
@@ -102,8 +102,8 @@ const ARTIFACT_PREFIX = '[artifact:'
 /**
  * Assemble PlanComposerInput from raw user content + F-memory present-state.
  *
- * Per spec §3.3.2: graphContext mirrors codec-planning.ts:82–88 — getPresentState
- * + ARTIFACT_PREFIX filter for findingsRefs. F-plan reads typed cognitive output
+ * Per spec §3.3.2: graphContext uses getPresentState + ARTIFACT_PREFIX filter
+ * for findingsRefs. F-plan reads typed cognitive output
  * F-codec already deposited — never re-encodes.
  *
  * D-TURNID note: turnId flows through input.turnId (caller-supplied).
@@ -139,9 +139,9 @@ export function buildComposerInput(
     recency:    s.recency,
   }))
 
-  // Mirror codec-planning.ts:82–88: filter present-state values whose strings
-  // contain the ARTIFACT_PREFIX prefix. Sprint A filters all artifact refs
-  // (not just discovery — F-plan may consume any prior emission downstream).
+  // Filter present-state values whose strings contain the ARTIFACT_PREFIX
+  // prefix. Sprint A filters all artifact refs (not just discovery — F-plan
+  // may consume any prior emission downstream).
   const findingsRefs = presentState.statements
     .filter((s) => s.value.includes(ARTIFACT_PREFIX))
     .map((s) => s.value)
@@ -321,7 +321,7 @@ export async function amendDraft(
  * Pure formatter: PlanDraftState → PlanDraftSummary. Used by executePlan to
  * shape the chat-render surface returned alongside { kind: 'draft' | 'amended' }.
  *
- * Body shape is chat-renderable text — mirrors codec-planning's
+ * Body shape is chat-renderable text following the
  * ModuleExecutionResult.response convention. Sprint A keeps it minimal:
  * objective count + echo + brief next-step hint.
  *

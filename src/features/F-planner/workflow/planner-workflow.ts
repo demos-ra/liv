@@ -22,23 +22,14 @@
 //   W-ATOM    FailStagePayload       ../types/planner-types
 //   W-ATOM    FreezeContractPayload  ../types/planner-types
 //   W-ATOM    FileEntry              ../types/planner-types
-//   W-ATOM    InstanceCallResult     ../types/planner-types
 //   W-ATOM    BuildVersion           ../types/planner-version-types  (step5e)
 //   W-ATOM    PLANNER_EVENTS         ../types/planner-events
 //   W-ATOM    PLANNER_CONST          ../types/planner-const
 //   W-ATOM    emitEvent              F-event-system/contract/event-bus
 //   W-ATOM    getSliceForInstance    @/core/constants/liv-api
 //   W-ATOM    getInstanceProfile     @/core/constants/liv-api
-//   W-ATOM    getPacketForInstance   @/core/constants/liv-api
-//   W-ATOM    getTemplatesForFlow    @/core/constants/liv-api
-//   W-ATOM    getTemplate            @/core/constants/liv-api
-//   W-FN      validateHandoff        @/core/constants/liv-api  (step4b4-handoff — replaces validateHandoffShape)
-//   W-ATOM    InstanceId             @/core/constants/liv-standard.types  (step4b4-handoff — type import for cast)
 //   W-ATOM    FlowLibraryEntry       ../types/planner-library-types  (step4d-phase2)
 //   W-ATOM    LibraryInsertPayload   ../types/planner-library-types  (step4d-phase2)
-//   W-FN      reslotFiles            ../domain/planner-library-logic  (step4d-phase3)
-//   W-FN      extractSlotValues      ../domain/planner-library-logic  (step4d-phase3)
-//   W-FN      bumpVersion            ../domain/planner-summary-logic   (step5e)
 // wires-out:
 //   W-INJECT  IPlannerDb   →  F-planner/R3 (planner-inject.ts binds, planner-contract.ts consumes)
 //   W-INJECT  IAiAdapter   →  F-planner/R3
@@ -52,7 +43,6 @@
 //   R0  ../types/planner-events
 //   R0  ../types/planner-const
 //   R1  ../domain/planner-logic
-//   R1  ../domain/planner-summary-logic  (step5e)
 //   R3  @/features/F-event-system/contract/event-bus
 //   R5  @/core/constants/liv-api
 // validated:  pending
@@ -80,7 +70,6 @@
 //   validateHandoff() from @/core/constants/liv-api (R5) at both call sites.
 //   getHandoff removed from imports — validateHandoff looks it up internally.
 //   validateHandoffShape deleted from planner-logic.ts (A7 — zero consumers).
-//   InstanceId imported from liv-standard.types for toId cast in runRetryStage.
 //   Axiom cite: A2 — R2 uses canonical R5 fn. A7 — dead R1 helper removed.
 //
 // step4d-phase2 (A2, A3, A6):
@@ -99,7 +88,6 @@
 //   hashAtomShape, hashWireSignature removed from R1 import.
 //   Both added to IPlannerDb interface — called via deps.db at R2.
 //   AtomDecl, WireEntry added to liv-standard.types import (needed for interface sig).
-//   R1 import now: reslotFiles, extractSlotValues only.
 //   All call sites: hashAtomShape(x) → deps.db.hashAtomShape(x), same for wire.
 //   Axiom cite: A2 — R2 uses R1 for pure fns, R4 infrastructure via interface only.
 //
@@ -133,12 +121,8 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
   getSliceForInstance,
   getInstanceProfile,
-  getPacketForInstance,
-  getTemplatesForFlow,
-  getTemplate,
-  validateHandoff,
 } from '@/core/constants/liv-api'
-import type { InstanceId, FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
+import type { FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
 import type { FlowLibraryEntry, LibraryInsertPayload } from '../types/planner-library-types'
 import type { BuildVersion } from '../types/planner-version-types'
 import type { AdminBuild } from '@/features/F-admin/types/admin-types'
@@ -158,7 +142,6 @@ import type {
   FailStagePayload,
   FreezeContractPayload,
   FileEntry,
-  InstanceCallResult,
   FileSnapshot,
   ReadSnapshot,
 } from '../types/planner-types'
@@ -190,25 +173,10 @@ import {
   isContractComplete,
   buildDecompositionSummary,
   resolveModel,
-  buildInstancePrompt,
-  parseInstanceResponse,
-  classifyError,
-  detectStall,
-  checkFailsafes,
-  classifyBundleTiers,
-  assessBuildOutput,
-  groupTemplatesByLayer,
   assessFileCompliance,
   buildReadSnapshot,
   deriveScopingConstraints,
 } from '../domain/planner-logic'
-import {
-  reslotFiles,
-  extractSlotValues,
-} from '../domain/planner-library-logic'
-import {
-  bumpVersion,
-} from '../domain/planner-summary-logic'
 
 // ── Local shape — ModelPreferences subset for IPlannerDb return type ──────────
 // R2 cannot import from F-user-profile (cross-slice) — A2. Mirrors the shape
@@ -681,549 +649,6 @@ function declIdToPipelineStage(declId: string): PipelineStage {
     case 'IN-DIAGNOSE': return 'IN_BUILD'   // no PipelineStage equiv; collapse
     default:           return 'IN_BUILD'
   }
-}
-
-// ── executeBundleBuild — internal: single bundle build with library, retry, stress ──
-// Extracted from the IN-BUILD loop for use with Promise.allSettled within a tier.
-// Returns { ok: true, files, stageResults } on success, { ok: false } on failure.
-// Handles flow library read path, single-pass with retry, stress check, and
-// R-layer decomposition. Does NOT call reEnterInMain — caller handles that.
-// tierIdx passed for StageReportEntry instrumentation.
-
-// Metadata for StageReportEntry instrumentation (phase-4.2, E3 fix).
-// Carried alongside InstanceCallResult from executeBundleBuild to report assembly.
-// Not added to InstanceCallResult (R0 atom) — local to R2 orchestration only (A6).
-type BuildTierMetadata = {
-  tierIndex:   number
-  decomposed:  boolean
-  layerPasses: number
-}
-
-type BundleBuildResult =
-  | { ok: true;  files: FileEntry[]; stageResults: InstanceCallResult[]; metadata: BuildTierMetadata }
-  | { ok: false; escalated?: boolean; reason?: string }
-
-async function executeBundleBuild(
-  deps:             { db: IPlannerDb; ai: IAiAdapter },
-  jobId:            PlannerJobId,
-  job:              PlannerJob,
-  contract:         IfContract,
-  bundle:           { name: string; status: string },
-  buildStage:       PipelineStage,
-  providers:        string[],
-  preferences:      ModelPreferencesLike | null,
-  referenceContext:  FileEntry[],
-  tierIdx:          number,
-  pipelineStartedAt: number,
-  assertSafe:       (stage: PipelineStage) => Promise<boolean>,
-  escalate:         (stage: PipelineStage, reason: string) => Promise<void>,
-  exactHitMap:      Map<string, string>
-): Promise<BundleBuildResult> {
-  const localResults: InstanceCallResult[] = []
-  const stdVersion = contract.standardVersion
-
-  // ── Flow library read path (step4d-phase3, preserved) ─────────────────
-  const bundleAtoms = contract.atomDeclarations.filter(a => a.owner === bundle.name)
-  const bundleWires = contract.wireMap.filter(
-    w => w.from === bundle.name || w.to === bundle.name
-  )
-  const atomHash = deps.db.hashAtomShape(bundleAtoms)
-  const wireHash = deps.db.hashWireSignature(bundleWires)
-
-  const primaryFlowId = contract.flowSelection[0]
-
-  if (primaryFlowId) {
-    const exactResult = await deps.db.lookupExact(primaryFlowId, stdVersion, atomHash, wireHash)
-
-    if (exactResult.ok && exactResult.data) {
-      const entry     = exactResult.data
-      const newSlots  = extractSlotValues(contract, bundle.name)
-      const reslotted = reslotFiles(entry.outputFiles, entry.slotValues, newSlots)
-
-      const files = reslotted.map(f => ({ ...f, encoding: 'utf8' as const }))
-      exactHitMap.set(bundle.name, entry.id)
-      await deps.db.incrementTransition(jobId)
-
-      console.log(JSON.stringify({
-        level: 'info', event: 'flow-library.exact-hit',
-        flowId: primaryFlowId, bundleName: bundle.name, libraryEntryId: entry.id,
-        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-      }))
-      return { ok: true, files, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: false, layerPasses: 0 } }
-    }
-  }
-
-  // ── Partial hit: get reference files for IN-BUILD (preserved) ─────────
-  let buildErrorCtx: string | undefined
-  if (primaryFlowId) {
-    const partialResult = await deps.db.lookupPartial(primaryFlowId, stdVersion)
-    if (partialResult.ok && partialResult.data) {
-      console.log(JSON.stringify({
-        level: 'info', event: 'flow-library.partial-hit',
-        flowId: primaryFlowId, bundleName: bundle.name,
-        libraryEntryId: partialResult.data.id,
-        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-      }))
-      buildErrorCtx = `Reference files available from a partial library match (${partialResult.data.outputFiles.length} files). Use as structural reference — adapt slot values to this build.`
-    } else {
-      console.log(JSON.stringify({
-        level: 'info', event: 'flow-library.miss',
-        flowId: primaryFlowId, bundleName: bundle.name,
-        slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-      }))
-    }
-  }
-
-  // ── Single-pass IN-BUILD with retry ───────────────────────────────────
-  let infraRetries = 0
-
-  for (let attempt = 0; attempt <= PLANNER_CONST.RETRY_LIMITS.IN_BUILD; attempt++) {
-    if (!await assertSafe(buildStage)) return { ok: false, reason: 'failsafe' }
-
-    const bundleStartedAt = Date.now()
-    const { model } = resolveModel('Smallest', providers, preferences)
-
-    const standardSlice   = getSliceForInstance('IN-BUILD')
-    const instanceProfile = getInstanceProfile('IN-BUILD')
-    const packet          = getPacketForInstance('IN-BUILD', contract, bundle.name)
-
-    const templates = contract.flowSelection.flatMap(flowId => {
-      const entries = getTemplatesForFlow(flowId as Parameters<typeof getTemplatesForFlow>[0])
-      return entries.flatMap(e => e.templates.map(tplId => getTemplate(tplId)))
-    })
-
-    const systemPrompt = buildInstancePrompt({
-      standardSlice,
-      profile:          instanceProfile,
-      packet:           { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
-      templates:        templates.map(t => ({ id: t.id, file: t.file, layer: t.layer, body: t.body, slots: t.slots })),
-      referenceContext: referenceContext.length > 0 ? referenceContext : undefined,
-      errorLog:         buildErrorCtx,
-    })
-
-    let fullResponse = ''
-    let tokenCount   = 0
-    const aiResult = await deps.ai.streamCompletion({
-      userId:  job.userId,
-      modelId: model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: `Build bundle: ${bundle.name} (${bundle.status})${attempt > 0 ? ` [retry ${attempt}]` : ''}` },
-      ],
-      onChunk: chunk => { fullResponse += chunk },
-    })
-
-    if (!aiResult.ok) {
-      const errClass = classifyError(aiResult.error, buildStage)
-      if (errClass === 3) {
-        if (infraRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
-          infraRetries++; continue
-        }
-        await escalate(buildStage, `IN-BUILD CLASS_3: ${aiResult.error.message}`)
-        return { ok: false, escalated: true, reason: aiResult.error.message }
-      }
-      buildErrorCtx = aiResult.error.message
-      continue
-    }
-    tokenCount = aiResult.data.totalTokens
-
-    const parsed     = parseInstanceResponse(fullResponse, 'IN-BUILD')
-    const shapeCheck = validateHandoff('IN-BUILD', 'IN-RESOLVE', parsed)
-
-    if (!shapeCheck.valid) {
-      buildErrorCtx = shapeCheck.reason
-      continue
-    }
-
-    // ── Stress check (phase-4.2) ──────────────────────────────────────────
-    const expectedTemplates = templates.map(t => ({ id: t.id, file: t.file }))
-    const assessment = assessBuildOutput(expectedTemplates, parsed.files)
-
-    if (assessment.clean) {
-      // Clean single-pass — proceed normally
-      await deps.db.incrementTransition(jobId)
-      localResults.push({
-        instanceId: buildStage, model, response: parsed, tokenCount,
-        durationMs: Date.now() - bundleStartedAt, handoffValid: true,
-        startedAt: bundleStartedAt, completedAt: Date.now(),
-      })
-      return { ok: true, files: parsed.files, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: false, layerPasses: 0 } }
-    }
-
-    // ── Stress detected — decompose by R-layer ────────────────────────────
-    console.log(JSON.stringify({
-      level: 'info', event: 'build.stress-detected',
-      bundleName: bundle.name, missing: assessment.missing, stressed: assessment.stressed,
-      slice: 'F-planner', layer: 'R2', timestamp: new Date().toISOString(),
-    }))
-
-    const flowEntries = contract.flowSelection.flatMap(flowId =>
-      getTemplatesForFlow(flowId as Parameters<typeof getTemplatesForFlow>[0])
-        .map(e => ({ layer: e.layer, templates: e.templates }))
-    )
-    const layers = groupTemplatesByLayer(flowEntries)
-
-    let decomposedFiles: FileEntry[] = []
-    const layerOrder = ['R0', 'R1', 'R2', 'R3', 'R4']
-    let layerPasses  = 0
-
-    for (const layerName of layerOrder) {
-      const layerTemplateIds = layers.get(layerName)
-      if (!layerTemplateIds || layerTemplateIds.length === 0) continue
-
-      const layerTemplates = layerTemplateIds.map(tplId => getTemplate(tplId as Parameters<typeof getTemplate>[0]))
-      let layerSuccess = false
-      let layerInfraRetries = 0
-
-      for (let layerAttempt = 0; layerAttempt <= PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT; layerAttempt++) {
-        const layerPrompt = buildInstancePrompt({
-          standardSlice:    getSliceForInstance('IN-BUILD'),
-          profile:          getInstanceProfile('IN-BUILD'),
-          packet:           { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
-          templates:        layerTemplates.map(t => ({ id: t.id, file: t.file, layer: t.layer, body: t.body, slots: t.slots })),
-          existingFiles:    decomposedFiles.length > 0 ? decomposedFiles : undefined,
-          referenceContext: referenceContext.length > 0 ? referenceContext : undefined,
-          errorLog:         `Decomposed build: producing ${layerName} layer only. Prior layers already built.${layerAttempt > 0 ? ` [retry ${layerAttempt}]` : ''}`,
-        })
-
-        let layerResponse = ''
-        const layerAiResult = await deps.ai.streamCompletion({
-          userId:  job.userId,
-          modelId: model,
-          messages: [
-            { role: 'system', content: layerPrompt },
-            { role: 'user',   content: `Build ${layerName} layer for bundle: ${bundle.name}` },
-          ],
-          onChunk: chunk => { layerResponse += chunk },
-        })
-
-        if (!layerAiResult.ok) {
-          const errClass = classifyError(layerAiResult.error, buildStage)
-          if (errClass === 3 && layerInfraRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
-            layerInfraRetries++
-            continue
-          }
-          // CLASS_3 exhausted or CLASS_2 — fail this layer
-          return { ok: false, reason: `Decomposed build failed at ${layerName}: ${layerAiResult.error.message}` }
-        }
-
-        const layerParsed = parseInstanceResponse(layerResponse, 'IN-BUILD')
-        decomposedFiles = [...decomposedFiles, ...layerParsed.files]
-        layerPasses++
-        layerSuccess = true
-        break
-      }
-
-      if (!layerSuccess) {
-        return { ok: false, reason: `Decomposed build: ${layerName} layer retry exhausted` }
-      }
-    }
-
-    // Re-check after decomposition
-    const recheck = assessBuildOutput(expectedTemplates, decomposedFiles)
-    if (!recheck.clean) {
-      // Decomposition didn't fix it — problem is IF contract
-      return { ok: false, reason: `Decomposed build still stressed: missing=${recheck.missing.join(',')}, stressed=${recheck.stressed.join(',')}` }
-    }
-
-    await deps.db.incrementTransition(jobId)
-    localResults.push({
-      instanceId: buildStage, model, response: { files: decomposedFiles, raw: '' }, tokenCount,
-      durationMs: Date.now() - bundleStartedAt, handoffValid: true,
-      startedAt: bundleStartedAt, completedAt: Date.now(),
-    })
-
-    return { ok: true, files: decomposedFiles, stageResults: localResults, metadata: { tierIndex: tierIdx, decomposed: true, layerPasses } }
-  }
-
-  // Retry budget exhausted
-  return { ok: false, reason: `IN-BUILD retry exhausted for bundle ${bundle.name}: ${buildErrorCtx ?? 'unknown'}` }
-}
-
-// ── runRetryStage — internal: single stage with CLASS_2/CLASS_3 retry ─────────
-
-async function runRetryStage(
-  deps:            { db: IPlannerDb; ai: IAiAdapter },
-  jobId:           PlannerJobId,
-  job:             PlannerJob,
-  stage:           PipelineStage,
-  nextId:          string | null,
-  sizeTier:        'Largest' | 'Medium' | 'Smallest',
-  providers:       string[],
-  preferences:     ModelPreferencesLike | null,
-  files:           FileEntry[],
-  contract:        IfContract,
-  errorLog:        string | undefined,
-  retryLimit:      number,
-  pipelineStartedAt: number,
-  stageResults:    InstanceCallResult[],
-  reEnterInMain:   (stage: PipelineStage, reason: string) => Promise<void>,
-  escalate:        (stage: PipelineStage, reason: string) => Promise<void>,
-  assertSafe:      (stage: PipelineStage) => Promise<boolean>
-): Promise<{ ok: true; files: FileEntry[] } | { ok: false }> {
-  const stageStartedAt = Date.now()
-  const { model }      = resolveModel(sizeTier, providers, preferences)
-  const stageId        = stage.replace('IN_', 'IN-') as Parameters<typeof getSliceForInstance>[0]
-  let   infraRetries   = 0
-  let   errorCtx       = errorLog
-
-  await deps.db.updateStage(jobId, stage, 'running')
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage, status: 'running',
-    startedAt: stageStartedAt, completedAt: null,
-    message: `Starting ${stage}`, axiomCite: null, retryCount: 0,
-  }))
-
-  for (let attempt = 0; attempt <= retryLimit; attempt++) {
-    if (!await assertSafe(stage)) return { ok: false }
-
-    const standardSlice   = getSliceForInstance(stageId)
-    const instanceProfile = getInstanceProfile(stageId)
-    const packet          = getPacketForInstance(stageId, contract)
-
-    const systemPrompt = buildInstancePrompt({
-      standardSlice,
-      profile:       instanceProfile,
-      packet:        { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
-      existingFiles: files,
-      errorLog:      errorCtx,
-    })
-
-    let fullResponse = ''
-    let tokenCount   = 0
-
-    const aiResult = await deps.ai.streamCompletion({
-      userId:  job.userId,
-      modelId: model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: `Execute ${stage}. Produce your complete output.${attempt > 0 ? ` [retry ${attempt}]` : ''}` },
-      ],
-      onChunk: chunk => { fullResponse += chunk },
-    })
-
-    if (!aiResult.ok) {
-      const errClass = classifyError(aiResult.error, stage)
-      if (errClass === 3) {
-        if (infraRetries < PLANNER_CONST.FAILSAFE.AI_RETRY_LIMIT) {
-          infraRetries++; continue
-        }
-        await escalate(stage, `${stage} CLASS_3: ${aiResult.error.message}`)
-        return { ok: false }
-      }
-      errorCtx = aiResult.error.message
-      continue
-    }
-    tokenCount = aiResult.data.totalTokens
-
-    const parsed     = parseInstanceResponse(fullResponse, stage)
-    const toId       = (nextId ?? 'IN-MAIN') as InstanceId
-    const shapeCheck = validateHandoff(stageId, toId, parsed)
-
-    if (!shapeCheck.valid) {
-      errorCtx = shapeCheck.reason
-      continue
-    }
-
-    const outputFiles = parsed.files.length > 0 ? parsed.files : files
-    const msg = `${stage} complete. ${parsed.files.length} files. Tokens: ${tokenCount}. Retries: ${attempt}.`
-
-    await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-      stage, status: 'complete',
-      startedAt: stageStartedAt, completedAt: Date.now(),
-      message: msg, axiomCite: null, retryCount: attempt,
-    }))
-    await deps.db.updateStage(jobId, stage, 'complete')
-    await deps.db.incrementTransition(jobId)
-    await emitEvent({
-      type:    PLANNER_EVENTS.STAGE_COMPLETED,
-      slice:   'F-planner',
-      payload: { jobId: jobId as string, stage, message: msg } satisfies StageCompletedPayload,
-    })
-
-    stageResults.push({
-      instanceId: stage, model, response: parsed, tokenCount,
-      durationMs: Date.now() - stageStartedAt, handoffValid: true,
-      startedAt: stageStartedAt, completedAt: Date.now(),
-    })
-    return { ok: true, files: outputFiles }
-  }
-
-  // Budget exhausted → re-enter IN-MAIN
-  await reEnterInMain(stage, `${stage} retry budget exhausted: ${errorCtx ?? 'output validation failed'}`)
-  return { ok: false }
-}
-
-// ── runCompileLoop — IN-COMPILE tsc loop + stall detection + IN-DIAGNOSE ──────
-
-async function runCompileLoop(
-  deps:              { db: IPlannerDb; ai: IAiAdapter; executor: IExecutor },
-  jobId:             PlannerJobId,
-  job:               PlannerJob,
-  providers:         string[],
-  preferences:       ModelPreferencesLike | null,
-  files:             FileEntry[],
-  contract:          IfContract,
-  pipelineStartedAt: number,
-  stageResults:      InstanceCallResult[],
-  reEnterInMain:     (stage: PipelineStage, reason: string) => Promise<void>,
-  escalate:          (stage: PipelineStage, reason: string) => Promise<void>,
-  assertSafe:        (stage: PipelineStage) => Promise<boolean>
-): Promise<{ ok: true; files: FileEntry[]; stdout: string } | { ok: false }> {
-  const compileStartedAt = Date.now()
-  const stage: PipelineStage = 'IN_COMPILE'
-
-  await deps.db.updateStage(jobId, stage, 'running')
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage, status: 'running',
-    startedAt: compileStartedAt, completedAt: null,
-    message: `Starting IN-COMPILE tsc loop on ${files.length} files`, axiomCite: null, retryCount: 0,
-  }))
-
-  let currentFiles  = files
-  let previousErrors = Infinity
-  let stallCount     = 0
-
-  for (let iter = 0; iter < PLANNER_CONST.RETRY_LIMITS.IN_COMPILE_LOOP; iter++) {
-    if (!await assertSafe(stage)) return { ok: false }
-
-    const execResult = await deps.executor.run({
-      jobId:     jobId as string,
-      projectId: job.projectId,
-      files:     currentFiles.map(f => ({ path: f.path, content: f.content })),
-      timeoutMs: PLANNER_CONST.AI_CALL_TIMEOUT_MS,
-    })
-
-    if (!execResult.ok) {
-      await escalate(stage, `Executor error: ${execResult.error.message}`)
-      return { ok: false }
-    }
-
-    if (execResult.data.passed) {
-      const msg = `Compile passed. Exit 0. Duration ${execResult.data.durationMs}ms. Iterations: ${iter + 1}.`
-      await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-        stage, status: 'complete',
-        startedAt: compileStartedAt, completedAt: Date.now(),
-        message: msg, axiomCite: null, retryCount: iter,
-      }))
-      await deps.db.updateStage(jobId, stage, 'complete')
-      await deps.db.incrementTransition(jobId)
-      await emitEvent({
-        type:    PLANNER_EVENTS.STAGE_COMPLETED,
-        slice:   'F-planner',
-        payload: { jobId: jobId as string, stage, message: msg } satisfies StageCompletedPayload,
-      })
-      stageResults.push({
-        instanceId: stage, model: 'executor',
-        response: { files: currentFiles, raw: execResult.data.stdout },
-        tokenCount: 0, durationMs: execResult.data.durationMs, handoffValid: true,
-        startedAt: compileStartedAt, completedAt: Date.now(),
-      })
-      return { ok: true, files: currentFiles, stdout: execResult.data.stdout }
-    }
-
-    const s             = execResult.data.testSummary
-    const currentErrors = s ? s.failed : (execResult.data.timedOut ? Infinity : 1)
-
-    // Stall detection
-    if (detectStall(currentErrors, previousErrors)) {
-      stallCount++
-      if (stallCount >= PLANNER_CONST.RETRY_LIMITS.IN_COMPILE_STALL) {
-        // Route to IN-DIAGNOSE sub-routine
-        const diagnoseResult = await runDiagnose(
-          deps, jobId, job, providers, preferences, currentFiles, contract,
-          execResult.data.stdout + '\n' + execResult.data.stderr, assertSafe
-        )
-        if (!diagnoseResult.ok) {
-          await reEnterInMain(stage, `IN-DIAGNOSE could not fix stalled compile: ${execResult.data.stderr.slice(0, 200)}`)
-          return { ok: false }
-        }
-        currentFiles  = diagnoseResult.files
-        previousErrors = Infinity  // reset after diagnose
-        stallCount     = 0
-        continue
-      }
-    } else {
-      stallCount = 0
-    }
-
-    previousErrors = currentErrors
-  }
-
-  // Loop exhausted without passing
-  await reEnterInMain(stage, `IN-COMPILE loop exhausted after ${PLANNER_CONST.RETRY_LIMITS.IN_COMPILE_LOOP} iterations`)
-  return { ok: false }
-}
-
-// ── runDiagnose — IN-DIAGNOSE sub-routine (not a pipeline stage) ──────────────
-// Called when IN-COMPILE stalls. Not visible in current_stage — stays IN_COMPILE.
-// Returns fixed files, or { ok: false } if diagnosis couldn't fix.
-
-async function runDiagnose(
-  deps:        { db: IPlannerDb; ai: IAiAdapter },
-  jobId:       PlannerJobId,
-  job:         PlannerJob,
-  providers:   string[],
-  preferences: ModelPreferencesLike | null,
-  files:       FileEntry[],
-  contract:    IfContract,
-  errorLog:    string,
-  assertSafe:  (stage: PipelineStage) => Promise<boolean>
-): Promise<{ ok: true; files: FileEntry[] } | { ok: false }> {
-  if (!await assertSafe('IN_COMPILE')) return { ok: false }
-
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage: 'IN_COMPILE', status: 'running',
-    startedAt: Date.now(), completedAt: null,
-    message: 'Routing to IN-DIAGNOSE sub-routine (stall detected)', axiomCite: null, retryCount: 0,
-  }))
-
-  const { model }       = resolveModel('Medium', providers, preferences)
-  const standardSlice   = getSliceForInstance('IN-DIAGNOSE')
-  const instanceProfile = getInstanceProfile('IN-DIAGNOSE')
-  const packet          = getPacketForInstance('IN-DIAGNOSE', contract)
-
-  const systemPrompt = buildInstancePrompt({
-    standardSlice,
-    profile:       instanceProfile,
-    packet:        { instanceType: packet.instanceType, fields: packet.fields as Record<string, unknown> },
-    existingFiles: files,
-    errorLog,
-  })
-
-  let fullResponse = ''
-  const aiResult = await deps.ai.streamCompletion({
-    userId:  job.userId,
-    modelId: model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user',   content: 'Diagnose the stalled compile errors and return fixed files.' },
-    ],
-    onChunk: chunk => { fullResponse += chunk },
-  })
-
-  if (!aiResult.ok) return { ok: false }
-
-  const parsed = parseInstanceResponse(fullResponse, 'IN-DIAGNOSE')
-
-  await deps.db.appendLogEntry(jobId, buildStageLogEntry({
-    stage: 'IN_COMPILE', status: 'running',
-    startedAt: Date.now(), completedAt: Date.now(),
-    message: `IN-DIAGNOSE returned ${parsed.files.length} fixed files.`, axiomCite: null, retryCount: 0,
-  }))
-  await deps.db.incrementTransition(jobId)
-
-  // If no files returned, diagnosis produced report only — can't fix
-  if (parsed.files.length === 0) return { ok: false }
-
-  // Merge: diagnose files overwrite matching paths in accumulated set
-  const fixedPaths = new Set(parsed.files.map(f => f.path))
-  const merged     = [
-    ...files.filter(f => !fixedPaths.has(f.path)),
-    ...parsed.files,
-  ]
-
-  return { ok: true, files: merged }
 }
 
 // ── readProjectState (phase-4.3) ─────────────────────────────────────────────

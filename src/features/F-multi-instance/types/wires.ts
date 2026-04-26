@@ -63,7 +63,7 @@
 // caller:  F-multi-instance/R2 mi-execute (S1 resolve PlanArtifactContent; HR-MI4)
 // purpose: resolve PlanArtifactContent by NodeId per HR-MI4
 // version: 1
-// status:  deferred (4b beta — F-memory read primitives land pre-deploy)
+// status:  active
 
 // @wire
 // type:    W-INJECT

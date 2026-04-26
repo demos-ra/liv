@@ -127,7 +127,7 @@ export type PlanDraftState = {
 
 // ─── Composer input (R1 consumes) ─────────────────────────────────────────────
 // Built at R2 from F-codec post-A6 outputs + F-memory present-state read.
-// Spec §3.3.2: graphContext mirrors codec-planning.ts:82–88 pattern
+// Spec §3.3.2: graphContext follows the present-state pattern in plan-draft.ts
 // (getPresentState + ARTIFACT_PREFIX filter).
 
 /**

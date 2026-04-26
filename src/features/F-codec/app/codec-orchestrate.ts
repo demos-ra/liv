@@ -23,7 +23,6 @@
 //   W-INJECT hasModule                   ←  F-codec/R2 (codec-registry)
 //   W-INJECT getModule                   ←  F-codec/R2 (codec-registry)
 //   W-ATOM   DISCOVERY_MODULE            ←  F-codec/R2 (codec-discovery)
-//   W-ATOM   PLANNING_MODULE             ←  F-codec/R2 (codec-planning, unhooked phase-6-sprint-b)
 //   W-ATOM   VERIFY_MODULE               ←  F-codec/R2 (codec-verify)
 //   W-ATOM   PLAN_MODULE                 ←  F-plan/R3 (plan-module, phase-6-sprint-b)
 //   W-ATOM   ModuleExecutionResult       ←  F-codec/R0
@@ -38,7 +37,6 @@
 //   R2  ./codec-encode
 //   R2  ./codec-registry
 //   R2  ./codec-discovery
-//   R2  ./codec-planning
 //   R2  ./codec-verify
 //   R3  @/features/F-memory/contract/memory-contract
 //   R3  @/features/F-event-system/contract/event-bus
@@ -83,11 +81,9 @@ import { handleBuildRequest } from '@/features/F-planner/contract/planner-contra
 // Module-level side effect — runs once on first import.
 // 6.6: registry is now live — classifyDomain queries hasModule, determineRoute queries getModule.
 //
-// phase-6-sprint-b changes:
-//   - F-plan PLAN_MODULE registered (Sprint B A7 surface — F-codec's first
-//     F-plan import).
-//   - PLANNING_MODULE registration commented out per D-PLANNING-UNHOOK.
-//     codec-planning becomes orphaned-but-registered until T-CODEC-01.
+// phase-6-sprint-b changes (legacy structural-mode module retired Sprint 1):
+//   - F-plan PLAN_MODULE registered as the structural-mode authoritative
+//     module (F-codec's first F-plan import; A7 surface).
 //   - BUILD_MODULE gains a stub executor — generative-mode messages always
 //     route to dispatch-planner (handleBuildRequest path), never to
 //     dispatch-module, so executor is never invoked at runtime. Stub returns
@@ -96,7 +92,6 @@ import { handleBuildRequest } from '@/features/F-planner/contract/planner-contra
 import { registerModule, hasModule, getModule } from './codec-registry'
 import type { FrameworkModule, ModuleExecutor } from '../config/codec-module-types'
 import { DISCOVERY_MODULE } from './codec-discovery'
-// import { PLANNING_MODULE } from './codec-planning'  // D-PLANNING-UNHOOK — see registerModule block below
 import { VERIFY_MODULE } from './codec-verify'
 import { PLAN_MODULE } from '@/features/F-plan/contract/plan-module'
 
@@ -130,11 +125,7 @@ const BUILD_MODULE: FrameworkModule = {
 
 registerModule(BUILD_MODULE)
 registerModule(DISCOVERY_MODULE)
-// D-PLANNING-UNHOOK (phase-6-sprint-b): structural-mode now routes to
-// PLAN_MODULE. PLANNING_MODULE constant + executePlanning function retained
-// intact in codec-planning.ts for T-CODEC-01 retirement; import is dropped
-// from this file (above) so registration site is fully unhooked. Re-import
-// and re-register to revert.
+// Structural-mode routes deterministically to PLAN_MODULE.
 registerModule(VERIFY_MODULE)
 registerModule(PLAN_MODULE)   // phase-6-sprint-b — structural-mode authoritative module
 

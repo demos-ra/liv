@@ -12,7 +12,7 @@
 //   W-HOOK  executeModuleCall()   ←  F-codec/R4 (codec-ai-io)
 // wires-out:
 //   W-HOOK  classifyAndLabel()  →  F-codec/R2 (codec-encode)
-//   W-HOOK  executeModule()     →  F-codec/R2 (codec-discovery, codec-planning, codec-verify)
+//   W-HOOK  executeModule()     →  F-codec/R2 (codec-discovery, codec-verify)
 // deps:
 //   R4  ../exec/codec-ai-io
 // validated:  pending
