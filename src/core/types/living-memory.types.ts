@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: none
+// amended: lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
 // slice: core
 // layer: R5
 // wires-in:
@@ -35,8 +35,8 @@
 //   W-ATOM MemArm                  → F-codec
 //   W-ATOM ArmMembership           → LM internal
 //   W-ATOM LayerRef                → LM internal
-//   W-ATOM ConfidenceTier          → F-chat present-state consumers
-//   W-ATOM PresentStateStatement   → F-chat present-state consumers
+//   W-ATOM ConfidenceTier          → (deleted in shot4 with v2.2 PresentState body swap)
+//   W-ATOM PresentStateStatement   → (deleted in shot4 with v2.2 PresentState body swap)
 //   W-ATOM MemGraph                → F-codec (getGraph read surface)
 //   W-ATOM TraversalOptions        → F-chat, F-codec (traverse callers)
 //   W-ATOM TraverseInput           → F-chat, F-codec (traverse callers)
@@ -47,6 +47,13 @@
 //   W-ATOM GraphReadRef            → LM internal
 //   W-ATOM TraversalResult         → F-chat, F-codec
 //   W-ATOM PresentState            → F-chat
+//   W-ATOM ScopeFilter             → F-memory/R3 (Present, Lineage entry shape per LM v2.2 §C, §D)
+//   W-ATOM ScopeTagSet             → F-memory/* (per-node stamped scope tags per LMA21, lm-v2-2-shot3)
+//   W-ATOM AxisId                  → F-memory/R3 (Present axes per LM v2.2 §E)
+//   W-ATOM AxisConfig              → F-memory/* (per-axis config; F-memory authors shape in Shot 4)
+//   W-ATOM AxisSet                 → F-memory/R3 (Present axis-set per LM v2.2 §D)
+//   W-ATOM EdgeKindSet             → F-memory/R3 (Lineage edge filter per LM v2.2 §F)
+//   W-ATOM LineageGraph            → F-memory/R3 (Lineage return atom per LM v2.2 §F)
 //   W-ATOM MemoryVitalSigns        → dashboard (R3 hook)
 //   W-ATOM LMHandoffRuleInstance   → framework-audit
 //   W-ATOM LMGateResult            → framework-audit
@@ -93,6 +100,8 @@ import type {
   Semver,
   Result,
   AppError,
+  UserId,
+  ProjectId,
 } from './primitives'
 
 import type {
@@ -158,10 +167,16 @@ export type EdgeKind = EdgePrimitiveType | null
 /**
  * MemNode — the held atomic unit. Scope-partitioned by ownerId per LMA2 + LMA3.
  * Cached layer/closure/asymmetry fields are derived per LMA14..LMA16 + LMA18.
+ *
+ * lm-v2-2-shot3 (LMA21): scope tags stamped at persistence per LM v2.2 §C.
+ * Total stamping — no node persists without a non-empty scope tag set. Token
+ * format per D-SCOPE-TAG-FORMAT: 'user:<userId>' | 'project:<projectId>' |
+ * 'global'. Lockstep with F-memory R0 per E4.
  */
 export type MemNode = {
   id:              NodeRef
   ownerId:         ScopeKey              // LMA2
+  scope:           ScopeTagSet           // LMA21 — lm-v2-2-shot3
   content:         string
   embedding:       number[]              // LIV-Standard R4 encode() output
   sourceText:      string | null         // LMA1 lifecycle: null iff cachedLayer <= M2_KNOWLEDGE
@@ -171,6 +186,14 @@ export type MemNode = {
   cachedClosure:   number                // derived per LMA18
   cachedAsymmetry: number                // derived per LMA18
 }
+
+/**
+ * ScopeTagSet — set of scope tag tokens carried on a MemNode per LMA21.
+ * Token format per D-SCOPE-TAG-FORMAT (lm-v2-2-shot3):
+ *   'user:<userId>' | 'project:<projectId>' | 'global'
+ * Lockstep with F-memory R0 declaration.
+ */
+export type ScopeTagSet = Set<string>
 
 /**
  * MemEdge — directed weighted relation between MemNodes in the same scope (LMA3).
@@ -325,27 +348,9 @@ export type LayerRef = {
   layer:  MLayer
 }
 
-/**
- * Confidence tier — PresentState statement confidence classification.
- */
-export type ConfidenceTier =
-  | 'identity'
-  | 'purpose'
-  | 'consolidated'
-  | 'recent'
-  | 'new'
-
-/**
- * PresentStateStatement — one statement in the present-state projection.
- */
-export type PresentStateStatement = {
-  arm:        string | null               // null per G1 fallback when arms weak
-  value:      string
-  source:     string | null               // sourceText if cachedLayer >= M3_CONTEXT; null otherwise per LMA1
-  layer:      MLayer
-  confidence: ConfidenceTier
-  recency:    number                      // EMA-weighted
-}
+// lm-v2-2-shot4 (D-PRESENTSTATEMENT-RETAIN — delete):
+// ConfidenceTier + PresentStateStatement deleted with the v2.1 PresentState
+// body swap. No consumer post-rewrite.
 
 // ─── Runtime in-memory graph representation (§2.2 output W-ATOM) ─────────────
 
@@ -410,8 +415,13 @@ export type TraversalResult = {
   }>
 }
 
+// lm-v2-2-shot4 (D-PRESENTSTATE-BODY-V21 close): PresentState body swapped
+// to LM v2.2 §D shape per natural-deferral closure at the seam where
+// 8-axis algorithms exist. Lockstep with F-memory R0.
 export type PresentState = {
-  statements: PresentStateStatement[]
+  projected:    NodeId[]
+  axisScores:   Map<NodeId, Map<AxisId, number>>
+  scopeContext: ScopeFilter
 }
 
 export type MemoryVitalSigns = {
@@ -520,5 +530,58 @@ export type BootResult           = Result<void,                   LivingMemoryEr
 // Not re-owned; custody remains with artifact-standard (see §6.5 custody table).
 
 export type { ArtifactEmission }
+
+// ─── LM v2.2 atoms (lm-v2-2-shot2) ────────────────────────────────────────────
+// Net-new atoms per LM v2.2 §C, §D, §E, §F. Mirrored at F-memory/R0
+// (memory-types.ts) per E4: lockstep declaration across both type sites.
+//
+// Per option (γ) / D-PRESENTSTATE-BODY-V21: PresentState body retained at v2.1
+// shape (line ~413). The v2.2 §D return body lands in Shot 4 alongside axis
+// algorithms; canonical name preserved across the seam.
+
+// ─── ScopeFilter (LM v2.2 §C) ────────────────────────────────────────────────
+// Projection-side scope filter. Persistence-side scope-stamping (LMA21)
+// wires in Shot 3.
+
+export type ScopeFilter = {
+  user?:    UserId
+  project?: ProjectId
+  // open for additional scope dimensions per LMA21
+}
+
+// ─── Axes (LM v2.2 §D, §E) ───────────────────────────────────────────────────
+// Eight axes per LM v2.2 §E. Declarations of what each axis projects;
+// algorithms land in F-memory at Shot 4.
+
+export type AxisId =
+  | 'topology'
+  | 'recency'
+  | 'chronology'
+  | 'projectAffinity'
+  | 'modeAffinity'
+  | 'programAffinity'
+  | 'lineageProximity'
+  | 'energy'
+
+export type AxisConfig = Record<string, unknown>
+
+export type AxisSet = {
+  active:  AxisId[]
+  weights: Map<AxisId, number>
+  configs: Map<AxisId, AxisConfig>
+}
+
+// ─── Lineage atoms (LM v2.2 §F) ──────────────────────────────────────────────
+// EdgeKindSet excludes null per D-EDGEKIND-NULL-EXCLUDE — null = "learning
+// sub-op" or pre-v1.1, not a directly traversable kind.
+
+export type EdgeKindSet = Set<EdgePrimitiveType>
+
+export type LineageGraph = {
+  start:             NodeId
+  nodes:             NodeId[]
+  edges:             EdgeRef[]
+  terminationReason: 'depth-reached' | 'no-more-edges' | 'cycle-truncated' | 'scope-boundary'
+}
 
 // ─── End of living-memory.types.ts ──────────────────────────────────────────

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed, 4b-nodeid-propagation
+// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5, lm-v2-2-shot5-fix-2
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -53,7 +53,7 @@
 //
 // §6: one operation — runTraversal(text, userId, options).
 // MA2: read, write, and learning are one pass.
-// G2: getPresentState(userId) reads _userStates cache. Recomputed only inside runTraversal().
+// G2: present() reads _userStates cache. Recomputed only inside runTraversal().
 // G3: all mutations committed atomically via persistMutations().
 //
 // lm-v1.1 changes:
@@ -67,11 +67,13 @@
 //     - 6-field edges: primitiveType + createdAt + userId (Amendments 1+3)
 //     - Scoped persist: userId passed to all R4 calls
 //   getPresentState(userId): per-user present state
+//   (lm-v2-2-shot2: getPresentState replaced by present({scope, axes, limit}); cache lookup body reused per brief §B)
 //   getUserGraph(userId): per-user graph for vital signs
 
 import type {
   MemGraph,
   MemNode,
+  MemNodeRow,
   MemEdge,
   MemArm,
   DominanceEntry,
@@ -82,11 +84,23 @@ import type {
   TraversalOptions,
   ActivationMap,
   MLayer,
+  // lm-v2-2-shot2: LM v2.2 atoms consumed at the new R2 surface (present, lineage)
+  ScopeFilter,
+  AxisSet,
+  AxisId,
+  AxisConfig,
+  LineageGraph,
+  EdgeKindSet,
+  // lm-v2-2-shot3: LMA21 scope-tag set for persistence stamping
+  ScopeTagSet,
+  EdgePrimitiveType,
 } from '../config/memory-types'
 import {
   MEMORY_CONFIG,
   M3_CONTEXT,
   M4_INPUT,
+  // lm-v2-2-shot4: cache-callsite computePresentState invocations need limit cap.
+  PRESENT_LIMIT_MAX,
 } from '../config/memory-types'
 import { MEMORY_EVENTS } from '../config/memory-events'
 
@@ -105,6 +119,11 @@ import { encode } from '../exec/embedding-service'
 
 // R3 — event bus (A2-event-bus-r3: documented amendment, same as F-planner/F-output)
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
+
+// lm-v2-2-shot5: artifact substore hydration peer-import (R2 → R2 same slice).
+// hydrateArtifactStore loads all rows from mem_artifact_* tables into the
+// in-memory cache so AS R3 hooks answer correctly from first call.
+import { hydrateArtifactStore } from './memory-artifact-store'
 
 import type { Result, NodeId } from '@/core/types/primitives'
 import { generateId } from '@/core/types/primitives'
@@ -130,6 +149,77 @@ type UserGraphState = {
 }
 const _userStates = new Map<string, UserGraphState>()
 
+// ─── LMA21 scope-stamp helpers (lm-v2-2-shot3) ────────────────────────────────
+// Per LM v2.2 §C + LMA21: every node-write stamps active scope tags. Total
+// stamping — no node persists without scope tags. Default = {'global'} when
+// no scope context active.
+//
+// Token format per D-SCOPE-TAG-FORMAT:
+//   'user:<userId>'      — per-user scope
+//   'project:<projectId>' — per-project scope (open per LMA21)
+//   'global'              — default scope when no other context active
+
+/**
+ * Build the active ScopeTagSet from the writing context. Used at every
+ * node-construction site in F-memory.
+ *
+ * @param userId  per-user context (null = global write)
+ * @param projectId optional project context
+ * @returns ScopeTagSet — non-empty per LMA21 (defaults to {'global'} when both null)
+ */
+export function stampScope(
+  userId:    string | null,
+  projectId?: string | null,
+): ScopeTagSet {
+  const tags = new Set<string>()
+  if (userId) tags.add('user:' + userId)
+  if (projectId) tags.add('project:' + projectId)
+  if (tags.size === 0) tags.add('global')
+  return tags
+}
+
+/**
+ * Boot-time backward-compat per D-MEMNODE-MIGRATION. Nodes loaded from DB
+ * without a stamped scope field derive one from the legacy userId column:
+ *   userId === null  →  {'global'}
+ *   userId !== null  →  {'user:'+userId}
+ * lm-v2-2-shot5-fix-2 (G1 Move-to-R2): input changed from MemNode to MemNodeRow.
+ * R4 returns row shapes; this R2 helper produces the full domain atom by adding
+ * the LMA21 scope field. Always stamps (no idempotent short-circuit needed —
+ * MemNodeRow lacks scope by construction).
+ */
+export function ensureNodeScopeStamped(row: MemNodeRow): MemNode {
+  return { ...row, scope: stampScope(row.userId) }
+}
+
+/**
+ * LMA21 projection-side filter predicate. Returns true if the node's stamped
+ * scope tags satisfy the ScopeFilter.
+ *
+ * Match rules:
+ *  - A node tagged 'global' is in scope for any filter (universal global
+ *    knowledge — the moral principle that no user's personal context becomes
+ *    truth for other users does not apply in reverse: global knowledge is
+ *    visible across all user projections).
+ *  - Otherwise: every non-undefined dimension in the filter must match at
+ *    least one of the node's stamped tags ('user:'+id, 'project:'+id).
+ *
+ * Empty ScopeFilter (no fields set) — handled at the caller site (caller
+ * decides empty-means-nothing vs empty-means-all). nodeInScope treats empty
+ * as "all dimensions ignored, accept anything", which combined with the
+ * 'global' rule means an empty filter accepts every node.
+ */
+export function nodeInScope(node: MemNode, filter: ScopeFilter): boolean {
+  if (node.scope.has('global')) return true
+  if (filter.user !== undefined) {
+    if (!node.scope.has('user:' + filter.user)) return false
+  }
+  if (filter.project !== undefined) {
+    if (!node.scope.has('project:' + filter.project)) return false
+  }
+  return true
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 // Called once at server start by F-event-system/startup.ts.
 // Amendment 3: loads global graph only (userId=null). Per-user graphs lazy-loaded.
@@ -153,12 +243,40 @@ export async function onBoot(): Promise<void> {
     return
   }
 
-  _globalGraph = loadResult.data.graph
+  // lm-v2-2-shot3 (D-MEMNODE-MIGRATION): stamp scope on legacy nodes loaded
+  // from DB. Total LMA21 stamping invariant restored across boot.
+  // lm-v2-2-shot5-fix-2 (G1 Move-to-R2): R4 returns MemNodeRow (no scope);
+  // R2 hydrates via ensureNodeScopeStamped to produce the full MemNode atom.
+  const stampedNodes = new Map<NodeId, MemNode>()
+  for (const [id, row] of loadResult.data.graph.nodes) {
+    stampedNodes.set(id, ensureNodeScopeStamped(row))
+  }
+  _globalGraph = { nodes: stampedNodes, edges: loadResult.data.graph.edges }
   _globalArms = loadResult.data.arms
   _globalDominanceMap = loadResult.data.dominanceMap
 
   // Compute initial thresholds from global graph
   _globalThresholds = computeThresholds(_globalGraph)
+
+  // lm-v2-2-shot5: hydrate artifact substore from Postgres (migration 015).
+  // D-A4-HYDRATION-POLICY: eager — all rows loaded into in-memory cache so
+  // that isEmissionIdCollision (sync) and lookupModeNode/lookupPriorAnchor
+  // (cache-first) answer correctly from first call. MA1 conservation across
+  // pm2 restart depends on this — the artifact graph rehydrates intact.
+  // Failure here is non-fatal (matches LM v2.2 graph-load failure handling):
+  // log + continue with empty cache; emissions during the boot window will
+  // collide-check against an empty registry but still write through to
+  // Postgres.
+  try {
+    await hydrateArtifactStore()
+  } catch (err) {
+    console.error(JSON.stringify({
+      level:     'error',
+      event:     'memory.boot.artifact-hydrate-failed',
+      error:     err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    }))
+  }
 
   _booted = true
 
@@ -187,18 +305,28 @@ export async function reloadGlobalGraph(): Promise<void> {
     return
   }
 
-  _globalGraph = loadResult.data.graph
+  // lm-v2-2-shot3 (D-MEMNODE-MIGRATION): stamp scope on reloaded nodes.
+  // lm-v2-2-shot5-fix-2 (G1 Move-to-R2): hydrate row → MemNode at R2.
+  const reloadStampedNodes = new Map<NodeId, MemNode>()
+  for (const [id, row] of loadResult.data.graph.nodes) {
+    reloadStampedNodes.set(id, ensureNodeScopeStamped(row))
+  }
+  _globalGraph = { nodes: reloadStampedNodes, edges: loadResult.data.graph.edges }
   _globalArms = loadResult.data.arms
   _globalDominanceMap = loadResult.data.dominanceMap
   _globalThresholds = computeThresholds(_globalGraph)
 
   // Invalidate all per-user present state caches so they recompute
-  // with the updated global graph on next access
+  // with the updated global graph on next access.
+  // lm-v2-2-shot4: signature now (graphs, userArms, globalArms, scope, axes, limit).
   for (const [userId, state] of _userStates) {
     state.presentState = computePresentState(
       { user: state.graph, global: _globalGraph },
       state.arms,
       _globalArms,
+      { user: userId },
+      PRESENT_DEFAULTS,
+      PRESENT_LIMIT_MAX,
     )
   }
 
@@ -233,23 +361,34 @@ async function ensureUserLoaded(userId: string): Promise<UserGraphState> {
       arms:         [],
       dominanceMap: new Map(),
       thresholds:   { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 },
-      presentState: { statements: [] },
+      // lm-v2-2-shot4: v2.2 §D empty shape
+      presentState: { projected: [], axisScores: new Map(), scopeContext: { user: userId } },
       loaded:       true,
     }
     _userStates.set(userId, state)
     return state
   }
 
-  const graph = result.data.graph
   const arms = result.data.arms
   const dominanceMap = result.data.dominanceMap
+  // lm-v2-2-shot3 (D-MEMNODE-MIGRATION): stamp scope on legacy per-user nodes.
+  // lm-v2-2-shot5-fix-2 (G1 Move-to-R2): hydrate row → MemNode at R2.
+  const stampedUserNodes = new Map<NodeId, MemNode>()
+  for (const [id, row] of result.data.graph.nodes) {
+    stampedUserNodes.set(id, ensureNodeScopeStamped(row))
+  }
+  const graph: MemGraph = { nodes: stampedUserNodes, edges: result.data.graph.edges }
   const thresholds = computeThresholds(graph)
 
   // Compute initial present state with scoped graph set
+  // lm-v2-2-shot4: signature now (graphs, userArms, globalArms, scope, axes, limit).
   const presentState = computePresentState(
     { user: graph, global: _globalGraph },
     arms,
     _globalArms,
+    { user: userId },
+    PRESENT_DEFAULTS,
+    PRESENT_LIMIT_MAX,
   )
 
   state = {
@@ -368,6 +507,12 @@ export async function runTraversal(
     const newNode: MemNode = {
       id:              activeNodeId,
       userId,                                  // Amendment 3: scoped to user (A6)
+      // lm-v2-2-shot3 (LMA21): stamp active scope tags at construction.
+      // runTraversal context: per-user write — userId is non-null here.
+      // projectId not yet threaded into runTraversal signature (Shot 4+
+      // may extend); current writes carry user scope only. D-LMA21-DEFER
+      // (Shot 2) closes for the user dimension.
+      scope:           stampScope(userId),
       content:         normalizeLabel(text.slice(0, 500)),  // Amendment 2: canonical label
       embedding,
       sourceText:      text,
@@ -539,10 +684,14 @@ export async function runTraversal(
   }
 
   // Recompute present state with scoped graph set
+  // lm-v2-2-shot4: signature now (graphs, userArms, globalArms, scope, axes, limit).
   userState.presentState = computePresentState(
     { user: userGraph, global: _globalGraph },
     userState.arms,
     _globalArms,
+    { user: userId },
+    PRESENT_DEFAULTS,
+    PRESENT_LIMIT_MAX,
   )
 
   // Emit traversal complete
@@ -579,13 +728,338 @@ export async function runTraversal(
   }
 }
 
-// ─── Get Present State ────────────────────────────────────────────────────────
-// G2: reads precomputed values only — never triggers recomputation.
-// Amendment 3: per-user present state keyed by userId.
+// ─── Present (LM v2.2 §D — parameter-recovered) ──────────────────────────────
+// G2: reads precomputed values only when scope is degenerate; recomputes
+// projection on filtered node set when scope is non-degenerate.
+//
+// lm-v2-2-shot2: parameter recovery per LM v2.2 §D. v2.1 single-arg
+// `getPresentState(userId)` is the degenerate parameterization
+// `present({scope: {user: userId}, axes: PRESENT_DEFAULTS, limit: PRESENT_LIMIT_MAX})`.
+// Same primitive, same owner, same projection contract — the entry shape is
+// surfaced; the v2.1 cache lookup body is reused per brief §B.
+//
+// lm-v2-2-shot3 (LMA21 projection-side filter):
+//   * Degenerate scope `{user: U}` (with no other dimensions): cache hits the
+//     precomputed _userStates[U].presentState — V4 degenerate-equivalence
+//     preserved.
+//   * Non-degenerate scope (project set, multi-dimension): D-CACHE-INVALIDATION-
+//     CONSERVATIVE — recompute projection from filtered node set every call.
+//     Cache structure (keyed by userId) is preserved; non-degenerate calls
+//     bypass the cache. Optimization deferred until usage warrants it.
+//   * Empty scope `{}`: returns empty projection (no scope = no candidates).
+//     Future expansion may interpret empty as "all in scope" (universal); the
+//     conservative empty-projection rule preserves the safe-default semantics
+//     that a missing scope returns nothing rather than everything.
+//
+// Filter precedes scoring per LM v2.2 §C — out-of-scope nodes are excluded
+// from the candidate set BEFORE computePresentState runs.
+//
+// Per D-PRESENTSTATE-BODY-V21: PresentState return body remains v2.1 shape
+// (`{statements: PresentStateStatement[]}`). v2.2 §D body lands in Shot 4
+// alongside the 8-axis algorithms.
+//
+// Per D-INTERNAL-RENAME: R3 contract imports this as `_present` (alias only;
+// no separate internal function — replacement, not duplication).
 
-export function getPresentState(userId: string): PresentState {
-  const state = _userStates.get(userId)
-  return state?.presentState ?? { statements: [] }
+// lm-v2-2-shot4 (D-AXIS-DEFAULT-WEIGHTS): default weights distributed
+// graph-balanced — topology + energy weighted higher (stable structural
+// signals); affinity axes weighted lower (depend on caller context that may
+// be sparse); recency + chronology weighted moderate. All sum to 1.0 for
+// stable ranked-score interpretation. Seed values; empirical tuning post-shot4.
+//
+// Default configs declare the per-axis tuning surface — recency carries
+// halfLifeMs (override of MEMORY_CONFIG.RECENCY_HALF_LIFE); other axes carry
+// empty configs that callers populate (modeAffinity.activeMode,
+// programAffinity.activeProgram, lineageProximity.activeChain).
+
+export const PRESENT_DEFAULTS: AxisSet = {
+  active: [
+    'topology', 'recency', 'chronology', 'projectAffinity',
+    'modeAffinity', 'programAffinity', 'lineageProximity', 'energy',
+  ],
+  weights: new Map<AxisId, number>([
+    ['topology',         0.20],
+    ['recency',          0.15],
+    ['chronology',       0.10],
+    ['projectAffinity',  0.10],
+    ['modeAffinity',     0.10],
+    ['programAffinity',  0.05],
+    ['lineageProximity', 0.10],
+    ['energy',           0.20],
+    // sum = 1.00
+  ]),
+  configs: new Map<AxisId, AxisConfig>([
+    ['topology',         {}],
+    ['recency',          { halfLifeMs: MEMORY_CONFIG.RECENCY_HALF_LIFE }],
+    ['chronology',       {}],
+    ['projectAffinity',  {}],
+    ['modeAffinity',     {}],   // populated by caller — { activeMode: <FrameworkMode> }
+    ['programAffinity',  {}],   // populated by caller — { activeProgram: <id> }
+    ['lineageProximity', {}],   // populated by caller — { activeChain: NodeId[], maxHops: number }
+    ['energy',           {}],
+  ]),
+}
+
+export function present(params: {
+  scope: ScopeFilter
+  axes:  AxisSet
+  limit: number
+}): PresentState {
+  const userId = params.scope.user
+  const otherScope = params.scope.project !== undefined
+
+  // Degenerate path: scope has user only (project not set). Cache hit.
+  // V4 (LM v2.2 §G): degenerate parameterization equivalent to v2.1 getPresentState(U).
+  if (userId && !otherScope) {
+    const state = _userStates.get(userId)
+    // lm-v2-2-shot4: v2.2 §D empty shape on cache miss.
+    return state?.presentState ?? {
+      projected:    [],
+      axisScores:   new Map(),
+      scopeContext: params.scope,
+    }
+  }
+
+  // Non-degenerate path: scope has multiple dimensions, project-only, or is
+  // empty (universal per nodeInScope). D-CACHE-INVALIDATION-CONSERVATIVE:
+  // recompute on every non-degenerate call. Filter precedes scoring per
+  // LM v2.2 §C.
+  const filteredUserGraph: MemGraph = { nodes: new Map(), edges: new Map() }
+  const userStatesToScan = userId
+    ? (_userStates.has(userId) ? [_userStates.get(userId)!] : [])
+    : Array.from(_userStates.values())
+  for (const state of userStatesToScan) {
+    for (const [id, node] of state.graph.nodes) {
+      if (nodeInScope(node, params.scope)) {
+        filteredUserGraph.nodes.set(id, node)
+        const out = state.graph.edges.get(id)
+        if (out) filteredUserGraph.edges.set(id, out)
+      }
+    }
+  }
+
+  // Global graph also subject to scope filter. Global nodes carry 'global'
+  // and pass any filter per nodeInScope universal-global rule.
+  const filteredGlobalGraph: MemGraph = { nodes: new Map(), edges: new Map() }
+  for (const [id, node] of _globalGraph.nodes) {
+    if (nodeInScope(node, params.scope)) {
+      filteredGlobalGraph.nodes.set(id, node)
+      const out = _globalGraph.edges.get(id)
+      if (out) filteredGlobalGraph.edges.set(id, out)
+    }
+  }
+
+  // Recompute projection from filtered node set.
+  // Note: arms inputs are not scope-filtered this shot — arm membership is a
+  // derivation over nodes (LMA18 reconstructibility); scope-aware arms are
+  // recomputable but deferred until 8-axis algorithms formalize the
+  // dependency in Shot 4.
+  // lm-v2-2-shot4: pass through scope + axes + limit from caller params.
+  const userArms = userId ? (_userStates.get(userId)?.arms ?? []) : []
+  return computePresentState(
+    { user: filteredUserGraph, global: filteredGlobalGraph },
+    userArms,
+    _globalArms,
+    params.scope,
+    params.axes,
+    params.limit,
+  )
+}
+
+// ─── Lineage (LM v2.2 §F — real impl) ────────────────────────────────────────
+// lm-v2-2-shot3: replaces D-LINEAGE-STUB with real traversal.
+//
+// Strategy: BFS (D-TRAVERSAL-STRATEGY). BFS chosen over DFS for `depth-reached`
+// precision under depth bounds — BFS expands the frontier level-by-level so
+// the depth-bound cutoff is a clean termination criterion; DFS would require
+// path-depth tracking and re-entry handling that complicates the cycle-vs-
+// depth termination accounting. Cleaner BFS body offsets the lack of
+// pre-existing traversal helper (memory-traverse.ts is propagation-shaped, not
+// pure graph traversal — building the BFS inline is small + readable).
+//
+// Direction:
+//   'descendant' — follow MemEdge where edge.fromId == currentNode.id
+//                  (graph.edges keyed by fromId; outgoing edges natural).
+//   'ancestor'   — follow MemEdge where edge.toId == currentNode.id
+//                  (no reverse-index in MemGraph; build inline ancestor lookup
+//                  by sweeping all edges once).
+//   'both'       — union of ancestor + descendant from start.
+//
+// Depth: max edge-hops from start. Nodes at exactly depth are included; edges
+//        crossing into depth+1 are not followed.
+//
+// edgeFilter: only edges with edge.primitiveType ∈ edgeFilter are traversed.
+//             Empty set ⇒ traverse no edges (returns {start, [start], [], 'no-more-edges'}).
+//             Note: edge.primitiveType is `EdgePrimitiveType | null`; null-typed
+//             edges are never in edgeFilter (D-EDGEKIND-NULL-EXCLUDE).
+//
+// Cycle termination: visited set tracks NodeIds already in result graph; a
+//                    candidate already in visited terminates that branch with
+//                    'cycle-truncated'.
+//
+// Scope termination: candidate node fails nodeInScope(node, scope) → branch
+//                    terminates with 'scope-boundary'. LMA21 scope filter at
+//                    projection per LM v2.2 §F.
+//
+// terminationReason precedence (D-LINEAGE-PRECEDENCE):
+//   'scope-boundary' > 'cycle-truncated' > 'depth-reached' > 'no-more-edges'
+// Rationale: scope is structural (LMA21 invariant); a scope cut indicates the
+// caller's filter constrained the result more than the structural traversal
+// did, so it's the most informative cause. Cycle next — structural property
+// of the graph (LMA10 + V5). Depth next — caller-supplied bound that
+// terminated otherwise-walkable branches. 'no-more-edges' last — the trivial
+// "ran out of work" terminator. Multi-branch traversals report the
+// highest-precedence cause that occurred at any branch.
+//
+// Lineage scope filter requires a ScopeFilter parameter — not in the current
+// signature. Per LM v2.2 §F: "Scope-filtering applies per LMA21: out-of-scope
+// nodes never enter the LineageGraph." This shot derives scope from the start
+// node's stamped scope tags — lineage is anchored to start, so the start's
+// scope is the natural projection scope. R3 may later thread an explicit
+// scope param if multi-anchor lineage is needed.
+
+export function lineage(
+  start:      NodeId,
+  direction:  'ancestor' | 'descendant' | 'both',
+  depth:      number,
+  edgeFilter: EdgeKindSet,
+): LineageGraph {
+  // Locate start node — search user states then global graph.
+  let startNode: MemNode | undefined
+  for (const state of _userStates.values()) {
+    const found = state.graph.nodes.get(start)
+    if (found) { startNode = found; break }
+  }
+  if (!startNode) startNode = _globalGraph.nodes.get(start)
+  if (!startNode) {
+    // Start not found — return graph containing only the requested start id
+    // with empty traversal. Conservative: caller asked for lineage anchored
+    // at a node we don't have in memory.
+    return { start, nodes: [start], edges: [], terminationReason: 'no-more-edges' }
+  }
+
+  // Derive scope filter from start node's stamped scope tags. Honors LMA21:
+  // every node's scope is filterable. Build a predicate that accepts:
+  //   - any node tagged 'global' (universal global rule, per nodeInScope)
+  //   - any node sharing at least one tag with start
+  const startTags = startNode.scope
+  const scopeAccepts = (n: MemNode): boolean => {
+    if (n.scope.has('global')) return true
+    if (startTags.has('global')) return true  // start is global → all accepted
+    for (const t of n.scope) if (startTags.has(t)) return true
+    return false
+  }
+
+  // Collect candidate graph(s) — start's scope determines whether we walk user
+  // graph(s), global graph, or both. Walk every loaded graph; scopeAccepts is
+  // the gate.
+  const allGraphs: MemGraph[] = []
+  for (const state of _userStates.values()) allGraphs.push(state.graph)
+  allGraphs.push(_globalGraph)
+
+  // Build candidate node lookup + descendant edges + ancestor edges.
+  const allNodes = new Map<NodeId, MemNode>()
+  const outgoing = new Map<NodeId, MemEdge[]>()
+  const incoming = new Map<NodeId, MemEdge[]>()
+  for (const g of allGraphs) {
+    for (const [id, n] of g.nodes) {
+      if (!allNodes.has(id)) allNodes.set(id, n)
+    }
+    for (const [fromId, edges] of g.edges) {
+      const accumOut = outgoing.get(fromId) ?? []
+      accumOut.push(...edges)
+      outgoing.set(fromId, accumOut)
+      for (const e of edges) {
+        const accumIn = incoming.get(e.toId) ?? []
+        accumIn.push(e)
+        incoming.set(e.toId, accumIn)
+      }
+    }
+  }
+
+  // edgeFilter: empty set ⇒ no traversal. Return start-only.
+  if (edgeFilter.size === 0) {
+    return { start, nodes: [start], edges: [], terminationReason: 'no-more-edges' }
+  }
+
+  // BFS frontier: queue of {nodeId, depthFromStart}. visited set tracks
+  // already-emitted node ids. Edges accumulate per emitted node (deduped by
+  // (fromId, toId) pair).
+  type Frontier = { nodeId: NodeId; depthFromStart: number }
+  const visited = new Set<NodeId>()
+  const resultNodes: NodeId[] = []
+  const resultEdges: { fromId: NodeId; toId: NodeId }[] = []
+  const queue: Frontier[] = [{ nodeId: start, depthFromStart: 0 }]
+  visited.add(start)
+  resultNodes.push(start)
+
+  // Termination tracking — record every cause that fires across branches.
+  // Per D-LINEAGE-PRECEDENCE, dominant cause is highest-precedence one fired.
+  let scopeBoundaryFired = false
+  let cycleTruncatedFired = false
+  let depthReachedFired = false
+
+  while (queue.length > 0) {
+    const cur = queue.shift()!
+
+    // Depth bound: edges from a node at depth=D would land neighbors at D+1.
+    // If cur.depthFromStart === depth, we don't expand (record depth-reached).
+    if (cur.depthFromStart >= depth) {
+      depthReachedFired = true
+      continue
+    }
+
+    // Collect candidate edges per direction.
+    const candidates: { edge: MemEdge; nextId: NodeId }[] = []
+    if (direction === 'descendant' || direction === 'both') {
+      const out = outgoing.get(cur.nodeId) ?? []
+      for (const e of out) candidates.push({ edge: e, nextId: e.toId })
+    }
+    if (direction === 'ancestor' || direction === 'both') {
+      const inb = incoming.get(cur.nodeId) ?? []
+      for (const e of inb) candidates.push({ edge: e, nextId: e.fromId })
+    }
+
+    for (const { edge, nextId } of candidates) {
+      // edgeFilter: only follow edges whose primitiveType is in the set.
+      // null-typed edges (learning sub-ops) are never in EdgeKindSet
+      // (D-EDGEKIND-NULL-EXCLUDE).
+      if (edge.primitiveType === null) continue
+      if (!edgeFilter.has(edge.primitiveType as EdgePrimitiveType)) continue
+
+      // Cycle: nextId already visited.
+      if (visited.has(nextId)) {
+        cycleTruncatedFired = true
+        continue
+      }
+
+      // Scope filter (LMA21 §F): out-of-scope nodes never enter LineageGraph.
+      const nextNode = allNodes.get(nextId)
+      if (!nextNode || !scopeAccepts(nextNode)) {
+        scopeBoundaryFired = true
+        continue
+      }
+
+      visited.add(nextId)
+      resultNodes.push(nextId)
+      resultEdges.push({ fromId: edge.fromId, toId: edge.toId })
+      queue.push({ nodeId: nextId, depthFromStart: cur.depthFromStart + 1 })
+    }
+  }
+
+  // terminationReason precedence per D-LINEAGE-PRECEDENCE.
+  let terminationReason: LineageGraph['terminationReason']
+  if (scopeBoundaryFired)        terminationReason = 'scope-boundary'
+  else if (cycleTruncatedFired)  terminationReason = 'cycle-truncated'
+  else if (depthReachedFired)    terminationReason = 'depth-reached'
+  else                            terminationReason = 'no-more-edges'
+
+  return {
+    start,
+    nodes: resultNodes,
+    edges: resultEdges,
+    terminationReason,
+  }
 }
 
 // ─── Get graph stats (for vital signs) ────────────────────────────────────────

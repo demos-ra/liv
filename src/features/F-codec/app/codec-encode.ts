@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    phase-b-item1
+// amended:    phase-b-item1, lm-v2-2-shot2, lm-v2-2-shot4
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -13,7 +13,8 @@
 //   W-FN    buildClassifyPrompt(), parseClassifyResponse()  ←  F-codec/R1
 //   W-FN    normalizeLabel(), parseLabelResponse()  ←  F-codec/R1
 //   W-FN    classifyAndLabel()  ←  F-codec/R3 (codec-inject)
-//   W-FN    traverse(), getPresentState()  ←  F-memory/R3
+//   W-FN    traverse(), Present()  ←  F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
+//   W-FN    getUserGraph(), getGlobalGraph()  ←  F-memory/R3 (lm-v2-2-shot4: render projected NodeIds)
 //   W-FN    emitEvent()  ←  F-event-system/R3
 // wires-out:
 //   W-FN  encodeLLM()         →  F-codec/R3
@@ -42,7 +43,7 @@ import { CODEC_EVENTS } from '../config/codec-events'
 import { buildClassifyPrompt, parseClassifyResponse } from '../domain/codec-classify'
 import { normalizeLabel, parseLabelResponse } from '../domain/codec-label'
 import { classifyAndLabel } from '../contract/codec-inject'
-import { traverse, getPresentState } from '@/features/F-memory/contract/memory-contract'
+import { traverse, Present, getUserGraph, getGlobalGraph } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
 // ─── Encode LLM (Conversation) ───────────────────────────────────────────────
@@ -50,7 +51,7 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 // CA5: primitive determined from content + graph state.
 //
 // Pipeline:
-// 1. getPresentState(userId) — graph context for classification
+// 1. Present({scope: {user: userId}}) — graph context for classification (LM v2.2 §D)
 // 2. buildClassifyPrompt(content, presentState) — R1 builds prompt
 // 3. classifyAndLabel(prompt) — R4 makes LLM call
 // 4. parseClassifyResponse(raw) — R1 parses classify + label
@@ -67,13 +68,26 @@ export async function encodeLLM(
   userId:  string,
 ): Promise<Result<EncodeResult>> {
   try {
-    // 1. Get present state — graph context for classification
-    const presentState = getPresentState(userId)
+    // 1. Get present state — graph context for classification.
+    // lm-v2-2-shot2: Present({scope: {user: userId}}) per LM v2.2 §D.
+    const presentState = Present({ scope: { user: userId } })
 
-    // 2. Build prompt — single call for classify + label (R1)
-    const prompt = buildClassifyPrompt(content, presentState)
+    // 2. Render graph-state block from projected NodeIds + node content lookup.
+    // lm-v2-2-shot4: PresentState shape is now {projected, axisScores,
+    // scopeContext}; rendering requires getUserGraph + getGlobalGraph
+    // accessors. Content-only rendering this shot per D-PRESENTSTATE-RENDERING
+    // — axisScores available but not surfaced in the prompt.
+    const userGraph = getUserGraph(userId)
+    const globalGraph = getGlobalGraph()
+    const stateBlock = presentState.projected
+      .map(id => userGraph.nodes.get(id)?.content ?? globalGraph.nodes.get(id)?.content ?? '')
+      .filter(s => s.length > 0)
+      .join('\n')
 
-    // 3. Call LLM (R4)
+    // 3. Build prompt — single call for classify + label (R1)
+    const prompt = buildClassifyPrompt(content, stateBlock)
+
+    // 4. Call LLM (R4)
     const llmResult = await classifyAndLabel(prompt, CODEC_CONFIG.CLASSIFY_MODEL)
     if (!llmResult.ok) {
       // LLM call failed — fallback to anchor with content-derived label

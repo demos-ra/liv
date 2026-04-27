@@ -4,20 +4,20 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-nodeid-propagation
+// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R0
 // wires-in:
 //   W-ATOM  NodeId           core/R5 (primitives)
 //   W-ATOM  DecodeCategory   F-codec/R0
-//   W-ATOM  MLayer           F-memory/R0
+//   W-ATOM  MLayer           F-memory/R3
 // wires-out:
 //   W-ATOM  MemoryTreeNode   →  F-codec/*
 //   W-ATOM  MemoryAction     →  F-codec/*
 //   W-ATOM  MemoryViewState  →  F-codec/*
 // deps:
 //   R0  ./codec-decode-types
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 //   R5  @/core/types/primitives
 // validated:  pending
 
@@ -29,7 +29,7 @@
 //     carries NodeId end-to-end from F-memory atom → UI click handler.
 
 import type { DecodeCategory } from './codec-decode-types'
-import type { MLayer } from '@/features/F-memory/config/memory-types'
+import type { MLayer } from '@/features/F-memory/contract/memory-contract'
 import type { NodeId } from '@/core/types/primitives'
 
 // ─── Memory Tree Node ────────────────────────────────────────────────────────

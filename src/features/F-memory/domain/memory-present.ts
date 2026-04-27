@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot4
 // slice:      F-memory
 // layer:      R1
 // wires-in:
@@ -12,258 +12,198 @@
 //   W-ATOM  MemGraph              F-memory/R0
 //   W-ATOM  ScopedGraphSet        F-memory/R0
 //   W-ATOM  MemArm                F-memory/R0
-//   W-ATOM  PresentState          F-memory/R0
-//   W-ATOM  PresentStateStatement F-memory/R0
-//   W-ATOM  ConfidenceTier        F-memory/R0
-//   W-ATOM  MLayer                F-memory/R0
-//   W-ATOM  MEMORY_CONFIG         F-memory/R0
+//   W-ATOM  PresentState          F-memory/R0 (v2.2 §D shape)
+//   W-ATOM  AxisId, AxisSet, ScopeFilter  F-memory/R0
+//   W-ATOM  AXIS_SCORERS          F-memory/R1 (memory-axes)
+//   W-ATOM  PRESENT_LIMIT_MAX     F-memory/R0
 // wires-out:  none (consumed by R2 service)
 // deps:
 //   R0  ../config/memory-types
+//   R1  ./memory-axes
 //   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v1.1 — Present State Layer.
+// Living Memory v2.2 — Present State Layer.
 // R1: pure function, zero I/O.
 // §18: the bridge between living process and immediate usability.
-// A pure R1 function: computePresentState(graphs, userArms, globalArms) → PresentState.
-// Never stored. Always derived from current graph state. Never stale.
 // 4b-nodeid-propagation: NodeId on all node-id-shaped signatures.
 //
-// G1: graceful fallback for weak arm structure.
-//     Must produce useful output even when the graph has no clear community
-//     structure (first ~5 sessions). Return nodes by layer + recency without
-//     arm labels. Never return empty because arms haven't formed.
+// lm-v2-2-shot4: end-to-end rewrite per LM v2.2 §D.
+//   v2.1 returned `{statements: PresentStateStatement[]}` — pre-rendered
+//   statement records with arm/value/source/layer/confidence/recency.
+//   v2.2 returns `{projected: NodeId[], axisScores, scopeContext}` — node
+//   identifiers + per-axis scores + scope echo. Caller renders content from
+//   projected via existing F-memory accessors (getUserGraph, getGlobalGraph).
 //
-// G2: getPresentState() at R3 reads the precomputed result — this function
-//     is called only inside runTraversal() as a side effect.
+// Pipeline (per LM v2.2 §D + brief §E):
+//   1. Apply scope filter (LMA21, wired Shot 3) — scope filter precedes scoring
+//      per LM v2.2 §C. The R2 caller has already filtered candidate nodes; this
+//      function expects an in-scope node set as input.
+//   2. Score per axis per node — call AXIS_SCORERS for each active axis.
+//   3. Combine per-node scores into ranking — weighted sum per
+//      AxisSet.weights (or PRESENT_DEFAULTS if not provided).
+//   4. Sort nodes by ranking score descending.
+//   5. Take top `limit` nodes → projected: NodeId[].
+//   6. Return {projected, axisScores, scopeContext}.
 //
-// lm-v1.1 changes (Amendment 3):
-//   Signature: ScopedGraphSet + userArms + globalArms (two-graph model)
-//   Merge: user nodes first (priority), then global nodes.
-//   Dedup: global node skipped if cosine similarity ≥ LABEL_REUSE_THRESHOLD
-//          to any user node (same constant as bind-before-create, A6).
+// Orthogonality (LMA20 / V1): each axis function reads context independently;
+// no axis reads another axis's output. Verified by inspection in memory-axes.ts.
+// Combiner (this file) reads all axis scores AFTER they're computed — that's
+// the ranking step, not the orthogonality-violation type (axes don't see each
+// other; the combiner sees all).
 
 import type {
   MemGraph,
+  MemEdge,
   MemNode,
   MemArm,
   ScopedGraphSet,
   PresentState,
-  PresentStateStatement,
-  ConfidenceTier,
-  MLayer,
+  AxisId,
+  AxisSet,
+  ScopeFilter,
 } from '../config/memory-types'
 import {
   MEMORY_CONFIG,
-  M0_IDENTITY,
-  M1_PURPOSE,
-  M2_KNOWLEDGE,
-  M3_CONTEXT,
   M4_INPUT,
 } from '../config/memory-types'
 import type { NodeId } from '@/core/types/primitives'
+import { AXIS_SCORERS } from './memory-axes'
+import type { AxisScoringContext } from './memory-axes'
 
-// ─── Compute Present State ────────────────────────────────────────────────────
-// §18: reads all nodes from both graphs, weighted by recency + layer depth.
-// Output: structured data, not prose. The consuming LLM reads it as context injection.
-// Amendment 3: accepts ScopedGraphSet. User nodes take priority over global nodes.
+// ─── Compute Present State (LM v2.2 §D) ──────────────────────────────────────
+// Pure R1 function. Input:
+//   graphs:        scoped node sets (user + global) — already scope-filtered
+//                  by R2 caller per LMA21
+//   userArms:      arms for the user's graph (mode/program affinity inputs)
+//   globalArms:    arms for the global graph
+//   scope:         the active ScopeFilter (echoed back as scopeContext)
+//   axes:          AxisSet — active axes, weights, per-axis configs
+//   limit:         max nodes in projected output (PRESENT_LIMIT_MAX cap)
 
 export function computePresentState(
-  graphs: ScopedGraphSet,
-  userArms: MemArm[],
+  graphs:     ScopedGraphSet,
+  userArms:   MemArm[],
   globalArms: MemArm[],
+  scope:      ScopeFilter,
+  axes:       AxisSet,
+  limit:      number,
 ): PresentState {
+  // Cold-boot: empty input → empty projection (preserves G1 cold-boot behavior
+  // from v2.1: never block on computation).
   if (graphs.user.nodes.size === 0 && graphs.global.nodes.size === 0) {
-    // G2: cold boot — return empty. Never block on computation.
-    return { statements: [] }
+    return {
+      projected:    [],
+      axisScores:   new Map(),
+      scopeContext: scope,
+    }
   }
 
+  // ── Step 1: Build candidate node set ─────────────────────────────────────
+  // R2 caller has already filtered by scope (LMA21 projection-side). Here we
+  // assemble the candidate map and filter out M4_INPUT nodes (these are raw
+  // input not yet promoted; v2.1 behavior preserved).
+  const candidates = new Map<NodeId, MemNode>()
+  for (const [id, node] of graphs.user.nodes) {
+    if (node.cachedLayer === M4_INPUT) continue
+    candidates.set(id, node)
+  }
+  for (const [id, node] of graphs.global.nodes) {
+    if (node.cachedLayer === M4_INPUT) continue
+    if (candidates.has(id)) continue   // user-graph wins on collision (v2.1 priority)
+    candidates.set(id, node)
+  }
+
+  if (candidates.size === 0) {
+    return {
+      projected:    [],
+      axisScores:   new Map(),
+      scopeContext: scope,
+    }
+  }
+
+  // ── Step 2: Build edges-by-from + edges-by-to indexes for axis context ──
+  const edgesByFrom = new Map<NodeId, MemEdge[]>()
+  const edgesByTo   = new Map<NodeId, MemEdge[]>()
+  for (const g of [graphs.user, graphs.global]) {
+    for (const [fromId, edges] of g.edges) {
+      const accum = edgesByFrom.get(fromId) ?? []
+      accum.push(...edges)
+      edgesByFrom.set(fromId, accum)
+      for (const e of edges) {
+        const accumIn = edgesByTo.get(e.toId) ?? []
+        accumIn.push(e)
+        edgesByTo.set(e.toId, accumIn)
+      }
+    }
+  }
+
+  // ── Step 3: Compute axis context ─────────────────────────────────────────
   const now = Date.now()
-
-  // Build arm lookup: nodeId → arm label (span both arm sets)
-  const nodeToArm = new Map<NodeId, string | null>()
-  for (const arm of userArms) {
-    for (const nodeId of arm.nodeIds) {
-      if (!nodeToArm.has(nodeId)) {
-        nodeToArm.set(nodeId, arm.label ?? arm.id)
-      }
-    }
+  let createdAtMin = Infinity
+  let createdAtMax = -Infinity
+  for (const node of candidates.values()) {
+    if (node.createdAt < createdAtMin) createdAtMin = node.createdAt
+    if (node.createdAt > createdAtMax) createdAtMax = node.createdAt
   }
-  for (const arm of globalArms) {
-    for (const nodeId of arm.nodeIds) {
-      if (!nodeToArm.has(nodeId)) {
-        nodeToArm.set(nodeId, arm.label ?? arm.id)
-      }
-    }
-  }
-
-  // Score and collect — user nodes first (priority), then deduplicated global nodes
-  const scored: ScoredNode[] = []
-
-  // Collect user graph nodes
-  // Amendment 3: user nodes always included — they are the primary workspace
-  const userEmbeddings: Array<{ nodeId: NodeId; embedding: number[] }> = []
-
-  for (const [nodeId, node] of graphs.user.nodes) {
-    if (node.cachedLayer === M4_INPUT) continue
-    scored.push(scoreNode(nodeId, node, nodeToArm, now))
-    if (node.embedding) {
-      userEmbeddings.push({ nodeId, embedding: node.embedding })
-    }
+  const arms = [...userArms, ...globalArms]
+  const ctx: AxisScoringContext = {
+    candidates,
+    edgesByFrom,
+    edgesByTo,
+    arms,
+    scope,
+    configs:      axes.configs,
+    now,
+    createdAtMin: createdAtMin === Infinity ? now : createdAtMin,
+    createdAtMax: createdAtMax === -Infinity ? now : createdAtMax,
   }
 
-  // Collect global graph nodes — deduplicate against user nodes
-  // Amendment 3: skip global node if near-identical to any user node (A6)
-  for (const [nodeId, node] of graphs.global.nodes) {
-    if (node.cachedLayer === M4_INPUT) continue
-
-    // Dedup: if this global node is near-identical to a user node, skip it
-    if (node.embedding && isNearDuplicate(node.embedding, userEmbeddings)) {
-      continue
+  // ── Step 4: Score per axis per node ──────────────────────────────────────
+  // axisScores: Map<NodeId, Map<AxisId, number>>. Per LMA20 orthogonality —
+  // each axis function is called independently; no axis sees another's output.
+  const axisScores = new Map<NodeId, Map<AxisId, number>>()
+  for (const [id, node] of candidates) {
+    const perAxis = new Map<AxisId, number>()
+    for (const axisId of axes.active) {
+      const scorer = AXIS_SCORERS[axisId]
+      const score = scorer(node, ctx)
+      perAxis.set(axisId, score)
     }
-
-    scored.push(scoreNode(nodeId, node, nodeToArm, now))
+    axisScores.set(id, perAxis)
   }
 
-  // Sort by score descending — most relevant first
-  scored.sort((a, b) => b.sortScore - a.sortScore)
+  // ── Step 5: Combine per-node scores into ranking score ──────────────────
+  // D-RANKING-COMBINER (optional D-row): weighted sum across active axes.
+  // Weights from axes.weights; absent weight = 1 / activeCount (uniform).
+  const activeCount = axes.active.length
+  const uniformWeight = activeCount > 0 ? 1 / activeCount : 0
+  const rankingScore = new Map<NodeId, number>()
+  for (const [id, perAxis] of axisScores) {
+    let sum = 0
+    let weightTotal = 0
+    for (const axisId of axes.active) {
+      const w = axes.weights.get(axisId) ?? uniformWeight
+      const s = perAxis.get(axisId) ?? 0
+      sum += w * s
+      weightTotal += w
+    }
+    // Normalize by weight total so ranking is in [0, 1] regardless of caller
+    // weight sum convention.
+    rankingScore.set(id, weightTotal > 0 ? sum / weightTotal : 0)
+  }
 
-  // Take top N
-  const topN = scored.slice(0, MEMORY_CONFIG.PRESENT_STATE_MAX)
-
-  const statements: PresentStateStatement[] = topN.map(item => ({
-    arm:        item.arm,
-    value:      item.content,
-    source:     item.source,
-    layer:      item.layer,
-    confidence: item.confidence,
-    recency:    item.recency,
-  }))
-
-  return { statements }
-}
-
-// ─── Score a single node ──────────────────────────────────────────────────────
-
-type ScoredNode = {
-  nodeId:     NodeId
-  content:    string
-  arm:        string | null
-  source:     string | null
-  layer:      MLayer
-  confidence: ConfidenceTier
-  recency:    number
-  sortScore:  number
-}
-
-function scoreNode(
-  nodeId: NodeId,
-  node: MemNode,
-  nodeToArm: Map<NodeId, string | null>,
-  now: number,
-): ScoredNode {
-  // §18: recency = EMA-weighted traversal recency
-  const recency = computeRecency(node.lastTraversed, now)
-
-  // §18: layer depth — M0/M1 nodes carry more structural weight
-  const layerWeight = layerDepthWeight(node.cachedLayer)
-
-  // Combined sort score: layer weight + recency
-  const sortScore = layerWeight * 0.6 + recency * 0.4
-
-  const confidence = layerToConfidence(node.cachedLayer)
-
-  // G1: arm is null if arms haven't formed yet
-  const arm = nodeToArm.get(nodeId) ?? null
-
-  // §18 source text lifecycle:
-  //   M3: source_text available for exact recall
-  //   M2+: source_text pruned, value from graph position
-  const source = node.cachedLayer >= M3_CONTEXT ? node.sourceText : null
+  // ── Step 6: Rank + take top `limit` ─────────────────────────────────────
+  const ranked = Array.from(rankingScore.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, Math.min(limit, candidates.size))
+    .map(([id]) => id)
 
   return {
-    nodeId,
-    content: node.content,
-    arm,
-    source,
-    layer:   node.cachedLayer,
-    confidence,
-    recency,
-    sortScore,
+    projected:    ranked,
+    axisScores,
+    scopeContext: scope,
   }
 }
 
-// ─── Near-duplicate detection (Amendment 3) ───────────────────────────────────
-// Uses LABEL_REUSE_THRESHOLD (same constant as bind-before-create, A6).
-// Cosine similarity between global node embedding and any user node embedding.
-
-function isNearDuplicate(
-  globalEmbedding: number[],
-  userEmbeddings: Array<{ nodeId: NodeId; embedding: number[] }>,
-): boolean {
-  for (const { embedding } of userEmbeddings) {
-    const sim = cosine(globalEmbedding, embedding)
-    if (sim >= MEMORY_CONFIG.LABEL_REUSE_THRESHOLD) {
-      return true
-    }
-  }
-  return false
-}
-
-// ─── Cosine similarity ────────────────────────────────────────────────────────
-// R1: pure function. Duplicated here to avoid cross-file R1 dep on memory-bind.
-// Both vectors assumed same length (1536). Returns [-1, 1].
-
-function cosine(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0
-  let dot = 0, magA = 0, magB = 0
-  for (let i = 0; i < a.length; i++) {
-    dot  += a[i] * b[i]
-    magA += a[i] * a[i]
-    magB += b[i] * b[i]
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB)
-  return denom === 0 ? 0 : dot / denom
-}
-
-// ─── Recency ──────────────────────────────────────────────────────────────────
-// §18: EMA-style weighting on last_traversed.
-// Recent traversals contribute more. Half-life from config.
-// Returns [0, 1] where 1 = just traversed, 0 = long ago / never.
-
-function computeRecency(lastTraversed: number | null, now: number): number {
-  if (lastTraversed === null) return 0
-
-  const elapsed = now - lastTraversed
-  if (elapsed <= 0) return 1
-
-  // Exponential decay with half-life
-  return Math.exp(-Math.LN2 * elapsed / MEMORY_CONFIG.RECENCY_HALF_LIFE)
-}
-
-// ─── Layer depth weight ───────────────────────────────────────────────────────
-// §18: M0/M1 nodes carry more structural weight than M3/M4.
-
-function layerDepthWeight(layer: MLayer): number {
-  switch (layer) {
-    case M0_IDENTITY:  return 1.0
-    case M1_PURPOSE:   return 0.85
-    case M2_KNOWLEDGE: return 0.65
-    case M3_CONTEXT:   return 0.4
-    case M4_INPUT:     return 0.1
-  }
-}
-
-// ─── Confidence tier mapping ──────────────────────────────────────────────────
-// §18: confidence tiers from layer position.
-
-function layerToConfidence(layer: MLayer): ConfidenceTier {
-  switch (layer) {
-    case M0_IDENTITY:  return 'identity'
-    case M1_PURPOSE:   return 'purpose'
-    case M2_KNOWLEDGE: return 'consolidated'
-    case M3_CONTEXT:   return 'recent'
-    case M4_INPUT:     return 'new'
-  }
-}
+// ─── End of memory-present.ts ────────────────────────────────────────────────

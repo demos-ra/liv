@@ -128,7 +128,7 @@ export type PlanDraftState = {
 // ─── Composer input (R1 consumes) ─────────────────────────────────────────────
 // Built at R2 from F-codec post-A6 outputs + F-memory present-state read.
 // Spec §3.3.2: graphContext follows the present-state pattern in plan-draft.ts
-// (getPresentState + ARTIFACT_PREFIX filter).
+// (Present per LM v2.2 §D, was v2.1 getPresentState; + ARTIFACT_PREFIX filter).
 
 /**
  * Single statement from F-memory present-state.
@@ -186,7 +186,7 @@ export type PlanComposerInput = {
   userMessage:    string                              // raw user text (echoed in summary)
   classification: PlanComposerClassification          // F-codec post-A6
   graphContext: {
-    statements:   PlanComposerStatement[]             // F-memory getPresentState
+    statements:   PlanComposerStatement[]             // F-memory Present (LM v2.2 §D)
     findingsRefs: string[]                            // artifact://… references (discovery refs)
   }
   authoring:      PlanComposerAuthoring               // → producedBy

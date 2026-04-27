@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-nodeid-propagation
+// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R3
 // wires-in:
@@ -15,12 +15,12 @@
 //   W-ATOM  DecodeOutput      F-codec/R0
 //   W-ATOM  DecodeCategory    F-codec/R0
 //   W-ATOM  DecodedStructure  F-codec/R0
-//   W-ATOM  MLayer            F-memory/R0
+//   W-ATOM  MLayer            F-memory/R3
 // wires-out:  none (leaf UI component)
 // deps:
 //   R0  ../config/codec-memory-types   (type only)
 //   R0  ../config/codec-decode-types   (type only)
-//   R0  ../../F-memory/config/memory-types  (type only)
+//   R3  ../../F-memory/contract/memory-contract  (type only)
 //   R5  @/core/types/primitives
 // validated:  pending
 
@@ -39,7 +39,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { DecodeOutput, DecodeCategory, DecodedStructure } from '../config/codec-decode-types'
-import type { MLayer } from '@/features/F-memory/config/memory-types'
+import type { MLayer } from '@/features/F-memory/contract/memory-contract'
 import type { MemoryTreeNode, MemoryAction } from '../config/codec-memory-types'
 import type { NodeId } from '@/core/types/primitives'
 

@@ -4,12 +4,13 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, w3-20-admin-write, 4b-nodeid-propagation
+// amended:    lm-v1.1, w3-20-admin-write, 4b-nodeid-propagation, lm-v2-2-shot5-fix, lm-v2-2-shot5-fix-2
 // slice:      F-memory
 // layer:      R4
 // wires-in:
 //   W-ATOM  NodeId           core/R5 (primitives)
 //   W-ATOM  MemNode          F-memory/R0
+//   W-ATOM  MemNodeRow       F-memory/R0 (raw row shape; lm-v2-2-shot5-fix-2)
 //   W-ATOM  MemEdge          F-memory/R0
 //   W-ATOM  MemArm           F-memory/R0
 //   W-ATOM  DominanceEntry   F-memory/R0
@@ -49,6 +50,7 @@ import { db } from '@/core/db/client'
 import type { Result, AppError, NodeId } from '@/core/types/primitives'
 import type {
   MemNode,
+  MemNodeRow,
   MemEdge,
   MemArm,
   DominanceEntry,
@@ -269,7 +271,14 @@ export async function loadDominance(userId: string | null): Promise<Result<Map<N
 // ─── Graph load ───────────────────────────────────────────────────────────────
 
 // Amendment 3: +userId param, IS NOT DISTINCT FROM for null-safe filtering (A4)
-export async function loadAllNodes(userId: string | null): Promise<Result<Map<NodeId, MemNode>>> {
+// lm-v2-2-shot5-fix-2 (G1 Move-to-R2): return type changed to Map<NodeId, MemNodeRow>.
+// R4 = "DB queries, external I/O only" per LIV-Standard T1.1 / T1.4. Domain-derived
+// fields (LMA21 scope) are added during R2 hydration via ensureNodeScopeStamped at
+// the boot-load paths in memory-service.ts. Closes patch3's D-G1-INLINE-STAMP carry
+// (the inline `Set<string>` stamp at R4 was a layer-scope violation; this revision
+// removes it without lifting stampScope into R0, which would itself violate T1.4
+// — pure functions are R1 Logic, never R0 Atoms).
+export async function loadAllNodes(userId: string | null): Promise<Result<Map<NodeId, MemNodeRow>>> {
   try {
     const result = await db.query<{
       id: string; content: string; embedding: string | null; source_text: string | null
@@ -278,7 +287,7 @@ export async function loadAllNodes(userId: string | null): Promise<Result<Map<No
       user_id: string | null
     }>(`SELECT id, content, embedding, source_text, created_at, last_traversed, cached_layer, cached_closure, cached_asymmetry, user_id FROM mem_node WHERE user_id IS NOT DISTINCT FROM $1`, [userId])
 
-    const nodes = new Map<NodeId, MemNode>()
+    const nodes = new Map<NodeId, MemNodeRow>()
     for (const row of result.rows) {
       // brand: external origin — DB row id becomes NodeId at F-memory ingress
       const nodeId = row.id as NodeId

@@ -4,7 +4,7 @@
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-6-sprint-a (slice introduction)
+// amended:    phase-6-sprint-a (slice introduction), lm-v2-2-shot2, lm-v2-2-shot4
 // slice:      F-plan
 // layer:      R2
 // wires-in:
@@ -102,7 +102,8 @@ const ARTIFACT_PREFIX = '[artifact:'
 /**
  * Assemble PlanComposerInput from raw user content + F-memory present-state.
  *
- * Per spec §3.3.2: graphContext uses getPresentState + ARTIFACT_PREFIX filter
+ * Per spec §3.3.2: graphContext uses Present (LM v2.2 §D, was v2.1
+ * getPresentState) + ARTIFACT_PREFIX filter
  * for findingsRefs. F-plan reads typed cognitive output
  * F-codec already deposited — never re-encodes.
  *
@@ -131,20 +132,24 @@ export function buildComposerInput(
   userId:      string,
   deps:        R2Deps,
 ): PlanComposerInput {
-  const presentState = graph.getPresentState(userId)
+  // lm-v2-2-shot2: graph.present({scope: {user: userId}}) per LM v2.2 §D.
+  const presentState = graph.present({ scope: { user: userId } })
+  void presentState  // currently unused — see D-PLAN-DEAD-BOOKKEEPING below
 
-  const statements: PlanComposerStatement[] = presentState.statements.map((s) => ({
-    value:      s.value,
-    confidence: s.confidence,
-    recency:    s.recency,
-  }))
-
-  // Filter present-state values whose strings contain the ARTIFACT_PREFIX
-  // prefix. Sprint A filters all artifact refs (not just discovery — F-plan
-  // may consume any prior emission downstream).
-  const findingsRefs = presentState.statements
-    .filter((s) => s.value.includes(ARTIFACT_PREFIX))
-    .map((s) => s.value)
+  // lm-v2-2-shot4 (D-PLAN-DEAD-BOOKKEEPING): pre-flight identified that
+  // graphContext.statements + graphContext.findingsRefs flow into
+  // PlanComposerInput but are never read by compose() — the composer body
+  // (plan-compose.ts:284) reads only input.userMessage, input.classification,
+  // and input.authoring. The Shot 2 carry-forward populated these fields
+  // from presentState.statements (v2.1 shape). Per Shot 4 PresentState body
+  // swap, the v2.1 shape no longer exists; rather than re-architect the
+  // dead-bookkeeping path through new accessors at the IPlanGraph port,
+  // we drop the population and emit empty arrays. PlanComposerInput.shape
+  // is preserved (no plan-types.ts touch) for cross-slice stability.
+  // When a live composer consumer surfaces (Shot 5+), this populates from
+  // presentState.projected via a graph accessor extension on IPlanGraph.
+  const statements: PlanComposerStatement[] = []
+  const findingsRefs: string[] = []
 
   // Sprint A synthetic classification — see doc above.
   const classificationNodeId = deps.generateId('plan-classify') as NodeId

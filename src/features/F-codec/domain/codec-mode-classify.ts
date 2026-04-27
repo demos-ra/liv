@@ -4,20 +4,20 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.5-mode-classify
+// amended:    6.5-mode-classify, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R1
 // wires-in:
 //   W-ATOM  EncodeResult       F-codec/R0
 //   W-ATOM  FrameworkMode      F-codec/R0
-//   W-ATOM  PresentState       F-memory/R0
-//   W-ATOM  MemArm             F-memory/R0
+//   W-ATOM  PresentState       F-memory/R3
+//   W-ATOM  MemArm             F-memory/R3
 // wires-out:
 //   W-INJECT  classifyMode()  → F-codec/R2 (codec-orchestrate)
 // deps:
 //   R0  ../config/codec-types
 //   R0  ../config/codec-module-types
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 // validated:  pending
 
 // Phase 6.5 — mode classification.
@@ -28,7 +28,7 @@
 
 import type { EncodeResult } from '../config/codec-types'
 import type { FrameworkMode } from '../config/codec-module-types'
-import type { PresentState, MemArm } from '@/features/F-memory/config/memory-types'
+import type { PresentState, MemArm } from '@/features/F-memory/contract/memory-contract'
 
 // ─── Mode Signals (Bootstrap Heuristic) ──────────────────────────────────────
 // Keyword signals per mode. Training wheels — as the graph densifies,

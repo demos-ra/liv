@@ -4,17 +4,19 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
 // slice:      F-memory
 // layer:      R0
 // wires-in:
 //   W-ATOM  NodeId            core/R5 (primitives)
+//   W-ATOM  UserId            core/R5 (primitives)
+//   W-ATOM  ProjectId         core/R5 (primitives)
 // wires-out:
 //   W-ATOM  MemNode           →  F-memory/*
 //   W-ATOM  MemEdge           →  F-memory/*
 //   W-ATOM  MemGraph          →  F-memory/*
 //   W-ATOM  MLayer            →  F-memory/*
-//   W-ATOM  PresentState      →  F-chat/R4 (lm-io)
+//   W-ATOM  PresentState      →  F-chat/R4 (lm-io); body retained at v2.1 shape per LM v2.2 §D natural deferral (axis algorithms in Shot 4)
 //   W-ATOM  GraphMutation     →  F-memory/*
 //   W-ATOM  TraversalResult   →  F-memory/*
 //   W-ATOM  MemArm            →  F-memory/*
@@ -23,9 +25,23 @@
 //   W-ATOM  EdgePrimitiveType →  F-memory/*
 //   W-ATOM  GraphScope        →  F-memory/*
 //   W-ATOM  ScopedGraphSet    →  F-memory/*
+//   W-ATOM  ScopeFilter       →  F-memory/R3 (Present, Lineage entry shape per LM v2.2 §C, §D)
+//   W-ATOM  ScopeTagSet       →  F-memory/* (per-node stamped scope tags per LMA21, lm-v2-2-shot3)
+//   W-ATOM  AxisId            →  F-memory/R3 (Present axes per LM v2.2 §E)
+//   W-ATOM  AxisConfig        →  F-memory/* (per-axis config; F-memory authors shape in Shot 4)
+//   W-ATOM  AxisSet           →  F-memory/R3 (Present axis-set per LM v2.2 §D)
+//   W-ATOM  EdgeKindSet       →  F-memory/R3 (Lineage edge filter per LM v2.2 §F)
+//   W-ATOM  LineageGraph      →  F-memory/R3 (Lineage return atom per LM v2.2 §F)
+//   W-ATOM  MemNodeRow        →  F-memory/R4 (raw row shape returned by loadAllNodes; lm-v2-2-shot5-fix-2)
 // deps:
 //   R5  @/core/types/primitives
 // validated:  pending
+//
+// lm-v2-2-shot2 (LM v2.2 §C, §D, §E, §F): atom-shape declarations.
+//   Net-new atoms: ScopeFilter, AxisId, AxisConfig, AxisSet, EdgeKindSet, LineageGraph.
+//   Net-new constants: PRESENT_LIMIT_MAX (reused from MEMORY_CONFIG.PRESENT_STATE_MAX = 20 per D-LIMIT-MAX).
+//   PresentState body: unchanged this shot per D-PRESENTSTATE-BODY-V21 (option γ — natural
+//   deferral; v2.2 §D return body lands in Shot 4 with axis algorithms; canonical name preserved).
 
 // Living Memory v1.1 — all domain types.
 // A6: declared at R0. Imports NodeId from core/R5 primitives (AK-REF brand).
@@ -46,7 +62,8 @@
 //   typed as NodeId (AK-REF brand from core/R5 primitives). A3: typed boundary
 //   at every R0 atom that carries a node identifier.
 
-import type { NodeId } from '@/core/types/primitives'
+import type { NodeId, UserId, ProjectId } from '@/core/types/primitives'
+import type { EdgeRef } from '@/core/types/living-memory.types'
 
 // ─── M-Layer ──────────────────────────────────────────────────────────────────
 // Five layers. Numeric for comparison: M0=0 (deepest) .. M4=4 (shallowest).
@@ -75,6 +92,13 @@ export type EdgePrimitiveType = 'anchor' | 'relate' | 'restructure' | 'reinforce
 export type MemNode = {
   id:              NodeId
   userId:          string | null    // null = global, string = per-user (Amendment 3, A6)
+  // lm-v2-2-shot3 (LMA21): scope tags stamped at persistence per LM v2.2 §C.
+  // Token format per D-SCOPE-TAG-FORMAT: 'user:<userId>' | 'project:<projectId>' | 'global'.
+  // Total stamping per LMA21: every node carries a non-empty scope tag set.
+  // Boot-time backward-compat per D-MEMNODE-MIGRATION: nodes loaded without
+  // the field derive {'global'} when userId === null, {'user:'+userId} when set.
+  // userId field retained additively (v2.1 carry) — D-USERID-CARRY.
+  scope:           ScopeTagSet
   content:         string           // semantic label or summary
   embedding:       number[] | null  // VECTOR(1536), null until encoded
   sourceText:      string | null    // original input, pruned at M3→M2. MA3: structural position carries meaning.
@@ -84,6 +108,33 @@ export type MemNode = {
   cachedClosure:   number           // cycle participation ratio, updated incrementally
   cachedAsymmetry: number           // non-reciprocal weight differential
 }
+
+// ─── MemNodeRow (lm-v2-2-shot5-fix-2: G1 Move-to-R2) ─────────────────────────
+// Raw DB-row shape for a node. Lacks the LMA21 scope field, which is a
+// domain-derived projection added during R2 hydration (per LIV-Standard T1.1:
+// R4 = "DB queries, external I/O only"; domain transformation lives at R2).
+//
+// R4 (memory-repository.loadAllNodes) returns Map<NodeId, MemNodeRow>. R2
+// (memory-service boot-load paths) iterates rows through ensureNodeScopeStamped
+// to produce the full MemNode atom. This keeps scope-stamping logic out of R4.
+//
+// Closes G1 (LMA21 V2 violation at memory-repository.ts) and D-G1-INLINE-STAMP
+// (patch3 inline stamp at R4 — no longer needed once stamping moves to R2).
+
+export type MemNodeRow = Omit<MemNode, 'scope'>
+
+// ─── Scope tag set (LMA21, lm-v2-2-shot3) ─────────────────────────────────────
+// Per LM v2.2 §C: scope is a set of tags carried on a node (not a separate type
+// or partition of the graph). Each token is a string in one of the formats per
+// D-SCOPE-TAG-FORMAT:
+//   'user:<userId>'      — per-user scope (e.g. 'user:demos_ra@hotmail.com')
+//   'project:<projectId>' — per-project scope (open at v2.2; honored by filter)
+//   'global'              — default scope when no other context active
+//
+// Stamped at every node-write boundary per LMA21. Total stamping — no node
+// persists without scope tags. Default = {'global'} when no scope active.
+
+export type ScopeTagSet = Set<string>
 
 // ─── Edge ─────────────────────────────────────────────────────────────────────
 // Directed weighted edge. Weight ∈ (0, 1].
@@ -178,24 +229,23 @@ export type TraversalOptions = {
   primitiveType?:    EdgePrimitiveType  // edge tag for this traversal (Amendment 4, A6)
 }
 
-// ─── Present State ────────────────────────────────────────────────────────────
+// ─── Present State (LM v2.2 §D — body landed in shot4) ──────────────────────
 // §18: the bridge between living process and immediate usability.
-// G2: getPresentState() reads precomputed values only — never triggers recomputation.
-// Recomputed as side effect of runTraversal().
-
-export type ConfidenceTier = 'identity' | 'purpose' | 'consolidated' | 'recent' | 'new'
-
-export type PresentStateStatement = {
-  arm:        string | null   // semantic label, null if arms not yet formed (G1)
-  value:      string          // resolved value
-  source:     string | null   // original text if M3. Pruned at M2. MA3.
-  layer:      MLayer
-  confidence: ConfidenceTier
-  recency:    number          // EMA-weighted traversal recency
-}
+// G2: present() reads precomputed values when scope is degenerate; recomputes
+// over filtered node set on non-degenerate scope per LMA21 (wired Shot 3).
+// Recomputed as side effect of runTraversal() at degenerate path.
+//
+// lm-v2-2-shot4: PresentState body swapped to LM v2.2 §D shape per
+// D-PRESENTSTATE-BODY-V21 close. The v2.1 body
+// `{statements: PresentStateStatement[]}` is replaced by:
+//   {projected: NodeId[], axisScores: Map<NodeId, Map<AxisId, number>>, scopeContext: ScopeFilter}
+// PresentStateStatement atom deleted per D-PRESENTSTATEMENT-RETAIN — no
+// consumer post-rewrite. ConfidenceTier retired with it.
 
 export type PresentState = {
-  statements: PresentStateStatement[]
+  projected:    NodeId[]
+  axisScores:   Map<NodeId, Map<AxisId, number>>
+  scopeContext: ScopeFilter
 }
 
 // ─── Binding Result ───────────────────────────────────────────────────────────
@@ -234,7 +284,77 @@ export type GraphThresholds = {
   dom:     number   // convergence distribution across graph
 }
 
-// ─── Config Constants ─────────────────────────────────────────────────────────
+// ─── LM v2.2 atoms (lm-v2-2-shot2) ────────────────────────────────────────────
+// Net-new atoms per LM v2.2 §C, §D, §E, §F. Declared at R0; consumed by R3
+// Present + Lineage entry shapes. Atom shapes match the standard verbatim.
+//
+// Per option (γ) / D-PRESENTSTATE-BODY-V21: the v2.2 §D PresentState return
+// body (`{projected, axisScores, scopeContext}`) is NOT declared at R0 this
+// shot. The canonical PresentState identifier (declared above at line ~197)
+// retains its v2.1 body. Shot 4 lands the §D body into PresentState directly,
+// alongside the 8-axis algorithms that produce its fields.
+
+// ─── ScopeFilter (LM v2.2 §C) ─────────────────────────────────────────────────
+// Scope as projection-side filter. Persistence-side scope-stamping (LMA21)
+// lands in Shot 3. This shot uses ScopeFilter at the Present + Lineage entry
+// shape only; cache lookup remains keyed by user (D-LMA21-DEFER).
+
+export type ScopeFilter = {
+  user?:    UserId
+  project?: ProjectId
+  // open for additional scope dimensions per LMA21
+}
+
+// ─── Axes (LM v2.2 §D, §E) ────────────────────────────────────────────────────
+// Eight axes per LM v2.2 §E. Each axis is a declaration of what it projects,
+// not how it computes. Algorithms land in F-memory at Shot 4.
+
+export type AxisId =
+  | 'topology'         // graph-structural position
+  | 'recency'          // time-since-touch
+  | 'chronology'       // write-order position
+  | 'projectAffinity'  // alignment to active project scope
+  | 'modeAffinity'     // alignment to active mode (plan|verify|discover|build)
+  | 'programAffinity'  // alignment to active program (L4 surface)
+  | 'lineageProximity' // distance from active lineage chain
+  | 'energy'           // activation/concentration in local subgraph
+
+// AxisConfig: per-axis configuration shape. F-memory authors concrete shape
+// per axis in Shot 4. `Record<string, unknown>` is the open contract.
+
+export type AxisConfig = Record<string, unknown>
+
+export type AxisSet = {
+  active:  AxisId[]
+  weights: Map<AxisId, number>
+  configs: Map<AxisId, AxisConfig>
+}
+
+// ─── Lineage atoms (LM v2.2 §F) ───────────────────────────────────────────────
+// EdgeKindSet: set keyed by EdgePrimitiveType. Excludes null per
+// D-EDGEKIND-NULL-EXCLUDE — null = "learning sub-op" or "pre-v1.1", not a
+// directly-traversable kind. EdgePrimitiveType is the directly-traversable
+// kind set.
+
+export type EdgeKindSet = Set<EdgePrimitiveType>
+
+export type LineageGraph = {
+  start:             NodeId
+  nodes:             NodeId[]
+  edges:             EdgeRef[]
+  terminationReason: 'depth-reached' | 'no-more-edges' | 'cycle-truncated' | 'scope-boundary'
+}
+
+// ─── Present default cap (LM v2.2 §D) ─────────────────────────────────────────
+// PRESENT_LIMIT_MAX: max nodes returned by Present projection. Reused from
+// MEMORY_CONFIG.PRESENT_STATE_MAX (= 20) per D-LIMIT-MAX — that constant was
+// the v2.1 implicit cap on PresentState.statements; v2.2 surfaces it as the
+// `limit` parameter default ceiling. Shot 4 may revise when axes algorithms
+// produce richer projection sets.
+
+export const PRESENT_LIMIT_MAX = 20 as const
+
+
 // Physics constants that survive from v0.6 + new graph-topology params.
 // MA1: no decay constants. MA3: MAX_DEGREE preserved.
 

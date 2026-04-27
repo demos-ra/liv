@@ -4,15 +4,15 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b
+// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b, lm-v2-2-shot2, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM  CodecPipelineResult, BuildConfirmation, CODEC_ROUTING_EVENTS, RouteBuildPayload  ←  F-codec/R0
-//   W-ATOM  ScopedGraphSet  ←  F-memory/R0
+//   W-ATOM  ScopedGraphSet  ←  F-memory/R3
 //   W-ATOM  FrameworkModule  ←  F-codec/R0
 //   W-FN    generateId  ←  core/R5 primitives  (phase-6-sprint-b — turnId mint)
-//   W-HOOK  getPresentState()             ←  F-memory/R3
+//   W-HOOK  Present()                     ←  F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
 //   W-HOOK  getGlobalGraph()              ←  F-memory/R3
 //   W-HOOK  getUserGraph()                ←  F-memory/R3
 //   W-HOOK  getGlobalArms()               ←  F-memory/R3
@@ -30,7 +30,7 @@
 //   W-HOOK  processMessage()  →  F-codec/R3
 // deps:
 //   R0  ../config/codec-routing-types
-//   R0  @/features/F-memory/config/memory-types
+//   R3  @/features/F-memory/contract/memory-contract
 //   R1  ../domain/codec-routing
 //   R1  ../domain/codec-decode
 //   R1  ../domain/codec-decode-render
@@ -57,7 +57,7 @@
 
 import type { Result } from '@/core/types/primitives'
 import { generateId } from '@/core/types/primitives'
-import type { ScopedGraphSet } from '@/features/F-memory/config/memory-types'
+import type { ScopedGraphSet } from '@/features/F-memory/contract/memory-contract'
 import type { CodecPipelineResult, RouteBuildPayload } from '../config/codec-routing-types'
 import type { BuildConfirmation } from '../config/codec-routing-types'
 import type { ModuleExecutionResult } from '../config/codec-module-types'
@@ -67,7 +67,7 @@ import { classifyDomain, determineRoute } from '../domain/codec-routing'
 import { classifyGraph } from '../domain/codec-decode'
 import { renderForSystemPrompt } from '../domain/codec-decode-render'
 import {
-  getPresentState,
+  Present,
   getGlobalGraph,
   getUserGraph,
   getGlobalArms,
@@ -135,7 +135,7 @@ registerModule(PLAN_MODULE)   // phase-6-sprint-b — structural-mode authoritat
 //
 // Pipeline:
 // 1. Encode: encodeLLM(content, userId) → EncodeResult
-// 2. Get graph context: getPresentState(userId) for mode classification
+// 2. Get graph context: Present({scope: {user: userId}}) for mode classification (LM v2.2 §D)
 // 3. Assemble scoped graphs + arms from F-memory contract
 // 4. Classify domain: classifyDomain → classifyMode (6.5, registry-gated)
 // 5. Determine route: determineRoute (6.6, registry lookup)
@@ -165,8 +165,9 @@ export async function processMessage(
       return { ok: false, error: { code: 'CODEC_ENCODE_FAILED', message: encodeResult.error.message } }
     }
 
-    // 2. Get present state — graph context for domain classification
-    const presentState = getPresentState(userId)
+    // 2. Get present state — graph context for domain classification.
+    // lm-v2-2-shot2: Present({scope: {user: userId}}) per LM v2.2 §D.
+    const presentState = Present({ scope: { user: userId } })
 
     // 3. Assemble scoped graphs and arms from F-memory R3 contract
     // A3: typed boundary — ScopedGraphSet is an atom from F-memory/R0.

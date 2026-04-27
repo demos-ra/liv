@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.2-verification
+// amended:    6.2-verification, lm-v2-2-shot2, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
 // slice:      app (API route)
 // layer:      R4
 // wires-in:
@@ -13,9 +13,10 @@
 //   W-ATOM   SESSION_COOKIE_NAME F-identity/R3
 //   W-INJECT dbGetUserEmail      F-admin/R3
 //   W-INJECT getGlobalGraph, getGlobalArms, getUserGraph, getUserArms  F-memory/R3
-//   W-INJECT getPresentState, traverse  F-memory/R3
+//   W-INJECT Present, traverse   F-memory/R3 (LM v2.2 §D parameter-recovered; was v2.1 getPresentState)
+//   W-ATOM   PRESENT_DEFAULTS, PRESENT_LIMIT_MAX  F-memory/R3
 //   W-INJECT seedAndTraverseGlobal F-memory/R3 (memory-contract)
-//   W-ATOM   GLOBAL_SEED_NODES   F-memory/R0 (memory-seed-data)
+//   W-ATOM   GLOBAL_SEED_NODES   F-memory/R3 (memory-contract; lm-v2-2-shot5-fix-2 routes via R3 per A2)
 //   W-INJECT classifyGraph       F-codec/R3 (codec-contract)
 //   W-INJECT processMessage      F-codec/R3 (codec-contract)
 // wires-out:  none (HTTP response)
@@ -24,7 +25,6 @@
 //   R3  @/features/F-codec/contract/codec-contract
 //   R3  @/features/F-identity/contract/auth-contract
 //   R3  @/features/F-admin/contract/admin-contract
-//   R0  @/features/F-memory/config/memory-seed-data
 // validated:  pending
 
 // Phase 6.2 — verification route for global graph seed.
@@ -40,12 +40,14 @@ import {
   getGlobalArms,
   getUserGraph,
   getUserArms,
-  getPresentState,
+  Present,
   traverse,
   seedAndTraverseGlobal,
+  PRESENT_DEFAULTS,
+  PRESENT_LIMIT_MAX,
 } from '@/features/F-memory/contract/memory-contract'
 import type { PresentState, MemGraph } from '@/features/F-memory/contract/memory-contract'
-import { GLOBAL_SEED_NODES } from '@/features/F-memory/config/memory-seed-data'
+import { GLOBAL_SEED_NODES } from '@/features/F-memory/contract/memory-contract'
 import {
   classifyGraph,
   processMessage,
@@ -97,11 +99,26 @@ export async function GET() {
     // Trigger ensureUserLoaded for test user, then read present state.
     // Test user has no prior traversals → empty user graph + global graph.
     await traverse('verification ping', TEST_USER_ID)
-    const presentState: PresentState = getPresentState(TEST_USER_ID)
+    // lm-v2-2-shot2: getPresentState(TEST_USER_ID) → Present({scope, axes, limit}) per LM v2.2 §D.
+    const presentState: PresentState = Present({
+      scope: { user: TEST_USER_ID },
+      axes:  PRESENT_DEFAULTS,
+      limit: PRESENT_LIMIT_MAX,
+    })
 
-    const stmts = presentState.statements
-    const stmtTexts = stmts.map(s => s.value.toLowerCase())
-    const allText = stmtTexts.join(' ')
+    // lm-v2-2-shot4: PresentState v2.2 §D shape carries {projected, axisScores,
+    // scopeContext}. Render content from projected via F-memory accessors;
+    // fold layer access via per-id cachedLayer lookup. Sort-order check on
+    // strict layer order retires (v2.2 ordering is composite axis score per
+    // LM v2.2 §E).
+    const projected = presentState.projected
+    const userGraphForTest = getUserGraph(TEST_USER_ID)
+    const globalGraphForTest = getGlobalGraph()
+    const projectedNodes = projected
+      .map(id => userGraphForTest.nodes.get(id) ?? globalGraphForTest.nodes.get(id))
+      .filter((n): n is NonNullable<typeof n> => n !== undefined)
+    const projectedContents = projectedNodes.map(n => n.content.toLowerCase())
+    const allText = projectedContents.join(' ')
 
     const hasIdentity = allText.includes('liv') && (
       allText.includes('platform') || allText.includes('construction') || allText.includes('software')
@@ -111,34 +128,17 @@ export async function GET() {
     const hasArchitecture = allText.includes('slice') || allText.includes('layer') ||
                            allText.includes('wire') || allText.includes('axiom') ||
                            allText.includes('r-layer') || allText.includes('r0')
-    const noM4 = stmts.every(s => s.layer < 4)
-
-    // Check sort order: statements should be ordered by confidence tier / layer
-    let sortOrderCorrect = true
-    for (let i = 1; i < stmts.length; i++) {
-      // Deeper layers (lower number) should appear first
-      if (stmts[i].layer < stmts[i - 1].layer) {
-        // A deeper-layer statement appeared after a shallower one — check if recency explains it
-        // Accept small inversions (sort is by composite score, not strictly by layer)
-      }
-    }
-    // Simplified: just check that M0/M1 statements (if any) appear before M3 statements
-    const firstM3Idx = stmts.findIndex(s => s.layer >= 3)
-    const lastDeepIdx = stmts.reduce((max, s, i) => s.layer <= 1 ? i : max, -1)
-    if (firstM3Idx >= 0 && lastDeepIdx >= 0 && lastDeepIdx > firstM3Idx) {
-      sortOrderCorrect = false
-    }
+    const noM4 = projectedNodes.every(n => n.cachedLayer < 4)
 
     results.push({
       name: 'Test 1: Present state from global graph',
-      passed: stmts.length >= 5 && hasIdentity && hasMode && hasArchitecture && noM4,
+      passed: projected.length >= 5 && hasIdentity && hasMode && hasArchitecture && noM4,
       criteria: [
-        { label: 'statements.length >= 5', passed: stmts.length >= 5, detail: `${stmts.length} statements` },
+        { label: 'projected.length >= 5', passed: projected.length >= 5, detail: `${projected.length} nodes projected` },
         { label: 'Identity mentioned', passed: hasIdentity, detail: hasIdentity ? 'found' : 'missing' },
         { label: 'Mode mentioned', passed: hasMode, detail: hasMode ? 'found' : 'missing' },
         { label: 'Architecture mentioned', passed: hasArchitecture, detail: hasArchitecture ? 'found' : 'missing' },
-        { label: 'No M4 statements', passed: noM4, detail: noM4 ? 'all < M4' : `found M4 at layers: ${stmts.filter(s => s.layer === 4).map(s => s.value.slice(0, 40)).join(', ')}` },
-        { label: 'Sort order', passed: sortOrderCorrect, detail: sortOrderCorrect ? 'correct' : 'deep-layer statement after shallow' },
+        { label: 'No M4 nodes', passed: noM4, detail: noM4 ? 'all < M4' : `found M4 at layers: ${projectedNodes.filter(n => n.cachedLayer === 4).map(n => n.content.slice(0, 40)).join(', ')}` },
       ],
     })
 
@@ -257,13 +257,17 @@ export async function GET() {
         globalEdgeCount: Array.from(globalGraph.edges.values()).reduce((s, e) => s + e.length, 0),
         globalArmCount: getGlobalArms().length,
         layerDistribution: layerDist,
-        presentStateCount: stmts.length,
+        presentStateCount: projected.length,
         entityCount: decoded.entities.length,
         relationCount: decoded.relations.length,
-        statementSample: stmts.slice(0, 5).map(s => ({
-          value: s.value.slice(0, 100),
-          layer: s.layer,
-          confidence: s.confidence,
+        // lm-v2-2-shot4-fix: v2.1 stmts (PresentStateStatement[]) replaced by
+        // projectedNodes (MemNode[]) per LM v2.2 §D body swap. confidence
+        // field drops — v2.1 PresentStateStatement.confidence has no direct
+        // v2.2 analog at the projection-set level (would need composite axis
+        // score from axisScores Map; diagnostic shape kept minimal).
+        statementSample: projectedNodes.slice(0, 5).map(n => ({
+          value: n.content.slice(0, 100),
+          layer: n.cachedLayer,
         })),
         entitySample: decoded.entities.slice(0, 5).map(e => ({
           name: e.name.slice(0, 100),

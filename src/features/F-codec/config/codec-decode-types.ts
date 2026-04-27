@@ -4,13 +4,13 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, 4b-nodeid-propagation
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R0
 // wires-in:
 //   W-ATOM  NodeId              core/R5 (primitives)
-//   W-ATOM  MLayer              F-memory/R0
-//   W-ATOM  EdgePrimitiveType   F-memory/R0
+//   W-ATOM  MLayer              F-memory/R3
+//   W-ATOM  EdgePrimitiveType   F-memory/R3
 //   W-ATOM  FrameworkMode       F-codec/R0
 // wires-out:
 //   W-ATOM  DecodeCategory      →  F-codec/*
@@ -20,7 +20,7 @@
 //   W-ATOM  DecodedContext      →  F-codec/*
 //   W-ATOM  DECODE_MAX_TOKENS   →  F-codec/*
 // deps:
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 //   R0  ./codec-module-types
 //   R5  @/core/types/primitives
 // validated:  pending
@@ -31,7 +31,7 @@
 // 4b-nodeid-propagation: node-id-shaped fields typed NodeId. F-codec reads
 //     MemNode.id from F-memory atoms and republishes through DecodedStructure.
 
-import type { MLayer, EdgePrimitiveType } from '@/features/F-memory/config/memory-types'
+import type { MLayer, EdgePrimitiveType } from '@/features/F-memory/contract/memory-contract'
 import type { FrameworkMode } from './codec-module-types'
 import type { NodeId } from '@/core/types/primitives'
 

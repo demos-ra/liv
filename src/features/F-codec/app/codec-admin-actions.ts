@@ -4,14 +4,14 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.1-global-seed, 6.11-modules-for-client, 4b-nodeid-propagation, phase-6-cleanup
+// amended:    6.1-global-seed, 6.11-modules-for-client, 4b-nodeid-propagation, phase-6-cleanup, lm-v2-2-shot3, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM  NodeId             core/R5 (primitives)
 //   W-ATOM  GlobalSeedInput    F-codec/R0
 //   W-ATOM  IngestionSource    F-codec/R0
-//   W-ATOM  GlobalSeedNode     F-memory/R0 (via F-memory/R3)
+//   W-ATOM  GlobalSeedNode     F-memory/R3 (via F-memory/R3)
 //   W-INJECT normalizeLabel    F-codec/R1
 //   W-INJECT seedGlobalNode    F-memory/R3
 //   W-INJECT removeGlobalNode  F-memory/R3
@@ -36,13 +36,17 @@
 
 import type { Result, NodeId } from '@/core/types/primitives'
 import type { GlobalSeedInput, IngestionSource } from '../config/codec-admin-types'
-import type { MemNode, MemEdge } from '@/features/F-memory/config/memory-types'
+import type { MemNode, MemEdge } from '@/features/F-memory/contract/memory-contract'
 import type { GlobalSeedNode } from '@/features/F-memory/contract/memory-contract'
 import { normalizeLabel } from '../domain/codec-label'
 import {
   seedGlobalNode as persistSeed,
   removeGlobalNode as persistRemove,
   seedAndTraverseGlobal as _seedAndTraverseGlobal,
+  // lm-v2-2-shot3 (LMA21): stampScope helper imported via F-memory R3 re-export.
+  // Cross-slice access via R3 keeps the LMA21 token format ('user:'+id,
+  // 'project:'+id, 'global') as a single source of truth at F-memory R2.
+  stampScope,
 } from '@/features/F-memory/contract/memory-contract'
 
 // ─── seedGlobalNode ───────────────────────────────────────────────────────────
@@ -57,9 +61,12 @@ export async function seedGlobalNode(input: GlobalSeedInput): Promise<Result<voi
   const nodeId = `global-${now}-${Math.random().toString(36).slice(2, 8)}` as NodeId
 
   // A6: declared shape — MemNode with global defaults (M4, closure 0, asymmetry 0)
+  // lm-v2-2-shot3 (LMA21): scope stamped at construction. Admin seeds the
+  // global graph with userId: null → 'global' scope per stampScope rule.
   const node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'> = {
     id:            nodeId,
     userId:        null,
+    scope:         stampScope(null),
     content:       `${label}: ${input.content}`,
     embedding:     null,
     sourceText:    input.content,

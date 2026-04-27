@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode
+// amended:    6.8-artifact-decode, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -12,7 +12,7 @@
 //   W-ATOM  DecodedContext    F-codec/R0
 //   W-ATOM  DecodedStructure  F-codec/R0
 //   W-ATOM  DECODE_MAX_TOKENS F-codec/R0
-//   W-ATOM  MLayer            F-memory/R0
+//   W-ATOM  MLayer            F-memory/R3
 // wires-out:  none (consumed by R2 codec-orchestrate and memory program)
 // deps:
 //   R0  ../config/codec-decode-types

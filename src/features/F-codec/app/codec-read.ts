@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.11-artifact-read
+// amended:    6.11-artifact-read, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -13,7 +13,7 @@
 //   W-HOOK   getUserGraph()     ←  F-memory/R3
 //   W-HOOK   getGlobalArms()    ←  F-memory/R3
 //   W-HOOK   getUserArms()      ←  F-memory/R3
-//   W-ATOM   ScopedGraphSet     ←  F-memory/R0
+//   W-ATOM   ScopedGraphSet     ←  F-memory/R3
 //   W-ATOM   DecodeOutput       ←  F-codec/R0
 //   W-ATOM   FrameworkMode, ModuleArtifactSummary, ARTIFACT_ACTIVE_THRESHOLD_MS  ←  F-codec/R0
 //   W-ATOM   ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX  ←  F-codec/R0
@@ -25,7 +25,7 @@
 //   R0  ../config/codec-decode-types
 //   R0  ../config/codec-module-types
 //   R0  ../config/codec-artifact-types
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 //   R1  ../domain/codec-decode
 //   R2  ./codec-registry
 //   R3  @/features/F-memory/contract/memory-contract
@@ -36,7 +36,7 @@
 // A3: typed boundary — takes userId, returns DecodeOutput atom.
 // No encode, no LLM, no mutation. Pure graph read → classify.
 
-import type { ScopedGraphSet } from '@/features/F-memory/config/memory-types'
+import type { ScopedGraphSet } from '@/features/F-memory/contract/memory-contract'
 import type { DecodeOutput } from '../config/codec-decode-types'
 import { classifyGraph } from '../domain/codec-decode'
 import {
@@ -70,7 +70,7 @@ export function getDecodedState(userId: string): DecodeOutput {
 import type { FrameworkMode, ModuleArtifactSummary } from '../config/codec-module-types'
 import { ARTIFACT_ACTIVE_THRESHOLD_MS } from '../config/codec-module-types'
 import { ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX } from '../config/codec-artifact-types'
-import type { MemNode, MemGraph } from '@/features/F-memory/config/memory-types'
+import type { MemNode, MemGraph } from '@/features/F-memory/contract/memory-contract'
 import { getModule } from './codec-registry'
 
 export function getArtifactsForMode(

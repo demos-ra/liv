@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.5-6.6-routing
+// amended:    6.5-6.6-routing, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -13,8 +13,8 @@
 //   W-ATOM  RouteAction         F-codec/R0
 //   W-ATOM  FrameworkMode       F-codec/R0
 //   W-ATOM  FrameworkModule     F-codec/R0
-//   W-ATOM  PresentState        F-memory/R0
-//   W-ATOM  MemArm              F-memory/R0
+//   W-ATOM  PresentState        F-memory/R3
+//   W-ATOM  MemArm              F-memory/R3
 // wires-out:
 //   W-INJECT  classifyDomain()   → F-codec/R2 (codec-orchestrate)
 //   W-INJECT  determineRoute()   → F-codec/R2 (codec-orchestrate)
@@ -22,7 +22,7 @@
 //   R0  ../config/codec-routing-types
 //   R0  ../config/codec-types
 //   R0  ../config/codec-module-types
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 //   R1  ./codec-mode-classify
 // validated:  pending
 
@@ -35,7 +35,7 @@
 import type { EncodeResult } from '../config/codec-types'
 import type { BindingDomain, RouteAction } from '../config/codec-routing-types'
 import type { FrameworkMode, FrameworkModule } from '../config/codec-module-types'
-import type { PresentState, MemArm } from '@/features/F-memory/config/memory-types'
+import type { PresentState, MemArm } from '@/features/F-memory/contract/memory-contract'
 import { classifyMode } from './codec-mode-classify'
 
 // ─── Classify Domain ─────────────────────────────────────────────────────────

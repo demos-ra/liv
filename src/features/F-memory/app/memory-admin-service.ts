@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation
+// amended:    w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot3, lm-v2-2-shot5-fix-2
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -52,6 +52,8 @@ import type {
   ActivationMap,
 } from '../config/memory-types'
 import { M4_INPUT, M3_CONTEXT } from '../config/memory-types'
+// lm-v2-2-shot3: stampScope helper from peer R2 service for LMA21 stamping.
+import { stampScope, ensureNodeScopeStamped } from './memory-service'
 import type { GlobalSeedNode } from '../config/memory-seed-data'
 
 // R4 — I/O
@@ -104,6 +106,10 @@ export async function seedGlobalNode(
 ): Promise<Result<void>> {
   const fullNode: MemNode = {
     ...node,
+    // lm-v2-2-shot3 (LMA21): if caller did not pre-stamp scope, stamp here
+    // from node.userId (null → 'global'). Idempotent — pre-stamped passes
+    // through. Total LMA21 stamping: every persisted node carries scope tags.
+    scope:           (node.scope && node.scope.size > 0) ? node.scope : stampScope(node.userId),
     cachedLayer:     M4_INPUT,
     cachedClosure:   0,
     cachedAsymmetry: 0,
@@ -184,7 +190,12 @@ export async function seedAndTraverseGlobal(
     }
   }
 
-  const graph: MemGraph = loadResult.data.graph
+  // lm-v2-2-shot5-fix-2 (G1 Move-to-R2): R4 returns row shapes; R2 hydrates.
+  const seedStampedNodes = new Map<NodeId, MemNode>()
+  for (const [id, row] of loadResult.data.graph.nodes) {
+    seedStampedNodes.set(id, ensureNodeScopeStamped(row))
+  }
+  const graph: MemGraph = { nodes: seedStampedNodes, edges: loadResult.data.graph.edges }
 
   for (const node of nodes) {
     // brand: locally minted — synthesized from seed-file key inside F-memory
@@ -196,6 +207,8 @@ export async function seedAndTraverseGlobal(
     const memNode: MemNode = {
       id:              nodeId,
       userId:          null,
+      // lm-v2-2-shot3 (LMA21): batch-seed path stamps 'global' scope (userId null).
+      scope:           stampScope(null),
       content:         node.content,
       embedding:       null,
       sourceText:      node.content,
@@ -244,7 +257,12 @@ export async function seedAndTraverseGlobal(
     }
   }
 
-  const fullGraph: MemGraph = reloadResult.data.graph
+  // lm-v2-2-shot5-fix-2 (G1 Move-to-R2): hydrate row → MemNode at R2.
+  const reloadStampedNodes = new Map<NodeId, MemNode>()
+  for (const [id, row] of reloadResult.data.graph.nodes) {
+    reloadStampedNodes.set(id, ensureNodeScopeStamped(row))
+  }
+  const fullGraph: MemGraph = { nodes: reloadStampedNodes, edges: reloadResult.data.graph.edges }
   let thresholds: GraphThresholds = computeThresholds(fullGraph)
   const dominanceMap = reloadResult.data.dominanceMap
   let traversedCount = 0

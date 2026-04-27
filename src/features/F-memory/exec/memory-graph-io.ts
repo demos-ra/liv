@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -43,6 +43,8 @@ import { db } from '@/core/db/client'
 import type { Result, AppError, NodeId } from '@/core/types/primitives'
 import type {
   MemGraph,
+  MemNodeRow,
+  MemEdge,
   MemArm,
   DominanceEntry,
   GraphMutation,
@@ -57,14 +59,20 @@ import {
 // ─── Load Graph ───────────────────────────────────────────────────────────────
 // Called on boot (global: userId=null) and per-user lazy load (userId=string).
 // Amendment 3: userId param passed to all repository load calls (A4).
+//
+// lm-v2-2-shot5-fix-2 (G1 Move-to-R2): graph.nodes typed Map<NodeId, MemNodeRow>.
+// LoadedGraph carries DB-row shapes; LMA21 scope is added during R2 hydration
+// per LIV-Standard T1.1 (R4 = "DB queries, external I/O only"). R2 callers
+// (memory-service.ts boot-load paths) iterate rows through ensureNodeScopeStamped
+// to produce in-memory MemGraph values.
 
-export type LoadedGraph = {
-  graph:        MemGraph
+export type LoadedGraphRaw = {
+  graph:        { nodes: Map<NodeId, MemNodeRow>; edges: Map<NodeId, MemEdge[]> }
   arms:         MemArm[]
   dominanceMap: Map<NodeId, DominanceEntry>
 }
 
-export async function loadGraph(userId: string | null): Promise<Result<LoadedGraph>> {
+export async function loadGraph(userId: string | null): Promise<Result<LoadedGraphRaw>> {
   const nodesResult = await loadAllNodes(userId)
   if (!nodesResult.ok) return nodesResult
 
@@ -95,8 +103,8 @@ export async function loadGraph(userId: string | null): Promise<Result<LoadedGra
 // User graph is the primary workspace. Global graph is read-only context.
 
 export async function loadScopedGraphs(userId: string): Promise<Result<{
-  user:   LoadedGraph
-  global: LoadedGraph
+  user:   LoadedGraphRaw
+  global: LoadedGraphRaw
 }>> {
   const userResult = await loadGraph(userId)
   if (!userResult.ok) return userResult

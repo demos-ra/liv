@@ -4,12 +4,11 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v2-2-shot4
 // slice:      F-codec
 // layer:      R1
 // wires-in:
 //   W-ATOM  CognitivePrimitive, ClassifyResult, COGNITIVE_PRIMITIVES  ←  F-codec/R0
-//   W-ATOM  PresentState  ←  F-memory/R0 (type only, via F-codec/R0 re-export path)
 // wires-out:
 //   W-FN  buildClassifyPrompt()   →  F-codec/R2
 //   W-FN  parseClassifyResponse() →  F-codec/R2
@@ -21,8 +20,13 @@
 // CA5: primitive determined from content + graph state. No external classifier.
 // The classify prompt includes label extraction — single LLM call, single parse.
 // R2 orchestrates the call. R4 executes it. R1 builds and parses.
+//
+// lm-v2-2-shot4: signature changed to accept rendered stateBlock string
+// instead of PresentState. v2.2 §D PresentState carries `projected: NodeId[]`
+// — rendering content requires F-memory accessors (R3), so R2 caller now
+// builds the stateBlock string before calling. R1 stays pure, no F-memory
+// type import.
 
-import type { PresentState } from '@/features/F-memory/config/memory-types'
 import type { CognitivePrimitive, ClassifyResult } from '../config/codec-types'
 import { COGNITIVE_PRIMITIVES } from '../config/codec-types'
 
@@ -34,19 +38,15 @@ import { COGNITIVE_PRIMITIVES } from '../config/codec-types'
 // The prompt asks for JSON:
 // { "primitive": "...", "confidence": 0.X, "reasoning": "...", "label": "..." }
 // Label is null-equivalent (empty string) for Reference.
+//
+// lm-v2-2-shot4: stateBlock is the rendered graph-state context string built
+// by the R2 caller. Empty string ⇒ "(empty graph — no existing nodes)".
 
 export function buildClassifyPrompt(
-  content:      string,
-  presentState: PresentState,
+  content:    string,
+  stateBlock: string,
 ): string {
-  const stateBlock = presentState.statements.length > 0
-    ? presentState.statements
-        .map(s => {
-          const arm = s.arm ? `[${s.arm}]` : ''
-          return `${arm} ${s.value} (${s.confidence})`.trim()
-        })
-        .join('\n')
-    : '(empty graph — no existing nodes)'
+  const block = stateBlock.length > 0 ? stateBlock : '(empty graph — no existing nodes)'
 
   return `You are a cognitive encoder. Given a user message and the current graph state, determine:
 1. Which cognitive primitive this message represents
@@ -61,7 +61,7 @@ The 6 cognitive primitives:
 - reference: BOUND, read-only. No mutation. Use when the message is purely querying or referencing existing knowledge without changing it.
 
 Current graph state:
-${stateBlock}
+${block}
 
 Rules:
 - Classify based on the message content AND the graph state above. CA5: the transition must be observable from these two inputs alone.

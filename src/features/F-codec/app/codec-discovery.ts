@@ -4,15 +4,16 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-discovery-unregister
+// amended:    4b-discovery-unregister, lm-v2-2-shot2, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM   FrameworkModule, ModuleExecutionResult  F-codec/R0
 //   W-ATOM   CODEC_CONFIG                            F-codec/R0
-//   W-ATOM   PresentState                            F-memory/R0
+//   W-ATOM   PresentState                            F-memory/R3
 //   W-HOOK   executeModule()                         F-codec/R3 (codec-inject)
-//   W-HOOK   getPresentState()                       F-memory/R3
+//   W-HOOK   Present()                               F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
+//   W-HOOK   getUserGraph(), getGlobalGraph()        F-memory/R3 (lm-v2-2-shot4: render projected NodeIds)
 //   W-INJECT createArtifact()                        F-codec/R2 (codec-artifact, 6.7)
 //   W-INJECT unregisterModule()                      F-codec/R2 (codec-registry)
 // wires-out:
@@ -46,7 +47,7 @@ import type { FrameworkModule, ModuleExecutionResult } from '../config/codec-mod
 import type { ArtifactData } from '../config/codec-artifact-types'
 import { CODEC_CONFIG } from '../config/codec-types'
 import { executeModule } from '../contract/codec-inject'
-import { getPresentState } from '@/features/F-memory/contract/memory-contract'
+import { Present, getUserGraph, getGlobalGraph } from '@/features/F-memory/contract/memory-contract'
 import { createArtifact } from './codec-artifact'
 import { unregisterModule } from './codec-registry'
 
@@ -94,11 +95,21 @@ export async function executeDiscovery(
 ): Promise<Result<ModuleExecutionResult>> {
   try {
     // 1. Get graph context
-    const presentState = getPresentState(userId)
+    // lm-v2-2-shot2: Present({scope: {user: userId}}) per LM v2.2 §D — partial
+    // params (scope only); R3 fills axes + limit defaults.
+    const presentState = Present({ scope: { user: userId } })
 
-    // 2. Build discovery prompt
-    const statementsBlock = presentState.statements.length > 0
-      ? presentState.statements.map(s => s.value).join('\n')
+    // 2. Build discovery prompt.
+    // lm-v2-2-shot4: PresentState v2.2 §D shape — render content from
+    // projected NodeIds via F-memory accessors. Content-only rendering per
+    // D-RENDERING-PATTERN.
+    const userGraph = getUserGraph(userId)
+    const globalGraph = getGlobalGraph()
+    const statementsBlock = presentState.projected.length > 0
+      ? presentState.projected
+          .map(id => userGraph.nodes.get(id)?.content ?? globalGraph.nodes.get(id)?.content ?? '')
+          .filter(s => s.length > 0)
+          .join('\n')
       : '(no prior knowledge)'
 
     const prompt = [

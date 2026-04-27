@@ -4,12 +4,12 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v2-2-shot2, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R0
 // wires-in:
-//   W-ATOM  MemNode, MemEdge, MemGraph, PresentState, TraversalOptions, EdgePrimitiveType  ←  F-memory/R0
-//   W-FN    traverse(), getPresentState()  ←  F-memory/R3
+//   W-ATOM  MemNode, MemEdge, MemGraph, PresentState, TraversalOptions, EdgePrimitiveType  ←  F-memory/R3
+//   W-FN    traverse(), Present()  ←  F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
 //   W-EVENT pipeline.started, pipeline.completed, pipeline.failed, stage.completed, stage.failed  ←  F-planner/R0 (via event bus, A5)
 //   W-FN    getApiKey()  ←  F-user-profile/R3
 //   W-FN    emitEvent(), subscribeToEvent()  ←  F-event-system/R3

@@ -11,7 +11,7 @@
 //   W-ATOM  providerForModel       ←  F-ai-adapter/R0 (ai-adapter-config)
 //   W-ATOM  MODELS                 ←  F-ai-adapter/R0 (ai-adapter-config)
 //   W-FN    traverse()             ←  F-memory/R3 (memory-contract)
-//   W-FN    getPresentState()      ←  F-memory/R3 (memory-contract)
+//   W-FN    Present()              ←  F-memory/R3 (memory-contract; LM v2.2 §D, replaces v2.1 getPresentState)
 //   W-FN    getApiKey()            ←  F-user-profile/R3 (user-profile-contract)
 //   W-ATOM  PROVIDERS              ←  F-user-profile/R0 (provider-keys-config)
 //   W-ATOM  ProviderId             ←  F-user-profile/R0 (provider-keys-config)

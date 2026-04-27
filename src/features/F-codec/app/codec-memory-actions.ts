@@ -4,13 +4,13 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM  MemoryAction       ←  F-codec/R0
-//   W-ATOM  MemNode            ←  F-memory/R0
-//   W-ATOM  EdgePrimitiveType  ←  F-memory/R0
+//   W-ATOM  MemNode            ←  F-memory/R3
+//   W-ATOM  EdgePrimitiveType  ←  F-memory/R3
 //   W-FN    traverse()         ←  F-memory/R3
 //   W-FN    getUserGraph()     ←  F-memory/R3
 //   W-FN    emitEvent()        ←  F-event-system/R3
@@ -18,7 +18,7 @@
 //   W-FN  executeMemoryAction()  →  F-codec/R4 (API route)
 // deps:
 //   R0  ../config/codec-memory-types    (type only)
-//   R0  ../../F-memory/config/memory-types  (type only)
+//   R3  ../../F-memory/contract/memory-contract  (type only)
 // validated:  pending
 
 // Memory program action orchestrator.
@@ -31,7 +31,7 @@
 
 import type { Result } from '@/core/types/primitives'
 import type { MemoryAction } from '../config/codec-memory-types'
-import type { EdgePrimitiveType } from '@/features/F-memory/config/memory-types'
+import type { EdgePrimitiveType } from '@/features/F-memory/contract/memory-contract'
 import { traverse, getUserGraph } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 

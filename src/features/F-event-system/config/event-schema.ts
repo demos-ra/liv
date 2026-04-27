@@ -3,6 +3,8 @@
 // Built with LIV · livai.dev
 // R0 — re-export barrel only. Zero declarations. Zero owned event strings.
 // A5: each slice declares its own events. This file re-exports only.
+// lm-v2-2-shot5-fix-2: F-memory MEMORY_EVENTS routed via R3 per A2 (F3 closure).
+// Other slices retain R0→R0 aggregation pattern; system-wide closure is post-beta hygiene.
 // Adding a new slice = one import line + one entry in EVENTS.
 
 import { IDENTITY_EVENTS }    from '@/features/F-identity/config/auth-events'
@@ -10,7 +12,7 @@ import { SESSION_EVENTS }     from '@/features/F-identity/config/auth-events'
 import { PERMISSIONS_EVENTS } from '@/features/F-permissions/config/permissions-events'
 import { AI_EVENTS }          from '@/features/F-ai-adapter/config/ai-events'
 import { CHAT_EVENTS }        from '@/features/F-chat/config/chat-events'
-import { MEMORY_EVENTS }      from '@/features/F-memory/config/memory-events'
+import { MEMORY_EVENTS }      from '@/features/F-memory/contract/memory-contract'
 import { PROJECT_EVENTS }     from '@/features/F-project/types/project-events'
 import { PLANNER_EVENTS }     from '@/features/F-planner/types/planner-events'
 import { OUTPUT_EVENTS }      from '@/features/F-output/types/output-events'

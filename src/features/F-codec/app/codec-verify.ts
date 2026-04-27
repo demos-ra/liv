@@ -4,16 +4,17 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    none
+// amended:    lm-v2-2-shot2, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM   FrameworkModule, ModuleExecutionResult  F-codec/R0
 //   W-ATOM   CODEC_CONFIG                            F-codec/R0
-//   W-ATOM   PresentState                            F-memory/R0
+//   W-ATOM   PresentState                            F-memory/R3
 //   W-ATOM   ARTIFACT_PREFIX                         F-codec/R0
 //   W-HOOK   executeModule()                         F-codec/R3 (codec-inject)
-//   W-HOOK   getPresentState()                       F-memory/R3
+//   W-HOOK   Present()                               F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
+//   W-HOOK   getUserGraph(), getGlobalGraph()        F-memory/R3 (lm-v2-2-shot4: render projected NodeIds)
 //   W-INJECT createArtifact()                        F-codec/R2 (codec-artifact, 6.7)
 // wires-out:
 //   W-INJECT  executeVerification()  → F-codec/R2 (codec-orchestrate)
@@ -38,7 +39,7 @@ import type { ArtifactData } from '../config/codec-artifact-types'
 import { ARTIFACT_PREFIX } from '../config/codec-artifact-types'
 import { CODEC_CONFIG } from '../config/codec-types'
 import { executeModule } from '../contract/codec-inject'
-import { getPresentState } from '@/features/F-memory/contract/memory-contract'
+import { Present, getUserGraph, getGlobalGraph } from '@/features/F-memory/contract/memory-contract'
 import { createArtifact } from './codec-artifact'
 
 // ─── Module Definition ──────────────────────────────────────────────────────
@@ -85,17 +86,24 @@ export async function executeVerification(
   modelId:    string | undefined,
 ): Promise<Result<ModuleExecutionResult>> {
   try {
-    // 1. Get graph context
-    const presentState = getPresentState(userId)
+    // 1. Get graph context.
+    // lm-v2-2-shot2: Present({scope: {user: userId}}) per LM v2.2 §D.
+    const presentState = Present({ scope: { user: userId } })
 
-    // 2. Identify verification subject — artifact references in present state
-    const artifactRefs = presentState.statements
-      .filter(s => s.value.includes(ARTIFACT_PREFIX))
-      .map(s => s.value)
+    // 2. Identify verification subject — artifact references in present state.
+    // lm-v2-2-shot4: render projected NodeIds via F-memory accessors; filter
+    // by content prefix.
+    const userGraph = getUserGraph(userId)
+    const globalGraph = getGlobalGraph()
+    const projectedContents = presentState.projected
+      .map(id => userGraph.nodes.get(id)?.content ?? globalGraph.nodes.get(id)?.content ?? '')
+      .filter(s => s.length > 0)
+    const artifactRefs = projectedContents.filter(c => c.includes(ARTIFACT_PREFIX))
 
-    // 3. Build verification prompt
-    const statementsBlock = presentState.statements.length > 0
-      ? presentState.statements.map(s => s.value).join('\n')
+    // 3. Build verification prompt.
+    // Content-only rendering per D-RENDERING-PATTERN.
+    const statementsBlock = projectedContents.length > 0
+      ? projectedContents.join('\n')
       : '(no prior knowledge)'
 
     const prompt = [

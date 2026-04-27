@@ -4,18 +4,18 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, 4b-nodeid-propagation
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2
 // slice:      F-codec
 // layer:      R1
 // wires-in:
 //   W-ATOM  NodeId              core/R5 (primitives)
-//   W-ATOM  MemGraph            F-memory/R0
-//   W-ATOM  MemNode             F-memory/R0
-//   W-ATOM  MemEdge             F-memory/R0
-//   W-ATOM  MemArm              F-memory/R0
-//   W-ATOM  MLayer              F-memory/R0
-//   W-ATOM  EdgePrimitiveType   F-memory/R0
-//   W-ATOM  ScopedGraphSet      F-memory/R0
+//   W-ATOM  MemGraph            F-memory/R3
+//   W-ATOM  MemNode             F-memory/R3
+//   W-ATOM  MemEdge             F-memory/R3
+//   W-ATOM  MemArm              F-memory/R3
+//   W-ATOM  MLayer              F-memory/R3
+//   W-ATOM  EdgePrimitiveType   F-memory/R3
+//   W-ATOM  ScopedGraphSet      F-memory/R3
 //   W-ATOM  DecodeOutput        F-codec/R0
 //   W-ATOM  RelationType        F-codec/R0
 //   W-ATOM  ARTIFACT_PREFIX     F-codec/R0
@@ -23,7 +23,7 @@
 //   W-ATOM  FrameworkMode       F-codec/R0
 // wires-out:  none (consumed by R2 codec-orchestrate and R1 codec-decode-render)
 // deps:
-//   R0  ../../F-memory/config/memory-types
+//   R3  ../../F-memory/contract/memory-contract
 //   R0  ../config/codec-decode-types
 //   R0  ../config/codec-artifact-types
 //   R5  @/core/types/primitives
@@ -45,7 +45,7 @@ import type {
   MLayer,
   EdgePrimitiveType,
   ScopedGraphSet,
-} from '@/features/F-memory/config/memory-types'
+} from '@/features/F-memory/contract/memory-contract'
 
 import type {
   DecodeOutput,

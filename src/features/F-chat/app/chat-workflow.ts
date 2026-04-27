@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit
+// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3
 // slice:      F-chat
 // layer:      R2
 // wires-in:
@@ -14,7 +14,7 @@
 //   W-INJECT  lmTraverseWrite    F-chat/R4 (lm-io)
 //   W-HOOK   streamAIResponse F-ai-adapter/R3
 //   W-HOOK   traverse         F-memory/R3
-//   W-HOOK   getPresentState  F-memory/R3
+//   W-HOOK   Present          F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
 //   W-HOOK   getApiKey        F-user-profile/R3
 //   W-ATOM    providerForModel F-ai-adapter/R0
 //   W-ATOM    PROVIDERS        F-user-profile/R0
@@ -49,7 +49,8 @@ import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { lmTraverseWrite } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
-import { traverse, getPresentState } from '@/features/F-memory/contract/memory-contract'
+import { traverse, Present } from '@/features/F-memory/contract/memory-contract'
+import type { ScopeFilter, AxisSet } from '@/features/F-memory/contract/memory-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
 import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
@@ -108,8 +109,18 @@ export interface SendMessageInput {
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
   const { projectId, content, modelId, userId, systemContext } = input
 
-  // v1.1: MemoryDeps for write path only
-  const memoryDeps = { traverse, getPresentState, userId }
+  // v1.1: MemoryDeps for write path only.
+  // lm-v2-2-shot2: getPresentState field renamed to `present` per LM v2.2 §D
+  // (D-PRESENT-OPTIONAL-PARAMS). Branch resolves R3 Present overload at call
+  // time (zero-arg or partial-optional params).
+  // lm-v2-2-shot3 (D-LIAISON-STRIKE close): wrapper signature uses R0 atoms
+  // imported via R3 cross-slice; inline structural type struck.
+  const memoryDeps = {
+    traverse,
+    present: (params?: { scope?: ScopeFilter; axes?: AxisSet; limit?: number }) =>
+      params ? Present(params) : Present(),
+    userId,
+  }
 
   // Session rotation
   const state = getOrCreateSessionState(userId)
