@@ -1,7 +1,7 @@
-# v3.2.1 Spec — Metaframework System (Phase 1.2-fix-trail hygiene)
+# v3.2.3 Spec — Metaframework System
 
 **Status:** Phase 1.2-fix-trail hygiene output. Patch-level amendment of v3.2 per v2 re-audit RF-01..RF-06 residue disposition.
-**Version:** v3.2.1 (Phase 1.2-fix-trail hygiene delivery; supersedes v3.2 → v3.1 → v3.0-r1 → v3.0 original).
+**Version:** v3.2.3 (Phase v3.2.3 delivery; supersedes v3.2.1 → v3.2 → v3.1 → v3.0-r1 → v3.0 original).
 **Scope:** Six-file metaframework system (substrate, registry, metaframework, generation-procedure, framework-audit, amendment-propagation).
 **Authority:** L0 confirmed through Phase 8 + Phase 1.1 + Phase 1.2 + Phase 1.2-fix + Phase 1.2-fix-trail hygiene. Terminal gate per §7.
 **Prior artifact:** v3-0-spec.md (Phase 9a) → v3-1-spec.md (Phase 1.2) → v3.2 (Phase 1.2-fix) → this revision (Phase 1.2-fix-trail hygiene).
@@ -206,16 +206,16 @@ J-axiom-dist:
 
 | Axis | Count | IDs |
 |---|---|---|
-| Identity | 5 | MA-I1 to MA-I5 |
-| Schema | 3 | MA-S1 to MA-S3 |
-| Structure | 5 | MA-St1 to MA-St5 |
-| Validity | 5 | MA-V1 to MA-V5 |
-| Lifecycle | **7** | MA-L1 to MA-L5 + **MA-L6 + MA-L7** |
-| Coupling | 6 | MA-C1 to MA-C6 |
-| Judgment | 4 | MA-J1 to MA-J4 |
+| Identity | 7 | MA-I1 to MA-I5 + MA-I6, MA-I7 (v3.2.3) |
+| Schema | 6 | MA-S1 to MA-S3 + MA-S4, MA-S5, MA-S6 (v3.2.3) |
+| Structure | 16 | MA-St1 to MA-St5 + MA-St6 to MA-St16 (v3.2.3) |
+| Validity | 9 | MA-V1 to MA-V5 + MA-V6, MA-V7, MA-V8, MA-V9 (v3.2.3) |
+| Lifecycle | **10** | MA-L1 to MA-L5 + **MA-L6 + MA-L7** + MA-L8, MA-L9, MA-L10 (v3.2.3) |
+| Coupling | 10 | MA-C1 to MA-C6 + MA-C7, MA-C8, MA-C9, MA-C10 (v3.2.3) |
+| Judgment | 5 | MA-J1 to MA-J4 + MA-J5 (v3.2.3) |
 | Universal | 1 | MA-G13 |
 
-**Total: 35 axis-bound + 1 universal = 36 axioms** (previously 33 + 1 = 34; Phase 1.1 adds MA-L6 + MA-L7).
+**Total: 63 axis-bound + 1 universal = 64 axioms** (previously 35 + 1 = 36; v3.2.3 adds 28 axioms across 7 axes per cycle §1.1).
 
 **Axiom bodies** (imported verbatim from v3-0-spec §3.2 per Phase 1.2 closure; MA-V5, MA-L6, MA-L7, MA-G13 declared separately below with full contextual text):
 
@@ -283,6 +283,136 @@ Framework declares genesis per framework-audit X8 (substrate §14.2–§14.5). B
 MA-V5: gate set exhaustive over framework-audit 10 audit dimensions (A-03 resolution — enumeration declared at framework-audit §3.2).
 
 **MA-V5 testability** (per A-03): MA-V5 is enumerable via framework-audit's ten declared audit dimensions (X1–X10). G-V5 tests by verifying gate-to-dimension mapping completeness.
+
+### §3.2.6 v3.2.3 axiom bodies
+
+28 axioms added at v3.2.3 cycle. Per Phase 5 of cycle (predicate authorship + predicate-testability check 28/28 pass). Sub-section organized by axis. All testability classifications marked; criteria-bounded axioms cite consuming J-input declared at framework-audit §7.6–§7.9.
+
+#### §3.2.6.1 Identity (2 axioms)
+
+**MA-I6 — Authority-source classification per audit-trail entry.**
+For every (operation o, AuthorityClaim ac) pair recorded in framework's audit trail, ac.level ∈ classify(ac.source) per J-input.
+(Testability: criteria-bounded per J-authority-source-classification, declared at framework-audit §7.6.)
+
+**MA-I7 — Four-property MA-G13 declaration completeness.**
+For every framework F in registry, F's §1 Identity declares all four MA-G13 properties: ownState (ref §5), ownIO (ref §2), ownInvariants (ref §3 axiom set), ownDiscipline (ref §3 axis decomposition + §4 gates).
+(Testability: mechanical.)
+
+#### §3.2.6.2 Schema (3 axioms)
+
+**MA-S4 — Typed-shape reference resolution.**
+For every reference r in framework prose to a typed-shape element (atom, enum-value, vocabulary-term), there exists declared instance d such that r resolves to d (atoms → §2.4; enums → substrate §9 / framework-local §3; vocabulary → §3.5 + substrate §9).
+(Testability: mechanical.)
+
+**MA-S5 — Cross-file atom-instance value consistency.**
+For every cross-file restatement of an atom-instance value (cardinality, count, or other declared atom-instance scalar), all restatements across canonical-package files resolve to the same value.
+(Testability: mechanical.)
+
+**MA-S6 — ID-set cardinality + resolution.**
+For every gate-set or other ID-set atom in framework's local atom set with `cardinality: N` property, the enumerated ID list has length N; every ID resolves to a declared instance.
+(Testability: mechanical.)
+
+#### §3.2.6.3 Structure (11 axioms)
+
+**MA-St6 — Empty-declaration zero-children.**
+For every primitive-instance site x in framework where `emptyDeclared:true` is declared, x has zero child element declarations (no nested sub-axes, leaves, axioms, gates, HRs, or other instances).
+(Testability: mechanical.)
+
+**MA-St7 — Primitive prose-claim signature coverage.**
+For every primitive P with declared signature, and for every prose-claim about P, the dimension d named in the prose-claim ∈ S(P) ∪ R(P), where S(P) = signature parameters and R(P) = explicitly-declared external resolution references. Prose-claim extraction rule: a prose-claim about P is any sentence in framework §3 (Structure) or §2 (Schema) that (a) names P (by primitive-id or substrate-§8-declared-name), (b) followed within the same sentence or paragraph by a property descriptor — words "has", "with", "carries", "owns", "declares", "covers", "exposes" — and (c) is not inside a code block.
+(Testability: mechanical.)
+
+**MA-St8 — External-resolution dimension coverage.**
+For every primitive P, every dimension d ∈ R(P) has a declared resolution mechanism (named axiom, named gate, named handoff).
+(Testability: mechanical.)
+
+**MA-St9 — P8 reference resolution by kind.**
+For every P8 procedure-step instance ps: if ps.kind = `judgment-input`, ps.judgmentInputRef resolves to declared P7 in framework §7; if ps.kind = `gate-execution`, every entry in ps.gates resolves to declared P5 in framework §4.
+(Testability: mechanical.)
+
+**MA-St10 — P7 instance field completeness.**
+For every P7 instance ji declared in framework §7, ji has populated fields: `criteria` (non-empty list), `judgmentId` (resolvable identifier), `mechanicalGround` (resolvable per MA-J5).
+(Testability: mechanical.)
+
+**MA-St11 — Axis concern-coverage by axiom set.**
+For every axis or sub-axis x with concern-statement c, the collective axiom set bound to x covers c — every subclaim s in concern-decomposition(c) is tested by ≥1 axiom bound to x.
+(Testability: criteria-bounded per J-axis-concern-coverage, declared at framework-audit §7.7.)
+
+**MA-St12 — P8 order injection.**
+For every framework procedure (P8 instances belonging to one operation, identified by shared operation-identifier), the `order` field is a total injection — no two instances share the same order value.
+(Testability: mechanical.)
+
+**MA-St13 — Single-condition + no-axiom-as-test-reference.**
+For every axiom a, a.text states exactly one mechanical condition (a.text contains exactly one assertion clause, identifiable by single declarative verb-phrase) AND a.text contains no axiom-as-test-reference shape (no clause matching pattern "tests <gate-id>" or "is verified by <gate-id>" embedded in axiom statement).
+(Testability: mechanical.)
+
+**MA-St14 — Axiom text declarative-form.**
+For every axiom a, a.text is in declarative form per AxR4.
+(Testability: criteria-bounded per J-axiom-text-declarative, declared at framework-audit §7.8.)
+
+**MA-St15 — Cardinality declared-vs-enumerated.**
+For every primitive cardinality declaration c in framework §3.4, c.declaredCount = count(c.enumeratedInstances); cross-primitive cardinality assertions (e.g., "P3 count = P4 count" if "one leaf per axiom" declared) hold.
+(Testability: mechanical.)
+
+**MA-St16 — Axiom testability classification.**
+For every axiom a, a declares testability classification ∈ {`mechanical`, `criteria-bounded`}; criteria-bounded axioms declare bound-J-input ref.
+(Testability: mechanical.)
+
+#### §3.2.6.4 Validity (4 axioms)
+
+**MA-V6 — Predicate-condition implication for axiom-gate pairs.**
+For every (axiom a, gate g) pair where g.tests includes a, g.predicate's mechanical conditions imply a.condition (1:1 mapping per G-M1: equivalence required; multi-axiom-gate per A-24: conjunction of g.predicate conditions over g.tests entries collectively cover each tested axiom's condition). Implication test grounds via substrate §6.3 mechanical-criterion ground; non-trivial implication cases that cannot be reduced to substrate §6.3 are surfaced as audit-note for L0 review (does NOT escalate to J-input — predicate remains mechanical with declared edge-case caveat).
+(Testability: mechanical with declared edge-case audit-note caveat.)
+
+**MA-V7 — Gate-tests reference resolution.**
+For every gate g, every reference in g.tests resolves to a declared axiom in framework's axiom set (§3.2).
+(Testability: mechanical.)
+
+**MA-V8 — Authority-required ≤ AuthorityClaim under enum order.**
+For every (operation o, triggering AuthorityClaim ac) pair recorded in framework's audit trail, o.requiredAuthority ≤ ac.level under substrate §5 authority-enum partial order.
+(Testability: mechanical.)
+
+**MA-V9 — Gate-rule (GR-1..GR-6) conformance.**
+For every declared gate g in framework, g conforms to GR-1..GR-6 (declared at framework-audit §4.6.1): GR-1 Claim declared; GR-2 Test kind ∈ {mechanical, criteria-bounded} with kind-specific fields; GR-3 Reporting declared with `result ∈ {pass, fail, n/a}` and basis-when-n/a; GR-4 Tests-axiom binding declared (≥1 axiom ref); GR-5 Escalation path declared per MA-L4; GR-6 Result is binary.
+(Testability: mechanical.)
+
+#### §3.2.6.5 Lifecycle (3 axioms)
+
+**MA-L8 — Amendment-trigger context classification.**
+For every amendment cycle c in framework's amendment log, c.declaredTrigger ∈ {`vision`, `gap`, `L0-directive`} matches actual surfacing-context classification per J-amendment-trigger-context.
+(Testability: criteria-bounded per J-amendment-trigger-context, declared at framework-audit §7.9.)
+
+**MA-L9 — Version-transition no-removal.**
+For every version transition F.vN → F.vN+1, diff(vN, vN+1) contains no removal of declared elements (axioms, gates, primitives, HRs, atoms, J-inputs, P8 steps); only additions and modifications-of-non-removable-fields permitted.
+(Testability: mechanical.)
+
+**MA-L10 — Confirmation-log monotonicity.**
+For every confirmation log (ordered by timestamp), state transitions are monotonic: no entry transitions a state from `confirmed` back to `unconfirmed` or `pending`.
+(Testability: mechanical.)
+
+#### §3.2.6.6 Coupling (4 axioms)
+
+**MA-C7 — Custody cross-boundary HR coverage.**
+For every cross-framework data-flow declared in framework's custody table — atom row with cross-boundary direction or cross-framework consumer — there exists a declared HR in §6.2 whose direction and endpoints match.
+(Testability: mechanical.)
+
+**MA-C8 — HR endpoint registry resolution.**
+For every HR h in framework §6.2, h.endpoints (FrameworkRef values) resolve to registry-registered frameworks OR h declares bootstrap-exemption basis.
+(Testability: mechanical.)
+
+**MA-C9 — Cross-framework ID-content coherence.**
+For every pair of frameworks F1, F2 in registry.activeFrameworks, for every ID-bearing element e (axiom, gate, J-input, HR, primitive instance) declared by F1 with same ID as e' declared by F2, content(e) = content(e') OR registry declares the cross-framework ID-overlap as exempt with basis.
+(Testability: mechanical.)
+
+**MA-C10 — Substrate-version pin uniformity.**
+For every pair of frameworks F1, F2 in registry.activeFrameworks, F1.substrateVersion = F2.substrateVersion OR one declares cross-framework substrate-version exemption with basis.
+(Testability: mechanical.)
+
+#### §3.2.6.7 Judgment (1 axiom)
+
+**MA-J5 — J-input mechanicalGround field resolution.**
+For every J-input declaration ji in framework §7 with `mechanicalGround: g` field, g resolves to a declared substrate or framework reference (substrate § ref or framework F.§ ref where F is registry-registered).
+(Testability: mechanical.)
 
 ### §3.3 Schema
 
@@ -362,19 +492,19 @@ GeneratedFrameworkTemplate = {
 
 ### §3.4 Gates
 
-**56 total gates after Phase 1.1** (was 54; added 2 gates for MA-L6 + MA-L7).
+**84 total gates after v3.2.3** (was 56 at v3.2.1; v3.2.3 adds 28 paired gates for 28 new axioms).
 
 | Category | Count |
 |---|---|
 | Substrate gates (SG1–SG4) | 4 |
 | Primitive gates (PG1–PG7) | 7 |
-| Axiom gates (1 per axiom) | **35** (was 33) |
+| Axiom gates (1 per axiom) | **63** (was 35; v3.2.3 +28) |
 | Universal MA-G13 gate | 1 |
 | F-69 universal gates | 5 |
 | Meta-gates | 4 |
-| **Total** | **56** |
+| **Total** | **84** |
 
-**Framework-tier gates (run per framework): 52** (was 43; per metaframework-v3-1 §4.7 enumeration: 7 PG + 35 axiom + 1 MA-G13 + 5 F-69 + 4 meta. Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics. PG1–PG7 are per-framework-tier per substrate §11.5 tier-2 classification.)
+**Framework-tier gates (run per framework): 80** (was 52; per metaframework-v3-1 §4.7 enumeration: 7 PG + 63 axiom + 1 MA-G13 + 5 F-69 + 4 meta. Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics. PG1–PG7 are per-framework-tier per substrate §11.5 tier-2 classification.)
 
 **Meta-gates specified** (per A-06):
 
@@ -419,7 +549,7 @@ Backward-invalidation propagation:
 | G-U4 Primitive declaration | substrate | framework-audit |
 | G-U5 Provenance completeness | metaframework | framework-audit AND amendment-propagation |
 
-**Gate rules (GR-series):** unchanged.
+**Gate rules (GR-series):** GR-1..GR-6 declared authoritatively at framework-audit §4.6.1 (v3.2.3 cycle, closure item 1). Every declared gate (substrate-tier + framework-tier + framework-audit own) conforms to GR-1..GR-6; conformance tested by MA-V9 / G-V9 (added v3.2.3).
 
 ### §3.5 Handoff rules (HR0–HR6)
 
@@ -756,7 +886,7 @@ Replaces editorial self-audit with declared gate suite. Each gate has mechanical
 
 **G-spec-5 — Axiom-axis binding completeness.**
 *Claim:* every axiom in §3.2 has declared axis (per AxR1).
-*Test (mechanical):* enumerate 35 axis-bound axioms + MA-G13; verify each has declared axis (MA-{axis-code}-{n} format) or universal marker.
+*Test (mechanical):* enumerate 63 axis-bound axioms + MA-G13; verify each has declared axis (MA-{axis-code}-{n} format) or universal marker.
 *Expected result:* pass. §3.2 table enumerates all with axis assignment.
 
 **G-spec-6 — Spec MA-G13 exemption basis.**
@@ -788,7 +918,7 @@ Gates G-spec-1 through G-spec-8 executed at spec finalization. Results:
 | G-spec-2 | pass | all candidate terms declared at substrate §9 or framework §3 |
 | G-spec-3 | pass | §5.1 (73 Layer 1) + §5.2 (50 Phase 1.1) cover full input set |
 | G-spec-4 | pass | G-M1–G-M4 specified in §3.4 |
-| G-spec-5 | pass | 35+1 axioms with axis assignment in §3.2 table |
+| G-spec-5 | pass | 63+1 axioms with axis assignment in §3.2 table |
 | G-spec-6 | pass | §7.3 declares exemption basis |
 | G-spec-7 | pass | §7.4 version + state transitions + propagation declared |
 | G-spec-8 | pass | §1.4 names "Self-Mapping Audit Procedure" with three passes |

@@ -121,16 +121,37 @@ Runtime implementation deferred per Phase 9c scope guard. Signatures only at thi
 
 **Bootstrap-event write executed at Phase 9h terminal cross-file gate (2026-04-23T00:00:00Z). Pre-bootstrap: empty. Post-bootstrap: entries below per substrate §14.5 non-re-entrancy.**
 
-| frameworkRef | generationProvenance | currentLifecycleState | grandfathered | writeTimestamp |
-|---|---|---|---|---|
-| substrate-v1.2 | null (L0 hand-authored; bootstrap substrate) | applied | true | 2026-04-23T00:00:00Z |
-| framework-registry-v1.0 | null (L0 hand-authored; bootstrap state store) | applied | true | 2026-04-23T00:00:00Z |
-| metaframework-v3.2.1 | null (L0 hand-authored + Phase 1.2/1.2-fix/hygiene amendments; bootstrap framework) | applied | true | 2026-04-23T00:00:00Z |
-| generation-procedure-v1.1.1 | null at bootstrap (no prior metaframework pre-bootstrap); post-bootstrap amendments per Phase 1.2-fix/hygiene | applied | true | 2026-04-23T00:00:00Z |
-| framework-audit-v1.3.1 | null at bootstrap; post-bootstrap amendments per Phase 1.2-fix/hygiene | applied | true | 2026-04-23T00:00:00Z |
-| amendment-propagation-v1.1 | null at bootstrap; post-bootstrap amendments per Phase 1.2-fix | applied | true | 2026-04-23T00:00:00Z |
+| frameworkRef | generationProvenance | currentLifecycleState | amendmentLog (recent) | grandfathered | writeTimestamp |
+|---|---|---|---|---|---|
+| substrate-v1.2 | null (L0 hand-authored; bootstrap substrate) | applied | [] | true | 2026-04-23T00:00:00Z |
+| framework-registry-v1.0 | null (L0 hand-authored; bootstrap state store) | applied | [] | true | 2026-04-23T00:00:00Z |
+| metaframework-v3.2.3 | null (L0 hand-authored + Phase 1.2/1.2-fix/hygiene amendments + v3.2.3; bootstrap framework) | applied | [v3.2.3-cycle entry; see §5.1] | true | 2026-04-23T00:00:00Z |
+| generation-procedure-v1.1.2 | null at bootstrap (no prior metaframework pre-bootstrap); post-bootstrap amendments per Phase 1.2-fix/hygiene/v3.2.3 | applied | [v3.2.3-cycle entry; see §5.1] | true | 2026-04-23T00:00:00Z |
+| framework-audit-v1.3.2 | null at bootstrap; post-bootstrap amendments per Phase 1.2-fix/hygiene/v3.2.3 | applied | [v3.2.3-cycle entry; see §5.1] | true | 2026-04-23T00:00:00Z |
+| amendment-propagation-v1.2 | null at bootstrap; post-bootstrap amendments per Phase 1.2-fix/v3.2.3 | applied | [v3.2.3-cycle entry; see §5.1] | true | 2026-04-23T00:00:00Z |
 
 **Bootstrap-event integrity:** MA-L7 non-re-entrancy holds. Single bootstrap write; subsequent amendments will proceed via declared procedure (amendment-propagation HR-AP3 emit) not via re-bootstrap.
+
+### §5.1 v3.2.3 cycle AmendmentLogEntry
+
+Single AmendmentLogEntry appended to `amendmentLog[]` field of metaframework, generation-procedure, framework-audit, amendment-propagation, and spec RegistryEntries per registry §2.4 + W3 + Finding 2 disposition (per-entry append, honoring §2.1 schema).
+
+```
+AmendmentLogEntry = {
+  amendmentId: 'v3.2.3-declaration-tier-additive',
+  amendmentTrigger: 'gap',
+  versionFrom: 'v3.2.1',
+  versionTo: 'v3.2.3',
+  amendmentTimestamp: '2026-04-27T00:00:00Z',
+  authorityClaim: {
+    level: 'L0',
+    source: 'L0-confirmation',
+    target: ['metaframework-v3.2.3', 'generation-procedure-v1.1.2', 'framework-audit-v1.3.2', 'amendment-propagation-v1.2', 'v3-1-spec-v3.2.3']
+  }
+}
+```
+
+**Cycle scope:** 28 axioms + 28 paired gates + 4 J-inputs + 1 GR-series rule set added. Substrate v1.2 unchanged. Per AP §5.7 single-batched cycle; one AmendmentEvent processed.
 
 ---
 
@@ -204,6 +225,7 @@ Every `RegistryEntry` with `grandfathered: false` requires non-null `generationP
 |---|---|---|---|
 | v1.0 | Phase 9c delivery | Initial registry declaration (§1–§8). Non-framework state store. Consumes substrate-v1-1. IG1–IG5 declared. §5/§6/§7 empty pending bootstrap. | L0 |
 | v1.0 (content) | Phase 9h delivery | Bootstrap-event write at 2026-04-23T00:00:00Z: §5 Current entries populated with 6 framework rows (substrate-v1.2, framework-registry-v1.0, metaframework-v3.2.1, generation-procedure-v1.1.1, framework-audit-v1.3.1, amendment-propagation-v1.1); all `grandfathered: true`; all `currentLifecycleState: applied`. MA-L7 non-re-entrancy invariant held. No schema amendment; data-only write per §3 Write discipline + IG1-IG5. Version unchanged — registry schema is v1.0 at Phase 9c; content populated at 9h is the first data transition. | L0 |
+| v1.0 (content) | Phase v3.2.3 delivery (2026-04-27) | Single-batched amendment cycle landed: AmendmentLogEntry appended to `amendmentLog[]` field of metaframework, generation-procedure, framework-audit, amendment-propagation, spec entries per W3. §5 table extended with `amendmentLog (recent)` column. §5.1 cycle AmendmentLogEntry rendered. Versions advanced: metaframework v3.2.1→v3.2.3, generation-procedure v1.1.1→v1.1.2, framework-audit v1.3.1→v1.3.2, amendment-propagation v1.1→v1.2, spec v3.2.1→v3.2.3. IG1–IG5 integrity: pass (AuthorityClaim signed; append-only honored; FrameworkRef updates per amendment path not re-registration; generation-provenance unchanged grandfathered=true; lifecycle state unchanged). Registry schema v1.0 unchanged. | L0 |
 
 ---
 

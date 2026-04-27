@@ -3,8 +3,8 @@
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v3.2.1
-**Authority:** L0 confirmed (Phase 1.2-fix-trail hygiene delivery)
+**Version:** v3.2.3
+**Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1, framework-registry-v1-0
 **Consumed by:** generation-procedure, framework-audit, amendment-propagation, generated L3 frameworks
 **Dependencies:** substrate-v1-1 (by reference, per HR1), framework-registry-v1-0 (by reference, per HR5)
@@ -22,7 +22,7 @@ Metaframework is the L2 framework that produces L3 framework templates. It decla
 | Kind | Framework |
 | Mode | generative (substrate §2 Modes) |
 | Level | L2 |
-| Version | v3.2.1 |
+| Version | v3.2.3 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -40,7 +40,7 @@ Metaframework is the L2 framework that produces L3 framework templates. It decla
 |---|---|
 | Own state | axiom set + gate results + lifecycle state (per §4, §5, §8) |
 | Own I/O | `MetaframeworkInput` → `GeneratedFrameworkTemplate` (per §2) |
-| Own invariants | 35 axis-bound structural-transformation axioms + MA-G13 universal (per §3) |
+| Own invariants | 63 axis-bound structural-transformation axioms + MA-G13 universal (per §3) |
 | Own discipline | generation procedure (invoked via HR2) + audit gates (§4) + amendment propagation (HR4) |
 
 All four properties declared. MA-G13 passes. Metaframework is classified as framework (not state store).
@@ -180,17 +180,17 @@ Rendered from v3-1-spec §3.1.
 
 ### §3.2 Axioms distributed
 
-**Count: 35 axis-bound + 1 universal = 36 axioms.** Rendered from v3-1-spec §3.2.
+**Count: 63 axis-bound + 1 universal = 64 axioms.** Rendered from v3-1-spec §3.2.
 
 | Axis | Count | IDs |
 |---|---|---|
-| Identity | 5 | MA-I1, MA-I2, MA-I3, MA-I4, MA-I5 |
-| Schema | 3 | MA-S1, MA-S2, MA-S3 |
-| Structure | 5 | MA-St1, MA-St2, MA-St3, MA-St4, MA-St5 |
-| Validity | 5 | MA-V1, MA-V2, MA-V3, MA-V4, MA-V5 |
-| Lifecycle | 7 | MA-L1, MA-L2, MA-L3, MA-L4, MA-L5, MA-L6, MA-L7 |
-| Coupling | 6 | MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6 |
-| Judgment | 4 | MA-J1, MA-J2, MA-J3, MA-J4 |
+| Identity | 7 | MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7 |
+| Schema | 6 | MA-S1, MA-S2, MA-S3, MA-S4, MA-S5, MA-S6 |
+| Structure | 16 | MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16 |
+| Validity | 9 | MA-V1, MA-V2, MA-V3, MA-V4, MA-V5, MA-V6, MA-V7, MA-V8, MA-V9 |
+| Lifecycle | 10 | MA-L1, MA-L2, MA-L3, MA-L4, MA-L5, MA-L6, MA-L7, MA-L8, MA-L9, MA-L10 |
+| Coupling | 10 | MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6, MA-C7, MA-C8, MA-C9, MA-C10 |
+| Judgment | 5 | MA-J1, MA-J2, MA-J3, MA-J4, MA-J5 |
 | Universal | 1 | MA-G13 |
 
 #### §3.2.1 Axioms with full text declared in v3-1-spec §3.2
@@ -211,17 +211,17 @@ Any declared element with all four of (own state, own I/O, own invariants, own d
 
 #### §3.2.2 Axioms declared by ID + axis binding only (verbatim text not in v3-1-spec §3.2)
 
-The remaining 32 axioms are declared in v3-1-spec §3.2 by ID and axis binding only. Canonical axiom text was authored at earlier Phase 3/4 cycles and is present in prior metaframework revisions (v2.5, v3.0 original). Phase 9d renders the current spec; axiom text source is flagged as audit note (see phase-9d-delivery-report.md §4.5).
+The remaining 60 axioms are declared in v3-1-spec §3.2 by ID and axis binding only (32 inherited from earlier cycles + 28 added at v3.2.3). Canonical axiom text for inherited axioms was authored at earlier Phase 3/4 cycles and is present in prior metaframework revisions (v2.5, v3.0 original); v3.2.3 axiom text authored at Phase 5 of cycle and rendered at v3-1-spec §3.2.6 (added at v3.2.3 cascade). Phase 9d renders inherited spec; axiom text source for inherited remains flagged as audit note (see phase-9d-delivery-report.md §4.5).
 
 Axioms rendered by ID + axis binding per v3-1-spec §3.2:
 
-- **Identity (A1):** MA-I1, MA-I2, MA-I3, MA-I4, MA-I5 — each binds to Identity axis per AxR1; each states one mechanical condition directly per AxR2.
-- **Schema (A2):** MA-S1, MA-S2, MA-S3 — each binds to Schema axis per AxR1.
-- **Structure (A3):** MA-St1, MA-St2, MA-St3, MA-St4, MA-St5 — each binds to Structure axis per AxR1.
-- **Validity (A4):** MA-V1, MA-V2, MA-V3, MA-V4 — each binds to Validity axis per AxR1. (MA-V5 full text declared §3.2.1.)
-- **Lifecycle (A5):** MA-L1, MA-L2, MA-L3, MA-L4, MA-L5 — each binds to Lifecycle axis per AxR1. (MA-L6, MA-L7 full text declared §3.2.1.)
-- **Coupling (A6):** MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6 — each binds to Coupling axis per AxR1.
-- **Judgment (A7):** MA-J1, MA-J2, MA-J3, MA-J4 — each binds to Judgment axis per AxR1.
+- **Identity (A1):** MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7 — each binds to Identity axis per AxR1; each states one mechanical condition directly per AxR2. (MA-I6 is criteria-bounded per J-authority-source-classification declared at framework-audit §7; MA-I7 mechanical.)
+- **Schema (A2):** MA-S1, MA-S2, MA-S3, MA-S4, MA-S5, MA-S6 — each binds to Schema axis per AxR1. All mechanical.
+- **Structure (A3):** MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16 — each binds to Structure axis per AxR1. (MA-St11 criteria-bounded per J-axis-concern-coverage; MA-St14 criteria-bounded per J-axiom-text-declarative; remaining mechanical.)
+- **Validity (A4):** MA-V1, MA-V2, MA-V3, MA-V4, MA-V6, MA-V7, MA-V8, MA-V9 — each binds to Validity axis per AxR1. (MA-V5 full text declared §3.2.1; MA-V6 mechanical with declared edge-case audit-note caveat; MA-V9 tests gate-rule conformance against GR-1..GR-6 declared at framework-audit §4.6.1.)
+- **Lifecycle (A5):** MA-L1, MA-L2, MA-L3, MA-L4, MA-L5, MA-L8, MA-L9, MA-L10 — each binds to Lifecycle axis per AxR1. (MA-L6, MA-L7 full text declared §3.2.1; MA-L8 criteria-bounded per J-amendment-trigger-context; MA-L9, MA-L10 mechanical.)
+- **Coupling (A6):** MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6, MA-C7, MA-C8, MA-C9, MA-C10 — each binds to Coupling axis per AxR1. All mechanical. (MA-C9 tests cross-framework ID coherence; MA-C10 tests substrate-version-pin uniformity across active frameworks.)
+- **Judgment (A7):** MA-J1, MA-J2, MA-J3, MA-J4, MA-J5 — each binds to Judgment axis per AxR1. (MA-J5 tests mechanicalGround field resolution per substrate §6.3.)
 
 ### §3.3 Axiom rules (AxR-series)
 
@@ -240,11 +240,11 @@ Per substrate §8.
 |---|---|---|
 | P1 Axis | 7 | A1–A7 |
 | P2 Sub-axis | 0 | no sub-axes declared at metaframework level; declare per-axis as MECE requires in derived L3 frameworks |
-| P3 Leaf | 36 | one per axiom (each axiom is a property-atomicity leaf under its bound axis) |
-| P4 Axiom | 36 | MA-I1..MA-I5, MA-S1..MA-S3, MA-St1..MA-St5, MA-V1..MA-V5, MA-L1..MA-L7, MA-C1..MA-C6, MA-J1..MA-J4, MA-G13 |
-| P5 Gate | 56 | see §4 Validity |
+| P3 Leaf | 64 | one per axiom (each axiom is a property-atomicity leaf under its bound axis) |
+| P4 Axiom | 64 | MA-I1..MA-I7, MA-S1..MA-S6, MA-St1..MA-St16, MA-V1..MA-V9, MA-L1..MA-L10, MA-C1..MA-C10, MA-J1..MA-J5, MA-G13 |
+| P5 Gate | 84 | see §4 Validity |
 | P6 Handoff rule | 7 | HR0–HR6 (see §6 Coupling) |
-| P7 Judgment input | 2 | J-axis-mece, J-axiom-dist (see §7 Judgment) |
+| P7 Judgment input | 2 | J-axis-mece, J-axiom-dist (see §7 Judgment). 4 additional P7 instances declared at framework-audit §7 per closure item 2: J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context. |
 | P8 Procedure step | delegated | metaframework is generative, but procedure-step instances are declared in `generation-procedure-v1-0` (consumer framework) per v3-1-spec §4.4 file-specific placement |
 
 ### §3.5 Vocabulary
@@ -262,7 +262,7 @@ Framework-local terms declared inline at point of use (per PR1, substrate §10.2
 | `DimensionResult` | §4.3 | `{dimensionId, status, evidence}` per framework-audit §3.3 |
 | `EscalationState` | §5 | `{status, gap, requiredMode}` per substrate §13.6 pattern |
 | `JudgmentDeprecation` | §5 | `{judgmentId, deprecatedAt, reason, authorityClaim}` per MA-L5 |
-| `MetaframeworkGateIdSet` | §6.5 | `string[]` enumerating all framework-tier gate IDs (52 entries); see §6.5 custody row |
+| `MetaframeworkGateIdSet` | §6.5 | `string[]` enumerating all framework-tier gate IDs (80 entries); see §6.5 custody row |
 | `VocabularyEntry` | this table | framework-local term declaration |
 | `Kind` | substrate §4 A-10 | substrate-declared enum; consumed by reference |
 | `Ownership` | substrate §4 A-11 | substrate-declared typed shape; consumed by reference |
@@ -278,19 +278,19 @@ Framework-local terms declared inline at point of use (per PR1, substrate §10.2
 
 ### §4.1 Gate count
 
-**56 total gates** per v3-1-spec §3.4.
+**84 total gates** per v3-1-spec §3.4.
 
 | Category | Count | ID range |
 |---|---|---|
 | Substrate gates (run once, not per framework) | 4 | SG1, SG2, SG3, SG4 |
 | Primitive gates (per framework) | 7 | PG1, PG2, PG3, PG4, PG5, PG6, PG7 |
-| Axiom gates (1 per axis-bound axiom) | 35 | G-I1–G-I5, G-S1–G-S3, G-St1–G-St5, G-V1–G-V5, G-L1–G-L7, G-C1–G-C6, G-J1–G-J4 |
+| Axiom gates (1 per axis-bound axiom) | 63 | G-I1–G-I7, G-S1–G-S6, G-St1–G-St16, G-V1–G-V9, G-L1–G-L10, G-C1–G-C10, G-J1–G-J5 |
 | Universal MA-G13 gate | 1 | G-G13 |
 | F-69 universal gates | 5 | G-U1, G-U2, G-U3, G-U4, G-U5 |
 | Meta-gates | 4 | G-M1, G-M2, G-M3, G-M4 |
-| **Total** | **56** | |
+| **Total** | **84** | |
 
-**Framework-tier gates (run per framework): 52** (per v3-1-spec §3.4; sum of 7 PG + 35 axiom + 1 MA-G13 + 5 F-69 + 4 meta. Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics. PG1–PG7 classified per-framework-tier per substrate §11.5 tier-2.)
+**Framework-tier gates (run per framework): 80** (per v3-1-spec §3.4; sum of 7 PG + 63 axiom + 1 MA-G13 + 5 F-69 + 4 meta. Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics. PG1–PG7 classified per-framework-tier per substrate §11.5 tier-2.)
 
 ### §4.2 Meta-gates (G-M1–G-M4)
 
@@ -323,7 +323,7 @@ Per v3-1-spec §3.4.
 Per substrate §11.5 + v3-1-spec §3.4:
 
 1. **Tier 1 — Substrate gates** (SG1–SG4): run once, not per framework.
-2. **Tier 2 — Axiom gates** (per framework): 35 + G-G13 = 36.
+2. **Tier 2 — Axiom gates** (per framework): 63 + G-G13 = 64.
 3. **Tier 3 — Universal gates** (per framework): G-U1–G-U5.
 4. **Tier 4 — Meta-gates** (per framework, gate-set integrity last): G-M1–G-M4.
 
@@ -341,13 +341,13 @@ Per v3-1-spec §3.4. Unchanged from original spec. Consumed by reference.
 
 ### §4.7 Current gate results
 
-**All 52 framework-tier gates: state = `not-yet-run`.** First-run pending framework-audit post-9g per §8 deferrals.
+**All 80 framework-tier gates: state = `not-yet-run`.** (52 from v3.2.1 inherited, 28 added at v3.2.3 cycle.) First-run pending framework-audit post-9g per §8 deferrals; 28 v3.2.3-added gates first-run deferred to next audit cycle per cycle scope §1.5.
 
 Gate IDs enumerated (traceable; canonical set — referenced as `MetaframeworkGateIdSet` per §6.5):
 
-`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1, G-I2, G-I3, G-I4, G-I5, G-S1, G-S2, G-S3, G-St1, G-St2, G-St3, G-St4, G-St5, G-V1, G-V2, G-V3, G-V4, G-V5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-J1, G-J2, G-J3, G-J4, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4.`
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1, G-I2, G-I3, G-I4, G-I5, G-I6, G-I7, G-S1, G-S2, G-S3, G-S4, G-S5, G-S6, G-St1, G-St2, G-St3, G-St4, G-St5, G-St6, G-St7, G-St8, G-St9, G-St10, G-St11, G-St12, G-St13, G-St14, G-St15, G-St16, G-V1, G-V2, G-V3, G-V4, G-V5, G-V6, G-V7, G-V8, G-V9, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-L8, G-L9, G-L10, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-C7, G-C8, G-C9, G-C10, G-J1, G-J2, G-J3, G-J4, G-J5, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4.`
 
-Total enumerated: 52 (7 PG + 35 axiom + 1 MA-G13 + 5 F-69 + 4 meta). The 4 substrate gates (SG1–SG4) excluded per tier-1 "run once, not per framework" semantics (substrate §11.5).
+Total enumerated: 80 (7 PG + 63 axiom + 1 MA-G13 + 5 F-69 + 4 meta). The 4 substrate gates (SG1–SG4) excluded per tier-1 "run once, not per framework" semantics (substrate §11.5).
 
 ---
 
@@ -355,7 +355,7 @@ Total enumerated: 52 (7 PG + 35 axiom + 1 MA-G13 + 5 F-69 + 4 meta). The 4 subst
 
 ### §5.1 Version transition
 
-v3.0 → v3.1 → v3.2 → v3.2.1. Additive per MA-L1. Phase 1.2 amendments add MA-L6 + MA-L7 axioms (added in Phase 1.1 per V4 pre-declared outcome; ratified to spec at Phase 1.2 closure) and extend P8/P6 primitive shapes per substrate v1-1. Phase 1.2-fix amendments (v3.2): vocabulary cleanup (5 atom promotions reference substrate A-10..A-14 + LifecycleState reference resolves), gate count alignment (45 → 52), F-69 mechanical test bodies, MetaframeworkGateIdSet atom declaration, provenance ISO timestamps. Phase 1.2-fix-trail hygiene (v3.2.1): §6.5 DimensionResult custody flip per RF-01; §8.1 framework-audit version-ref refresh (v1-1 → v1-3) per RF-04. Patch-level bump per hygiene discipline — no axioms, gates, HRs, primitives amended.
+v3.0 → v3.1 → v3.2 → v3.2.1 → v3.2.3. Additive per MA-L1. Phase 1.2 amendments add MA-L6 + MA-L7 axioms (added in Phase 1.1 per V4 pre-declared outcome; ratified to spec at Phase 1.2 closure) and extend P8/P6 primitive shapes per substrate v1-1. Phase 1.2-fix amendments (v3.2): vocabulary cleanup (5 atom promotions reference substrate A-10..A-14 + LifecycleState reference resolves), gate count alignment (45 → 52), F-69 mechanical test bodies, MetaframeworkGateIdSet atom declaration, provenance ISO timestamps. Phase 1.2-fix-trail hygiene (v3.2.1): §6.5 DimensionResult custody flip per RF-01; §8.1 framework-audit version-ref refresh (v1-1 → v1-3) per RF-04. Patch-level bump per hygiene discipline — no axioms, gates, HRs, primitives amended. v3.2.3 amendments: 28 additive axioms across 7 axes (2 Identity + 3 Schema + 11 Structure + 4 Validity + 3 Lifecycle + 4 Coupling + 1 Judgment) + 28 paired gates; gate count 52 → 80; axiom count 36 → 64; 4 J-inputs declared at framework-audit §7 + 1 GR-series rule set declared at framework-audit §4.6.1. Cycle skips "v3.2.2" — no intervening cycle exists in canonical state.
 
 ### §5.2 Amendment trigger
 
@@ -379,6 +379,7 @@ Empty at delivery. No MA-L5 events since Phase 1.1 (J-axis-mece + J-axiom-dist b
 |---|---|---|---|
 | v3.0 | Phase 1.1 delivery (re-open output) | Initial metaframework declaration (7 axes, 33 axis-bound + 1 universal = 34 axioms, 54 gates, 6 handoffs). | L0 |
 | v3.1 | Phase 9d delivery (rendered against v3-1-spec) | MA-L6 + MA-L7 added to Lifecycle axis (+2 axioms, total 36); HR0 added for L0 activation (+1 HR, total 7); 2 new gates added for MA-L6 + MA-L7 (total 56); ternary kind on P8; +captureShape +diagnosticSignificance on P6 per substrate v1-1 Phase 1.2 amendments. | L0 |
+| v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms added across 7 axes (per axis: I+2, S+3, St+11, V+4, L+3, C+4, J+1); 28 paired gates added; 4 J-inputs added (declared at framework-audit §7); 1 GR-series rule set added (declared at framework-audit §4.6.1). Counts: axiom 36→64; framework-tier gate 52→80; total all-gates 56→84. P3, P4, P5, P7 row totals updated at §3.4. Single-batched cycle per Phase 6. | L0 |
 
 ### §5.7 Failure modes, scale bounds, atomicity declarations
 
@@ -572,8 +573,8 @@ Per v3-1-spec §3.2.
 J-axiom-dist:
   kind: classification
   input: {
-    axioms: [MA-I1..MA-I5, MA-S1..MA-S3, MA-St1..MA-St5, MA-V1..MA-V5,
-             MA-L1..MA-L5 + MA-L6 + MA-L7, MA-C1..MA-C6, MA-J1..MA-J4]
+    axioms: [MA-I1..MA-I7, MA-S1..MA-S6, MA-St1..MA-St16, MA-V1..MA-V9,
+             MA-L1..MA-L10, MA-C1..MA-C10, MA-J1..MA-J5]
   }
   criteria:
     C1: Each axiom attaches to exactly one axis (per AxR1, mechanical).
@@ -602,10 +603,10 @@ Both J-inputs trace to L0 confirmation at Phase 1.1 (re-open) + ratified at Phas
 
 ### §8.1 Gate results
 
-**All 52 framework-tier gates: state = `not-yet-run`.** First-run pending framework-audit post-9g per Phase 9d §8 deferrals.
+**All 80 framework-tier gates: state = `not-yet-run`.** First-run pending framework-audit post-9g per Phase 9d §8 deferrals; 28 v3.2.3-added gates first-run deferred to next audit cycle.
 
 Gate ID enumeration (traceable; matches §4.7):
-`PG1–PG7, G-I1–G-I5, G-S1–G-S3, G-St1–G-St5, G-V1–G-V5, G-L1–G-L7, G-C1–G-C6, G-J1–G-J4, G-G13, G-U1–G-U5, G-M1–G-M4`.
+`PG1–PG7, G-I1–G-I7, G-S1–G-S6, G-St1–G-St16, G-V1–G-V9, G-L1–G-L10, G-C1–G-C10, G-J1–G-J5, G-G13, G-U1–G-U5, G-M1–G-M4`.
 
 ### §8.2 Dimension audit results
 
@@ -636,6 +637,7 @@ Per G-U1 (self-application): metaframework's gate suite runs against metaframewo
 | v3.1 | Phase 9d delivery | Initial metaframework-v3.1 artifact rendered from v3-1-spec §3 declarations. Includes Phase 1.2 amendments: MA-L6 + MA-L7 axioms on Lifecycle axis; HR0 added for L0 activation; ternary `kind` on P8 (via substrate §8.3); `captureShape` + `diagnosticSignificance` on P6 (via substrate §8.2); per-HR captureShape declared at §6.3 for diagnostic-significant HRs. | L0 |
 | v3.2 | Phase 1.2-fix delivery | §2.3 Consumed types: 7 substrate-referenced atoms added (Kind, Ownership, ActivationTrigger, OperatorInterface, GenesisDeclaration, LifecycleState, Carrier). §2.4 local atoms list split into metaframework-local + substrate-referenced categories. §3.5 Vocabulary cleanup: 5 promoted atoms (Kind, Ownership, ActivationTrigger, OperatorInterface, GenesisDeclaration) now reference substrate A-10..A-14 per R-0015; State row resolves to substrate §9 LifecycleState per R-0004+R-0016; MetaframeworkGateIdSet added. §4.1 + §4.7 + §8.1 gate count alignment (45 → 52) per R-0020 + R-0017 + R-0019. §4.3 F-69 mechanical test bodies declared for G-U2 + G-U5 per R-0022; G-U5 co-execution semantics note added per R-0021. §6.5 custody table: MetaframeworkGateIdSet row added per R-0026; 5 promoted-atom custody rows updated to substrate origin. §7.1 + §7.2 ISO 8601 timestamps per R-0027. §1 Identity: scopeOut row added per R-0042. | L0 |
 | v3.2.1 | Phase 1.2-fix-trail hygiene delivery | §6.5 DimensionResult custody row flipped to framework-audit-owned with metaframework as schema-reference consumer (per RF-01, closing v1-F-05 sub-item). §8.1 Dimension ID enumeration reference `per framework-audit-v1-1 §3.3` → `per framework-audit-v1-3 §3.3` (per RF-04, same class as F-15 / R-0047 version-ref drift missed by KA-GATE1-1 cascade). Patch-level bump; no axioms, gates, HRs, primitives amended. | L0 |
+| v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms (I+2, S+3, St+11, V+4, L+3, C+4, J+1) + 28 paired gates added per single-batched cycle. Counts: §3.2 36→64; §3.4 P3 36→64, P4 36→64, P5 56→84; §4.1 framework-tier 52→80; §4.7 + §8.1 enumeration extended; §3.2.2 binding lines extended for all 7 axes; §3.5 vocabulary MetaframeworkGateIdSet 52→80; §4.4 tier-2 axiom-gates 35+G-G13=36 → 63+G-G13=64; §7.2 J-axiom-dist input enumeration extended; §5.1 + §5.6 transition log updated. 4 J-inputs declared at framework-audit §7 (J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context). 1 GR-series rule set declared at framework-audit §4.6.1. Source: v3-1-spec §3.2.6 + Phase 5 axiom authoring. | L0 |
 
 ---
 

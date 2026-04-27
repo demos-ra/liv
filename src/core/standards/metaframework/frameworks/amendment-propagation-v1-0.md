@@ -3,8 +3,8 @@
 **Kind:** Framework
 **Mode:** structural
 **Level:** L2
-**Version:** v1.1
-**Authority:** L0 confirmed (Phase 1.2-fix delivery)
+**Version:** v1.2
+**Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR4 receive-side), framework-registry-v1-0 (HR5 bidirectional — amendment-log reads + propagation-state writes)
 **Consumed by:** registry (HR5 emit at propagation-result emission), framework-audit (co-executes G-U5 per F-69)
 **Dependencies:** substrate-v1-1, metaframework-v3-1, framework-registry-v1-0
@@ -22,7 +22,7 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 | Kind | Framework |
 | Mode | structural (substrate §2) |
 | Level | L2 |
-| Version | v1.1 |
+| Version | v1.2 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -40,7 +40,7 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 |---|---|
 | Own state | amendment-event queue, propagation-trace state, per-amendment completion status (§3 Structure + §5 Lifecycle) |
 | Own I/O | input: `AmendmentEvent` (§2.1); output: `PropagationResult` (§2.2) |
-| Own invariants | 36 axioms inherited from metaframework-v3-1 + propagation-completeness invariant (expressed via G-U2 execution at Stage 3 E1 + G-U5 co-execution at Stage 3 E2); no own-axiom declarations |
+| Own invariants | 64 axioms inherited from metaframework-v3-1 + propagation-completeness invariant (expressed via G-U2 execution at Stage 3 E1 + G-U5 co-execution at Stage 3 E2); no own-axiom declarations |
 | Own discipline | 7-step P8 procedure (AP1–AP7) executing G-U2 + G-U5 across impacted frameworks per §3 + §4; L0 confirmation-gate at AP6 observation per substrate §13 |
 
 All four properties declared. MA-G13 passes. Amendment-propagation classified as framework (not state store, not protocol, not substrate).
@@ -168,8 +168,8 @@ Per substrate §8 + §8.6 empty-declaration derivation:
 | P1 Axis | 0 | `{primitiveKind: P1, instanceCount: 0, basis: "axes inherited from metaframework-v3-1 §3.1; amendment-propagation declares no own axes"}` |
 | P2 Sub-axis | 0 | `{primitiveKind: P2, instanceCount: 0, basis: "flat axis structure inherited from metaframework; no sub-axes declared at amendment-propagation level"}` |
 | P3 Leaf | 0 | `{primitiveKind: P3, instanceCount: 0, basis: "leaves inherited via axes from metaframework"}` |
-| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "36 axioms inherited from metaframework-v3-1 §3.2; propagation-completeness invariant expressed via G-U2 execution path (Stage 3 AP4-E1), not as new axiom"}` |
-| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "52 framework-tier gates inherited from metaframework-v3-1 §4.1 (per MetaframeworkGateIdSet atom §6.5); G-U2 (propagation completeness) and G-U5 (provenance completeness) executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling"}` |
+| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "64 axioms inherited from metaframework-v3-1 §3.2; propagation-completeness invariant expressed via G-U2 execution path (Stage 3 AP4-E1), not as new axiom"}` |
+| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "80 framework-tier gates inherited from metaframework-v3-1 §4.1 (per MetaframeworkGateIdSet atom §6.5); G-U2 (propagation completeness) and G-U5 (provenance completeness) executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling"}` |
 | P6 Handoff rule | 3 | HR-AP1 (receive HR4 from metaframework), HR-AP2 (read amendment log from registry), HR-AP3 (emit propagation result to registry via HR5) — declared §6.2 |
 | P7 Judgment input | 2 own | J-AP1-event-validation (consumed at AP1), J-AP6-propagation-verification (consumed at AP6) — declared §7 |
 | P8 Procedure step | **7** | AP1–AP7, declared §3.3 |
@@ -264,10 +264,10 @@ Framework-local terms declared inline at point of use per PR1 (substrate §10.2)
 
 Amendment-propagation declares **zero own gates** per L0 Q1 ruling (sprint-optimized default). Gate coverage:
 
-- **Inherited framework-tier gates:** 52 from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom (applied to amendment-propagation itself when audited by framework-audit).
+- **Inherited framework-tier gates:** 80 from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom (applied to amendment-propagation itself when audited by framework-audit).
 - **Gates executed by amendment-propagation (not owned):** G-U2 (propagation completeness, sole executor per F-69) at AP4-E1; G-U5 (provenance completeness, co-executor with framework-audit per F-69) at AP5-E2. Declarations at metaframework §4.3; execution occurs here per substrate §1.3 S-03 permitted-multi-execution.
 
-Positive empty-declaration per §3.2 row P5. Basis: "52 framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom; G-U2 and G-U5 executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling (amendment-propagation's own integrity surface covered by G-U1 self-application + G-M1/M2 axiom-gate mapping + inherited framework-tier gates)."
+Positive empty-declaration per §3.2 row P5. Basis: "80 framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom; G-U2 and G-U5 executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling (amendment-propagation's own integrity surface covered by G-U1 self-application + G-M1/M2 axiom-gate mapping + inherited framework-tier gates)."
 
 ### §4.2 Gate execution boundary
 
@@ -280,7 +280,7 @@ No cross-framework ownership violation. Declaration ≠ execution per MULTI-EXEC
 
 ### §4.3 Inherited framework-tier gates
 
-Enumerated per metaframework-v3-1 §4.7 (52 framework-tier applicable, per `MetaframeworkGateIdSet`):
+Enumerated per metaframework-v3-1 §4.7 (80 framework-tier applicable, per `MetaframeworkGateIdSet`):
 
 `PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I5, G-S1..G-S3, G-St1..G-St5, G-V1..G-V5, G-L1..G-L7, G-C1..G-C6, G-J1..G-J4, G-G13, G-U1..G-U5, G-M1..G-M4`.
 
@@ -301,7 +301,7 @@ Per metaframework-v3-1 §4.5: G-M failure → universal gates re-run; substrate-
 
 ### §4.7 Current gate results
 
-**All 52 inherited framework-tier gates: state = `not-yet-run`.** First-run pending post-9g terminal cross-file gate (when L0 confirms first system-wide audit cycle per Phase 9g spec §7 step 6).
+**All 80 inherited framework-tier gates: state = `not-yet-run`.** (52 from v3.2.1 inherited, 28 added at v3.2.3 cycle.) First-run pending post-9g terminal cross-file gate (when L0 confirms first system-wide audit cycle per Phase 9g spec §7 step 6); 28 v3.2.3-added gates first-run deferred to next audit cycle.
 
 **G-U2 and G-U5 execution state at delivery: `not-yet-invoked`** (no AmendmentEvent processed yet; first run occurs when first AmendmentEvent arrives via HR-AP1 post-9g).
 
@@ -313,7 +313,7 @@ Compact summary per sprint-mode.
 
 ### §5.1 Version transition
 
-v1.0 → v1.1. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-0020 KA-Build-2 cascade).
+v1.0 → v1.1 → v1.2. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-0020 KA-Build-2 cascade). v1.2 (v3.2.3 cascade): §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 36→64 and gate count restatements 52→80 per MA-S5 cross-file restatement consistency (the very axiom added this cycle); inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-L1 additive — no procedural change.
 
 **Meta-note:** amendment-propagation is the framework that handles amendments to other frameworks. Its own amendments loop through itself per bootstrap-recursion handling — see §5.7 below.
 
@@ -391,6 +391,7 @@ Per substrate §13.4 row "Owned framework execution: interruptible" with per-ste
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive + HR-AP2 registry-read + HR-AP3 emit declared with captureShapes. J-AP1-event-validation + J-AP6-propagation-verification declared. Zero own gates per sprint-optimized default. Closes 6-file system. | L0 |
+| v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom-count restatements 36→64; gate-count restatements 52→80; inherited gate ID enumeration extended for v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency. v1.1 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -594,11 +595,11 @@ Per metaframework-v3-1 §8 pattern (compact sprint-mode placeholder per L0 Q4 sp
 
 ### §8.1 Gate results
 
-No amendment-propagation-declared gates (per §4.1 zero own gates). Framework-tier gates inherited from metaframework-v3-1 §4.1 (52 applicable, per `MetaframeworkGateIdSet`). State = `not-yet-run` for framework-audit first-run against amendment-propagation, post-9g terminal cross-file gate.
+No amendment-propagation-declared gates (per §4.1 zero own gates). Framework-tier gates inherited from metaframework-v3-1 §4.1 (80 applicable, per `MetaframeworkGateIdSet`). State = `not-yet-run` for framework-audit first-run against amendment-propagation, post-9g terminal cross-file gate.
 
-Inherited gate ID enumeration matches metaframework §4.7 (52 framework-tier):
+Inherited gate ID enumeration matches metaframework §4.7 (80 framework-tier):
 
-`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I5, G-S1..G-S3, G-St1..G-St5, G-V1..G-V5, G-L1..G-L7, G-C1..G-C6, G-J1..G-J4, G-G13, G-U1..G-U5, G-M1..G-M4`.
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I7, G-S1..G-S6, G-St1..G-St16, G-V1..G-V9, G-L1..G-L10, G-C1..G-C10, G-J1..G-J5, G-G13, G-U1..G-U5, G-M1..G-M4`.
 
 Compact enumeration per sprint-mode.
 
@@ -638,6 +639,7 @@ Terminal cross-file gate post-9g ratifies initial state per Phase 9g spec §7 st
 |---|---|---|---|
 | v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per metaframework §4.3 F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive-side (mirrors metaframework §6.2 HR4) + HR-AP2 registry-read (diagnosticSignificance=false) + HR-AP3 emit (mirrors metaframework §6.2 HR5 receive) declared with captureShapes. J-AP1-event-validation (consumed at AP1) + J-AP6-propagation-verification (consumed at AP6) declared with mixed mechanical + judgment criteria per MA-J2. Zero own gates per L0 Q1 sprint-optimized ruling. PropagationResult emission and registry write are two separate atomic operations per substrate §13.4 + registry IG1–IG5. Self-amendment bootstrap handling declared at high-level depth per L0 Q3 ruling; formalization deferred to post-9g terminal cross-file gate. Closes 6-file system. | L0 |
 | v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-0042. v1.0 content otherwise preserved verbatim. | L0 |
+| v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 Own-invariants + §3.2 P4/P5 + §4.1 basis + §4.3 + §4.7 + §8 count restatements: axiom 36→64, framework-tier gate 52→80; inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency (the new axiom added this cycle). v1.1 content otherwise preserved verbatim. | L0 |
 
 ---
 
