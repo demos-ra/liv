@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** structural
 **Level:** L2
-**Version:** v1.2
+**Version:** v1.2.1
 **Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR4 receive-side), framework-registry-v1-0 (HR5 bidirectional — amendment-log reads + propagation-state writes)
 **Consumed by:** registry (HR5 emit at propagation-result emission), framework-audit (co-executes G-U5 per F-69)
@@ -22,7 +22,7 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 | Kind | Framework |
 | Mode | structural (substrate §2) |
 | Level | L2 |
-| Version | v1.2 |
+| Version | v1.2.1 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -313,7 +313,7 @@ Compact summary per sprint-mode.
 
 ### §5.1 Version transition
 
-v1.0 → v1.1 → v1.2. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-0020 KA-Build-2 cascade). v1.2 (v3.2.3 cascade): §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 36→64 and gate count restatements 52→80 per MA-S5 cross-file restatement consistency (the very axiom added this cycle); inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-L1 additive — no procedural change.
+v1.0 → v1.1 → v1.2 → v1.2.1. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-0020 KA-Build-2 cascade). v1.2 (v3.2.3 cascade): §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 36→64 and gate count restatements 52→80 per MA-S5 cross-file restatement consistency (the very axiom added this cycle); inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-L1 additive — no procedural change. **v1.2.1 (MF-patch-1 cascade): §5.10 v1.1 row added per F-MFA-F9-008 closure (v1.1 was substantive AP edit-target cycle per §5.1, MA-S5 requires the row). §5.10 v1.2.1 row added. No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive — no procedural change. v1.2 content otherwise preserved verbatim.**
 
 **Meta-note:** amendment-propagation is the framework that handles amendments to other frameworks. Its own amendments loop through itself per bootstrap-recursion handling — see §5.7 below.
 
@@ -391,7 +391,9 @@ Per substrate §13.4 row "Owned framework execution: interruptible" with per-ste
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive + HR-AP2 registry-read + HR-AP3 emit declared with captureShapes. J-AP1-event-validation + J-AP6-propagation-verification declared. Zero own gates per sprint-optimized default. Closes 6-file system. | L0 |
+| v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape declared per R-0055 (was a referenced atom; now inlined for single-source per A-08). §3.2 + §4.1 + §4.3 + §4.7 + §8 inherited framework-tier gate count restatements 45→52 per R-0020 KA-Build-2 cascade. Per MA-L1 additive — no procedural change. (Row added at MF-patch-1 per F-MFA-F9-008 closure: §5.10 was missing this row at v1.2 despite §5.1 declaring v1.1 as substantive AP edit-target cycle; MA-S5 cross-file restatement consistency required the row.) | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom-count restatements 36→64; gate-count restatements 52→80; inherited gate ID enumeration extended for v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency. v1.1 content otherwise preserved verbatim. | L0 |
+| v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended with v1.2.1 entry. §5.10 v1.1 row added per F-MFA-F9-008 closure (closes MA-S5 missing-row finding). §5.10 v1.2.1 row added (this row). §9 changelog row added. No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -640,6 +642,7 @@ Terminal cross-file gate post-9g ratifies initial state per Phase 9g spec §7 st
 | v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per metaframework §4.3 F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive-side (mirrors metaframework §6.2 HR4) + HR-AP2 registry-read (diagnosticSignificance=false) + HR-AP3 emit (mirrors metaframework §6.2 HR5 receive) declared with captureShapes. J-AP1-event-validation (consumed at AP1) + J-AP6-propagation-verification (consumed at AP6) declared with mixed mechanical + judgment criteria per MA-J2. Zero own gates per L0 Q1 sprint-optimized ruling. PropagationResult emission and registry write are two separate atomic operations per substrate §13.4 + registry IG1–IG5. Self-amendment bootstrap handling declared at high-level depth per L0 Q3 ruling; formalization deferred to post-9g terminal cross-file gate. Closes 6-file system. | L0 |
 | v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-0042. v1.0 content otherwise preserved verbatim. | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 Own-invariants + §3.2 P4/P5 + §4.1 basis + §4.3 + §4.7 + §8 count restatements: axiom 36→64, framework-tier gate 52→80; inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency (the new axiom added this cycle). v1.1 content otherwise preserved verbatim. | L0 |
+| v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended. §5.10 v1.1 row added per F-MFA-F9-008 closure (v1.1 was substantive AP edit-target cycle per §5.1 + §9; MA-S5 required the §5.10 row). §5.10 v1.2.1 row added. §9 v1.2.1 row added (this row). No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. Closes MF-audit-1 finding F-MFA-F9-008. | L0 |
 
 ---
 

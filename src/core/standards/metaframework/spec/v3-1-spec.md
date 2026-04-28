@@ -1,10 +1,10 @@
-# v3.2.3 Spec — Metaframework System
+# v3.2.4 Spec — Metaframework System
 
-**Status:** Phase 1.2-fix-trail hygiene output. Patch-level amendment of v3.2 per v2 re-audit RF-01..RF-06 residue disposition.
-**Version:** v3.2.3 (Phase v3.2.3 delivery; supersedes v3.2.1 → v3.2 → v3.1 → v3.0-r1 → v3.0 original).
+**Status:** MF-patch-1 delivery. Patch-level amendment of v3.2.3: framework-audit predicate refinements per MF-audit-1 finding closure (F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008). No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged).
+**Version:** v3.2.4 (MF-patch-1 delivery; supersedes v3.2.3 → v3.2.1 → v3.2 → v3.1 → v3.0-r1 → v3.0 original).
 **Scope:** Six-file metaframework system (substrate, registry, metaframework, generation-procedure, framework-audit, amendment-propagation).
-**Authority:** L0 confirmed through Phase 8 + Phase 1.1 + Phase 1.2 + Phase 1.2-fix + Phase 1.2-fix-trail hygiene. Terminal gate per §7.
-**Prior artifact:** v3-0-spec.md (Phase 9a) → v3-1-spec.md (Phase 1.2) → v3.2 (Phase 1.2-fix) → this revision (Phase 1.2-fix-trail hygiene).
+**Authority:** L0 confirmed through Phase 8 + Phase 1.1 + Phase 1.2 + Phase 1.2-fix + Phase 1.2-fix-trail hygiene + v3.2.3 + MF-patch-1.
+**Prior artifact:** v3-0-spec.md (Phase 9a) → v3-1-spec.md (Phase 1.2) → v3.2 (Phase 1.2-fix) → v3.2.1 (hygiene) → v3.2.3 (28-axiom cycle) → this revision (MF-patch-1 predicate refinement).
 
 ---
 
@@ -832,6 +832,19 @@ Post-Phase-1.1 findings surfaced for Phase 1.2 cycle; registered here as amendme
 
 G-spec-3 verification: F-1.2-01 and F-1.2-02 ∈ Phase 1.2 input finding set.
 
+### §5.8 MF-audit-1 findings closed at MF-patch-1 (4)
+
+Post-v3.2.3 findings surfaced by MF-audit-1 (first-run audit of v3.2.3 against L3 frameworks); registered here as amendments to the closed v3.2.3 finding set per MA-L2 (gap trigger). Each finding assigned an ID. Closed at MF-patch-1 (this revision = v3.2.4).
+
+| ID | Finding | Resolution locus |
+|---|---|---|
+| F-MFA-V9-001 | G-V9 predicate parsed for explicit field labels rather than substance recoverability; L3 framework gates carry GR-1..GR-6 substance in compact tabular form (not field-labeled blocks) and failed strict parse despite carrying all six properties | framework-audit §4.6.1 conformance test paragraph + §4.8.4.4 G-V9 predicate body; both refined to recoverability semantics |
+| F-MFA-ST16-001 | G-St16 predicate required explicit `testability` field per axiom; testability is derivable from axiom's relationship to framework's P7 set per substrate §1.3 S-03 single-source (an explicit field would duplicate P7-membership) | framework-audit §4.8.3.11 G-St16 predicate body; refined to derive testability from P7-membership |
+| F-MFA-F9-007 | framework-audit §4.1 carried stale literal "48" from v1.2 era (when inherited count was 45 + 3 own = 48); count was not updated through R-0020 cascade (45 → 52) or v3.2.3 cascade (52 → 80); current canonical = 3 own + 80 inherited = 83 | framework-audit §4.1 row literal updated 48 → 83 with derivation note |
+| F-MFA-F9-008 | amendment-propagation §5.10 missing v1.1 row despite §5.1 declaring v1.1 as substantive AP edit-target cycle (PropagationTrace inline shape declared per R-0055; gate count restatements per R-0020 cascade); MA-S5 cross-file restatement consistency requires the row | amendment-propagation §5.10 v1.1 row added |
+
+G-spec-3 verification: F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008 ∈ MF-patch-1 input finding set.
+
 ---
 
 ## §6 Sequencing declaration
@@ -1005,8 +1018,8 @@ Scope guard enforced during revision. No out-of-scope content introduced.
 
 ## End of spec (revised)
 
-**Status:** v3.2.1 draft, awaiting L0 confirmation of Phase 1.2-fix-trail hygiene delivery after GATE H passage.
+**Status:** v3.2.4 draft, awaiting L0 confirmation of MF-patch-1 delivery.
 
-**On confirmation:** Phase 1.2-fix-trail hygiene closes. Substrate v1.2 canonical (unchanged from v3.2 delivery); metaframework v3.2.1 canonical; framework-audit v1.3.1 canonical; generation-procedure v1.1.1 canonical; amendment-propagation v1.1 unchanged from v3.2 delivery; registry v1.0 unchanged. Spec v3.2.1 canonical. Phase 9b proceeds with post-hygiene canonical six-file set as reference.
+**On confirmation:** MF-patch-1 closes. Substrate v1.2 canonical (unchanged); framework-registry v1.0 canonical (unchanged); metaframework v3.2.4 canonical; framework-audit v1.3.3 canonical; generation-procedure v1.1.3 canonical; amendment-propagation v1.2.1 canonical. Spec v3.2.4 canonical. MF-audit-1 finding closure complete (4 findings closed at MF-patch-1: F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008). MF-audit-1 partial findings remaining (downstream cycles): F-MFA-LM-001 (LM full regen), F-MFA-LM-002 (SLICE banner), F-MFA-LM-003 (closes with LM-001), F-MFA-PL-001 (Plan §1 MA-G13 block), F-MFA-AS-001 + F-MFA-PL-002 (§3.5 leaf footnotes), F-MFA-C8-001 (registry §5 L3 bootstrap-write), F-MFA-D3-001 (MF-audit-2), F-MFA-FLOW2-001 (closes with C8-001), F-MFA-SPEC-001 (next MFv3 patch convenience).
 
-**On specific gate failure:** same-delivery re-fix per Phase 1.1 precedent ("re-fix in same delivery, re-run, same brief"). Do not open new cycle.
+**On specific finding regression:** same-delivery re-fix per Phase 1.1 precedent. Do not open new cycle.

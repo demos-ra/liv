@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** verificative
 **Level:** L2
-**Version:** v1.3.2
+**Version:** v1.3.3
 **Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR3 receive-side), framework-registry-v1-0 (HR5 provenance lookup)
 **Consumed by:** registry (HR5 at audit-result emission), all audited frameworks (audit result consumption)
@@ -22,7 +22,7 @@ Framework-audit is the L2 verificative-mode framework that runs the ten-dimensio
 | Kind | Framework |
 | Mode | verificative (substrate §2) |
 | Level | L2 |
-| Version | v1.3.2 |
+| Version | v1.3.3 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -398,7 +398,11 @@ Framework-audit declares **3 own gates** (G-FA1, G-FA2, G-FA3) plus inherits **8
 |---|---|---|
 | Own gates (framework-audit-specific) | 3 | G-FA1, G-FA2, G-FA3 |
 | Inherited framework-tier gates | 80 | per metaframework-v3-1 §4.1 + `MetaframeworkGateIdSet` atom (§6.5): PG1–PG7, axiom gates G-I1..G-I7, G-S1..G-S6, G-St1..G-St16, G-V1..G-V9, G-L1..G-L10, G-C1..G-C10, G-J1..G-J5, G-G13, G-U1–G-U5, G-M1–G-M4. Substrate gates SG1–SG4 excluded per substrate §11.5 tier-1. |
-| **Total applicable to framework-audit itself** | **48** | |
+| **Total applicable to framework-audit itself** | **83** (3 own + 80 inherited) | derived sum |
+
+Total is mechanically derived from the two rows above: 3 + 80 = 83. No literal carried; row updates automatically when either source count changes per MA-S5.
+
+Note on inherited gates that apply trivially: framework-audit declares zero own axioms (per §3.6 P4 row + §4.5). The 35 inherited axiom-gates that test MA-axiom conformance still execute against framework-audit but are vacuous-pass over the empty axiom set. Vacuous-pass remains a `pass` per MA-V3 ternary; no exclusion-set semantics apply. All 80 inherited gates are applicable; all 3 own gates are applicable; total 83.
 
 Per L0 ruling on Q1 (Phase 9f spec §8 Q-9f-1): three own gates declared. G-U1 self-application covers running existing inherited gates against framework-audit itself, but does NOT verify (a) the 10-dimension set exists as declared, (b) AuditDimensionTest fields are populated per §3.2 shape, or (c) per-framework audit produces a complete SelfAuditRecord across all 10 dimensions + framework-tier gates. G-FA1–G-FA3 close those gaps.
 
@@ -487,7 +491,7 @@ GR-series extracted from existing canonical gate-execution sections (G-FA1, G-FA
 - **GR-5 — Escalation path declared.** Every gate declares *Escalation path* (which lifecycle event triggers on failure, per MA-L4). Source basis: metaframework §4.2 G-M4; framework-audit §4.2 G-FA1–G-FA3 explicit.
 - **GR-6 — Result is binary.** Every gate's result is binary (pass/fail; n/a is non-applicability declaration, not a third truth value). Source basis: substrate §11.6 ("Gate results binary").
 
-**Conformance test:** every declared gate (substrate-tier + framework-tier + own framework gates) is testable against GR-1..GR-6 mechanically by parsing the gate-declaration block and checking presence of each rule's required field. MA-V9 (declared at v3.2.3 cycle, metaframework §3.2 + spec §3.2.6) tests this conformance per-gate; G-V9 is the corresponding gate predicate (declared §4.8.4 below).
+**Conformance test (recoverability, not field-label parse):** every declared gate (substrate-tier + framework-tier + own framework gates) carries the GR-1..GR-6 substance. The substance is *recoverable* from the gate's own declaration, from the framework's framework-level declarations (result enum at §4, escalation at §5 failure modes, axiom set at §3), or from any combination thereof. Layout is not declared by GR-1..GR-6; substance is. Frameworks may render gates in expanded per-gate Claim/Test/Reporting/Tests/Escalation blocks (G-FA1–G-FA3 use this shape) or in compact tabular form (gate-id, axiom-binding, predicate, ground-class — used by L3 frameworks and by the inherited 80 framework-tier gates declared as a compact ID enumeration at metaframework §4.7); both forms satisfy GR-1..GR-6 by recoverability of substance. MA-V9 (declared at v3.2.3 cycle, metaframework §3.2 + spec §3.2.6) tests this conformance per-gate; G-V9 is the corresponding gate predicate (declared §4.8.4 below).
 
 ### §4.7 Current gate results
 
@@ -632,11 +636,25 @@ Authoritative declaration site for the 28 v3.2.3 axiom-gate predicates per Phase
 
 ##### §4.8.3.11 G-St16 — Axiom testability classification
 
-*Claim:* For every axiom a, a declares testability classification ∈ {`mechanical`, `criteria-bounded`}; criteria-bounded axioms declare bound-J-input ref.
+*Claim:* For every axiom a in framework F, a's testability ∈ {`mechanical`, `criteria-bounded`} is recoverable from a's relationship to F's declared J-input set (P7 instances per §3.6); criteria-bounded axioms reference a J-input declared at F's §7 with `mechanicalGround` field populated.
 
-*Test (mechanical):* Per axiom, verify testability classification field present; if criteria-bounded, verify J-input ref populated and resolvable.
+*Test (mechanical):*
+- Let J = F's declared J-input set (P7 instances, per F's §7). When P7 = 0 with positive emptyDeclared basis (substrate §8.6), J = ∅.
+- For each axiom a in F's axiom set:
+  - Compute `a.references_J` = (a's mechanical condition references any j ∈ J).
+  - If `a.references_J`: classify `testability(a) = 'criteria-bounded'`; verify the referenced J-input is declared at F's §7 with `mechanicalGround` field populated.
+  - Else: classify `testability(a) = 'mechanical'`; verify a's mechanical condition reduces to a substrate §6.3 mechanical-criterion ground class (recoverable from F's per-axiom Ground-class column or equivalent).
+- Cross-check: `count({a : testability(a) = 'criteria-bounded'}) === |J consumed by axioms|`.
+- Test passes iff every axiom is classifiable + cross-check holds.
+- Test fails iff any axiom is unclassifiable, or any criteria-bounded axiom's J-input ref is unresolvable, or cross-check fails.
+
+*Reporting:* pass if classifiable + cross-check holds; fail with specific axiom + reason; n/a not applicable.
 
 *Tests:* MA-St16.
+
+*Escalation path:* G-St16 failure → MA-L4 amendment trigger; framework's axiom set or §7 J-input declarations must be repaired.
+
+*Rationale:* testability is derivable from P7-membership rather than declared as a separate field. Per substrate §1.3 S-03 single-source: an explicit `testability` field on each axiom would duplicate information already carried by P7-membership at F's §7. The Ground-class column in F's §3.6 axiom table is the surface where the mechanical case is visible; J-input reference is the surface where the criteria-bounded case is visible. G-St16 derives from these surfaces rather than requiring a new declared field.
 
 #### §4.8.4 Validity gate predicates (G-V6 .. G-V9)
 
@@ -666,11 +684,26 @@ Authoritative declaration site for the 28 v3.2.3 axiom-gate predicates per Phase
 
 ##### §4.8.4.4 G-V9 — Gate-rule (GR-1..GR-6) conformance
 
-*Claim:* For every declared gate g in framework, g conforms to GR-1..GR-6 (declared §4.6.1): GR-1 Claim declared; GR-2 Test kind ∈ {mechanical, criteria-bounded} with kind-specific fields; GR-3 Reporting declared with `result ∈ {pass, fail, n/a}` and basis-when-n/a; GR-4 Tests-axiom binding declared (≥1 axiom ref); GR-5 Escalation path declared per MA-L4; GR-6 Result is binary.
+*Claim:* For every declared gate g in framework F, the six properties named by GR-1..GR-6 (declared §4.6.1) are *recoverable* from g's declaration. Layout is not declared; substance is required.
 
-*Test (mechanical):* Per gate g, verify each of GR-1..GR-6 mechanically: parse gate declaration block, check presence of each rule's required field.
+*Test (mechanical):* For each gate g, verify each of the six properties is recoverable from g's declaration block, from F's framework-level result enum or escalation table, or from any combination thereof:
+
+- **GR-1 (claim recoverable):** g declares what it tests — via axiom binding, declared predicate, or claim text. Either form satisfies.
+- **GR-2 (test recoverable):** g declares a mechanical predicate or test body, with kind ∈ {`mechanical`, `criteria-bounded`} resolvable from the predicate form (criteria-bounded iff the predicate references a J-input declared at F's §7).
+- **GR-3 (reporting recoverable):** g's result type ∈ {`pass`, `fail`, `n/a`} is recoverable from F's framework-level result enum (typically declared at the §4 result-shape block or equivalent) or per-gate. Either form satisfies.
+- **GR-4 (axiom binding recoverable):** g declares its bound axiom (1:1 per G-M1; or ≥1 per A-24 multi-axiom-gate). Recoverable from gate's `tests`/`testedAxiomId` field or equivalent table column.
+- **GR-5 (escalation recoverable):** g's failure path is resolvable to F's framework-level §5 failure-modes table or per-gate escalation declaration. Either form satisfies.
+- **GR-6 (binary result recoverable):** g's result reduces to {`pass`, `fail`} ∪ {`n/a` as vacuous-pass}. Recoverable from F's result enum or per-gate.
+
+Pass iff all six properties recoverable for every gate. Fail iff any of the six is absent from both per-gate and framework-level declaration for any gate.
+
+*Reporting:* pass if all gates recoverable; fail with specific gate ID + missing property; n/a not applicable.
 
 *Tests:* MA-V9.
+
+*Escalation path:* G-V9 failure → MA-L4 amendment trigger; the framework's gate declarations or framework-level result/escalation tables must be repaired so that the missing property is recoverable.
+
+*Rationale:* GR-1..GR-6 declare what every gate must satisfy in substance; they do not declare a layout. Frameworks may render gates in expanded per-gate Claim/Test/Reporting/Tests/Escalation blocks (framework-audit's own G-FA gates use this shape), in compact tabular form (gate-id, axiom-binding, predicate, ground-class — used by L3 frameworks and by the inherited framework-tier gates declared at metaframework §4.7 as a compact list), or any combination. G-V9 tests recoverability of substance, not layout. The inherited 80 framework-tier gates declared as a compact ID enumeration at metaframework §4.7 satisfy GR-1..GR-6 by construction: the substance lives in the metaframework axiom-table + result-enum + framework-level escalation discipline; G-V9 recovers it from those sources.
 
 #### §4.8.5 Lifecycle gate predicates (G-L8, G-L9, G-L10)
 
@@ -848,6 +881,7 @@ queryByResult(result: 'pass' | 'fail', since: string): AuditRunRecord[]
 | v1-1 | Phase 1.2 delivery | X10 predicate extended (stage ordering + stage-content-kind alignment); X3 criteria extended (C5 captureShape per diagnosticSignificance). | L0 |
 | v1-2 | Phase 9f delivery | §1, §2, §4, §5, §6, §7 populated. §8 content populated beyond schema. §9 extended. Three own gates (G-FA1, G-FA2, G-FA3) declared. HR-FA1, HR-FA2 declared with captureShapes. Sprint-mode completion of verificative framework. | L0 |
 | v1.3.2 | Phase v3.2.3 delivery (2026-04-27) | §3.6 P4 inherited 36→64; P5 inherited 52→80; P7 own 3→7. §4.1 inherited 52→80; §4.3 ID enumeration extended for v3.2.3 axiom-gates; §4.7 count restated 52→80 with 28-gate first-run-deferred note. §4.2.3 G-FA3 test body 52→80. §5.7 Scale bounds 52→80. §8 self-application basis 52→80. New §4.6.1 GR-series rule set declared (closure item 1; authoritative source for metaframework §4.6 + spec §3.4 references). New §4.8 v3.2.3 axiom-gate predicate authorship (28 gate bodies, per-axis sub-sections §4.8.1–§4.8.7) — Claim/Test/Reporting/Tests/Escalation populated per Phase 5 + GR-1..GR-6 conformance. New §7.6–§7.9: 4 v3.2.3 J-input declarations (J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context). §7.4 Axis status three→seven. §7.5 provenance extended for v3.2.3 J-inputs. v1.3.1 content otherwise preserved verbatim. | L0 |
+| v1.3.3 | MF-patch-1 delivery (2026-04-28) | §4.1 stale literal "48" replaced with derived "83" (3 own + 80 inherited; mechanically derivable from row sums). §4.6.1 conformance test paragraph refined: GR-1..GR-6 require substance recoverability, not field-label parse; both expanded per-gate blocks and compact tabular form satisfy. §4.8.3.11 G-St16 predicate refined: testability derived from axiom's relationship to F's P7 set (criteria-bounded iff axiom references a J-input declared at F's §7); per substrate §1.3 S-03 single-source no separate `testability` field declared. §4.8.4.4 G-V9 predicate refined: substance recoverability semantics replace field-label parse. Closes MF-audit-1 findings F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007. No new axioms / gates / HRs / primitives / J-inputs. No count changes. v1.3.2 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -1243,6 +1277,7 @@ Per metaframework §4.3 universal gate G-U1 (self-application): framework-audit 
 | v1-3 | Phase 1.2-fix delivery | §3.3 X9 state-enum references substrate §9 LifecycleState (per R-0045); §4.2.3 G-FA3 references MetaframeworkGateIdSet atom (per R-0049); §3.5 + §7.5 provenance consumingFrameworkRef refreshed to framework-audit-v1-3 (per R-0047); §3.4 per-dimension relationship table placeholder replaced with explicit closure (per R-0046); §3.6 + §4.1 + §4.7 + §5.7 + §8.3 gate count restatements updated 45→52 (per R-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-0042. v1-2 content otherwise preserved verbatim. | L0 |
 | v1.3.1 | Phase 1.2-fix-trail hygiene delivery | §8.2 SelfAuditRecord inline example `frameworkRef` + `auditedByFrameworkRef` updated to `framework-audit-v1-3`; §8.2 heading text updated to "Framework-audit-v1-3's own latest SelfAuditRecord" (per RF-02). Patch-level bump per hygiene discipline; no structural amendment. Allowlisted sites preserved: §8.1 schema comment `// framework-audit-v1-0`, §8.3 bootstrap-recursion historical narrative. | L0 |
 | v1.3.2 | Phase v3.2.3 delivery (2026-04-27) | §3.6 primitive-instance count restatements (P4 36→64, P5 52→80 inherited, P7 3→7 own with 4 added at §7.6–§7.9). §4.1 + §4.3 + §4.7 inherited gate count restatements 52→80 with v3.2.3 axiom-gate ID enumerations. §4.2.3 G-FA3 test body 52→80. §5.7 Scale bounds 52→80. §8 self-application basis 52→80. New §4.6.1 GR-series rule set declared (closure item 1, extracted at Phase 4 §6.0.1; authoritative source for metaframework §4.6 + spec §3.4 GR-series references). New §4.8 v3.2.3 axiom-gate predicate authorship (28 gate bodies, per-axis sub-sections §4.8.1–§4.8.7) — Claim/Test/Reporting/Tests/Escalation populated per Phase 5 + GR-1..GR-6 conformance. New §7.6–§7.9: 4 v3.2.3 J-input declarations (J-authority-source-classification consumed by G-I6; J-axis-concern-coverage consumed by G-St11; J-axiom-text-declarative consumed by G-St14; J-amendment-trigger-context consumed by G-L8). §7.4 Axis status restated three→seven. §7.5 provenance extended for v3.2.3 J-inputs. v1.3.1 content otherwise preserved verbatim. | L0 |
+| v1.3.3 | MF-patch-1 delivery (2026-04-28) | Predicate refinement cycle. Substantive edits at four sites — §4.1 stale literal "48" replaced with derived "83" (3 own + 80 inherited; mechanically derivable per row sums above; framework-audit declares zero own axioms per §3.6 + §4.5, so 35 inherited axiom-gates are vacuous-pass over the empty axiom set but still applicable; no exclusion-set semantics; total 83 gates applicable when framework-audit is the audit target). §4.6.1 conformance test paragraph refined: GR-1..GR-6 require recoverability of substance, not field-label parse; both expanded per-gate Claim/Test/Reporting/Tests/Escalation blocks (G-FA1–G-FA3 shape) and compact tabular form (L3 framework + metaframework §4.7 enumeration shape) satisfy GR-1..GR-6 by recoverability. §4.8.3.11 G-St16 predicate refined: testability classification derived from axiom's relationship to framework's P7 set (criteria-bounded iff axiom's mechanical condition references a J-input declared at framework's §7); per substrate §1.3 S-03 single-source no separate `testability` field declared on axioms (would duplicate P7-membership). §4.8.4.4 G-V9 predicate refined: substance recoverability semantics replace field-label parse; explicit recovery rules per GR-1..GR-6 declared. Closes MF-audit-1 findings F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007. No new axioms / gates / HRs / primitives / J-inputs declared. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (predicate refinement is permissible additive amendment per AxR3; no axiom condition weakened). v1.3.2 content otherwise preserved verbatim. | L0 |
 
 ---
 

@@ -3,8 +3,8 @@
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v3.2.3
-**Authority:** L0 confirmed (Phase v3.2.3 delivery)
+**Version:** v3.2.4
+**Authority:** L0 confirmed (Phase v3.2.3 delivery + MF-patch-1 patch)
 **Consumes:** substrate-v1-1, framework-registry-v1-0
 **Consumed by:** generation-procedure, framework-audit, amendment-propagation, generated L3 frameworks
 **Dependencies:** substrate-v1-1 (by reference, per HR1), framework-registry-v1-0 (by reference, per HR5)
@@ -22,7 +22,7 @@ Metaframework is the L2 framework that produces L3 framework templates. It decla
 | Kind | Framework |
 | Mode | generative (substrate §2 Modes) |
 | Level | L2 |
-| Version | v3.2.3 |
+| Version | v3.2.4 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -355,7 +355,7 @@ Total enumerated: 80 (7 PG + 63 axiom + 1 MA-G13 + 5 F-69 + 4 meta). The 4 subst
 
 ### §5.1 Version transition
 
-v3.0 → v3.1 → v3.2 → v3.2.1 → v3.2.3. Additive per MA-L1. Phase 1.2 amendments add MA-L6 + MA-L7 axioms (added in Phase 1.1 per V4 pre-declared outcome; ratified to spec at Phase 1.2 closure) and extend P8/P6 primitive shapes per substrate v1-1. Phase 1.2-fix amendments (v3.2): vocabulary cleanup (5 atom promotions reference substrate A-10..A-14 + LifecycleState reference resolves), gate count alignment (45 → 52), F-69 mechanical test bodies, MetaframeworkGateIdSet atom declaration, provenance ISO timestamps. Phase 1.2-fix-trail hygiene (v3.2.1): §6.5 DimensionResult custody flip per RF-01; §8.1 framework-audit version-ref refresh (v1-1 → v1-3) per RF-04. Patch-level bump per hygiene discipline — no axioms, gates, HRs, primitives amended. v3.2.3 amendments: 28 additive axioms across 7 axes (2 Identity + 3 Schema + 11 Structure + 4 Validity + 3 Lifecycle + 4 Coupling + 1 Judgment) + 28 paired gates; gate count 52 → 80; axiom count 36 → 64; 4 J-inputs declared at framework-audit §7 + 1 GR-series rule set declared at framework-audit §4.6.1. Cycle skips "v3.2.2" — no intervening cycle exists in canonical state.
+v3.0 → v3.1 → v3.2 → v3.2.1 → v3.2.3 → v3.2.4. Additive per MA-L1. Phase 1.2 amendments add MA-L6 + MA-L7 axioms (added in Phase 1.1 per V4 pre-declared outcome; ratified to spec at Phase 1.2 closure) and extend P8/P6 primitive shapes per substrate v1-1. Phase 1.2-fix amendments (v3.2): vocabulary cleanup (5 atom promotions reference substrate A-10..A-14 + LifecycleState reference resolves), gate count alignment (45 → 52), F-69 mechanical test bodies, MetaframeworkGateIdSet atom declaration, provenance ISO timestamps. Phase 1.2-fix-trail hygiene (v3.2.1): §6.5 DimensionResult custody flip per RF-01; §8.1 framework-audit version-ref refresh (v1-1 → v1-3) per RF-04. Patch-level bump per hygiene discipline — no axioms, gates, HRs, primitives amended. v3.2.3 amendments: 28 additive axioms across 7 axes (2 Identity + 3 Schema + 11 Structure + 4 Validity + 3 Lifecycle + 4 Coupling + 1 Judgment) + 28 paired gates; gate count 52 → 80; axiom count 36 → 64; 4 J-inputs declared at framework-audit §7 + 1 GR-series rule set declared at framework-audit §4.6.1. Cycle skips "v3.2.2" — no intervening cycle exists in canonical state. **v3.2.4 amendments (MF-patch-1): restatement-only — no axiom / gate / HR / primitive / J-input added or removed; no count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Substantive edits live in framework-audit-v1-3.3 (G-V9 + G-St16 predicate refinement; §4.1 stale literal "48" → derived "83"; §4.6.1 conformance test paragraph refined to recoverability semantics) and amendment-propagation-v1-2.1 (§5.10 v1.1 row added per MA-S5). Per MA-L1 additive — predicate refinement permitted (no axiom condition weakened; MA-V9 + MA-St16 axiom text unchanged).**
 
 ### §5.2 Amendment trigger
 
@@ -380,6 +380,7 @@ Empty at delivery. No MA-L5 events since Phase 1.1 (J-axis-mece + J-axiom-dist b
 | v3.0 | Phase 1.1 delivery (re-open output) | Initial metaframework declaration (7 axes, 33 axis-bound + 1 universal = 34 axioms, 54 gates, 6 handoffs). | L0 |
 | v3.1 | Phase 9d delivery (rendered against v3-1-spec) | MA-L6 + MA-L7 added to Lifecycle axis (+2 axioms, total 36); HR0 added for L0 activation (+1 HR, total 7); 2 new gates added for MA-L6 + MA-L7 (total 56); ternary kind on P8; +captureShape +diagnosticSignificance on P6 per substrate v1-1 Phase 1.2 amendments. | L0 |
 | v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms added across 7 axes (per axis: I+2, S+3, St+11, V+4, L+3, C+4, J+1); 28 paired gates added; 4 J-inputs added (declared at framework-audit §7); 1 GR-series rule set added (declared at framework-audit §4.6.1). Counts: axiom 36→64; framework-tier gate 52→80; total all-gates 56→84. P3, P4, P5, P7 row totals updated at §3.4. Single-batched cycle per Phase 6. | L0 |
+| v3.2.4 | MF-patch-1 delivery (2026-04-28) | Restatement only. §5.1 transition log extended with v3.2.4 entry citing predicate refinement substantively living in framework-audit-v1-3.3 + AP §5.10 v1.1 row addition in amendment-propagation-v1-2.1. No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (predicate refinement permitted under AxR3; no axiom condition weakened). MF-audit-1 finding closure documented at v3-1-spec.md §5.8. | L0 |
 
 ### §5.7 Failure modes, scale bounds, atomicity declarations
 
@@ -638,6 +639,7 @@ Per G-U1 (self-application): metaframework's gate suite runs against metaframewo
 | v3.2 | Phase 1.2-fix delivery | §2.3 Consumed types: 7 substrate-referenced atoms added (Kind, Ownership, ActivationTrigger, OperatorInterface, GenesisDeclaration, LifecycleState, Carrier). §2.4 local atoms list split into metaframework-local + substrate-referenced categories. §3.5 Vocabulary cleanup: 5 promoted atoms (Kind, Ownership, ActivationTrigger, OperatorInterface, GenesisDeclaration) now reference substrate A-10..A-14 per R-0015; State row resolves to substrate §9 LifecycleState per R-0004+R-0016; MetaframeworkGateIdSet added. §4.1 + §4.7 + §8.1 gate count alignment (45 → 52) per R-0020 + R-0017 + R-0019. §4.3 F-69 mechanical test bodies declared for G-U2 + G-U5 per R-0022; G-U5 co-execution semantics note added per R-0021. §6.5 custody table: MetaframeworkGateIdSet row added per R-0026; 5 promoted-atom custody rows updated to substrate origin. §7.1 + §7.2 ISO 8601 timestamps per R-0027. §1 Identity: scopeOut row added per R-0042. | L0 |
 | v3.2.1 | Phase 1.2-fix-trail hygiene delivery | §6.5 DimensionResult custody row flipped to framework-audit-owned with metaframework as schema-reference consumer (per RF-01, closing v1-F-05 sub-item). §8.1 Dimension ID enumeration reference `per framework-audit-v1-1 §3.3` → `per framework-audit-v1-3 §3.3` (per RF-04, same class as F-15 / R-0047 version-ref drift missed by KA-GATE1-1 cascade). Patch-level bump; no axioms, gates, HRs, primitives amended. | L0 |
 | v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms (I+2, S+3, St+11, V+4, L+3, C+4, J+1) + 28 paired gates added per single-batched cycle. Counts: §3.2 36→64; §3.4 P3 36→64, P4 36→64, P5 56→84; §4.1 framework-tier 52→80; §4.7 + §8.1 enumeration extended; §3.2.2 binding lines extended for all 7 axes; §3.5 vocabulary MetaframeworkGateIdSet 52→80; §4.4 tier-2 axiom-gates 35+G-G13=36 → 63+G-G13=64; §7.2 J-axiom-dist input enumeration extended; §5.1 + §5.6 transition log updated. 4 J-inputs declared at framework-audit §7 (J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context). 1 GR-series rule set declared at framework-audit §4.6.1. Source: v3-1-spec §3.2.6 + Phase 5 axiom authoring. | L0 |
+| v3.2.4 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version v3.2.3→v3.2.4. §1 Identity Version row updated. §5.1 transition log extended with v3.2.4 entry citing predicate refinement substantively living in framework-audit-v1-3.3 + AP §5.10 v1.1 row addition in amendment-propagation-v1-2.1. §5.6 v3.2.4 row added. No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (predicate refinement permitted under AxR3; no axiom condition weakened). MF-audit-1 finding closure documented at v3-1-spec.md §5.8 (closes F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008). | L0 |
 
 ---
 
