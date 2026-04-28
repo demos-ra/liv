@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    w3-19-memory-exports, w3-20-admin-exports, phase-b-item2, 6.1-global-seed, 6.11-module-surface, 4b-discovery-unregister
+// amended:    w3-19-memory-exports, w3-20-admin-exports, phase-b-item2, 6.1-global-seed, 6.11-module-surface, 4b-discovery-unregister, cog-v1.3-symmetry, cog-v1.2.1-port-adapter, cog-v1.2.1-operator-interface
 // slice:      F-codec
 // layer:      R3
 // wires-in:
@@ -19,12 +19,19 @@
 //   W-INJECT batchSeedAndTraverse()        ←  F-codec/R2 (codec-admin-actions)
 //   W-INJECT unregisterDiscovery()         ←  F-codec/R2 (codec-discovery, 4b-discovery-unregister)
 //   W-INJECT unregisterModule()            ←  F-codec/R2 (codec-registry, 4b-discovery-unregister)
+//   W-INJECT classifyRunReport()           ←  F-codec/R2 (codec-mi-adapter, cog-v1.2.1-port-adapter)
+//   W-INJECT getCognitiveAuditTrail()      ←  F-codec/R2 (codec-audit, cog-v1.2.1-operator-interface)
+//   W-INJECT getCognitiveRuntimeState()    ←  F-codec/R2 (codec-audit, cog-v1.2.1-operator-interface)
 // wires-out:
 //   W-HOOK  encode()                →  F-chat (post-integration)
 //   W-HOOK  processMessage()        →  F-chat (post-integration, replaces encode)
 //   W-HOOK  registerSubscriptions() →  F-event-system/R2 (startup)
 //   W-HOOK  unregisterDiscovery()   →  tests, controlled teardown (4b-discovery-unregister)
 //   W-HOOK  unregisterModule()      →  tests, hot reload (4b-discovery-unregister)
+//   W-HOOK  decodeWorkOutput()      →  Verification Std (Sprint 4) / Research Std (Sprint 5) consumers (cog-v1.3-symmetry, CA6/CA7)
+//   W-HOOK  classifyRunReport()     →  F-planner/R2 (planner-workflow, M-I CognitiveClassificationPort impl)
+//   W-HOOK  getCognitiveAuditTrail() →  L0/admin tooling, framework-audit consumers (cog-v1.2.1 §5.3 Review)
+//   W-HOOK  getCognitiveRuntimeState() →  L0/admin tooling (cog-v1.2.1 §6.5 Discovery)
 // deps:
 //   R2  ../app/codec-encode
 //   R2  ../app/codec-subscribe
@@ -34,6 +41,8 @@
 //   R2  ../app/codec-admin-actions
 //   R2  ../app/codec-discovery
 //   R2  ../app/codec-registry
+//   R2  ../app/codec-mi-adapter
+//   R2  ../app/codec-audit
 // validated:  pending
 
 // R3: thin wire. No logic. Public surface for F-codec.
@@ -97,7 +106,20 @@ export { getDecodedState, getArtifactsForMode } from '../app/codec-read'
 // ─── Admin actions (w3-20-admin-exports) ──────────────────────────────────────
 // A3: public surface for admin API routes. Routes import from contract, not app/.
 export { seedGlobalNode, ingestExternal, removeNode, batchSeedAndTraverse, getModulesForClient } from '../app/codec-admin-actions'
-export { classifyGraph } from '../domain/codec-decode'
+export { classifyGraph, decodeWorkOutput } from '../domain/codec-decode'
+
+// ─── Cognitive v1.3 §10 symmetric-output atoms (cog-v1.3-symmetry) ───────────
+// A3: typed boundary for B-direction work-output decode. Forward-consumed by
+// Verification Std v1.0 (Sprint 4) + Research Std v1.0 (Sprint 5) call sites.
+export type { WorkOutputDecodeResult } from '../config/codec-decode-types'
+export { WorkOutputShapeRegistry } from '../config/codec-decode-types'
+
+// ─── Cognitive v1.2.1 §7.1 M-I port adapter (cog-v1.2.1-port-adapter) ────────
+// A3: typed boundary implementing CognitiveClassificationPort declared at
+// F-multi-instance/R3. Replaces phase8-cognitive-stub at Shot 4 swap site.
+// HR-Cog3 invariant: port shape unchanged; only the implementation slice
+// changes (F-planner/exec/stub → F-codec/R3/contract).
+export { classifyRunReport } from '../app/codec-mi-adapter'
 
 // ─── Module registry — symmetric deregistration (4b-discovery-unregister) ────
 // Directional symmetry: every register operation has a matching unregister.
@@ -105,3 +127,11 @@ export { classifyGraph } from '../domain/codec-decode'
 // not codec-registry / codec-discovery directly.
 export { unregisterDiscovery } from '../app/codec-discovery'
 export { unregisterModule, clearRegistry } from '../app/codec-registry'
+
+// ─── Cognitive v1.2.1 §5.3 + §6.5 OperatorInterface (cog-v1.2.1-operator-interface) ───
+// Audit trail (Review sub-interface) + runtime state (Discovery sub-interface).
+// First-pass impl — in-memory ring buffer; persistent backing-store at
+// post-Sprint-3 cycle. Activation + Confirmation sub-interfaces remain at
+// 'declared' state per §6.5 (not implemented in Sprint 3).
+export type { AuditTrailEntry, AuditTrailEventType, AuditTrailFilter, CognitiveRuntimeState, CognitiveLifecycleState } from '../config/codec-audit-types'
+export { getCognitiveAuditTrail, getCognitiveRuntimeState } from '../app/codec-audit'

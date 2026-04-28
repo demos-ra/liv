@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.9-6.10-module-exec-config, 4b-nodeid-propagation
+// amended:    6.9-6.10-module-exec-config, 4b-nodeid-propagation, cog-v1.2.1-rename, cog-v1.3-symmetry
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -20,9 +20,9 @@
 //   R5  @/core/types/primitives
 // validated:  pending
 
-// Cognitive Standard v1.2 — primitive vocabulary and codec configuration.
-// A6: declared at R0. CA3: 6 primitives from 3 axes.
-// CA4: unique mutation signature each.
+// Cognitive Standard v1.2.1 — primitive vocabulary and codec configuration.
+// A6: declared at R0. CA2: 6 primitives from 3 axes.
+// CA3: unique mutation signature each.
 // 4b-nodeid-propagation: EncodeResult.boundToNodeId carries a F-memory NodeId
 //     (from TraversalResult.topNodes) or null.
 
@@ -30,7 +30,7 @@ import type { NodeId } from '@/core/types/primitives'
 
 // ─── Cognitive Primitives ─────────────────────────────────────────────────────
 // The 6 atomic operations on the graph.
-// CA3: generated from 3 binary axes — binding (BOUND/UNBOUND),
+// CA2: generated from 3 binary axes — binding (BOUND/UNBOUND),
 //      structural (ADD/REORGANIZE/NONE), weight (INCREASE/DECREASE/NONE).
 
 export type CognitivePrimitive =
@@ -98,10 +98,16 @@ export const CODEC_CONFIG = {
   // Module execution — structured response (findings, plans, audits)
   MODULE_EXEC_MAX_TOKENS:  1024,
   MODULE_EXEC_TEMPERATURE: 0,
+
+  // Cognitive v1.2.1 + v1.3 fallback discipline (CA3 / CA7).
+  // classifyRunReport returns this on classify-LLM failure (Shot 3, V-S3.2).
+  // decodeWorkOutput uses 0.0 as the default-confidence marker symmetric
+  // to encode-side fallback (paired with non-null fallbackBasis per CA7).
+  FALLBACK_CONFIDENCE: 0.0,
 } as const
 
 // ─── Mechanical Encode Mappings ───────────────────────────────────────────────
-// Event type → primitive. CA5: observable transition from structured data.
+// Event type → primitive. CA4: observable transition from structured data.
 // These 5 planner events have known, fixed primitive mappings — no LLM needed.
 
 export const MECHANICAL_MAPPINGS: Record<string, MutatingPrimitive> = {

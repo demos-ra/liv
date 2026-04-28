@@ -161,7 +161,7 @@ import { executeRun, type MultiInstancePorts } from '@/features/F-multi-instance
 import type { RunReportContent } from '@/features/F-multi-instance/contract/mi-contract'
 import type { Semver, NodeId } from '@/core/types/primitives'
 import { createArtifactGraphPort, createPlanResolutionPort } from '@/features/F-memory/contract/memory-graph-contract'
-import { createCognitiveStub } from '../exec/phase8-cognitive-stub'
+import { classifyRunReport } from '@/features/F-codec/contract/codec-contract'
 import { createAdapterPort } from '../contract/planner-adapter-port'
 import {
   nextStage,
@@ -339,14 +339,17 @@ export async function runPipeline(
 
     await deps.db.setPipelineStatus(jobId, 'running')
 
-    // ── 2. Build port surface (Phase 5.5: graph+plan via F-memory R3; cognitive stubbed until Phase 8) ──
+    // ── 2. Build port surface (Phase 5.5: graph+plan via F-memory R3; cognitive via F-codec R3 at Phase 8/Sprint 3) ──
     // Phase 5 used createPhase5StubSurface (per-call Maps); Phase 5.5 swaps to
     // F-memory R3 process-warm storage. Same graph instance feeds plan emission
     // (createArtifact) and executeRun (M-I S1 resolvePlan) — F-memory's R2
     // singleton makes them one store, closing PA5 cross-turn re-entry.
+    // Sprint 3 / cog-v1.2.1-port-adapter: cognitive stub deleted; classifyRunReport
+    // imported directly from F-codec/R3. cognitive remains an object literal for
+    // minimal diff at downstream consumption (line ~412 MultiInstancePorts).
     const graph     = createArtifactGraphPort()
     const plan      = createPlanResolutionPort()
-    const cognitive = createCognitiveStub()
+    const cognitive = { classifyRunReport }
     const adapter   = createAdapterPort(deps.ai, job.userId)
 
     // PA5: planVersion bumps on re-entry. First run = '1.0.0'; bump minor per
@@ -359,10 +362,33 @@ export async function runPipeline(
     const priorAnchorResult = await deps.db.getPriorPlanAnchor(jobId)
     const priorPlanAnchorNodeId = priorAnchorResult.ok ? priorAnchorResult.data : null
 
-    // Cognitive classifier is the last surviving Phase 5 stub. F-codec R3
-    // adapter at Phase 8 replaces createCognitiveStub() and this comment.
+    // Sprint 3 close turn / A-S3-01: synthetic placeholder RunReport per
+    // close-turn dispatch path (c). The new F-codec/R3 classifyRunReport
+    // adapter dereferences runReport fields (vs. the prior stub which ignored
+    // args). This call site is at Phase 5 (plan emission) where no real
+    // RunReport exists yet — Phase 8 (post-run classification) is the
+    // semantic home for classifyRunReport. Synthetic placeholder is
+    // deterministic per CA4: minimal-valid shape with in-scope identifiers
+    // populated; remaining fields filled with declared empty/zero defaults.
+    // serializeRunReport produces a deterministic constant-shape string per
+    // call. Deeper rework (move call to Phase 8 + thread real RunReport)
+    // tracked at register entry F-PLANNER-PHASE-MISMATCH-001.
+    const syntheticRunReport: RunReportContent = {
+      planId:               jobId as unknown as RunReportContent['planId'],
+      planAnchorNodeId:     (priorPlanAnchorNodeId ?? (jobId as unknown as NodeId)),
+      planVersion,
+      bindingDomainId:      '',
+      bindingDomainVersion: '0.0.0' as Semver,
+      runId:                jobId as string,
+      startedAt:            0 as RunReportContent['startedAt'],
+      completedAt:          0 as RunReportContent['completedAt'],
+      outcome:              'partial',
+      instanceResults:      [],
+      setViolations:        [],
+      aggregation:          { topology: 'singleton' as RunReportContent['aggregation']['topology'] },
+    }
     const planCodec = await cognitive.classifyRunReport({
-      runReport: undefined as unknown as RunReportContent,  // shape-irrelevant for stub
+      runReport: syntheticRunReport,
       userId:    job.userId,
       runTurnId: jobId as string,
     })

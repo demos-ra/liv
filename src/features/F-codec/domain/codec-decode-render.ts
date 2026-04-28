@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, lm-v2-2-shot5-fix-2
+// amended:    6.8-artifact-decode, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -20,8 +20,8 @@
 
 // Decode renderers — two pure projections of DecodeOutput.
 // R1: pure functions. No I/O, no side effects.
-// CA5: deterministic rendering — same DecodeOutput = same text/list.
-// CA8: renders graph-derived structures, not LLM-generated prose.
+// CA4: deterministic rendering — same DecodeOutput = same text/list.
+// CA5: renders graph-derived structures, not LLM-generated prose.
 
 import type {
   DecodeOutput,
@@ -44,7 +44,7 @@ const LAYER_LABELS: Record<number, string> = {
 
 // ─── Render For System Prompt ────────────────────────────────────────────────
 // Produces structured text for LLM system prompt injection.
-// CA8: graph structures → structured text. Not prose — parseable context.
+// CA5: graph structures → structured text. Not prose — parseable context.
 //
 // Order: Entities (M0→M1→M2) with nested Relations, then Claims, Sequences, Tensions.
 // Truncates lowest-energy items to fit DECODE_MAX_TOKENS budget.
@@ -191,7 +191,7 @@ export function renderForSystemPrompt(decoded: DecodeOutput): DecodedContext {
 // ─── Render For UI ───────────────────────────────────────────────────────────
 // Flat list of all structures, sorted by energy/confidence descending.
 // For memory program tree UI (#19). No formatting — typed structures only.
-// CA5: deterministic projection.
+// CA4: deterministic projection.
 
 export function renderForUI(decoded: DecodeOutput): DecodedStructure[] {
   // A3: typed boundary — returns atom array.

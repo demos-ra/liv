@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2
+// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -23,7 +23,7 @@
 
 // Memory program types.
 // A6: declared at R0 — consumed by R2 actions + R3 UI component.
-// CA8: tree structure derived from decode output, not authored.
+// CA5: tree structure derived from decode output, not authored.
 // 4b-nodeid-propagation: node-id-shaped fields in MemoryAction + MemoryTreeNode
 //     use NodeId. MemoryTreeNode.id is built from DecodedStructure nodeIds, so
 //     carries NodeId end-to-end from F-memory atom → UI click handler.
@@ -52,7 +52,7 @@ export type MemoryTreeNode = {
 
 // ─── Memory Action ───────────────────────────────────────────────────────────
 // User actions on the memory tree — each maps to a cognitive primitive.
-// CA5: observable transition — user click = known primitive, no LLM needed.
+// CA4: observable transition — user click = known primitive, no LLM needed.
 // nodeId fields are true graph NodeIds — they flow into graph.nodes.get()
 // at codec-memory-actions.
 

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.3-symmetry
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -13,12 +13,14 @@
 //   W-ATOM  EdgePrimitiveType   F-memory/R3
 //   W-ATOM  FrameworkMode       F-codec/R0
 // wires-out:
-//   W-ATOM  DecodeCategory      →  F-codec/*
-//   W-ATOM  RelationType        →  F-codec/*
-//   W-ATOM  DecodedStructure    →  F-codec/*
-//   W-ATOM  DecodeOutput        →  F-codec/*
-//   W-ATOM  DecodedContext      →  F-codec/*
-//   W-ATOM  DECODE_MAX_TOKENS   →  F-codec/*
+//   W-ATOM  DecodeCategory           →  F-codec/*
+//   W-ATOM  RelationType             →  F-codec/*
+//   W-ATOM  DecodedStructure         →  F-codec/*
+//   W-ATOM  DecodeOutput             →  F-codec/*
+//   W-ATOM  DecodedContext           →  F-codec/*
+//   W-ATOM  DECODE_MAX_TOKENS        →  F-codec/*
+//   W-ATOM  WorkOutputDecodeResult   →  F-codec/* (Cognitive v1.3 §10.1)
+//   W-ATOM  WorkOutputShapeRegistry  →  F-codec/* (Cognitive v1.3 §10.1)
 // deps:
 //   R3  ../../F-memory/contract/memory-contract
 //   R0  ./codec-module-types
@@ -27,7 +29,7 @@
 
 // Decode classification types.
 // A6: declared at R0 — consumed by R1 decode + render.
-// CA5: observable transition — classifications are deterministic structural reads.
+// CA4: observable transition — classifications are deterministic structural reads.
 // 4b-nodeid-propagation: node-id-shaped fields typed NodeId. F-codec reads
 //     MemNode.id from F-memory atoms and republishes through DecodedStructure.
 
@@ -38,7 +40,7 @@ import type { NodeId } from '@/core/types/primitives'
 // ─── Classification Category ─────────────────────────────────────────────────
 // The 6 structural forms a graph produces when read.
 // 6.8: artifact added for framework module outputs.
-// CA8: derived from graph topology, not LLM inference.
+// CA5: derived from graph topology, not LLM inference.
 
 export type DecodeCategory = 'entity' | 'relation' | 'claim' | 'sequence' | 'tension' | 'artifact'
 
@@ -85,3 +87,49 @@ export type DecodedContext = {
 // truncate lowest to fit.
 
 export const DECODE_MAX_TOKENS = 2000
+
+// ─── Work-Output Decode (Cognitive v1.3 §10.1) ───────────────────────────────
+// B-direction symmetric to encode A-direction. Module work-output → typed
+// per-mode shape. Consumed by decodeWorkOutput at R1 (Shot 2).
+//
+// CA6: every mode in FrameworkMode has a registry entry; decodedFields keys
+//      are a superset of registry expectedFields for the declared mode.
+// CA7: parseFailureFlag XOR fallbackBasis — paired 1:1, symmetric to CA3
+//      encode fallback discipline (no undefined fallback).
+
+export type WorkOutputDecodeResult = {
+  mode:             FrameworkMode
+  moduleId:         string
+  decodedFields:    Record<string, string>
+  symmetricToInput: { inputAtomRef: string; pairValid: boolean }
+  parseFailureFlag: boolean
+  fallbackBasis:    string | null
+}
+
+// Per-mode shape registry. Forward-reference pairing input atoms per
+// Cognitive v1.3 §10.1: GenerativeQueryInput + VerificativeQueryInput map
+// to Plan v2.2 + M-I v2.3 declared atoms by derived adjacency; Epistemic +
+// Structural land at Verification Std v1.0 (Sprint 4) + Research Std v1.0
+// (Sprint 5).
+
+export const WorkOutputShapeRegistry: Record<
+  FrameworkMode,
+  { expectedFields: readonly string[]; pairingInputAtom: string }
+> = {
+  epistemic: {
+    expectedFields:   ['question', 'decomposition', 'findings', 'openQuestions', 'sources'],
+    pairingInputAtom: 'EpistemicQueryInput',
+  },
+  structural: {
+    expectedFields:   ['decomposition', 'mapping', 'invariants', 'gaps'],
+    pairingInputAtom: 'StructuralQueryInput',
+  },
+  generative: {
+    expectedFields:   ['plan', 'steps', 'dependencies', 'artifacts'],
+    pairingInputAtom: 'GenerativeQueryInput',
+  },
+  verificative: {
+    expectedFields:   ['claim', 'evidence', 'gates', 'verdict'],
+    pairingInputAtom: 'VerificativeQueryInput',
+  },
+} as const

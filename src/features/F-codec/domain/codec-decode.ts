@@ -4,24 +4,26 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.3-symmetry
 // slice:      F-codec
 // layer:      R1
 // wires-in:
-//   W-ATOM  NodeId              core/R5 (primitives)
-//   W-ATOM  MemGraph            F-memory/R3
-//   W-ATOM  MemNode             F-memory/R3
-//   W-ATOM  MemEdge             F-memory/R3
-//   W-ATOM  MemArm              F-memory/R3
-//   W-ATOM  MLayer              F-memory/R3
-//   W-ATOM  EdgePrimitiveType   F-memory/R3
-//   W-ATOM  ScopedGraphSet      F-memory/R3
-//   W-ATOM  DecodeOutput        F-codec/R0
-//   W-ATOM  RelationType        F-codec/R0
-//   W-ATOM  ARTIFACT_PREFIX     F-codec/R0
-//   W-ATOM  ARTIFACT_DATA_PREFIX F-codec/R0
-//   W-ATOM  FrameworkMode       F-codec/R0
-// wires-out:  none (consumed by R2 codec-orchestrate and R1 codec-decode-render)
+//   W-ATOM  NodeId                    core/R5 (primitives)
+//   W-ATOM  MemGraph                  F-memory/R3
+//   W-ATOM  MemNode                   F-memory/R3
+//   W-ATOM  MemEdge                   F-memory/R3
+//   W-ATOM  MemArm                    F-memory/R3
+//   W-ATOM  MLayer                    F-memory/R3
+//   W-ATOM  EdgePrimitiveType         F-memory/R3
+//   W-ATOM  ScopedGraphSet            F-memory/R3
+//   W-ATOM  DecodeOutput              F-codec/R0
+//   W-ATOM  RelationType              F-codec/R0
+//   W-ATOM  ARTIFACT_PREFIX           F-codec/R0
+//   W-ATOM  ARTIFACT_DATA_PREFIX      F-codec/R0
+//   W-ATOM  FrameworkMode             F-codec/R0
+//   W-ATOM  WorkOutputDecodeResult    F-codec/R0 (Cognitive v1.3 §10.1)
+//   W-ATOM  WorkOutputShapeRegistry   F-codec/R0 (Cognitive v1.3 §10.1)
+// wires-out:  none (consumed by R2 codec-orchestrate, R3 codec-contract, R1 codec-decode-render)
 // deps:
 //   R3  ../../F-memory/contract/memory-contract
 //   R0  ../config/codec-decode-types
@@ -31,8 +33,8 @@
 
 // Decode classifier — the read side of the codec.
 // R1: pure function. No I/O, no side effects.
-// CA8: graph is context — classifications derived from topology alone.
-// CA5: observable transition — same graph = same output, deterministic.
+// CA5: graph is context — classifications derived from topology alone.
+// CA4: observable transition — same graph = same output, deterministic.
 // 4b-nodeid-propagation: NodeId flows from F-memory atoms through F-codec
 //     internal maps and into DecodedStructure. Local helpers retyped to
 //     NodeId; internal incoming/pairEdges/armEdges maps keyed by NodeId.
@@ -51,7 +53,10 @@ import type {
   DecodeOutput,
   RelationType,
   DecodedStructure,
+  WorkOutputDecodeResult,
 } from '../config/codec-decode-types'
+
+import { WorkOutputShapeRegistry } from '../config/codec-decode-types'
 
 import { ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX } from '../config/codec-artifact-types'
 import type { FrameworkMode } from '../config/codec-module-types'
@@ -172,8 +177,8 @@ function mergeGraphs(scoped: ScopedGraphSet): MemGraph {
 
 // ─── Classify Graph ──────────────────────────────────────────────────────────
 // Core classifier. Pure function. Same input = same output.
-// CA8: graph topology is the only input — no LLM, no heuristics.
-// CA5: every classification is a deterministic structural read.
+// CA5: graph topology is the only input — no LLM, no heuristics.
+// CA4: every classification is a deterministic structural read.
 //
 // Algorithm:
 // 1. Merge scoped graphs (user priority, global fallthrough)
@@ -635,4 +640,149 @@ function resolveArtifactMode(
 
   // Fallback: static map
   return MODULE_MODE_MAP[moduleId] ?? 'generative'
+}
+
+// ─── Work-Output Decode (Cognitive v1.3 §10.4 — CA6 + CA7) ───────────────────
+// Pure structural decode of module work-output to typed per-mode shape.
+// B-direction symmetric to A-direction encode at R2 (encodeLLM).
+//
+// CA4 purity: no I/O, no LLM, no graph mutation. Determined by (output, mode).
+// CA6 coverage: every mode in FrameworkMode has a registry entry (compile-time
+//      enforced via Record<FrameworkMode, ...> typing at R0). Returned
+//      decodedFields keys ⊇ registry.expectedFields for declared mode.
+// CA7 XOR pairing: parseFailureFlag === true ↔ fallbackBasis !== null,
+//      symmetric to CA3 encode fallback (anchor on classify failure;
+//      normalized-content-slice on label failure).
+
+/**
+ * Extract a field from an unknown source object as a string.
+ *
+ * Returns { value, missing } where:
+ * - missing = true iff the key is absent OR the value is null/undefined.
+ * - value is a string coercion of the underlying type:
+ *     string → as-is
+ *     number/boolean → String(v)
+ *     array → newline-joined (string elements as-is, others JSON.stringify'd)
+ *     object → JSON.stringify
+ *
+ * Coercion rules are deterministic per CA4; pure per R1 layer discipline.
+ */
+function extractField(
+  source: Record<string, unknown>,
+  key: string,
+): { value: string; missing: boolean } {
+  if (!(key in source)) return { value: '', missing: true }
+  const raw = source[key]
+  if (raw === null || raw === undefined) return { value: '', missing: true }
+  if (typeof raw === 'string') return { value: raw, missing: false }
+  if (typeof raw === 'number' || typeof raw === 'boolean') {
+    return { value: String(raw), missing: false }
+  }
+  if (Array.isArray(raw)) {
+    return {
+      value: raw
+        .map((el) => (typeof el === 'string' ? el : JSON.stringify(el)))
+        .join('\n'),
+      missing: false,
+    }
+  }
+  if (typeof raw === 'object') {
+    return { value: JSON.stringify(raw), missing: false }
+  }
+  return { value: String(raw), missing: false }
+}
+
+/**
+ * Decode a module work-output to its typed per-mode shape.
+ *
+ * Signature: (output, mode) → WorkOutputDecodeResult per spec §5.2 + Cognitive
+ * v1.3 §10.1. Pure function; consumed by post-Sprint-3 callers (Verification +
+ * Research domain frameworks at Sprints 4/5 land their concrete pairing input
+ * atoms; this function is generative scaffolding ahead of consumer arrival).
+ *
+ * Failure semantics (CA7 XOR):
+ * - Total failure (envelope is not an object): every expectedField defaults
+ *   to '' with parseFailureFlag = true; fallbackBasis declares envelope failure.
+ * - Partial failure (some expectedFields missing): present fields decode as-is,
+ *   missing fields default to '' with parseFailureFlag = true; fallbackBasis
+ *   enumerates missing fields.
+ * - Clean parse: every expectedField present and non-null; parseFailureFlag =
+ *   false; fallbackBasis = null.
+ *
+ * pairValid (on symmetricToInput) is true iff the *data contract* held —
+ * envelope was an object AND every expectedField decoded without fallback.
+ * moduleId presence does not affect pairValid per §10.1: pairing is between
+ * inputAtomRef and output-data-shape, not module identity.
+ */
+export function decodeWorkOutput(
+  output: unknown,
+  mode:   FrameworkMode,
+): WorkOutputDecodeResult {
+  const registryEntry = WorkOutputShapeRegistry[mode]
+
+  // Top-level envelope shape check.
+  const isObjectEnvelope =
+    output !== null && typeof output === 'object' && !Array.isArray(output)
+  const source = isObjectEnvelope ? (output as Record<string, unknown>) : {}
+
+  // moduleId discovery from envelope (Decision-D below): extract opportunistic;
+  // missing moduleId contributes to parseFailureFlag but not to pairValid.
+  const moduleIdExtract = extractField(source, 'moduleId')
+  const moduleId = moduleIdExtract.value
+
+  // Per-field extraction across registry.expectedFields. Missing fields fill
+  // with '' (declared fallback; preserves Record<string, string> shape per
+  // §10.1 atom declaration — no undefined values in decodedFields).
+  const decodedFields: Record<string, string> = {}
+  const missingFields: string[] = []
+  for (const field of registryEntry.expectedFields) {
+    const { value, missing } = extractField(source, field)
+    decodedFields[field] = value
+    if (missing) missingFields.push(field)
+  }
+
+  // CA7 composition. parseFailureFlag = true if envelope failed OR moduleId
+  // missing OR any expectedField missing.
+  const envelopeFailure = !isObjectEnvelope
+  const moduleIdFailure = moduleIdExtract.missing
+  const fieldsFailure   = missingFields.length > 0
+  const parseFailureFlag = envelopeFailure || moduleIdFailure || fieldsFailure
+
+  // CA7 XOR fallbackBasis: declared string iff parseFailureFlag, null otherwise.
+  let fallbackBasis: string | null
+  if (parseFailureFlag) {
+    if (envelopeFailure) {
+      fallbackBasis =
+        'mode-specific empty defaults applied: input was not an object envelope'
+    } else if (moduleIdFailure && fieldsFailure) {
+      fallbackBasis =
+        `partial-parse with missing moduleId and ${missingFields.length} ` +
+        `expectedField(s) filled by registry default: ${missingFields.join(', ')}`
+    } else if (moduleIdFailure) {
+      fallbackBasis =
+        'partial-parse with missing moduleId filled by registry default'
+    } else {
+      fallbackBasis =
+        `partial-parse with missing fields filled by registry default: ` +
+        `${missingFields.join(', ')}`
+    }
+  } else {
+    fallbackBasis = null
+  }
+
+  // pairValid: data-contract validity only. moduleId-missing does not
+  // invalidate pairing per §10.1 (pairing is inputAtomRef ↔ output-shape).
+  const pairValid = !envelopeFailure && !fieldsFailure
+
+  return {
+    mode,
+    moduleId,
+    decodedFields,
+    symmetricToInput: {
+      inputAtomRef: registryEntry.pairingInputAtom,
+      pairValid,
+    },
+    parseFailureFlag,
+    fallbackBasis,
+  }
 }

@@ -1,10 +1,10 @@
-// @liv-standard v1.4
+// @liv-standard v1.5.1
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    phase-b-item1, lm-v2-2-shot2, lm-v2-2-shot4
+// amended:    phase-b-item1, lm-v2-2-shot2, lm-v2-2-shot4, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -48,7 +48,7 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
 // ─── Encode LLM (Conversation) ───────────────────────────────────────────────
 // The conversation encode pipeline. Single LLM call for classify + label.
-// CA5: primitive determined from content + graph state.
+// CA4: primitive determined from content + graph state.
 //
 // Pipeline:
 // 1. Present({scope: {user: userId}}) — graph context for classification (LM v2.2 §D)
@@ -160,7 +160,7 @@ export async function encodeLLM(
 
 // ─── Encode Mechanical (System Events) ────────────────────────────────────────
 // Structured data with known primitive mappings. No LLM needed.
-// CA5: observable transition from structured event data.
+// CA4: observable transition from structured event data.
 //
 // Pipeline:
 // 1. Look up primitive from MECHANICAL_MAPPINGS

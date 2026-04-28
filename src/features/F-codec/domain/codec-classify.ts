@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-codec/R1]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    lm-v2-2-shot4
+// amended:    lm-v2-2-shot4, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -17,7 +17,7 @@
 // validated:  pending
 
 // R1: pure functions. Zero I/O. Zero side effects.
-// CA5: primitive determined from content + graph state. No external classifier.
+// CA4: primitive determined from content + graph state. No external classifier.
 // The classify prompt includes label extraction — single LLM call, single parse.
 // R2 orchestrates the call. R4 executes it. R1 builds and parses.
 //
@@ -32,7 +32,7 @@ import { COGNITIVE_PRIMITIVES } from '../config/codec-types'
 
 // ─── Build Classify Prompt ────────────────────────────────────────────────────
 // Builds system + user prompt for the single LLM call that classifies the
-// primitive AND extracts the label. CA5: observable transition from content +
+// primitive AND extracts the label. CA4: observable transition from content +
 // graph state — the LLM reads both to determine the primitive.
 //
 // The prompt asks for JSON:
@@ -64,7 +64,7 @@ Current graph state:
 ${block}
 
 Rules:
-- Classify based on the message content AND the graph state above. CA5: the transition must be observable from these two inputs alone.
+- Classify based on the message content AND the graph state above. CA4: the transition must be observable from these two inputs alone.
 - For mutating primitives (not reference): extract a canonical label — lowercase, hyphenated, noun-phrase, singular. Max 100 chars.
 - For reference: label must be empty string.
 - Confidence: 0–1. Be honest — low confidence is fine.
@@ -80,7 +80,7 @@ ${content}`
 // ─── Parse Classify Response ──────────────────────────────────────────────────
 // Parses the single LLM JSON response containing both classify and label data.
 // Returns null on parse failure — caller handles fallback.
-// CA4: validates primitive is one of the 6 known values.
+// CA3: validates primitive is one of the 6 known values.
 
 export function parseClassifyResponse(raw: string): (ClassifyResult & { label: string }) | null {
   try {
@@ -99,7 +99,7 @@ export function parseClassifyResponse(raw: string): (ClassifyResult & { label: s
       return null
     }
 
-    // CA4: validate primitive is one of the 6
+    // CA3: validate primitive is one of the 6
     if (!COGNITIVE_PRIMITIVES.includes(parsed.primitive as CognitivePrimitive)) {
       return null
     }

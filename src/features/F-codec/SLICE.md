@@ -1,6 +1,6 @@
 # F-codec
 
-**Identity:** Cognitive Standard v1.2 implementation — the encode/route/decode layer between natural language and typed graph operations.
+**Identity:** Cognitive Standard v1.2.1 implementation (v1.3 amendment block — Symmetry axis, CA6–CA7) — the encode/route/decode layer between natural language and typed graph operations.
 
 **Ownership:** F-codec tells the graph what to do. F-memory executes without knowing why. (A1)
 
@@ -102,9 +102,28 @@ Rendering: structured text ordered by layer (M0 first) then energy. Token-budget
 
 ## Public Contract
 
-- `processMessage(content, userId)` — full codec pipeline (encode → route → decode → dispatch)
+**Encode + pipeline (#16–18):**
+- `processMessage(content, userId, projectId?, modelId?)` — full codec pipeline (encode → route → decode → dispatch)
 - `encode(content, userId)` — conversation encode only (retained for backward compat)
 - `registerSubscriptions()` — wire mechanical encode to event bus
+
+**Decode (Cognitive v1.3 §10 symmetric output):**
+- `decodeWorkOutput(output, mode)` — pure structural decode of module work-output to `WorkOutputDecodeResult` per CA6 + CA7
+- `classifyGraph(graphSet)` — graph topology → `DecodeOutput` (v1.2 path, unchanged)
+
+**M-I cognitive port (Cognitive v1.2.1 §7.1 J-classify):**
+- `classifyRunReport({runReport, userId, runTurnId})` — implements `CognitiveClassificationPort`; replaces the Phase 5/8 stub
+
+**OperatorInterface (Cognitive v1.2.1 §5.3 + §6.5 — Review + Discovery sub-interfaces):**
+- `getCognitiveAuditTrail({frameworkRef?, eventType?, timeRange?})` — query in-memory audit-trail ring buffer
+- `getCognitiveRuntimeState()` — `{standardVersion, lifecycleState, lastConfirmedAt}`
+
+**Memory + admin actions (w3-19 / w3-20):**
+- `executeMemoryAction()`, `getDecodedState()`, `getArtifactsForMode()`
+- `seedGlobalNode()`, `ingestExternal()`, `removeNode()`, `batchSeedAndTraverse()`, `getModulesForClient()`
+
+**Module registry symmetric deregistration (4b-discovery-unregister):**
+- `unregisterDiscovery()`, `unregisterModule()`, `clearRegistry()`
 
 ## Events
 
@@ -119,29 +138,45 @@ Rendering: structured text ordered by layer (M0 first) then energy. Token-budget
 
 - **Memory program** (#19) — graph visualization UI using decode's `renderForUI()`
 - **Global graph admin** (#20) — admin tooling for graph inspection
+- **Audit-trail persistent store** (post-Sprint-3) — ring buffer is first-pass; backing-store design owned by F-codec ops layer
 
 ## File Structure
 
 ```
 F-codec/
 ├── config/                         R0
-│   ├── codec-types.ts              Primitives, ClassifyResult, EncodeResult, config, mappings
+│   ├── codec-types.ts              Primitives, ClassifyResult, EncodeResult, config, mappings, FALLBACK_CONFIDENCE
 │   ├── codec-events.ts             CODEC_EVENTS (encode events)
 │   ├── codec-routing-types.ts      BindingDomain, RouteAction, CodecPipelineResult, routing config+events
-│   ├── codec-decode-types.ts       DecodeOutput, DecodedContext, DecodedStructure
+│   ├── codec-decode-types.ts       DecodeOutput, DecodedContext, DecodedStructure, WorkOutputDecodeResult, WorkOutputShapeRegistry
+│   ├── codec-module-types.ts       FrameworkMode, module-execution atom shapes
+│   ├── codec-memory-types.ts       Memory-action atoms (decode → memory navigation)
+│   ├── codec-admin-types.ts        Admin-action atoms (global graph seed/ingest)
+│   ├── codec-artifact-types.ts     Artifact atoms + ARTIFACT_PREFIX / ARTIFACT_DATA_PREFIX
+│   ├── codec-audit-types.ts        AuditTrailEntry, AuditTrailFilter, CognitiveRuntimeState, CognitiveLifecycleState (cog-v1.2.1 §5.3 + §6.5)
 │   └── codec-wires.ts              Wire contract declarations
 ├── domain/                         R1 — pure functions, zero I/O
 │   ├── codec-classify.ts           buildClassifyPrompt(), parseClassifyResponse()
 │   ├── codec-label.ts              normalizeLabel(), parseLabelResponse()
 │   ├── codec-routing.ts            classifyDomain(), determineRoute()
-│   ├── codec-decode.ts             classifyGraph()
-│   └── codec-decode-render.ts      renderForSystemPrompt(), renderForUI()
+│   ├── codec-decode.ts             classifyGraph(), decodeWorkOutput() (cog-v1.3 §10)
+│   ├── codec-decode-render.ts      renderForSystemPrompt(), renderForUI()
+│   └── codec-mode-classify.ts      Mode-specific classification helpers
 ├── app/                            R2 — orchestration
 │   ├── codec-encode.ts             encodeLLM(), encodeMechanical()
 │   ├── codec-orchestrate.ts        processMessage() — full pipeline
-│   └── codec-subscribe.ts          registerCodecSubscriptions()
+│   ├── codec-mi-adapter.ts         classifyRunReport() — M-I port adapter (cog-v1.2.1 §7.1)
+│   ├── codec-audit.ts              getCognitiveAuditTrail(), getCognitiveRuntimeState() (cog-v1.2.1 §5.3 + §6.5)
+│   ├── codec-subscribe.ts          registerCodecSubscriptions()
+│   ├── codec-read.ts               getDecodedState(), getArtifactsForMode()
+│   ├── codec-memory-actions.ts     executeMemoryAction()
+│   ├── codec-admin-actions.ts      seedGlobalNode(), ingestExternal(), removeNode(), batchSeedAndTraverse(), getModulesForClient()
+│   ├── codec-discovery.ts          Module discovery + unregisterDiscovery()
+│   ├── codec-registry.ts           Module registry + unregisterModule(), clearRegistry()
+│   ├── codec-artifact.ts           Artifact orchestration
+│   └── codec-verify.ts             Verification helpers
 ├── contract/                       R3 — public surface
-│   └── codec-contract.ts           processMessage(), encode(), registerSubscriptions()
+│   └── codec-contract.ts           Public surface — see Public Contract section above
 ├── exec/                           R4 — I/O
 │   └── codec-ai-io.ts              classifyAndLabel() — LLM call
 └── SLICE.md

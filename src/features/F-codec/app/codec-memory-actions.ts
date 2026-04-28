@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-codec/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    lm-v2-2-shot5-fix-2
+// amended:    lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -23,7 +23,7 @@
 
 // Memory program action orchestrator.
 // R2: orchestration — maps structured UI actions to graph traversals.
-// CA5: observable transition — user already chose the primitive by clicking
+// CA4: observable transition — user already chose the primitive by clicking
 //      the button, so we bypass LLM classify and call traverse() directly
 //      with an explicit primitiveType. Mechanical encode for UI actions.
 // A1: F-codec owns encode intent. F-memory owns graph mutation.

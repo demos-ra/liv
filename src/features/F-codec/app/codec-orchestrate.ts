@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b, lm-v2-2-shot2, lm-v2-2-shot5-fix-2
+// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b, lm-v2-2-shot2, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -191,7 +191,7 @@ export async function processMessage(
     let route = determineRoute(encodeResult.data, domain, { getModule })
 
     // 6. Decode — classify graph structures + render for system prompt
-    // CA8: graph topology → classified structures → structured text.
+    // CA5: graph topology → classified structures → structured text.
     const decoded = classifyGraph(scopedGraphs, userArms, globalArms)
     const decodedContext = renderForSystemPrompt(decoded)
 

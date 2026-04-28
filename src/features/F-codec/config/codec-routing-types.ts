@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-b-item2, phase-5.1-r1, 6.5-6.6-routing, 6.9-6.10-module-exec
+// amended:    phase-b-item2, phase-5.1-r1, 6.5-6.6-routing, 6.9-6.10-module-exec, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R0
 // wires-in:
@@ -31,7 +31,7 @@
 // Routing types — domain classification, route actions, pipeline result.
 // A6: declared at R0. Zero I/O.
 // CA1: primitive cycle output (intent → state → delta) feeds into route determination.
-// CA8: domain derived from graph topology, not authored table.
+// CA5: domain derived from graph topology, not authored table.
 
 import type { CognitivePrimitive, MutatingPrimitive, EncodeResult } from './codec-types'
 import type { DecodedContext } from './codec-decode-types'
@@ -41,7 +41,7 @@ import type { FrameworkMode, FrameworkModule, ModuleExecutionResult } from './co
 // Topological classification of where bind() landed in the graph.
 // 6.5: widened from literal 'build' to FrameworkMode union.
 // 'generative' replaces 'build'. New modes enter as modules register.
-// CA8: domain derived from graph topology, not authored table.
+// CA5: domain derived from graph topology, not authored table.
 
 export type BindingDomain =
   | FrameworkMode        // 'epistemic' | 'structural' | 'generative' | 'verificative'

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2
+// amended:    4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
 // slice:      F-codec
 // layer:      R3
 // wires-in:
@@ -31,7 +31,7 @@
 // A1: F-codec owns the memory program. F-dashboard owns program lifecycle.
 // A4: I/O (fetch) at component level — R3 component delegates to R4 API routes.
 // A5: uses CSS custom properties from F-design-system — no internal imports.
-// CA8: tree structure derived from decode output, not authored.
+// CA5: tree structure derived from decode output, not authored.
 // 4b-nodeid-propagation: extractNodeId brands tree IDs back to NodeId at the
 //     UI layer for MemoryAction construction.
 
@@ -63,7 +63,7 @@ const LAYER_LABELS: Record<number, string> = {
 }
 
 // ─── Transform decode output → tree ──────────────────────────────────────────
-// CA8: deterministic structural read of DecodeOutput into MemoryTreeNode[].
+// CA5: deterministic structural read of DecodeOutput into MemoryTreeNode[].
 
 function buildTree(decoded: DecodeOutput, filter: DecodeCategory | null): MemoryTreeNode[] {
   const nodes: MemoryTreeNode[] = []
