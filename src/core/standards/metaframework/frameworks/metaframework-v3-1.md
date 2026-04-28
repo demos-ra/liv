@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v3.2.4
+**Version:** v3.2.5
 **Authority:** L0 confirmed (Phase v3.2.3 delivery + MF-patch-1 patch)
 **Consumes:** substrate-v1-1, framework-registry-v1-0
 **Consumed by:** generation-procedure, framework-audit, amendment-propagation, generated L3 frameworks
@@ -22,7 +22,7 @@ Metaframework is the L2 framework that produces L3 framework templates. It decla
 | Kind | Framework |
 | Mode | generative (substrate §2 Modes) |
 | Level | L2 |
-| Version | v3.2.4 |
+| Version | v3.2.5 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -198,7 +198,7 @@ Rendered from v3-1-spec §3.1.
 **MA-L6 — Activation-flow invariant.**
 Framework operations conform to substrate §13 activation flow. Every operation declares atomicity per §13.4, participates in registry-lock protocol per §13.5, and declares L0-unavailability behavior per §13.6.
 
-*Scope (per Phase 1.2 clarification):* MA-L6 covers system-level activation flow (substrate §13) only. Per-operation stage discipline is enforced by substrate §10.2 PR4 + PR5 and tested by framework-audit §3.3 X10 extended predicate. No axiom amendment required for Phase 1.2 stage additions.
+*Scope (per Phase 1.2 clarification):* MA-L6 covers system-level activation flow (substrate §13) only. Per-operation stage discipline is enforced by substrate §10.2 PR4 + PR5 and tested by framework-audit §3.4 X10 extended predicate. No axiom amendment required for Phase 1.2 stage additions.
 
 **MA-L7 — Bootstrap non-re-entrancy.**
 Framework declares genesis per framework-audit X8 (substrate §14.2–§14.5). Bootstrap event is non-re-entrant; post-bootstrap derivations occur via declared procedures.
@@ -245,7 +245,7 @@ Per substrate §8.
 | P5 Gate | 84 | see §4 Validity |
 | P6 Handoff rule | 7 | HR0–HR6 (see §6 Coupling) |
 | P7 Judgment input | 2 | J-axis-mece, J-axiom-dist (see §7 Judgment). 4 additional P7 instances declared at framework-audit §7 per closure item 2: J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context. |
-| P8 Procedure step | delegated | metaframework is generative, but procedure-step instances are declared in `generation-procedure-v1-0` (consumer framework) per v3-1-spec §4.4 file-specific placement |
+| P8 Procedure step | 0 with basis | metaframework is axiomatic-tier (declares axes/axioms/gates/HRs); own discipline composes into generation-procedure's P8 set per HR2 dispatch. Per substrate §8.6 positive empty basis: `{primitiveKind: P8, instanceCount: 0, basis: 'metaframework declares no own procedure; discipline composes into generation-procedure'}` |
 
 ### §3.5 Vocabulary
 
@@ -258,8 +258,8 @@ Framework-local terms declared inline at point of use (per PR1, substrate §10.2
 | `GateInstance` | §4 | instantiated P5 |
 | `HandoffRuleInstance` | §6 | instantiated P6 |
 | `JudgmentInputDeclaration` | §7 | instantiated P7 |
-| `ProcedureStepInstance` | §3.4 | instantiated P8 (delegated to generation-procedure) |
-| `DimensionResult` | §4.3 | `{dimensionId, status, evidence}` per framework-audit §3.3 |
+| `ProcedureStepInstance` | §3.4 | instantiated P8 (per substrate §8.3; declared at gen-proc §3.3, AP §3.3, framework-audit §3.3) |
+| `DimensionResult` | §4.3 | `{dimensionId, status, evidence}` per framework-audit §3.4 |
 | `EscalationState` | §5 | `{status, gap, requiredMode}` per substrate §13.6 pattern |
 | `JudgmentDeprecation` | §5 | `{judgmentId, deprecatedAt, reason, authorityClaim}` per MA-L5 |
 | `MetaframeworkGateIdSet` | §6.5 | `string[]` enumerating all framework-tier gate IDs (80 entries); see §6.5 custody row |
@@ -316,7 +316,7 @@ Per v3-1-spec §3.4.
 | G-U4 Primitive declaration | substrate | framework-audit | every primitive P1–P8 declared at substrate §8 has ≥1 instance in framework or `emptyDeclared: true` with basis |
 | G-U5 Provenance completeness | metaframework | framework-audit AND amendment-propagation | every `GeneratedFrameworkTemplate` field with non-null `generationProvenance` resolves to registered generation-procedure step ref; every `amendmentLog` entry resolves to registered `AmendmentEvent` ref |
 
-**G-U5 co-execution semantics** (per R-0021 resolution): framework-audit and amendment-propagation execute G-U5 independently on disjoint surfaces — framework-audit per-audit-run against delivered `GeneratedFrameworkTemplate.provenance` + registry provenance-index (at §3.3 X2/X3 dimension slice); amendment-propagation per-AmendmentEvent against `PropagationTrace.amendmentLog` (at §3.3 AP5-E2 propagation-slice). Surfaces never overlap; no coordination protocol required. Both executors surface results to audit-record / propagation-result respectively; per-cycle reconciliation is observational, not blocking.
+**G-U5 co-execution semantics** (per R-0021 resolution): framework-audit and amendment-propagation execute G-U5 independently on disjoint surfaces — framework-audit per-audit-run against delivered `GeneratedFrameworkTemplate.provenance` + registry provenance-index (at §3.4 X2/X3 dimension slice); amendment-propagation per-AmendmentEvent against `PropagationTrace.amendmentLog` (at §3.3 AP5-E2 propagation-slice). Surfaces never overlap; no coordination protocol required. Both executors surface results to audit-record / propagation-result respectively; per-cycle reconciliation is observational, not blocking.
 
 ### §4.4 Gate execution order
 
@@ -381,6 +381,7 @@ Empty at delivery. No MA-L5 events since Phase 1.1 (J-axis-mece + J-axiom-dist b
 | v3.1 | Phase 9d delivery (rendered against v3-1-spec) | MA-L6 + MA-L7 added to Lifecycle axis (+2 axioms, total 36); HR0 added for L0 activation (+1 HR, total 7); 2 new gates added for MA-L6 + MA-L7 (total 56); ternary kind on P8; +captureShape +diagnosticSignificance on P6 per substrate v1-1 Phase 1.2 amendments. | L0 |
 | v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms added across 7 axes (per axis: I+2, S+3, St+11, V+4, L+3, C+4, J+1); 28 paired gates added; 4 J-inputs added (declared at framework-audit §7); 1 GR-series rule set added (declared at framework-audit §4.6.1). Counts: axiom 36→64; framework-tier gate 52→80; total all-gates 56→84. P3, P4, P5, P7 row totals updated at §3.4. Single-batched cycle per Phase 6. | L0 |
 | v3.2.4 | MF-patch-1 delivery (2026-04-28) | Restatement only. §5.1 transition log extended with v3.2.4 entry citing predicate refinement substantively living in framework-audit-v1-3.3 + AP §5.10 v1.1 row addition in amendment-propagation-v1-2.1. No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (predicate refinement permitted under AxR3; no axiom condition weakened). MF-audit-1 finding closure documented at v3-1-spec.md §5.8. | L0 |
+| v3.2.5 | MF-amendment-1 delivery (2026-04-28) | Vocabulary + custody restatement. §3.4 P8 row restated `delegated → 0 with basis` (metaframework reclassified as axiomatic-tier; own discipline composes into generation-procedure's P8 set per HR2 dispatch; positive empty basis per substrate §8.6). §3.5 ProcedureStepInstance vocab restated (substrate §8.3 P8 shape; declared at gen-proc §3.3, AP §3.3, framework-audit §3.3). §3.5 DimensionResult vocab framework-audit §3.3 → §3.4 (post-renumber dimension declarations). §6.5 custody table: Stage and StageContentKind rows generative-mode → P8-bearing frameworks; ProcedureStepInstance row restated from generation-procedure-delegated to substrate-shape with multi-framework consumers (gen-proc, AP, framework-audit each declares own P8 instances at §3.3). MA-L6 scope clarification framework-audit §3.3 → §3.4 X10 extended predicate. G-U5 co-execution semantics framework-audit §3.3 → §3.4 (X2/X3 dimension slice; AP self-§3.3 reference preserved). §8.2 Dimension ID enumeration framework-audit-v1-3 → framework-audit-v1-4 §3.3 → §3.4. No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (vocab/custody restatement permitted under AxR3; semantically equivalent at L3 since L3 frameworks don't currently use P8 — restatement reflects the substrate amendment lifting P8 from generative-only to mode-agnostic-with-own-procedure-criterion). v3.2.4 content otherwise preserved verbatim. | L0 |
 
 ### §5.7 Failure modes, scale bounds, atomicity declarations
 
@@ -494,8 +495,8 @@ Every atom consumed or declared, with owner + layer + consumer list per substrat
 | `Semver` | substrate | L1 | all frameworks, registry |
 | `Judgment` | substrate | L1 | all frameworks |
 | `JudgmentId` | substrate | L1 | all frameworks |
-| `Stage` | substrate | L1 | generative-mode frameworks (P8 consumers) |
-| `StageContentKind` | substrate | L1 | generative-mode frameworks |
+| `Stage` | substrate | L1 | P8-bearing frameworks (gen-proc, AP, framework-audit) |
+| `StageContentKind` | substrate | L1 | P8-bearing frameworks |
 | `CaptureShape` | substrate | L1 | all frameworks declaring HRs with diagnosticSignificance |
 | `MetaframeworkInput` | metaframework | L2 | generation-procedure (via HR2) |
 | `GeneratedFrameworkTemplate` | metaframework | L2 | generated L3 frameworks (via HR6), registry (via HR5) |
@@ -504,7 +505,7 @@ Every atom consumed or declared, with owner + layer + consumer list per substrat
 | `GateInstance` | metaframework | L2 | framework-audit (via HR3) |
 | `HandoffRuleInstance` | metaframework | L2 | framework-audit (via HR3) |
 | `JudgmentInputDeclaration` | metaframework | L2 | framework-audit (via HR3) |
-| `ProcedureStepInstance` | generation-procedure (delegated per §3.4) | L2 | framework-audit (via HR3) |
+| `ProcedureStepInstance` | substrate (P8 shape per §8.3) | L2 | gen-proc, AP, framework-audit (each declares own P8 instances at §3.3); framework-audit reads cross-framework P8 instances via HR3 for X10 dimension evaluation |
 | `EscalationState` | metaframework | L2 | framework-audit, amendment-propagation |
 | `JudgmentDeprecation` | metaframework | L2 | framework-audit, amendment-propagation |
 | `VocabularyEntry` | metaframework | L2 | framework-audit |
@@ -613,7 +614,7 @@ Gate ID enumeration (traceable; matches §4.7):
 
 **All 10 framework-audit dimensions (X1–X10): state = `pending-first-run`.** Uniform state; compact summary per sprint-mode directive.
 
-Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` (per framework-audit-v1-3 §3.3).
+Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` (per framework-audit-v1-4 §3.4).
 
 ### §8.3 Last audit event
 

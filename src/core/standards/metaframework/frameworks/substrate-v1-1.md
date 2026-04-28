@@ -1,7 +1,7 @@
 # substrate-v1-1
 
 **Kind:** non-framework (universal declarations)
-**Version:** v1.2
+**Version:** v1.3
 **Authority:** L0 confirmed (Phase 1.2-fix delivery)
 **Consumed by:** metaframework-v3-1, framework-registry-v1-0, generation-procedure-v1-0, framework-audit-v1-2, amendment-propagation-v1-0, all generated L3 frameworks
 **Dependencies:** none (upstream of all frameworks)
@@ -99,7 +99,7 @@ ModeSignature = {
 
 ### §2.4 Mode binding
 
-Every framework declares exactly one Mode in its Identity axis (per metaframework axiom MA-I1). Every procedure step in a generative-mode framework operates under the framework's declared Mode.
+Every framework declares exactly one Mode in its Identity axis (per metaframework axiom MA-I1). Every procedure step (P8 instance) operates under the framework's declared Mode. Mode does not restrict P8 declaration; mode classifies the framework's transformation kind.
 
 ### §2.5 Mode applicability to work
 
@@ -417,7 +417,7 @@ Version strings conform to the regex. Every versioned element carries a Semver. 
 
 ### §8.1 Declaration
 
-Primitives are the structural elements every framework is built from. Seven universal + one conditional (Mode = generative).
+Primitives are the structural elements every framework is built from. Seven universal + one conditional (P8 conditional on framework declaring own procedure; mode-agnostic).
 
 ### §8.2 Universal primitives (P1–P7)
 
@@ -506,7 +506,7 @@ StageContentKind = {
 
 Ordering semantics: Stage N precedes Stage N+1 within a single operation. Steps within a stage retain `order` for fine-grained sequencing.
 
-**P8 — Procedure step.** Mode = generative only.
+**P8 — Procedure step.** Conditional on framework declaring own procedure (per MA-G13 own-discipline criterion). Generative, structural, and verificative frameworks all declare P8 instances when their own discipline is an ordered procedure. Frameworks without own procedure (axiomatic-tier or state-store) declare P8 = 0 with positive empty basis per §8.6.
 ```
 ProcedureStepPrimitive = {
   id, order, stage: Stage,
@@ -518,7 +518,7 @@ ProcedureStepPrimitive = {
 }
 ```
 
-Non-generative frameworks have no P8 instances. P8 is absent, not empty.
+Frameworks with no own procedure declare P8 = 0 with positive empty basis per §8.6 (e.g., metaframework declares zero P8 instances; its discipline composes into generation-procedure's P8 set). Frameworks with own procedure declare P8 instances per their procedure shape, regardless of mode.
 
 ### §8.4 Primitive relationships
 
@@ -749,7 +749,7 @@ Declared consumers per substrate element. Enforces SG3.
 | §6.3 Mechanical-criterion ground | framework-audit (executor) |
 | §7 Semver | all frameworks (universal via Identity axis) |
 | §8 Primitives P1–P7 | all frameworks (universal) |
-| §8 Primitive P8 | generation-procedure, any generative-mode framework |
+| §8 Primitive P8 | generation-procedure (S1–S12), amendment-propagation (AP1–AP7), framework-audit (P0–P4) |
 | §8.6 Empty-declaration derivation | all frameworks |
 | §9 Carrier | metaframework, all frameworks with Coupling axis |
 | §9 Carrier applicability semantics | metaframework, amendment-propagation |
@@ -969,6 +969,12 @@ Ongoing verification occurs at framework-audit execution per consumer invocation
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v1.2 | Phase 1.2-fix delivery | LifecycleState enum declared at §9 (per R-0004 resolution); five atom promotions A-10 Kind, A-11 Ownership, A-12 ActivationTrigger, A-13 OperatorInterface, A-14 GenesisDeclaration (per R-0015 resolution); consumer registry refreshed (§12 header versions + new atom consumer rows + LifecycleState row per R-0003 resolution); §11.3 G-U4 + §11.4 G-G13 executed-by refreshed framework-audit-v1-0 → framework-audit-v1-3 (per R-0003 KA-GATE1-1 cascade extension). | L0 |
+
+### v1.3 — MF-amendment-1 delivery
+
+| Version | Date | Change | Authority |
+|---|---|---|---|
+| v1.3 | MF-amendment-1 delivery (2026-04-28) | P8 mode-restriction lifted: §2.4 Mode-binding restated (mode does not restrict P8 declaration; mode classifies transformation kind); §8.1 primitive count restated (P8 conditional on own-procedure declaration, mode-agnostic); §8.3 P8 declaration restated with own-procedure criterion per MA-G13 (generative + structural + verificative all declare P8 when own discipline is ordered procedure); §8.3 non-generative basis prose restated (frameworks without own procedure declare P8 = 0 with positive empty basis per §8.6); §12 consumer registry P8 row restated (enumerates gen-proc S1–S12 + AP AP1–AP7 + framework-audit P0–P4). No new primitives / axioms / gates / HRs / J-inputs declared. Per MA-L1 additive (semantic restatement; no rule weakened — generative frameworks remain valid P8 declarers; structural and verificative frameworks become valid P8 declarers when own discipline qualifies). v1.2 content otherwise preserved verbatim. | L0 |
 
 ---
 

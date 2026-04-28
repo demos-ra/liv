@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** structural
 **Level:** L2
-**Version:** v1.2.1
+**Version:** v1.2.2
 **Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR4 receive-side), framework-registry-v1-0 (HR5 bidirectional — amendment-log reads + propagation-state writes)
 **Consumed by:** registry (HR5 emit at propagation-result emission), framework-audit (co-executes G-U5 per F-69)
@@ -22,7 +22,7 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 | Kind | Framework |
 | Mode | structural (substrate §2) |
 | Level | L2 |
-| Version | v1.2.1 |
+| Version | v1.2.2 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -394,6 +394,7 @@ Per substrate §13.4 row "Owned framework execution: interruptible" with per-ste
 | v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape declared per R-0055 (was a referenced atom; now inlined for single-source per A-08). §3.2 + §4.1 + §4.3 + §4.7 + §8 inherited framework-tier gate count restatements 45→52 per R-0020 KA-Build-2 cascade. Per MA-L1 additive — no procedural change. (Row added at MF-patch-1 per F-MFA-F9-008 closure: §5.10 was missing this row at v1.2 despite §5.1 declaring v1.1 as substantive AP edit-target cycle; MA-S5 cross-file restatement consistency required the row.) | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom-count restatements 36→64; gate-count restatements 52→80; inherited gate ID enumeration extended for v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency. v1.1 content otherwise preserved verbatim. | L0 |
 | v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended with v1.2.1 entry. §5.10 v1.1 row added per F-MFA-F9-008 closure (closes MA-S5 missing-row finding). §5.10 v1.2.1 row added (this row). §9 changelog row added. No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. | L0 |
+| v1.2.2 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs enumerated reference framework-audit-v1-2 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (post-Shot-2 framework-audit dimension-declarations renumber). §1 header version + §1 Identity Version row v1.2.1 → v1.2.2. §5.10 v1.2.2 row added (this row). §9 changelog row added. No P8 step changes; no count changes (axiom 64, gate 80, P8 own count 7 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. **Note:** §8.4 self-application basis line `§3.4 stage/kind self-check` self-references AP's own §3.4 (stage-monotonicity-and-kind-alignment self-check section); not framework-audit's §3.4. Preserved untouched per D1 disposition (logged as F-MFA1-AP-001 for next-cycle hygiene: spec §4.5 row line 630 misidentified the reference). v1.2.1 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -609,7 +610,7 @@ Compact enumeration per sprint-mode.
 
 All 10 framework-audit dimensions (X1–X10) against amendment-propagation: state = `pending-first-run`. Uniform state; compact summary per sprint-mode.
 
-Dimension IDs enumerated: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-2 §3.3.
+Dimension IDs enumerated: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-4 §3.4.
 
 **X10 extended predicate relevance.** Phase 1.2 extended X10 with three bullets (stage declaration per substrate §8.3, PR4 monotonicity, PR5 kind alignment). X10 applies directly to amendment-propagation's seven P8 instances. Self-check already applied at §3.4 (all seven pass); framework-audit first-run verifies independently.
 
@@ -643,6 +644,7 @@ Terminal cross-file gate post-9g ratifies initial state per Phase 9g spec §7 st
 | v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-0042. v1.0 content otherwise preserved verbatim. | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 Own-invariants + §3.2 P4/P5 + §4.1 basis + §4.3 + §4.7 + §8 count restatements: axiom 36→64, framework-tier gate 52→80; inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency (the new axiom added this cycle). v1.1 content otherwise preserved verbatim. | L0 |
 | v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended. §5.10 v1.1 row added per F-MFA-F9-008 closure (v1.1 was substantive AP edit-target cycle per §5.1 + §9; MA-S5 required the §5.10 row). §5.10 v1.2.1 row added. §9 v1.2.1 row added (this row). No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. Closes MF-audit-1 finding F-MFA-F9-008. | L0 |
+| v1.2.2 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs reference framework-audit-v1-2 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (framework-audit dimension-declarations renumbered post-Shot-2). §1 header version + §1 Identity Version row v1.2.1 → v1.2.2. §5.10 + §9 v1.2.2 rows added. No P8 step changes; no count changes (axiom 64, gate 80, AP own P8 count 7 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. AP own §3.4 self-references (line 630 §8.4 self-application basis) preserved untouched per D1 disposition (spec §4.5 row line 630 misidentified the reference target as framework-audit's §3.4 when it actually self-references AP's §3.4 stage/kind self-check; logged as F-MFA1-AP-001 for next-cycle hygiene). v1.2.1 content otherwise preserved verbatim. | L0 |
 
 ---
 

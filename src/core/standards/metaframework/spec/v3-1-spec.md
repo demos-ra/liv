@@ -1,10 +1,10 @@
-# v3.2.4 Spec — Metaframework System
+# v3.2.5 Spec — Metaframework System
 
-**Status:** MF-patch-1 delivery. Patch-level amendment of v3.2.3: framework-audit predicate refinements per MF-audit-1 finding closure (F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008). No axioms / gates / HRs / primitives / J-inputs added or removed. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged).
-**Version:** v3.2.4 (MF-patch-1 delivery; supersedes v3.2.3 → v3.2.1 → v3.2 → v3.1 → v3.0-r1 → v3.0 original).
+**Status:** MF-amendment-1 delivery (sprint close: Shot 1 + Shot 2). Substrate-touching amendment cycle. Substrate v1.2 → v1.3 (P8 mode-restriction lifted; mode does not gate procedure-declaration). Framework-audit v1.3.3 → v1.4 (audit-cycle procedure P0–P4 declared at §3.3; existing §3.x renumbered +1; P7 7 → 9; P8 0 → 5). Metaframework v3.2.4 → v3.2.5 (vocab + custody restatement). AP v1.2.1 → v1.2.2 + gen-proc v1.1.3 → v1.1.4 (cascade pointer updates). Spec v3.2.4 → v3.2.5. No new axioms / gates / HRs. Counts unchanged: axiom 64; framework-tier gate 80; HR 7; mode enum 4 (epistemic / structural / generative / verificative).
+**Version:** v3.2.5 (MF-amendment-1 sprint close; supersedes v3.2.4 → v3.2.3 → v3.2.1 → v3.2 → v3.1 → v3.0-r1 → v3.0 original).
 **Scope:** Six-file metaframework system (substrate, registry, metaframework, generation-procedure, framework-audit, amendment-propagation).
 **Authority:** L0 confirmed through Phase 8 + Phase 1.1 + Phase 1.2 + Phase 1.2-fix + Phase 1.2-fix-trail hygiene + v3.2.3 + MF-patch-1.
-**Prior artifact:** v3-0-spec.md (Phase 9a) → v3-1-spec.md (Phase 1.2) → v3.2 (Phase 1.2-fix) → v3.2.1 (hygiene) → v3.2.3 (28-axiom cycle) → this revision (MF-patch-1 predicate refinement).
+**Prior artifact:** v3-0-spec.md (Phase 9a) → v3-1-spec.md (Phase 1.2) → v3.2 (Phase 1.2-fix) → v3.2.1 (hygiene) → v3.2.3 (28-axiom cycle) → v3.2.4 (MF-patch-1 predicate refinement) → this revision (MF-amendment-1 substrate-touching amendment).
 
 ---
 
@@ -61,6 +61,8 @@ Resolution: hybrid. Each procedure step declares kind = `mechanical` or `judgmen
 | 9a (original) | Spec consolidation | ✓ → superseded | Superseded by this revision |
 | 9b | Substrate writing | halted | Resumes after terminal gate §7 passes |
 | 1.2 | Flow + capture property-on-primitive amendments | ✓ | substrate v1-1, framework-audit v1-1, spec v3.1 |
+| MF-amendment-1 (S1) | Spec §4.4 procedure-declaration placement convention | ✓ | line 646/647/648 file summaries restated; placement convention paragraph added; mode does not gate procedure-declaration |
+| MF-amendment-1 (S2) | Substrate + framework-audit + metaframework + AP + gen-proc + spec cascade (sprint close) | ✓ | substrate v1.2 → v1.3 (P8 mode-restriction lifted, 5 sites); framework-audit v1.3.3 → v1.4 (new §3.3 P0–P4 + §3.4–§3.8 renumber + P7 7→9 + P8 0→5 + §7.10/§7.11 J-inputs + 28-edit ref sweep); metaframework v3.2.4 → v3.2.5 (7-site vocab/custody restatement); AP v1.2.1 → v1.2.2 + gen-proc v1.1.3 → v1.1.4 (cascade pointer updates); spec v3.2.4 → v3.2.5 (4-site cascade + Status block). Closes F-MFA2-META-002 + F-1.2-01 (verificative-mode extension). No axiom/gate/HR amendments; counts unchanged (64/80/7/4-mode). D1 disposition: F-MFA1-AP-001 + F-MFA1-GP-001 logged for next cycle (spec misidentified self-§3.4 references in AP and gen-proc) |
 
 Post-Phase 8 additions enumerated per A-15.
 
@@ -268,7 +270,7 @@ J-axiom-dist:
 **MA-L6 — Activation-flow invariant.**
 Framework operations conform to substrate §13 activation flow. Every operation declares atomicity per §13.4, participates in registry-lock protocol per §13.5, and declares L0-unavailability behavior per §13.6.
 
-*Scope (per Phase 1.2 clarification):* MA-L6 covers system-level activation flow (substrate §13) only. Per-operation stage discipline is enforced by substrate §10.2 PR4 + PR5 and tested by framework-audit §3.3 X10 extended predicate. No axiom amendment required for Phase 1.2 stage additions.
+*Scope (per Phase 1.2 clarification):* MA-L6 covers system-level activation flow (substrate §13) only. Per-operation stage discipline is enforced by substrate §10.2 PR4 + PR5 and tested by framework-audit §3.4 X10 extended predicate. No axiom amendment required for Phase 1.2 stage additions.
 
 **MA-L7 — Bootstrap non-re-entrancy.**
 Framework declares genesis per framework-audit X8 (substrate §14.2–§14.5). Bootstrap event is non-re-entrant; post-bootstrap derivations occur via declared procedures.
@@ -643,10 +645,12 @@ Nine sections — unchanged structure:
 
 Per-file content summaries:
 - `metaframework-v3-0.md` per §3 of this spec.
-- `generation-procedure-v1-0.md` — generative-mode framework producing GeneratedFrameworkTemplate; carries P8 procedure steps with kind declarations; declares J-IDs for non-mechanical steps.
-- `framework-audit-v1-0.md` — verificative-mode framework; declares 10 audit dimensions (per draft artifact §3); executes per-framework audit.
-- `amendment-propagation-v1-0.md` — structural-mode framework; consumes amendment events; verifies propagation completeness.
+- `generation-procedure-v1-0.md` — generative-mode framework producing GeneratedFrameworkTemplate; declares twelve-step P8 procedure (S1–S12, §3.3); declares J-IDs for non-mechanical steps.
+- `framework-audit-v1-0.md` — verificative-mode framework; declares 10 audit dimensions (X1–X10, §3.4) and five-step audit-cycle procedure (P0–P4, §3.3); executes per-framework audit.
+- `amendment-propagation-v1-0.md` — structural-mode framework; declares seven-step P8 procedure (AP1–AP7, §3.3); consumes amendment events; verifies propagation completeness.
 - `framework-registry-v1-0.md` — state store; holds per-framework state, provenance, lifecycle index.
+
+**Procedure-declaration placement convention.** Procedure-bearing frameworks (any framework with own discipline expressed as ordered P8 instances under substrate §8.3 stage discipline) declare the procedure at §3.3 of the framework file, regardless of mode. Generative-mode (gen-proc S1–S12), structural-mode (AP AP1–AP7), and verificative-mode (framework-audit P0–P4) all converge on §3.3 placement. Mode does not gate procedure-declaration.
 
 ### §4.5 F-69 gate distribution across files
 
@@ -827,8 +831,8 @@ Post-Phase-1.1 findings surfaced for Phase 1.2 cycle; registered here as amendme
 
 | ID | Finding | Resolution locus |
 |---|---|---|
-| F-1.2-01 | Flow-gap (operation flow implicit) | substrate §8.3 Stage enum + P8 +stage +ternary kind; substrate §10.2 PR4 + PR5; substrate §11.2 PG6 amended; framework-audit §3.3 X10 extension |
-| F-1.2-02 | Capture-gap (boundary capture undeclared) | substrate §8.2 P6 +captureShape +diagnosticSignificance; framework-audit §3.3 X3 criterion C5 |
+| F-1.2-01 | Flow-gap (operation flow implicit) | substrate §8.3 Stage enum + P8 +stage +ternary kind; substrate §10.2 PR4 + PR5; substrate §11.2 PG6 amended; framework-audit §3.4 X10 extension |
+| F-1.2-02 | Capture-gap (boundary capture undeclared) | substrate §8.2 P6 +captureShape +diagnosticSignificance; framework-audit §3.4 X3 criterion C5 |
 
 G-spec-3 verification: F-1.2-01 and F-1.2-02 ∈ Phase 1.2 input finding set.
 
@@ -844,6 +848,26 @@ Post-v3.2.3 findings surfaced by MF-audit-1 (first-run audit of v3.2.3 against L
 | F-MFA-F9-008 | amendment-propagation §5.10 missing v1.1 row despite §5.1 declaring v1.1 as substantive AP edit-target cycle (PropagationTrace inline shape declared per R-0055; gate count restatements per R-0020 cascade); MA-S5 cross-file restatement consistency requires the row | amendment-propagation §5.10 v1.1 row added |
 
 G-spec-3 verification: F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008 ∈ MF-patch-1 input finding set.
+
+### §5.9 MF-amendment-1 findings closed (sprint close)
+
+Post-MF-patch-1 findings surfaced by MF-audit-2 + Phase 1.2 closure-extension; registered here as amendments to the closed MF-patch-1 finding set per MA-L2 (gap trigger). Each finding assigned an ID. Cycle entry recorded at Shot 1 (§4.4 procedure-declaration placement convention amendment); closures recorded at Shot 2 close (substrate + metaframework + framework-audit + AP + gen-proc cascade).
+
+| ID | Finding | Resolution locus |
+|---|---|---|
+| F-MFA2-META-002 | Pattern A citation gap — no canonical declaration of audit-cycle procedure; framework-audit declared dimension set + execution but not P8-step procedure | Closed at Shot 2 via framework-audit-v1-4 §3.3 P0–P4 declaration (five-step audit-cycle procedure: P0 judgment-input → P1 mechanical → P2 gate-execution → P3 judgment-input → P4 mechanical, distributed across substrate §8.3 Stages 1–5) |
+| F-1.2-01 (closure extension) | Operation flow declared at Phase 1.2 for generative + structural modes only; verificative-mode operation flow undeclared | Closed at Shot 2 via framework-audit-v1-4 §3.3 P0–P4 (verificative-mode P8 instances declared with PR4 stage-monotonicity + PR5 stage-content-kind alignment satisfied) |
+
+G-spec-3 verification: F-MFA2-META-002, F-1.2-01 (closure extension) ∈ MF-amendment-1 input finding set.
+
+Substantive changes recorded:
+- **Shot 1:** spec §4.4 per-file content summaries restated to drop generative-only P8 implication; placement convention paragraph added declaring §3.3 as procedure-declaration locus regardless of mode.
+- **Shot 2:** substrate-v1-1 → substrate-v1-3 (5 sites: §2.4 mode-binding, §8.1 primitive count, §8.3 P8 declaration, §8.3 non-generative basis prose, §12 consumer registry P8 row + §16 v1.3 row); framework-audit-v1-3.3 → framework-audit-v1-4 (new §3.3 P0–P4 audit-cycle procedure + §3.4–§3.8 renumber + §3.7 P7 7→9 + §3.7 P8 0→5 + §7.10/§7.11 J-input declarations + 28-edit internal §3.x ref sweep + §5.11/§9 v1.4 rows); metaframework-v3.2.4 → metaframework-v3.2.5 (vocab + custody restatement at 7 sites: §3.4 P8 row, §3.5 ProcedureStepInstance/DimensionResult vocab rows, §6.5 Stage/StageContentKind/ProcedureStepInstance custody rows, §3.3 X10/G-U5 cascade pointers); amendment-propagation-v1.2.1 → amendment-propagation-v1.2.2 (1 cascade pointer + version stamps); generation-procedure-v1.1.3 → generation-procedure-v1.1.4 (1 cascade pointer + version stamps); v3-1-spec v3.2.4-Shot1 → v3.2.5 (4 cascade pointer updates at lines 272/833/834/1011; line 1002 frozen historical; §5.9 closure record extended; Status block updated to cycle-close canonical).
+
+**Findings logged for next cycle (D1 disposition):**
+- F-MFA1-AP-001 (open) — MF-amendment-1 spec §4.5 row line 630 misidentified AP self-§3.4 reference as framework-audit's §3.4. AP §3.4 (stage-monotonicity-and-kind-alignment self-check) is not part of framework-audit's §3.x renumber set; bumping it would corrupt AP's self-reference. Preserved untouched.
+- F-MFA1-GP-001 (open) — MF-amendment-1 spec §4.6 row line 508 misidentified gen-proc self-§3.4 reference as framework-audit's §3.4. Same root cause: spec authoring assumed shape-parallel renumber across all P8-bearing frameworks (gen-proc/AP/framework-audit all have §3.4 named "Stage monotonicity and kind-alignment self-check"); only framework-audit renumbers this cycle.
+- (Hygiene candidate) — Framework-audit §1 Identity "Own discipline" row preserved verbatim per Layer 4 fidelity (structure not requested is scope violation); current row text describes audit procedure as "run X1–X10 dimension tests + execute all framework-tier gates" without citing the now-declared §3.3 P0–P4 frame. Eligible for next-cycle hygiene update.
 
 ---
 
@@ -992,7 +1016,7 @@ Cross-reference: Self-Mapping Audit Procedure declared at §1.4. Referenced by G
 | R-0035 | generation-procedure-v1-0 | §3.3 S2 row | S2 mechanical step coarse-grained — single P8 instance for full template-population pipeline. Alternative: per-field split. Per MA-St4 primitive-atomicity collapse rule applied. | Additive v1.1 if runtime surfaces per-field checkpoint need. |
 | R-0036 | generation-procedure-v1-0 | §3.3 / §4.2 | No explicit declaration that E1–E8 execution order is free within Stage 3. PR4 requires stage monotonicity across `order` but not within-stage order. | If parallel E-execution implemented: declare parallelism-permitted at §3.3. |
 | R-0038 | generation-procedure-v1-0 | §5.6 atomicity | Per-step atomicity uses 'step boundary' semantics without precise boundary declaration. Inherited from substrate §13.4 by reference. | Make intra-step-vs-inter-step distinction explicit only if runtime ambiguity surfaces. |
-| R-0050 | framework-audit-v1-2 | §5.7 vs §3.3 X5 | scaleBounds declared per-audit O(D+G) and total O(F×R). Sub-operation bounds derivable from substrate §13 but not explicitly broken out. | X5 first-run may surface need; amend at that time. |
+| R-0050 | framework-audit-v1-4 | §5.7 vs §3.4 X5 | scaleBounds declared per-audit O(D+G) and total O(F×R). Sub-operation bounds derivable from substrate §13 but not explicitly broken out. | X5 first-run may surface need; amend at that time. |
 | R-0059 | amendment-propagation-v1-0 | §5.7 | Self-amendment bootstrap handling declared at high-level depth per L0 Q3. Formalization of meta-recursion procedure deferred. | Terminal cross-file gate phase: formalize if runtime surfaces ambiguity. |
 
 **Scope note:** items listed here are known-incomplete declarations accepted as sprint-mode-sufficient at delivery. Amendment path for each: generate amendment event → amendment-propagation runs → affected frameworks re-versioned additively per MA-L1. No item in this catalog blocks canonical confirmation.
@@ -1018,8 +1042,10 @@ Scope guard enforced during revision. No out-of-scope content introduced.
 
 ## End of spec (revised)
 
-**Status:** v3.2.4 draft, awaiting L0 confirmation of MF-patch-1 delivery.
+**Status:** v3.2.5 draft, awaiting L0 confirmation of MF-amendment-1 delivery (sprint close, post-Shot-2; auditor dispatch pending).
 
-**On confirmation:** MF-patch-1 closes. Substrate v1.2 canonical (unchanged); framework-registry v1.0 canonical (unchanged); metaframework v3.2.4 canonical; framework-audit v1.3.3 canonical; generation-procedure v1.1.3 canonical; amendment-propagation v1.2.1 canonical. Spec v3.2.4 canonical. MF-audit-1 finding closure complete (4 findings closed at MF-patch-1: F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007, F-MFA-F9-008). MF-audit-1 partial findings remaining (downstream cycles): F-MFA-LM-001 (LM full regen), F-MFA-LM-002 (SLICE banner), F-MFA-LM-003 (closes with LM-001), F-MFA-PL-001 (Plan §1 MA-G13 block), F-MFA-AS-001 + F-MFA-PL-002 (§3.5 leaf footnotes), F-MFA-C8-001 (registry §5 L3 bootstrap-write), F-MFA-D3-001 (MF-audit-2), F-MFA-FLOW2-001 (closes with C8-001), F-MFA-SPEC-001 (next MFv3 patch convenience).
+**On confirmation:** MF-amendment-1 closes. Substrate v1.3 canonical (P8 mode-restriction lifted; mode-agnostic with own-procedure criterion per MA-G13); framework-registry v1.0 canonical (unchanged); metaframework v3.2.5 canonical; framework-audit v1.4 canonical (audit-cycle procedure P0–P4 declared at §3.3; existing §3.x renumbered +1; P7 own count 9; P8 own count 5); generation-procedure v1.1.4 canonical (cascade pointers updated to framework-audit-v1-4 §3.4); amendment-propagation v1.2.2 canonical (cascade pointers updated to framework-audit-v1-4 §3.4). Spec v3.2.5 canonical. MF-amendment-1 finding closure complete (2 findings closed: F-MFA2-META-002 Pattern A citation gap; F-1.2-01 closure extension to verificative mode). Findings opened for next cycle (D1 disposition): F-MFA1-AP-001, F-MFA1-GP-001 (spec authoring errors at MF-amendment-1 spec §4.5/§4.6 misidentifying self-§3.4 references in AP and gen-proc). MF-audit-1 partial findings remaining (downstream cycles, unchanged): F-MFA-LM-001 (LM full regen), F-MFA-LM-002 (SLICE banner), F-MFA-LM-003 (closes with LM-001), F-MFA-PL-001 (Plan §1 MA-G13 block), F-MFA-AS-001 + F-MFA-PL-002 (§3.5 leaf footnotes), F-MFA-C8-001 (registry §5 L3 bootstrap-write), F-MFA-D3-001 (MF-audit-2), F-MFA-FLOW2-001 (closes with C8-001), F-MFA-SPEC-001 (next MFv3 patch convenience).
+
+**On auditor sprint-close run:** P0–P4 cores-first cascade per the very procedure declared this cycle (self-application discipline). In-scope: framework-audit-v1-4 (target of own new §3.3 declarations); cascade against substrate-v1-3, metaframework-v3.2.5, gen-proc-v1.1.4, AP-v1.2.2, spec-v3.2.5. First-run of P0–P4 against framework-audit itself is the self-application closure — Kind A here is informative (indicates the procedure declaration has a structural gap) and gets disposed by L0; not a cycle-halt for amendment cycle.
 
 **On specific finding regression:** same-delivery re-fix per Phase 1.1 precedent. Do not open new cycle.

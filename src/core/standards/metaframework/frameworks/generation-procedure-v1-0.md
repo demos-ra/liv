@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v1.1.3
+**Version:** v1.1.4
 **Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1, metaframework-v3-1
 **Consumed by:** framework-audit (HR3), amendment-propagation (HR4)
@@ -22,7 +22,7 @@ Generation-procedure is the L2 framework that declares *how* a `GeneratedFramewo
 | Kind | Framework |
 | Mode | generative (substrate §2) |
 | Level | L2 |
-| Version | v1.1.3 |
+| Version | v1.1.4 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -315,6 +315,7 @@ Per v3-1-spec §3.3 output-schema `lifecycle` field (V5-verification additions):
 | v1.0 | Phase 9e delivery | Initial generation-procedure declaration. Twelve P8 steps (S1–S12) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. E1–E8 Stage-3 gate-execution steps reference metaframework gate bundles per axis (E1–E7) + universal/meta tier (E8). S11 consumes J-template-observation (generation-procedure-local). S12 emits `GeneratedFrameworkTemplate` + invokes HR5. HR2 receive-side contract declared with `carrierApplicability = ['self']`. | L0 |
 | v1.1.2 | Phase v3.2.3 delivery (2026-04-27) | §3.2 P4 + P5 row basis text count updates (axiom 36→64, gate 56→84). §3.3 E1–E7 gate lists extended for 28 v3.2.3 axiom-gates (S3 +G-I6,G-I7; S4 +G-S4,G-S5,G-S6; S5 +G-St6..G-St16; S6 +G-V6..G-V9; S7 +G-L8,G-L9,G-L10; S8 +G-C7..G-C10; S9 +G-J5); §3.3 partition-arithmetic line restated 52→80; §4.1 inherited count 56→84; §4.2 per-E-step coverage table updated; §5.6 Scale bounds restated; §8 inherited gate count 52→80. v1.1.1 content otherwise preserved verbatim. | L0 |
 | v1.1.3 | MF-patch-1 delivery (2026-04-28) | Restatement only. §8.2 framework-audit version-ref `v1-3` → `v1-3.3` per MA-S5 (substantive predicate refinement lives in framework-audit-v1-3.3; generation-procedure unchanged in procedural content). §1 header version + §1 Identity Version row v1.1.2 → v1.1.3. §5.1 transition log extended. §5.7 + §9 history rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.1.2 content otherwise preserved verbatim. | L0 |
+| v1.1.4 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension ID enumeration reference `framework-audit-v1-3.3 §3.3` → `framework-audit-v1-4 §3.4` (version-ref bump + section bump for framework-audit dimension-declarations renumber post-Shot-2). §1 header version + §1 Identity Version row v1.1.3 → v1.1.4. §5.7 + §9 v1.1.4 rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84, gen-proc own P8 count 12 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. Gen-proc own §3.4 self-references (line 508 §8.4 self-application basis) preserved untouched per D1 disposition (spec §4.6 row line 508 misidentified the reference target as framework-audit's §3.4 when it actually self-references gen-proc's §3.4 stage/kind self-check; logged as F-MFA1-GP-001 for next-cycle hygiene). v1.1.3 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -487,7 +488,7 @@ Inherited gate ID set consumed by reference as `MetaframeworkGateIdSet` — see 
 
 All 10 framework-audit dimensions (X1–X10) against generation-procedure: state = `pending-first-run`. Uniform state; compact summary per sprint-mode Q4.
 
-Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-3.3 §3.3.
+Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-4 §3.4.
 
 **X10 extended predicate relevance.** Phase 1.2 extended X10 with three bullets (stage declaration per substrate §8.3, PR4 monotonicity, PR5 kind alignment). X10 applies directly to generation-procedure's twelve P8 instances. Self-check already applied at §3.4 above (all twelve pass); framework-audit first-run verifies independently.
 
@@ -520,6 +521,7 @@ First framework-audit first-run post-9g ratifies initial state.
 | v1.1.1 | Phase 1.2-fix-trail hygiene delivery | §3.3 S2 row "nine top-level" → "eight top-level" (per RF-05, same-class sweep residue as R-0040 §7.1 C1 fix). §8.2 Dimension ID enumeration reference `per framework-audit-v1-1 §3.3` → `per framework-audit-v1-3 §3.3` (per RF-04, same-class as R-0047 version-ref drift missed by KA-GATE1-1 cascade). Patch-level bump; no structural amendment. | L0 |
 | v1.1.2 | Phase v3.2.3 delivery (2026-04-27) | §3.2 P4 inherited-axiom basis 36→64; P5 inherited-gate basis 56→84. §3.3 E1–E7 gates field extended with 28 v3.2.3 axiom-gates (E8 unchanged); §3.3 E1–E8 partition arithmetic restated 6+4+6+6+8+7+5+10=52 → 8+7+17+10+11+11+6+10=80. §4.1 inherited count 56→84. §4.2 paragraph 52→80; §4.2 per-E-step coverage table updated (E1: 6→8, E2: 4→7, E3: 6→17, E4: 6→10, E5: 8→11, E6: 7→11, E7: 5→6; total 52→80). §5.6 Scale bounds (36 axioms × 56 gates) → (64 × 84). §8 inherited gate count 52→80. v1.1.1 content otherwise preserved verbatim. Per MA-S5 cross-file restatement consistency. | L0 |
 | v1.1.3 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.1.2 → v1.1.3. §5.1 transition log extended with v1.1.3 entry. §5.7 + §9 history rows added. §8.2 framework-audit version-ref `v1-3` → `v1-3.3` (per MA-S5; substantive predicate refinement lives in framework-audit-v1-3.3, this file unchanged in procedural content). No P8 step changes; no count changes (axiom 64, gate 80, total 84 unchanged); no inherited-gate-enumeration change (atom MetaframeworkGateIdSet reference preserved). Per MA-L1 additive. v1.1.2 content otherwise preserved verbatim. | L0 |
+| v1.1.4 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs reference framework-audit-v1-3.3 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (framework-audit dimension-declarations renumbered post-Shot-2). §1 header version + §1 Identity Version row v1.1.3 → v1.1.4. §5.7 + §9 v1.1.4 rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84, gen-proc own P8 count 12 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. Gen-proc own §3.4 self-references preserved untouched per D1 disposition (logged as F-MFA1-GP-001 for next-cycle hygiene: spec §4.6 row line 508 misidentified the reference). v1.1.3 content otherwise preserved verbatim. | L0 |
 
 ---
 

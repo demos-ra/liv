@@ -3,7 +3,7 @@
 **Kind:** Framework
 **Mode:** verificative
 **Level:** L2
-**Version:** v1.3.3
+**Version:** v1.4
 **Authority:** L0 confirmed (Phase v3.2.3 delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR3 receive-side), framework-registry-v1-0 (HR5 provenance lookup)
 **Consumed by:** registry (HR5 at audit-result emission), all audited frameworks (audit result consumption)
@@ -22,7 +22,7 @@ Framework-audit is the L2 verificative-mode framework that runs the ten-dimensio
 | Kind | Framework |
 | Mode | verificative (substrate §2) |
 | Level | L2 |
-| Version | v1.3.3 |
+| Version | v1.4 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -78,8 +78,8 @@ Schema home at §8.1 (preserved from v1-1). Referenced from §2 by pointer per A
 | `Judgment` | substrate §6 |
 | `JudgmentId` | substrate §6 |
 | `Semver` | substrate §7 |
-| `Stage`, `StageContentKind` | substrate §8.3 (used in X10 extended predicate per §3.3) |
-| `CaptureShape` | substrate §8.2 (used in X3 C5 per §3.3) |
+| `Stage`, `StageContentKind` | substrate §8.3 (used in X10 extended predicate per §3.4) |
+| `CaptureShape` | substrate §8.2 (used in X3 C5 per §3.4) |
 | `AxisInstance`, `AxiomInstance`, `GateInstance`, `HandoffRuleInstance`, `ProcedureStepInstance` | metaframework-v3-1 §3 |
 | `MetaframeworkInput`, `GeneratedFrameworkTemplate` | metaframework-v3-1 §2 |
 | `RegistryEntry`, `LifecycleState`, `AmendmentLogEntry` | framework-registry-v1-0 §2 |
@@ -133,7 +133,35 @@ AuditDimensionTest =
   | { kind: 'criteria-bounded', judgmentId: JudgmentId, criteria: Criterion[] }
 ```
 
-### §3.3 Dimension declarations
+### §3.3 Five-step audit-cycle procedure (P0–P4)
+
+Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignment. Every step declares the amended P8 shape per substrate §8.3: `{id, order, stage, kind, input, output, derivation? | judgmentInputRef? | gates}` where the kind-specific field is populated per PG6 amended (substrate §11.2).
+
+| id | order | stage | kind | input | output | kind-specific field |
+|---|---|---|---|---|---|---|
+| **P0** | 1 | 1 | judgment-input | `AuditRequest` (per §2.1) | validated request + scope binding | `judgmentInputRef = J-audit-request-validation` (declared §7.10) |
+| **P1** | 2 | 2 | mechanical | validated request + canonical tree at HEAD | cores anchor matrix (in-scope frameworks × {Identity / Schema / Axiom-Gate / Custody-Wiring}) + D1–D4 lens findings; substrate md5 entry attestation | `derivation = "for each in-scope framework F: read identity / schema / axiom / gate / custody cores per §3.4 dimensions; apply D1 declaration-integrity, D2 self-application, D3 cross-framework-flow, D4 dimensional-coverage lenses; record substrate md5 ENTRY value; halt on Kind A finding"` |
+| **P2** | 3 | 3 | gate-execution | cores cleared (no Kind A) + in-scope gate set per cycle scope | per-cell gate results table (frameworks × gates) with cascade-effect column populated at row creation | `gates = [in-scope framework-tier gates per cycle scope; populated at audit-spec time per cycle's §2.2-class decision]` |
+| **P3** | 4 | 4 | judgment-input | cells populated (from P2) + closing-flow specs (cycle-context) | flow verification results (typically 3 flows: self-application count-arithmetic, cross-framework propagation, prior-finding fold-in closure); findings register populated | `judgmentInputRef = J-audit-outcome-review` (declared §7.11) |
+| **P4** | 5 | 5 | mechanical | flow results + entry attestation + populated findings register | `SelfAuditRecord` emitted per §8.1; substrate md5 EXIT attestation; HR-FA2 invoked with audit result payload | `derivation = "verify substrate md5 EXIT == ENTRY (or expected delta for substrate-amendment cycles); recompute frozen-input invariants (axiom count, framework-tier gate count, J-input count, HR count); assemble cascade-ordered findings register; emit SelfAuditRecord per §8.1; invoke HR-FA2 per §6.2 contract"` |
+
+**Per-step notes.** P0 validates the audit request before any tree read — invalid scope or unresolved framework refs halt before any I/O. P1 is the cores-first cascade (anchor identification + D1–D4 lens application); Kind A findings at P1 halt the cycle before gate execution to prevent cascading failures. P2 executes the cycle-scoped gate set; gate selection is declared at audit-spec time, not partitioned across a fixed set the way gen-proc's E1–E8 partition the 80 framework-tier gates. P3 verifies closing flows (typically self-application count-arithmetic, cross-framework propagation, prior-finding fold-in closure); criterion-bounded judgment per MA-J2. P4 assembles the SelfAuditRecord and invokes HR-FA2 per §6.2 with audit-result payload; substrate md5 EXIT attestation is universal (cycles that intend to change substrate declare the expected delta in their spec; cycles that don't require EXIT == ENTRY).
+
+**E-step shorthand.** P2 is the single Stage-3 gate-execution P8 instance. Gate set is cycle-scoped (not partitioning a fixed set). The cycle's spec declares which gates run; framework-audit invokes execution per substrate §1.3 S-03 multi-execution.
+
+**Stage-monotonicity-and-kind-alignment self-check** (parallel to gen-proc §3.4 and AP §3.4):
+
+| P-step | order | stage | declared kind | required kind per PR5 | aligned |
+|---|---|---|---|---|---|
+| P0 | 1 | 1 | judgment-input | judgment-input | ✓ |
+| P1 | 2 | 2 | mechanical | mechanical | ✓ |
+| P2 | 3 | 3 | gate-execution | gate-execution | ✓ |
+| P3 | 4 | 4 | judgment-input | judgment-input | ✓ |
+| P4 | 5 | 5 | mechanical | mechanical | ✓ |
+
+Stage monotonicity (PR4): 1 < 2 < 3 < 4 < 5 ✓.
+
+### §3.4 Dimension declarations
 
 **X1 — Temporal / lifecycle self-consistency**
 
@@ -301,7 +329,7 @@ Criteria:
 
 ---
 
-### §3.4 Per-dimension relationship table (per brief §3.2)
+### §3.5 Per-dimension relationship table (per brief §3.2)
 
 Dimensions are declared-not-MECE. Overlaps explicit:
 
@@ -316,7 +344,7 @@ Dimensions are declared-not-MECE. Overlaps explicit:
 
 Overlap is permitted and declared. Dimensions are not orthogonal axes — they are audit surfaces. A framework may pass on X6 but fail on X4 (operator-domain declared, but other domains not); treatment is per-dimension, not collective.
 
-### §3.5 Dimension-set as judgment input
+### §3.6 Dimension-set as judgment input
 
 **Judgment input `J-audit-dim-set`:**
 ```
@@ -356,7 +384,7 @@ provenance: {
 
 Dimension set amendable per MA-L5: future L0 amendment may add dimensions (additive — existing dimensions not removed without migration).
 
-### §3.6 Primitive instances
+### §3.7 Primitive instances
 
 Per substrate §8 + §8.6 empty-declaration derivation. New in v1-2.
 
@@ -365,15 +393,15 @@ Per substrate §8 + §8.6 empty-declaration derivation. New in v1-2.
 | P1 Axis | 7 (inherited) | per metaframework-v3-1 §3.1 universal seven-axis decomposition |
 | P2 Sub-axis | 0 | `{primitiveKind: P2, instanceCount: 0, basis: "flat axis structure; no sub-axes declared at framework-audit level"}` |
 | P3 Leaf | inherited via axes | per metaframework-v3-1 |
-| P4 Axiom | 0 own + 64 inherited | audit-dimension-completeness invariant expressed via X1–X10 coverage at §3.3 + dimension-set integrity via own gates G-FA1–G-FA3 at §4, not as new axiom |
+| P4 Axiom | 0 own + 64 inherited | audit-dimension-completeness invariant expressed via X1–X10 coverage at §3.4 + dimension-set integrity via own gates G-FA1–G-FA3 at §4, not as new axiom |
 | P5 Gate | 3 own (G-FA1–G-FA3, declared §4) + 80 inherited framework-tier from metaframework-v3-1 §4.1 (per `MetaframeworkGateIdSet` atom) | own gates test framework-audit's own integrity surface (dimension-set declaration completeness, dimension-test mechanicality declaration, per-framework audit completion); not duplicative of inherited G-U1/G-M1/G-M2 per §4 |
 | P6 Handoff rule | 2 own | HR-FA1 (receive HR3 from metaframework), HR-FA2 (emit audit result via HR5 to registry); declared §6 |
-| P7 Judgment input | 7 own | J-audit-dim-set (existing §3.5), J-audit-trace-format (per X3 criteria-block at §3.3), J-failure-taxonomy (per X7 criteria-block at §3.3); 4 added at v3.2.3: J-authority-source-classification (consumed by G-I6), J-axis-concern-coverage (consumed by G-St11), J-axiom-text-declarative (consumed by G-St14), J-amendment-trigger-context (consumed by G-L8); all 7 enumerated at §7 |
-| P8 Procedure step | 0 | `{primitiveKind: P8, instanceCount: 0, basis: "verificative mode — audit procedure expressed via dimension-set execution (§3.3), not P8-step-declared. Alternate decomposition (P8 steps per dimension) deferrable amendment if runtime surfaces need."}` |
+| P7 Judgment input | 9 own | J-audit-dim-set (existing §3.6), J-audit-trace-format (per X3 criteria-block at §3.4), J-failure-taxonomy (per X7 criteria-block at §3.4); 4 added at v3.2.3: J-authority-source-classification (consumed by G-I6), J-axis-concern-coverage (consumed by G-St11), J-axiom-text-declarative (consumed by G-St14), J-amendment-trigger-context (consumed by G-L8); 2 added at MF-amendment-1: J-audit-request-validation (consumed at P0 per §3.3), J-audit-outcome-review (consumed at P3 per §3.3); all 9 enumerated at §7 |
+| P8 Procedure step | 5 | P0–P4 declared §3.3 (five-step audit-cycle procedure: Stage 1 P0 judgment-input → Stage 2 P1 mechanical → Stage 3 P2 gate-execution → Stage 4 P3 judgment-input → Stage 5 P4 mechanical); declared per substrate §8.3 P8 shape with PR4 stage monotonicity + PR5 stage-content-kind alignment satisfied per self-check at §3.3 |
 
 Positive empty-declaration markers per substrate §8.6 for P2 and P8 zero counts. Implicit-absence disallowed.
 
-### §3.7 Vocabulary (framework-audit-local)
+### §3.8 Vocabulary (framework-audit-local)
 
 Framework-local terms declared inline at point of use per PR1 (substrate §10.2). Substrate, metaframework, and registry terms referenced by identifier.
 
@@ -402,7 +430,7 @@ Framework-audit declares **3 own gates** (G-FA1, G-FA2, G-FA3) plus inherits **8
 
 Total is mechanically derived from the two rows above: 3 + 80 = 83. No literal carried; row updates automatically when either source count changes per MA-S5.
 
-Note on inherited gates that apply trivially: framework-audit declares zero own axioms (per §3.6 P4 row + §4.5). The 35 inherited axiom-gates that test MA-axiom conformance still execute against framework-audit but are vacuous-pass over the empty axiom set. Vacuous-pass remains a `pass` per MA-V3 ternary; no exclusion-set semantics apply. All 80 inherited gates are applicable; all 3 own gates are applicable; total 83.
+Note on inherited gates that apply trivially: framework-audit declares zero own axioms (per §3.7 P4 row + §4.5). The 35 inherited axiom-gates that test MA-axiom conformance still execute against framework-audit but are vacuous-pass over the empty axiom set. Vacuous-pass remains a `pass` per MA-V3 ternary; no exclusion-set semantics apply. All 80 inherited gates are applicable; all 3 own gates are applicable; total 83.
 
 Per L0 ruling on Q1 (Phase 9f spec §8 Q-9f-1): three own gates declared. G-U1 self-application covers running existing inherited gates against framework-audit itself, but does NOT verify (a) the 10-dimension set exists as declared, (b) AuditDimensionTest fields are populated per §3.2 shape, or (c) per-framework audit produces a complete SelfAuditRecord across all 10 dimensions + framework-tier gates. G-FA1–G-FA3 close those gaps.
 
@@ -410,16 +438,16 @@ Per L0 ruling on Q1 (Phase 9f spec §8 Q-9f-1): three own gates declared. G-U1 s
 
 #### §4.2.1 G-FA1 — Dimension-set coverage
 
-*Claim:* All ten audit dimensions (X1–X10) are declared at §3.3 with complete `AuditDimension` shape per §3.2.
+*Claim:* All ten audit dimensions (X1–X10) are declared at §3.4 with complete `AuditDimension` shape per §3.2.
 
 *Test (mechanical):*
-- Enumerate dimension declarations in §3.3.
+- Enumerate dimension declarations in §3.4.
 - Verify count = 10.
 - Verify each declaration has all five fields per `AuditDimension` shape: id ∈ {X1..X10}, name (non-empty), concern (one-sentence), test (AuditDimensionTest with valid kind), reportingSchema (with result enum + basis-when-n/a clause).
 
 *Reporting:* pass if 10 complete dimension declarations; fail with specific dimension ID + missing field; n/a not applicable.
 
-*Tests:* §3.3 dimension-declaration completeness invariant.
+*Tests:* §3.4 dimension-declaration completeness invariant.
 
 *Escalation path:* G-FA1 failure → MA-L4 amendment trigger (dimension declaration block must be repaired before next audit).
 
@@ -428,14 +456,14 @@ Per L0 ruling on Q1 (Phase 9f spec §8 Q-9f-1): three own gates declared. G-U1 s
 *Claim:* Each `AuditDimensionTest` declares `kind` ∈ {'mechanical', 'criteria-bounded'} with kind-specific fields populated per §3.2 union shape.
 
 *Test (mechanical):*
-- For each AuditDimensionTest at §3.3:
+- For each AuditDimensionTest at §3.4:
   - If `kind: 'mechanical'` → declared `predicate` (non-empty string).
   - If `kind: 'criteria-bounded'` → declared `judgmentId` (resolves to declared J-input at §7) AND declared `criteria: Criterion[]` (non-empty array).
 - Test fails if any dimension declares neither variant or declares the variant with missing kind-specific field.
 
 *Reporting:* pass if all 10 tests well-typed; fail with specific dimension + missing field; n/a not applicable.
 
-*Tests:* §3.3 + §3.2 dimension-test type-completeness invariant.
+*Tests:* §3.4 + §3.2 dimension-test type-completeness invariant.
 
 *Escalation path:* G-FA2 failure → MA-L4 amendment trigger.
 
@@ -474,7 +502,7 @@ Compact enumeration per sprint-mode.
 
 ### §4.5 Meta-gate compliance
 
-When audited (by self-application or by another instance), framework-audit is subject to metaframework's meta-gates G-M1–G-M4 (axiom-gate 1:1 mapping, gate-set exhaustive, execution order, escalation path declared). Per §3.6 row P4: framework-audit declares zero own axioms, so G-M1/G-M2 reduce to inherited-axiom mapping coverage. G-M3/G-M4 apply to framework-audit's own gates G-FA1–G-FA3 (each declared escalation path at §4.2 sub-sections).
+When audited (by self-application or by another instance), framework-audit is subject to metaframework's meta-gates G-M1–G-M4 (axiom-gate 1:1 mapping, gate-set exhaustive, execution order, escalation path declared). Per §3.7 row P4: framework-audit declares zero own axioms, so G-M1/G-M2 reduce to inherited-axiom mapping coverage. G-M3/G-M4 apply to framework-audit's own gates G-FA1–G-FA3 (each declared escalation path at §4.2 sub-sections).
 
 ### §4.6 Backward-invalidation
 
@@ -807,7 +835,7 @@ L0 confirms at Phase 9f delivery (this delivery = v1-2). Monotonic per MA-L3.
 
 ### §5.5 Judgment deprecations
 
-Empty at delivery. J-audit-dim-set (§3.5), J-audit-trace-format (per X3), J-failure-taxonomy (per X7) all active.
+Empty at delivery. J-audit-dim-set (§3.6), J-audit-trace-format (per X3), J-failure-taxonomy (per X7) all active.
 
 ### §5.6 Failure modes
 
@@ -841,7 +869,7 @@ Bounds declared, not measured. Runtime measurement deferred post-9g.
 
 ### §5.9 Audit-trail format
 
-Per X3 criteria C3 + C4 + C5 (§3.3) requirement. Framework-audit's own audit-trail format declared as `AuditRunRecord`:
+Per X3 criteria C3 + C4 + C5 (§3.4) requirement. Framework-audit's own audit-trail format declared as `AuditRunRecord`:
 
 ```
 AuditRunRecord = {
@@ -882,6 +910,7 @@ queryByResult(result: 'pass' | 'fail', since: string): AuditRunRecord[]
 | v1-2 | Phase 9f delivery | §1, §2, §4, §5, §6, §7 populated. §8 content populated beyond schema. §9 extended. Three own gates (G-FA1, G-FA2, G-FA3) declared. HR-FA1, HR-FA2 declared with captureShapes. Sprint-mode completion of verificative framework. | L0 |
 | v1.3.2 | Phase v3.2.3 delivery (2026-04-27) | §3.6 P4 inherited 36→64; P5 inherited 52→80; P7 own 3→7. §4.1 inherited 52→80; §4.3 ID enumeration extended for v3.2.3 axiom-gates; §4.7 count restated 52→80 with 28-gate first-run-deferred note. §4.2.3 G-FA3 test body 52→80. §5.7 Scale bounds 52→80. §8 self-application basis 52→80. New §4.6.1 GR-series rule set declared (closure item 1; authoritative source for metaframework §4.6 + spec §3.4 references). New §4.8 v3.2.3 axiom-gate predicate authorship (28 gate bodies, per-axis sub-sections §4.8.1–§4.8.7) — Claim/Test/Reporting/Tests/Escalation populated per Phase 5 + GR-1..GR-6 conformance. New §7.6–§7.9: 4 v3.2.3 J-input declarations (J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context). §7.4 Axis status three→seven. §7.5 provenance extended for v3.2.3 J-inputs. v1.3.1 content otherwise preserved verbatim. | L0 |
 | v1.3.3 | MF-patch-1 delivery (2026-04-28) | §4.1 stale literal "48" replaced with derived "83" (3 own + 80 inherited; mechanically derivable from row sums). §4.6.1 conformance test paragraph refined: GR-1..GR-6 require substance recoverability, not field-label parse; both expanded per-gate blocks and compact tabular form satisfy. §4.8.3.11 G-St16 predicate refined: testability derived from axiom's relationship to F's P7 set (criteria-bounded iff axiom references a J-input declared at F's §7); per substrate §1.3 S-03 single-source no separate `testability` field declared. §4.8.4.4 G-V9 predicate refined: substance recoverability semantics replace field-label parse. Closes MF-audit-1 findings F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007. No new axioms / gates / HRs / primitives / J-inputs. No count changes. v1.3.2 content otherwise preserved verbatim. | L0 |
+| v1.4 | MF-amendment-1 delivery (2026-04-28) | New §3.3 declared: five-step audit-cycle procedure (P0–P4) per substrate §8.3 P8 shape with PR4 stage-monotonicity and PR5 stage-content-kind alignment satisfied; per-step notes + E-step shorthand + stage-monotonicity-and-kind-alignment self-check populated. Existing §3.3–§3.7 renumbered +1: dimension declarations §3.3 → §3.4; per-dimension relationship table §3.4 → §3.5; dimension-set as judgment input §3.5 → §3.6; primitive instances §3.6 → §3.7; vocabulary §3.7 → §3.8. §3.7 P7 own 7 → 9 with 2 added: J-audit-request-validation (consumed at P0) and J-audit-outcome-review (consumed at P3). §3.7 P8 row 0 → 5 with full P0–P4 declaration replacing prior verificative-mode-no-P8 basis text. §7.10 J-audit-request-validation declared (mechanical C1–C3 + criteria-bounded C4 per MA-J2). §7.11 J-audit-outcome-review declared (mechanical C1–C3 + criteria-bounded C4 per MA-J2). 28-edit internal sweep: live §3.3 references bumped to §3.4, live §3.5 references to §3.6, live §3.6 references to §3.7; frozen rows preserved (§5.11 prior version-history rows; §9 prior change-log rows); generic predicate prose preserved (G-S4 vocabulary template, G-St cardinality template, G-St16 P7-membership prose); external references preserved (spec §3.3 / §3.4, metaframework §3.2 / §3.5). Closes MF-audit-2 finding F-MFA2-META-002 (Pattern A citation gap — no canonical declaration of audit-cycle procedure); extends F-1.2-01 closure to verificative mode (operation flow now declared at framework-audit §3.3 P0–P4). No new axioms / gates / HRs declared. P7 own count 7 → 9 (additive per AxR3); P8 instance count 0 → 5 (additive — moves from positive-empty-basis to populated, permissible per MA-L1 since basis text framing was open to amendment). Per MA-L1 additive (no rule weakened; no axiom condition removed; mode taxonomy unchanged). v1.3.3 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -944,15 +973,15 @@ Every atom owned or consumed, with owner + layer + consumers per substrate SG3.
 | `MetaframeworkInput`, `GeneratedFrameworkTemplate` | metaframework | L2 | framework-audit (audit target inputs/outputs) |
 | `AxisInstance`, `AxiomInstance`, `GateInstance`, `HandoffRuleInstance`, `ProcedureStepInstance` | metaframework | L2 | framework-audit (per-X-dimension introspection) |
 | `RegistryEntry`, `LifecycleState`, `AmendmentLogEntry` | registry | L2 | framework-audit (X1 lifecycle check, X8 genesis check, provenance lookup) |
-| `AuditDimension` | framework-audit | L2 | framework-audit internal (§3.2 + §3.3) |
+| `AuditDimension` | framework-audit | L2 | framework-audit internal (§3.2 + §3.4) |
 | `AuditDimensionTest` | framework-audit | L2 | framework-audit internal |
 | `AuditRequest` | framework-audit | L2 | framework-audit (HR-FA1 receive) |
 | `AuditRunRecord` | framework-audit | L2 | framework-audit (audit-trail), registry (via HR-FA2) |
 | `SelfAuditRecord` | framework-audit | L2 | all audited frameworks (their §8 result), registry (via HR-FA2) |
 | `GateResult`, `DimensionResult` | framework-audit | L2 | framework-audit internal (within SelfAuditRecord) |
-| `J-audit-dim-set` | framework-audit | L2 | framework-audit §3.5 |
-| `J-audit-trace-format` | framework-audit | L2 | framework-audit §3.3 X3 |
-| `J-failure-taxonomy` | framework-audit | L2 | framework-audit §3.3 X7 |
+| `J-audit-dim-set` | framework-audit | L2 | framework-audit §3.6 |
+| `J-audit-trace-format` | framework-audit | L2 | framework-audit §3.4 X3 |
+| `J-failure-taxonomy` | framework-audit | L2 | framework-audit §3.4 X7 |
 | `HR-FA1`, `HR-FA2` | framework-audit | L2 | framework-audit §6.2 |
 
 Substrate, metaframework, and registry atoms consumed by reference; framework-audit-declared atoms produced here and consumed by audited frameworks (their §8 result population) and registry (via HR-FA2 persistence).
@@ -993,33 +1022,33 @@ All six Coupling axioms satisfied at handoff tier per metaframework-v3-1 §3.2 i
 
 ## §7 Judgment
 
-Per L0 ruling Q3: §7 lists top-level J-inputs with §3.3 / §3.5 pointers per A-08 single-source-via-reference. No duplication of criteria text. Per L0 ruling Q4: exactly three J-inputs enumerated (J-audit-dim-set, J-audit-trace-format, J-failure-taxonomy). J-identity-coverage from spec draft §3.2 dropped per Q4 — no §3.3 anchor; spec-draft speculation. Logged as audit note.
+Per L0 ruling Q3: §7 lists top-level J-inputs with §3.4 / §3.6 pointers per A-08 single-source-via-reference. No duplication of criteria text. Per L0 ruling Q4: exactly three J-inputs enumerated (J-audit-dim-set, J-audit-trace-format, J-failure-taxonomy). J-identity-coverage from spec draft §3.2 dropped per Q4 — no §3.4 anchor; spec-draft speculation. Logged as audit note.
 
 ### §7.1 J-audit-dim-set
 
-**Authoritative declaration:** §3.5 (preserved verbatim from v1-1).
+**Authoritative declaration:** §3.6 (preserved verbatim from v1-1).
 
-Reference-only at this section. See §3.5 for full criteria block (C1–C4, all mechanical), provenance, amendability per MA-L5.
+Reference-only at this section. See §3.6 for full criteria block (C1–C4, all mechanical), provenance, amendability per MA-L5.
 
 Consumed by: framework-audit §3.2 dimension-set declaration.
 
 ### §7.2 J-audit-trace-format
 
-**Authoritative declaration:** §3.3 X3 criteria block (preserved verbatim from v1-1, with Phase 1.2 C5 extension).
+**Authoritative declaration:** §3.4 X3 criteria block (preserved verbatim from v1-1, with Phase 1.2 C5 extension).
 
-Reference-only at this section. See §3.3 X3 for full criteria (C1–C5, criteria-bounded).
+Reference-only at this section. See §3.4 X3 for full criteria (C1–C5, criteria-bounded).
 
-Consumed by: framework-audit §3.3 X3 dimension test.
+Consumed by: framework-audit §3.4 X3 dimension test.
 
-Per L0 ruling Q6: X3's inline criteria block at §3.3 is authoritative; §7 references by pointer. No re-stated criteria.
+Per L0 ruling Q6: X3's inline criteria block at §3.4 is authoritative; §7 references by pointer. No re-stated criteria.
 
 ### §7.3 J-failure-taxonomy
 
-**Authoritative declaration:** §3.3 X7 criteria block (preserved verbatim from v1-1).
+**Authoritative declaration:** §3.4 X7 criteria block (preserved verbatim from v1-1).
 
-Reference-only at this section. See §3.3 X7 for full criteria (C1–C4, criteria-bounded).
+Reference-only at this section. See §3.4 X7 for full criteria (C1–C4, criteria-bounded).
 
-Consumed by: framework-audit §3.3 X7 dimension test.
+Consumed by: framework-audit §3.4 X7 dimension test.
 
 Per L0 ruling Q6: same single-source-via-reference pattern as J-audit-trace-format.
 
@@ -1027,15 +1056,15 @@ Per L0 ruling Q6: same single-source-via-reference pattern as J-audit-trace-form
 
 Populated (not empty). Seven top-level J-inputs declared: J-audit-dim-set + J-audit-trace-format + J-failure-taxonomy (Phase 9f) + J-authority-source-classification + J-axis-concern-coverage + J-axiom-text-declarative + J-amendment-trigger-context (v3.2.3). Empty-declaration rule (substrate §8.6) does not apply.
 
-Mechanical dimensions (X1, X2, X4, X5, X6, X8, X9, X10) consume no J-inputs per their declared `kind: 'mechanical'` test variant at §3.3 (per §3.2 AuditDimensionTest union). The four v3.2.3 J-inputs (§7.6–§7.9) are consumed by criteria-bounded axiom-gates (G-I6, G-St11, G-St14, G-L8) authored at §4.8.
+Mechanical dimensions (X1, X2, X4, X5, X6, X8, X9, X10) consume no J-inputs per their declared `kind: 'mechanical'` test variant at §3.4 (per §3.2 AuditDimensionTest union). The four v3.2.3 J-inputs (§7.6–§7.9) are consumed by criteria-bounded axiom-gates (G-I6, G-St11, G-St14, G-L8) authored at §4.8.
 
 ### §7.5 Judgment provenance
 
 Per MA-J4 provenance-completeness:
 
-- **J-audit-dim-set provenance** declared at §3.5 (instanceId: `builder-phase-1-1`, cycleId: `phase-1-1`, consumingFrameworkRef: `framework-audit-v1-3`, consumingStepId: `§3.2 dimension declaration`).
-- **J-audit-trace-format provenance:** L0 confirmation at Phase 1.1 (initial declaration) + Phase 1.2 (C5 extension confirmation). Consumed at §3.3 X3 dimension test.
-- **J-failure-taxonomy provenance:** L0 confirmation at Phase 1.1 (initial declaration). Consumed at §3.3 X7 dimension test.
+- **J-audit-dim-set provenance** declared at §3.6 (instanceId: `builder-phase-1-1`, cycleId: `phase-1-1`, consumingFrameworkRef: `framework-audit-v1-3`, consumingStepId: `§3.2 dimension declaration`).
+- **J-audit-trace-format provenance:** L0 confirmation at Phase 1.1 (initial declaration) + Phase 1.2 (C5 extension confirmation). Consumed at §3.4 X3 dimension test.
+- **J-failure-taxonomy provenance:** L0 confirmation at Phase 1.1 (initial declaration). Consumed at §3.4 X7 dimension test.
 
 All three Phase 9f J-inputs trace to L0 confirmation events with declared phase + cycle ID. The four v3.2.3 J-inputs (§7.6–§7.9) trace to L0 confirmation at v3.2.3 cycle (2026-04-27); consumingFrameworkRef = framework-audit-v1.3.2; consumingStepId per each declaration. MA-J4 satisfied for all seven.
 
@@ -1101,7 +1130,7 @@ criteria: [
     mechanical: true
   }
 ]
-mechanicalGround: framework-audit §3.3 X-dimension decomposition pattern (X1–X10 axes-to-subclaim decomposition)
+mechanicalGround: framework-audit §3.4 X-dimension decomposition pattern (X1–X10 axes-to-subclaim decomposition)
 provenance: {
   instanceId: 'builder-v3.2.3',
   cycleId: 'v3.2.3',
@@ -1186,6 +1215,38 @@ provenance: {
 ```
 
 Consumed by: framework-audit §4.8.5.1 G-L8 (tests MA-L8).
+
+### §7.10 J-audit-request-validation
+
+Consumed at P0 (Stage 1 entry of the audit-cycle procedure declared §3.3). Validates `AuditRequest` per §2.1 input schema.
+
+**Mechanical criteria:**
+- C1: `AuditRequest.targetFrameworkRefs` resolves (each `FrameworkRef` registered in registry).
+- C2: `AuditRequest.scope` declares in-scope gate set per cycle convention (cycle spec §2.2-class decision).
+- C3: `AuditRequest.authorityClaim` well-formed at L0 level.
+
+**Judgment criterion:**
+- C4: scope coherence — declared gate set is sufficient for declared cycle objective. Criteria-bounded judgment per MA-J2.
+
+**Provenance:** L0 confirmation at MF-amendment-1 cycle entry (initial declaration). Consumed at §3.3 P0 step.
+
+Consumed by: framework-audit §3.3 P0 (audit-cycle procedure entry).
+
+### §7.11 J-audit-outcome-review
+
+Consumed at P3 (Stage 4 closing of the audit-cycle procedure declared §3.3). Reviews flow-verification results + findings register for L0 confirmation-gate input.
+
+**Mechanical criteria:**
+- C1: per-flow result populated (one row per flow declared in cycle spec).
+- C2: findings register populated with ID + Kind classification + cascade-effect column.
+- C3: substrate md5 ENTRY recorded (P1 attestation).
+
+**Judgment criterion:**
+- C4: outcome posture — cycle closes clean / closes with disposition / halts. Criteria-bounded judgment per MA-J2; L0 confirmation decision is enabled by this output but is itself a substrate §13.6 event, not a P8 output field.
+
+**Provenance:** L0 confirmation at MF-amendment-1 cycle entry (initial declaration). Consumed at §3.3 P3 step.
+
+Consumed by: framework-audit §3.3 P3 (audit-cycle procedure closing-flow review).
 
 ---
 
@@ -1278,6 +1339,7 @@ Per metaframework §4.3 universal gate G-U1 (self-application): framework-audit 
 | v1.3.1 | Phase 1.2-fix-trail hygiene delivery | §8.2 SelfAuditRecord inline example `frameworkRef` + `auditedByFrameworkRef` updated to `framework-audit-v1-3`; §8.2 heading text updated to "Framework-audit-v1-3's own latest SelfAuditRecord" (per RF-02). Patch-level bump per hygiene discipline; no structural amendment. Allowlisted sites preserved: §8.1 schema comment `// framework-audit-v1-0`, §8.3 bootstrap-recursion historical narrative. | L0 |
 | v1.3.2 | Phase v3.2.3 delivery (2026-04-27) | §3.6 primitive-instance count restatements (P4 36→64, P5 52→80 inherited, P7 3→7 own with 4 added at §7.6–§7.9). §4.1 + §4.3 + §4.7 inherited gate count restatements 52→80 with v3.2.3 axiom-gate ID enumerations. §4.2.3 G-FA3 test body 52→80. §5.7 Scale bounds 52→80. §8 self-application basis 52→80. New §4.6.1 GR-series rule set declared (closure item 1, extracted at Phase 4 §6.0.1; authoritative source for metaframework §4.6 + spec §3.4 GR-series references). New §4.8 v3.2.3 axiom-gate predicate authorship (28 gate bodies, per-axis sub-sections §4.8.1–§4.8.7) — Claim/Test/Reporting/Tests/Escalation populated per Phase 5 + GR-1..GR-6 conformance. New §7.6–§7.9: 4 v3.2.3 J-input declarations (J-authority-source-classification consumed by G-I6; J-axis-concern-coverage consumed by G-St11; J-axiom-text-declarative consumed by G-St14; J-amendment-trigger-context consumed by G-L8). §7.4 Axis status restated three→seven. §7.5 provenance extended for v3.2.3 J-inputs. v1.3.1 content otherwise preserved verbatim. | L0 |
 | v1.3.3 | MF-patch-1 delivery (2026-04-28) | Predicate refinement cycle. Substantive edits at four sites — §4.1 stale literal "48" replaced with derived "83" (3 own + 80 inherited; mechanically derivable per row sums above; framework-audit declares zero own axioms per §3.6 + §4.5, so 35 inherited axiom-gates are vacuous-pass over the empty axiom set but still applicable; no exclusion-set semantics; total 83 gates applicable when framework-audit is the audit target). §4.6.1 conformance test paragraph refined: GR-1..GR-6 require recoverability of substance, not field-label parse; both expanded per-gate Claim/Test/Reporting/Tests/Escalation blocks (G-FA1–G-FA3 shape) and compact tabular form (L3 framework + metaframework §4.7 enumeration shape) satisfy GR-1..GR-6 by recoverability. §4.8.3.11 G-St16 predicate refined: testability classification derived from axiom's relationship to framework's P7 set (criteria-bounded iff axiom's mechanical condition references a J-input declared at framework's §7); per substrate §1.3 S-03 single-source no separate `testability` field declared on axioms (would duplicate P7-membership). §4.8.4.4 G-V9 predicate refined: substance recoverability semantics replace field-label parse; explicit recovery rules per GR-1..GR-6 declared. Closes MF-audit-1 findings F-MFA-V9-001, F-MFA-ST16-001, F-MFA-F9-007. No new axioms / gates / HRs / primitives / J-inputs declared. No count changes (axiom 64 unchanged; framework-tier gate 80 unchanged). Per MA-L1 additive (predicate refinement is permissible additive amendment per AxR3; no axiom condition weakened). v1.3.2 content otherwise preserved verbatim. | L0 |
+| v1.4 | MF-amendment-1 delivery (2026-04-28) | Audit-cycle procedure cycle. New §3.3 declares five-step audit-cycle procedure (P0–P4) per substrate §8.3 P8 shape: P0 judgment-input (Stage 1 entry, J-audit-request-validation) → P1 mechanical (Stage 2 cores anchor matrix + D1–D4 lens findings + substrate md5 ENTRY attestation) → P2 gate-execution (Stage 3 cycle-scoped gate set) → P3 judgment-input (Stage 4 closing-flow review, J-audit-outcome-review) → P4 mechanical (Stage 5 SelfAuditRecord emission + substrate md5 EXIT attestation + HR-FA2 invocation). PR4 stage-monotonicity (1<2<3<4<5) and PR5 stage-content-kind alignment satisfied per inline self-check table. Sections renumbered +1: §3.3 dimension declarations → §3.4; §3.4 per-dimension relationship table → §3.5; §3.5 dimension-set as judgment input → §3.6; §3.6 primitive instances → §3.7; §3.7 vocabulary → §3.8. §3.7 P7 own count 7 → 9 with 2 added: J-audit-request-validation (consumed at P0), J-audit-outcome-review (consumed at P3); both declared at new §7.10 + §7.11. §3.7 P8 row 0 → 5 with full P0–P4 declaration replacing prior verificative-mode-no-P8 basis text. 28-edit internal §3.x reference sweep (live refs only): §3.3 → §3.4 (25 sites), §3.5 → §3.6 (4 sites), §3.6 → §3.7 (2 sites). Frozen rows preserved (§5.11 v1-0/v1-1/v1-2/v1-3/v1.3.1/v1.3.2/v1.3.3 transition log; §9 prior changelog rows). Generic predicate prose preserved (G-S4 vocabulary template, G-St cardinality template, G-St16 P7-membership prose, mechanical-test-variant prose). External references preserved (spec §3.3 / §3.4, metaframework §3.2 / §3.5). New §7.10 + §7.11 J-input declarations added with mechanical C1–C3 + criteria-bounded C4 per MA-J2 and provenance attestation. Closes MF-audit-2 finding F-MFA2-META-002 (Pattern A citation gap — audit-cycle procedure now canonically declared at §3.3); extends F-1.2-01 closure to verificative mode (operation flow declared at §3.3 P0–P4 with stage discipline). No new axioms / gates / HRs declared. P7 own 7 → 9 (additive per AxR3); P8 instance count 0 → 5 (additive — populated from prior positive-empty-basis declaration; permissible per MA-L1 since basis text was open to amendment when own discipline declared as ordered procedure per amended substrate §8.3). Per MA-L1 additive (no rule weakened; no axiom condition removed; mode taxonomy unchanged at 4 modes). v1.3.3 content otherwise preserved verbatim. | L0 |
 
 ---
 
