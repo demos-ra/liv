@@ -94,6 +94,7 @@ import type { FrameworkModule, ModuleExecutor } from '../config/codec-module-typ
 import { DISCOVERY_MODULE } from './codec-discovery'
 import { VERIFY_MODULE } from './codec-verify'
 import { PLAN_MODULE } from '@/features/F-plan/contract/plan-module'
+import { VERIFY_FRAMEWORK_MODULE } from '@/features/F-verify/contract/verify-contract'
 
 // BUILD_MODULE stub executor — never invoked. Generative-mode messages route
 // to `dispatch-planner` (synchronous handleBuildRequest W-HOOK), not to
@@ -126,7 +127,8 @@ const BUILD_MODULE: FrameworkModule = {
 registerModule(BUILD_MODULE)
 registerModule(DISCOVERY_MODULE)
 // Structural-mode routes deterministically to PLAN_MODULE.
-registerModule(VERIFY_MODULE)
+registerModule(VERIFY_MODULE)              // 'narrative-audit' — LLM narrative audit (Sprint 4 D5 rename)
+registerModule(VERIFY_FRAMEWORK_MODULE)     // 'liv-verification' — F-verify mechanical Verification Standard module (Sprint 4)
 registerModule(PLAN_MODULE)   // phase-6-sprint-b — structural-mode authoritative module
 
 // ─── Process Message ─────────────────────────────────────────────────────────

@@ -51,7 +51,8 @@
     "F-memory",
     "F-planner",
     "F-intake",
-    "F-output"
+    "F-output",
+    "F-verify"
   ],
   "reserved_slices": [
     "F-workspace"

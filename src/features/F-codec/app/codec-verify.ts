@@ -28,10 +28,16 @@
 //   R3  @/features/F-memory/contract/memory-contract
 // validated:  pending
 
-// Phase 6.13 — Verificative module.
-// R2: orchestration. Transforms produced → verified.
+// Phase 6.13 — Verificative module (LLM narrative audit).
+// R2: orchestration. Transforms produced → verified via LLM.
 // Uses LLM to execute structured audit against declared standards.
 // Pipeline: graph context → structured prompt → LLM call → parse → artifact → result.
+//
+// Sprint 4 D5 namespace migration (Demos confirmed 2026-04-30):
+//   id renamed 'verification' → 'narrative-audit' to disambiguate from
+//   F-verify's mechanical Verification Standard module ('liv-verification').
+//   Both modules persist; names match function (LIV-Standard mechanical
+//   predicate-verification ≠ LLM narrative audit).
 
 import type { Result } from '@/core/types/primitives'
 import type { FrameworkModule, ModuleExecutionResult } from '../config/codec-module-types'
@@ -45,9 +51,9 @@ import { createArtifact } from './codec-artifact'
 // ─── Module Definition ──────────────────────────────────────────────────────
 
 export const VERIFY_MODULE: FrameworkModule = {
-  id:    'verification',
+  id:    'narrative-audit',
   mode:  'verificative',
-  label: 'Verification',
+  label: 'Narrative Audit',
   artifactSchema: {
     name:   'audit-report',
     fields: [
