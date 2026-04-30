@@ -3,14 +3,14 @@
 **Kind:** Framework
 **Mode:** structural
 **Level:** L2
-**Version:** v1.2.2
-**Authority:** L0 confirmed (Phase v3.2.3 delivery)
+**Version:** v1.3.3
+**Authority:** L0 confirmed (MF-Cycle-2 Spec↔Referent Alignment Closure delivery)
 **Consumes:** substrate-v1-1 (HR1), metaframework-v3-1 (HR4 receive-side), framework-registry-v1-0 (HR5 bidirectional — amendment-log reads + propagation-state writes)
-**Consumed by:** registry (HR5 emit at propagation-result emission), framework-audit (co-executes G-U5 per F-69)
+**Consumed by:** registry (HR5 emit at propagation-result emission), framework-audit (co-executes G-U5 per F-phase-1-1-69)
 **Dependencies:** substrate-v1-1, metaframework-v3-1, framework-registry-v1-0
 **Versioning discipline:** additive only (per MA-L1)
 
-Amendment-propagation is the L2 structural-mode framework that consumes amendment events and verifies propagation completeness across the 6-file system. Per v3-1-spec §4.4: "structural-mode framework; consumes amendment events; verifies propagation completeness." Per metaframework §4.3 F-69 distribution: sole executor of G-U2 (propagation completeness); co-executor of G-U5 (provenance completeness) with framework-audit. This delivery closes the 6-file system; terminal cross-file gate follows per Phase 9g spec §7.
+Amendment-propagation is the L2 structural-mode framework that consumes amendment events and verifies propagation completeness across the 6-file system. Per v3-1-spec §4.4: "structural-mode framework; consumes amendment events; verifies propagation completeness." Per metaframework §4.3 F-phase-1-1-69 distribution: sole executor of G-U2 (propagation completeness); co-executor of G-U5 (provenance completeness) with framework-audit. This delivery closes the 6-file system; terminal cross-file gate follows per Phase 9g spec §7. Cycle-1 v1.3 (MF-Cycle-1 Foundation Closure) extends the procedure to 8 steps with AP6.5 cross-framework consistency check per F-cycle-1-10.
 
 ---
 
@@ -22,15 +22,16 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 | Kind | Framework |
 | Mode | structural (substrate §2) |
 | Level | L2 |
-| Version | v1.2.2 |
+| Version | v1.3 |
 | Ownership (template) | L0 |
+| v1.3.1 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29) | Cycle-1.5 cascade only: count restatements (substrate gate count 4→5; total all-gates 86→87; framework-tier 82 unchanged). Identifier sweep applied: every multi-locus identifier in canonical S6 form. No procedure-step changes; no axiom changes. Additive per MA-L1. | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
 | State (applied) | `declared` (initial; transitions to `applied` on first HR-AP1 invocation) |
 | Carrier | self (emits propagation-result artifacts) |
 | Consumes | substrate-v1-1 (HR1), metaframework-v3-1 (HR4 receive-side), framework-registry-v1-0 (HR5 bidirectional — amendment-log reads via HR-AP2 + propagation-state writes via HR-AP3) |
-| Consumed by | registry (HR5 emit at HR-AP3), framework-audit (co-executes G-U5 per F-69) |
-| Authority | L0 confirmed (Phase 9g delivery) |
+| Consumed by | registry (HR5 emit at HR-AP3), framework-audit (co-executes G-U5 per F-phase-1-1-69) |
+| Authority | L0 confirmed (MF-Cycle-1 Foundation Closure delivery) |
 | Genesis | generated-at-bootstrap per substrate §14 (grandfathered at first registry write) |
 | scopeOut | `['runtime execution engine (post-9g)', 'self-amendment recursion formalization (post-9g)', 'concurrent multi-amendment coordination (post-beta)']` |
 
@@ -40,8 +41,8 @@ Amendment-propagation is the L2 structural-mode framework that consumes amendmen
 |---|---|
 | Own state | amendment-event queue, propagation-trace state, per-amendment completion status (§3 Structure + §5 Lifecycle) |
 | Own I/O | input: `AmendmentEvent` (§2.1); output: `PropagationResult` (§2.2) |
-| Own invariants | 64 axioms inherited from metaframework-v3-1 + propagation-completeness invariant (expressed via G-U2 execution at Stage 3 E1 + G-U5 co-execution at Stage 3 E2); no own-axiom declarations |
-| Own discipline | 7-step P8 procedure (AP1–AP7) executing G-U2 + G-U5 across impacted frameworks per §3 + §4; L0 confirmation-gate at AP6 observation per substrate §13 |
+| Own invariants | 69 axioms inherited from metaframework-v3-1 + propagation-completeness invariant (expressed via G-U2 execution at Stage 3 E1 + G-U5 co-execution at Stage 3 E2) + cross-framework consistency invariant (expressed via AP6.5 added cycle-1 per F-cycle-1-10) + drift-disposition routing (expressed via §3.X added cycle-2 per spec §3.6); no own-axiom declarations |
+| Own discipline | 8-step P8 procedure (AP1–AP7 + AP6.5) executing G-U2 + G-U5 + cross-framework consistency check across impacted frameworks per §3 + §4; L0 confirmation-gate at AP6 observation per substrate §13 |
 
 All four properties declared. MA-G13 passes. Amendment-propagation classified as framework (not state store, not protocol, not substrate).
 
@@ -59,7 +60,12 @@ AmendmentEvent = {
   sourceFrameworkRef: FrameworkRef,
   versionFrom: Semver,
   versionTo: Semver,
-  amendmentTrigger: 'vision' | 'gap' | 'L0-directive',
+  amendmentTrigger: 'vision' | 'gap' | 'L0-directive' | 'first-run',
+                                                       // Cycle-1 enum extension per F-cycle-1-6/F-cycle-1-11.
+                                                       // 'first-run' triggers AmendmentEvent for metaframework
+                                                       // §5.X first-run-execution lifecycle event.
+                                                       // Extension authored under MA-S7 (additive Schema-axis amendment);
+                                                       // G-S7 verifies enum extension conformance.
   changedElements: AmendmentChange[],
   authorityClaim: AuthorityClaim,
   timestamp: string
@@ -119,10 +125,10 @@ Declared at point of use:
 - `AmendmentChange` — §2.1.
 - `PropagationResult` — §2.2.
 - `PerFrameworkStatus` — §2.2.
-- `PropagationTrace` — shape declared inline below (previously deferred; R-0055 resolution).
+- `PropagationTrace` — shape declared inline below (previously deferred; R-phase-1-2-0055 resolution).
 - `ImpactedFrameworkSet` — §3.3 vocabulary table (intermediate output of AP2).
 
-**PropagationTrace** (R-0055 resolution; typed shape per substrate §4.1 typed-shape requirement):
+**PropagationTrace** (R-phase-1-2-0055 resolution; typed shape per substrate §4.1 typed-shape requirement):
 ```
 PropagationTrace = {
   propagationRunId: string,
@@ -139,7 +145,7 @@ StepRecord = {
 }
 ```
 
-Referenced by §6.5 Provenance contract. Consumed by framework-audit (G-U5 co-execution via AP5-E2 slice per metaframework §4.3 F-69 table). `Stage` consumed by reference from substrate §8.3.
+Referenced by §6.5 Provenance contract. Consumed by framework-audit (G-U5 co-execution via AP5-E2 slice per metaframework §4.3 F-phase-1-1-69 table). `Stage` consumed by reference from substrate §8.3.
 
 ### §2.5 Schema rules (ScR-series)
 
@@ -147,7 +153,7 @@ Inherited from metaframework-v3-1 §2.5 by reference. No amendment-propagation-l
 
 ### §2.6 Custody table
 
-Full custody table in §6 Coupling. Summary pointer only at this section per A-08 single-source-via-reference.
+Full custody table in §6 Coupling. Summary pointer only at this section per R-phase-1-1-resolution-08 single-source-via-reference.
 
 ---
 
@@ -155,7 +161,7 @@ Full custody table in §6 Coupling. Summary pointer only at this section per A-0
 
 ### §3.1 Axes
 
-Amendment-propagation inherits metaframework-v3-1's seven-axis decomposition (Identity, Schema, Structure, Validity, Lifecycle, Coupling, Judgment). Per substrate §1.3 S-03 permitted-multi-execution: axes are declared once (metaframework) and consumed at multiple sites. Amendment-propagation does not redeclare.
+Amendment-propagation inherits metaframework-v3-1's seven-axis decomposition (Identity, Schema, Structure, Validity, Lifecycle, Coupling, Judgment). Per substrate §1.3 SI-03 permitted-multi-execution: axes are declared once (metaframework) and consumed at multiple sites. Amendment-propagation does not redeclare.
 
 Per v3-1-spec §4.4 file-specific placement, amendment-propagation's own structural content is the seven-step P8 procedure declared at §3.3 below.
 
@@ -168,29 +174,30 @@ Per substrate §8 + §8.6 empty-declaration derivation:
 | P1 Axis | 0 | `{primitiveKind: P1, instanceCount: 0, basis: "axes inherited from metaframework-v3-1 §3.1; amendment-propagation declares no own axes"}` |
 | P2 Sub-axis | 0 | `{primitiveKind: P2, instanceCount: 0, basis: "flat axis structure inherited from metaframework; no sub-axes declared at amendment-propagation level"}` |
 | P3 Leaf | 0 | `{primitiveKind: P3, instanceCount: 0, basis: "leaves inherited via axes from metaframework"}` |
-| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "64 axioms inherited from metaframework-v3-1 §3.2; propagation-completeness invariant expressed via G-U2 execution path (Stage 3 AP4-E1), not as new axiom"}` |
-| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "80 framework-tier gates inherited from metaframework-v3-1 §4.1 (per MetaframeworkGateIdSet atom §6.5); G-U2 (propagation completeness) and G-U5 (provenance completeness) executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling"}` |
+| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "69 axioms inherited from metaframework-v3-1 §3.2 (post-cycle-2 v3.2.7); propagation-completeness invariant expressed via G-U2 execution path (Stage 3 AP4-E1) + cross-framework consistency invariant expressed via AP6.5 (added cycle-1 per F-cycle-1-10) + drift-disposition routing expressed via §3.X drift-disposition flow (added cycle-2 per spec §3.6 closing outer loop on cycle-1 G9 finding), not as new axioms"}` |
+| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "85 framework-tier gates inherited from metaframework-v3-1 §4.1 (per MetaframeworkGateIdSet derived from substrate §4 A-15, post-cycle-2 v3.2.7); G-U2 (propagation completeness) and G-U5 (provenance completeness) executed by amendment-propagation per F-phase-1-1-69 distribution but declared at metaframework per substrate §1.3 SI-03 permitted-multi-execution; AP6.5 cross-framework consistency check + §3.X drift-disposition flow execute inline within propagation procedure (not new gate declarations); no own gates per L0 Q-cycle-1-1 sprint-optimized ruling"}` |
 | P6 Handoff rule | 3 | HR-AP1 (receive HR4 from metaframework), HR-AP2 (read amendment log from registry), HR-AP3 (emit propagation result to registry via HR5) — declared §6.2 |
 | P7 Judgment input | 2 own | J-AP1-event-validation (consumed at AP1), J-AP6-propagation-verification (consumed at AP6) — declared §7 |
-| P8 Procedure step | **7** | AP1–AP7, declared §3.3 |
+| P8 Procedure step | **8** | AP1, AP2, AP3, AP4-E1, AP5-E2, AP6, AP6.5, AP7 — declared §3.3 (cycle-1 v1.3 added AP6.5 cross-framework consistency check per F-cycle-1-10) |
 
 Positive empty-declaration markers per substrate §8.6 for P1–P5 zero counts. Implicit-absence disallowed.
 
-### §3.3 Seven-step procedure (AP1–AP7)
+### §3.3 Eight-step procedure (AP1–AP7 + AP6.5)
 
-Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignment. Every step declares the amended P8 shape per substrate §8.3: `{id, order, stage, kind, input, output, derivation? | judgmentInputRef? | gates}` where the kind-specific field is populated per PG6 amended (substrate §11.2).
+Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignment. Cycle-1 (v1.3) adds AP6.5 cross-framework consistency check per F-cycle-1-10 (runs after AP6 judgment observation, before AP7 closure; mechanical reference-resolution check across all RegistryEntries to verify cross-framework references resolve). Every step declares the amended P8 shape per substrate §8.3: `{id, order, stage, kind, input, output, derivation? | judgmentInputRef? | gates}` where the kind-specific field is populated per PG6 amended (substrate §11.2).
 
 | id | order | stage | kind | input | output | kind-specific field |
 |---|---|---|---|---|---|---|
 | **AP1** | 1 | 1 | judgment-input | `AmendmentEvent` | classified-event (validated `AmendmentEvent` + intake annotations) | `judgmentInputRef = J-AP1-event-validation` (declared §7.1) |
 | **AP2** | 2 | 2 | mechanical | classified-event | `ImpactedFrameworkSet` (FrameworkRef[] of frameworks requiring propagation) | `derivation = "query registry §6 provenance index for frameworks referencing sourceFrameworkRef; enumerate via registry §4.2 readByProvenance(metaframeworkRef=source, procedureRef=source); filter by changedElements.elementKind to narrow impact surface per amendment-type"` |
 | **AP3** | 3 | 2 | mechanical | `ImpactedFrameworkSet` + classified-event | per-framework-propagation-plan (one entry per impacted framework with declared propagation-type) | `derivation = "for each impacted framework F in ImpactedFrameworkSet: determine propagation-type per changeType (added → additive-verify; amended → re-verify; removed → migration-required; deprecated → mark-deprecated); emit plan entry with F.frameworkRef + propagation-type + registry lookup refs"` |
-| **AP4-E1** | 4 | 3 | gate-execution | per-framework-propagation-plan | G-U2 gate result per impacted framework + overall G-U2 pass/fail | `gates = [G-U2]` (propagation completeness, sole-executor per F-69) |
-| **AP5-E2** | 5 | 3 | gate-execution | G-U2 gate results + plan | G-U5 gate result per impacted framework + overall G-U5 pass/fail | `gates = [G-U5]` (provenance completeness, co-executor with framework-audit per F-69) |
+| **AP4-E1** | 4 | 3 | gate-execution | per-framework-propagation-plan | G-U2 gate result per impacted framework + overall G-U2 pass/fail | `gates = [G-U2]` (propagation completeness, sole-executor per F-phase-1-1-69) |
+| **AP5-E2** | 5 | 3 | gate-execution | G-U2 gate results + plan | G-U5 gate result per impacted framework + overall G-U5 pass/fail | `gates = [G-U5]` (provenance completeness, co-executor with framework-audit per F-phase-1-1-69) |
 | **AP6** | 6 | 4 | judgment-input | G-U2 + G-U5 gate results + per-framework-propagation-plan | outcome-review (L0 confirmation-gate input per §5.3) | `judgmentInputRef = J-AP6-propagation-verification` (declared §7.2) |
-| **AP7** | 7 | 5 | mechanical | outcome-review (post-L0-confirm) | `PropagationResult` emitted + HR-AP3 invoked with `(amendmentId, impactedFrameworks, perFrameworkStatus, overallResult, gateResults, timestamp)` payload | `derivation = "assemble PropagationResult per §2.2 output schema; populate perFrameworkStatus with propagationState + registryUpdateRef per framework; compute overallResult ∈ {complete, partial, blocked} from aggregate per-framework status; invoke HR-AP3 toward registry per metaframework-v3-1 §6.2 HR5 contract; registry write is separate atomic operation per substrate §13.4 with IG1–IG5 discipline per framework-registry-v1-0 §8"` |
+| **AP6.5** | 7 | 5 | mechanical | outcome-review (post-L0-confirm) + RegistryEntry[] (via registry §4 readSystemState) | cross-framework consistency report (per-reference resolution status; binary overall pass/fail) | `derivation = "enumerate all RegistryEntries via registry §4 readSystemState (added registry v1.1 per F-cycle-1-9/Q-cycle-1-3); for each entry, parse declared cross-framework references (consumed-atom IDs, cited axiom IDs, cited gate IDs); verify each reference resolves to an existing declaration in the owning framework's RegistryEntry. Mechanical (reference-resolution class per substrate §6.3). On fail: populate per-framework consistency report with first-failing reference; aggregate to blocked status; escalate to L0. Added cycle-1 v1.3 per F-cycle-1-10 cross-framework consistency check; resolves prior gap (no batch-audit / cross-framework consistency surface)."` |
+| **AP7** | 8 | 5 | mechanical | outcome-review + AP6.5 consistency report | `PropagationResult` emitted + HR-AP3 invoked with `(amendmentId, impactedFrameworks, perFrameworkStatus, overallResult, gateResults, timestamp)` payload | `derivation = "assemble PropagationResult per §2.2 output schema; populate perFrameworkStatus with propagationState + registryUpdateRef per framework; compute overallResult ∈ {complete, partial, blocked} from aggregate per-framework status + AP6.5 consistency report; invoke HR-AP3 toward registry per metaframework-v3-1 §6.2 HR5 contract; registry write is separate atomic operation per substrate §13.4 with IG1–IG5 discipline per framework-registry-v1-0 §8"` |
 
-**E1–E2 shorthand.** AP4 and AP5 are the two Stage-3 gate-execution P8 instances referenced as E1 and E2 respectively. E1 = G-U2 (propagation completeness, amendment-propagation sole executor). E2 = G-U5 (provenance completeness, co-executor with framework-audit). Per v3-1-spec §3.4 F-69 distribution. Per 9e E-step precedent: gate-reference-by-ID at declaration tier; per-gate mechanical test body lives where the gate is declared (metaframework §4.3 F-69 table for G-U2, G-U5) and execution engine is post-9g concern per L0 Q5 ruling.
+**E1–E2 shorthand.** AP4 and AP5 are the two Stage-3 gate-execution P8 instances referenced as E1 and E2 respectively. E1 = G-U2 (propagation completeness, amendment-propagation sole executor). E2 = G-U5 (provenance completeness, co-executor with framework-audit). Per v3-1-spec §3.4 F-phase-1-1-69 distribution. Per 9e E-step precedent: gate-reference-by-ID at declaration tier; per-gate mechanical test body lives where the gate is declared (metaframework §4.3 F-phase-1-1-69 table for G-U2, G-U5) and execution engine is post-9g concern per L0 Q5 ruling.
 
 **Per-row notes:**
 
@@ -200,7 +207,7 @@ Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignm
 
 - **AP3.** Per-framework planning. Each impacted framework receives a propagation-type based on AmendmentChange.changeType enum. This is a pure mechanical step (no judgment required at plan-level); runtime classification.
 
-- **AP4-E1, AP5-E2.** Stage-3 gate-execution per substrate §8.3 ternary kind + PG6 amended. Per L0 Q5 ruling: declaration is gate-reference-by-ID; execution occurs via MULTI-EXEC per substrate §1.3 S-03. Co-execution with framework-audit for G-U5 follows F-69 "AND" semantics — both execute independently on their respective paths when applicable (logged as audit note #4 for post-9g clarification).
+- **AP4-E1, AP5-E2.** Stage-3 gate-execution per substrate §8.3 ternary kind + PG6 amended. Per L0 Q5 ruling: declaration is gate-reference-by-ID; execution occurs via MULTI-EXEC per substrate §1.3 SI-03. Co-execution with framework-audit for G-U5 follows F-phase-1-1-69 "AND" semantics — both execute independently on their respective paths when applicable (logged as audit note #4 for post-9g clarification).
 
 - **AP6.** Judgment observation step. J-AP6-propagation-verification (declared §7.2) checks gate-result pass state + per-framework status coherence + fitness for registry emission. L0 confirmation decision is enabled by the observation result; L0 confirmation itself is a substrate §13.6 event, not a P8 output field.
 
@@ -208,13 +215,13 @@ Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignm
 
 ### §3.4 Stage monotonicity and kind-alignment self-check
 
-Per substrate §10.2 PR4 (stage monotonicity) and PR5 (stage-content-kind alignment), applied to the seven-step procedure:
+Per substrate §10.2 PR4 (stage monotonicity) and PR5 (stage-content-kind alignment), applied to the eight-step procedure (cycle-1 v1.3 added AP6.5 per F-cycle-1-10):
 
 **PR4 — stage monotonicity across order.**
 
-| order | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---|---|---|---|---|---|---|
-| stage | 1 | 2 | 2 | 3 | 3 | 4 | 5 |
+| order | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| stage | 1 | 2 | 2 | 3 | 3 | 4 | 5 | 5 |
 
 Non-decreasing across order. PR4 passes.
 
@@ -228,21 +235,48 @@ Non-decreasing across order. PR4 passes.
 | AP4-E1 | 3 | gate-execution | gate-execution | ✓ |
 | AP5-E2 | 3 | gate-execution | gate-execution | ✓ |
 | AP6 | 4 | judgment-input | judgment-input | ✓ |
+| AP6.5 | 5 | mechanical | mechanical | ✓ |
 | AP7 | 5 | mechanical | mechanical | ✓ |
 
-All seven aligned. PR5 passes.
+All eight aligned. PR5 passes.
 
 **PG6 amended (substrate §11.2) — kind-specific field requirement:**
 
 - AP1, AP6 (kind=judgment-input) → `judgmentInputRef` declared. ✓
-- AP2, AP3, AP7 (kind=mechanical) → `derivation` declared. ✓
+- AP2, AP3, AP6.5, AP7 (kind=mechanical) → `derivation` declared. ✓
 - AP4-E1, AP5-E2 (kind=gate-execution) → `gates` populated with tested axiom/invariant refs. ✓
 
-All seven satisfy PG6 amended.
+All eight satisfy PG6 amended.
 
 Self-check applied at declaration time; independent re-verification at framework-audit X10 extended predicate post-9g terminal cross-file gate.
 
-### §3.5 Vocabulary (amendment-propagation-local)
+### §3.5 Drift-disposition flow (added cycle-2 per spec §3.6; closes outer loop on cycle-1 G9 finding)
+
+Drift-disposition declares the propagation path for ReferentAlignmentState records produced by G-V10 (framework-audit §4.8.4.6) when `truthValue='drifted'`. Closes outer loop per cycle-1 G9 finding (drift detected without disposition path = unaddressed signal).
+
+**Trigger:** G-V10 emits a ReferentAlignmentState (substrate §4 A-19) with `truthValue='drifted'` into AuditRunRecord.referentAlignmentStatesRef (framework-audit §5.9) AND updates SelfAuditRecord.referentAlignmentStates (framework-audit §8.1).
+
+**Five-step disposition flow:**
+
+1. **Detection.** Drift state lands in audit records per the G-V10 emission contract above. No amendment-propagation action yet.
+
+2. **Trigger conversion.** Drift state propagates as AmendmentEvent (§2.1) of kind `amendmentTrigger='gap'` (existing enum at §2.1 — no enum extension required). The drifted framework's referent target is the AmendmentEvent's `sourceFrameworkRef`. AmendmentEvent enters AP1 entry per standard receive path (HR-AP1).
+
+3. **Disposition routing — patch-cycle ownership.** Per L0 ratification on cycle-2 spec §13 item 1: amendment-propagation routes patch-cycle ownership to the framework owning the cited referent (per Living Architecture custody rules), **not** to the framework that declared the citation. Rationale: drift is a property of the referent's state, not the citation's correctness; the referent owner has authority to patch.
+
+   **Citation-update fallback.** When G-S8 (framework-audit §4.8.2.5; ReferentCitation declaration shape conformance) has failed for the same citation, the citation is malformed — drift-disposition routes patch-cycle ownership to the **citing** framework instead. G-S8 is the prerequisite Schema-axis check; if G-S8 fails, the disposition assumption (drift = referent state issue) does not hold.
+
+   Routing decision is mechanical: read G-S8 status for the citation from the same SelfAuditRecord that produced the drifted ReferentAlignmentState. G-S8 passed → referent-owner routing. G-S8 failed → citing-framework routing.
+
+4. **Patch cycle.** Owning framework (per step 3 routing) runs its own amendment cycle (standard MF-Cycle pattern via metaframework + framework-audit). Spec citation updated OR referent patched per investigation outcome.
+
+5. **Re-audit.** Post-patch G-V10 re-execution against new ReferentSnapshot (substrate §4 A-20, captured per MA-L11 stamping). PASS verdict closes the disposition. Failure re-enters at step 1.
+
+**Outer loop closure.** No drift remains detected-but-unaddressed: every G-V10 drift signal has a declared propagation path. Mechanical at every step except the patch cycle's own internal judgment surfaces (which are governed by the receiving framework's own cycle).
+
+**Schema impact at AP:** zero new atoms, zero new own-axioms, zero new own-gates. Drift-disposition is a routing rule expressed as procedural prose — consumes existing AmendmentEvent shape, produces existing PropagationResult shape, executes within existing AP1–AP7+AP6.5 flow. P8 procedure step count unchanged at 8.
+
+### §3.6 Vocabulary (amendment-propagation-local)
 
 Framework-local terms declared inline at point of use per PR1 (substrate §10.2). Substrate, metaframework, registry, and framework-audit terms referenced by identifier.
 
@@ -262,34 +296,35 @@ Framework-local terms declared inline at point of use per PR1 (substrate §10.2)
 
 ### §4.1 Gate declaration
 
-Amendment-propagation declares **zero own gates** per L0 Q1 ruling (sprint-optimized default). Gate coverage:
+Amendment-propagation declares **zero own gates** per L0 Q-cycle-1-1 ruling (sprint-optimized default). Gate coverage:
 
-- **Inherited framework-tier gates:** 80 from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom (applied to amendment-propagation itself when audited by framework-audit).
-- **Gates executed by amendment-propagation (not owned):** G-U2 (propagation completeness, sole executor per F-69) at AP4-E1; G-U5 (provenance completeness, co-executor with framework-audit per F-69) at AP5-E2. Declarations at metaframework §4.3; execution occurs here per substrate §1.3 S-03 permitted-multi-execution.
+- **Inherited framework-tier gates:** 85 from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` derived from substrate §4 A-15, post-cycle-2 v3.2.7 (applied to amendment-propagation itself when audited by framework-audit).
+- **Gates executed by amendment-propagation (not owned):** G-U2 (propagation completeness, sole executor per F-phase-1-1-69) at AP4-E1; G-U5 (provenance completeness, co-executor with framework-audit per F-phase-1-1-69) at AP5-E2. Declarations at metaframework §4.3; execution occurs here per substrate §1.3 SI-03 permitted-multi-execution.
 
-Positive empty-declaration per §3.2 row P5. Basis: "80 framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom; G-U2 and G-U5 executed by amendment-propagation per F-69 distribution but declared at metaframework per substrate §1.3 S-03 permitted-multi-execution; no own gates per L0 Q1 sprint-optimized ruling (amendment-propagation's own integrity surface covered by G-U1 self-application + G-M1/M2 axiom-gate mapping + inherited framework-tier gates)."
+Positive empty-declaration per §3.2 row P5. Basis: "85 framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` derived from substrate §4 A-15 (post-cycle-2 v3.2.7); G-U2 and G-U5 executed by amendment-propagation per F-phase-1-1-69 distribution but declared at metaframework per substrate §1.3 SI-03 permitted-multi-execution; AP6.5 cross-framework consistency check + §3.5 drift-disposition flow execute inline within propagation procedure (mechanical reference-resolution per substrate §6.3, not new gate declarations); no own gates per L0 Q-cycle-1-1 sprint-optimized ruling (amendment-propagation's own integrity surface covered by G-U1 self-application + G-M1/M2 axiom-gate mapping + inherited framework-tier gates)."
 
 ### §4.2 Gate execution boundary
 
-Per 9e Q2 + 9f Q5 precedent + L0 Q5 ruling at Phase 9g:
+Per 9e Q-cycle-1-2 + 9f Q5 precedent + L0 Q5 ruling at Phase 9g:
 
 - **Declaration tier.** AP4-E1 and AP5-E2 declare `gates: [G-U2]` and `gates: [G-U5]` respectively per substrate §8.3 amended P8 + PG6 amended (ternary `kind = 'gate-execution'`).
-- **Execution tier.** Per substrate §1.3 S-03 permitted-multi-execution: gate *specification* declared once (at metaframework §4.3); gate *execution* occurs at the framework that claims executor role per F-69 distribution. Amendment-propagation is sole executor of G-U2 and co-executor of G-U5. Mechanical test body for each gate is inherited-by-reference; runtime execution engine is post-9g concern.
+- **Execution tier.** Per substrate §1.3 SI-03 permitted-multi-execution: gate *specification* declared once (at metaframework §4.3); gate *execution* occurs at the framework that claims executor role per F-phase-1-1-69 distribution. Amendment-propagation is sole executor of G-U2 and co-executor of G-U5. Mechanical test body for each gate is inherited-by-reference; runtime execution engine is post-9g concern.
 
 No cross-framework ownership violation. Declaration ≠ execution per MULTI-EXEC.
 
 ### §4.3 Inherited framework-tier gates
 
-Enumerated per metaframework-v3-1 §4.7 (80 framework-tier applicable, per `MetaframeworkGateIdSet`):
+Enumerated per metaframework-v3-1 §4.7 (85 framework-tier applicable post-cycle-2 v3.2.7, per `MetaframeworkGateIdSet`):
 
-`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I5, G-S1..G-S3, G-St1..G-St5, G-V1..G-V5, G-L1..G-L7, G-C1..G-C6, G-J1..G-J4, G-G13, G-U1..G-U5, G-M1..G-M4`.
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I7, G-S1..G-S8, G-St1..G-St16, G-V1..G-V11, G-L1..G-L11, G-C1..G-C10, G-J1..G-J5, G-G13, G-U1..G-U5, G-M1..G-M4`.
 
 Compact enumeration per sprint-mode + metaframework §4.7 pattern.
 
 ### §4.4 Gate execution coverage
 
-- **G-U2 (propagation completeness):** executed at AP4-E1 per per-framework-propagation-plan. Sole executor per metaframework §4.3 F-69 table.
-- **G-U5 (provenance completeness):** executed at AP5-E2 per G-U2 results + plan. Co-executor with framework-audit per metaframework §4.3 F-69 "AND" semantics — both frameworks execute independently on their respective paths when applicable (framework-audit on per-framework audit path via HR-FA1; amendment-propagation on per-amendment propagation path via HR-AP1). See audit note #4.
+- **G-U2 (propagation completeness):** executed at AP4-E1 per per-framework-propagation-plan. Sole executor per metaframework §4.3 F-phase-1-1-69 table.
+- **G-U5 (provenance completeness):** executed at AP5-E2 per G-U2 results + plan. Co-executor with framework-audit per metaframework §4.3 F-phase-1-1-69 "AND" semantics — both frameworks execute independently on their respective paths when applicable (framework-audit on per-framework audit path via HR-FA1; amendment-propagation on per-amendment propagation path via HR-AP1). See audit note #4.
+- **AP6.5 cross-framework consistency check** (added cycle-1 v1.3 per F-cycle-1-10): executed inline within procedure at order=7, stage=5; mechanical reference-resolution check across all RegistryEntries via registry §4 readSystemState. Not a gate declaration; a propagation-procedure step.
 
 ### §4.5 Meta-gate compliance
 
@@ -301,7 +336,7 @@ Per metaframework-v3-1 §4.5: G-M failure → universal gates re-run; substrate-
 
 ### §4.7 Current gate results
 
-**All 80 inherited framework-tier gates: state = `not-yet-run`.** (52 from v3.2.1 inherited, 28 added at v3.2.3 cycle.) First-run pending post-9g terminal cross-file gate (when L0 confirms first system-wide audit cycle per Phase 9g spec §7 step 6); 28 v3.2.3-added gates first-run deferred to next audit cycle.
+**All 85 inherited framework-tier gates: state = `not-yet-run`.** (52 from v3.2.1 inherited, 28 added at v3.2.3 cycle, 2 added at cycle-1 v3.2.4: G-S7 + G-V11; 3 added at cycle-2 v3.2.7: G-V10 + G-S8 + G-L11.) First-run pending post-9g terminal cross-file gate (when L0 confirms first system-wide audit cycle per Phase 9g spec §7 step 6); cycle-2-added gates first-run scheduled at first system-wide audit cycle post-cycle-2 ratification per metaframework §5.X first-run-execution lifecycle event.
 
 **G-U2 and G-U5 execution state at delivery: `not-yet-invoked`** (no AmendmentEvent processed yet; first run occurs when first AmendmentEvent arrives via HR-AP1 post-9g).
 
@@ -313,7 +348,7 @@ Compact summary per sprint-mode.
 
 ### §5.1 Version transition
 
-v1.0 → v1.1 → v1.2 → v1.2.1. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-0020 KA-Build-2 cascade). v1.2 (v3.2.3 cascade): §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 36→64 and gate count restatements 52→80 per MA-S5 cross-file restatement consistency (the very axiom added this cycle); inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-L1 additive — no procedural change. **v1.2.1 (MF-patch-1 cascade): §5.10 v1.1 row added per F-MFA-F9-008 closure (v1.1 was substantive AP edit-target cycle per §5.1, MA-S5 requires the row). §5.10 v1.2.1 row added. No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive — no procedural change. v1.2 content otherwise preserved verbatim.**
+v1.0 → v1.1 → v1.2 → v1.3 → v1.3.1 → v1.3.2 → v1.3.3. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §2.4 PropagationTrace inline shape declared (per R-phase-1-2-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count 45→52 (per R-phase-1-2-0020 KA-Build-2 cascade). v1.2 (v3.2.3 cascade): §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 36→64 and gate count restatements 52→80 per MA-S5 cross-file restatement consistency (the very axiom added that cycle); inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. v1.3 (MF-Cycle-1 Foundation Closure): §2.1 `amendmentTrigger` enum extended to include `'first-run'` per F-cycle-1-6/F-cycle-1-11 (extension authored under MA-S7 additive Schema-axis amendment; G-S7 verifies); §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom count restatements 64→66 and gate count restatements 80→82 per metaframework v3.2.4 cycle-1 cascade; §3.2 P8 row 7→8 with AP6.5 added; §3.3 procedure expanded to eight steps with AP6.5 cross-framework consistency check (added cycle-1 per F-cycle-1-10; runs after AP6, before AP7; mechanical reference-resolution check across all RegistryEntries via registry §4 readSystemState added registry v1.1 per F-cycle-1-9/Q-cycle-1-3); §3.4 self-check tables updated to 8 rows; §1 own-discipline restated 7-step → 8-step. Per MA-L1 additive — no procedural change to existing 7 steps; AP6.5 inserted between AP6 and AP7. v1.3.3 (MF-Cycle-2 Spec↔Referent Alignment Closure): §3.5 drift-disposition flow declared per spec §3.6 (five-step flow; closes outer loop on cycle-1 G9 finding; routing decision is mechanical via G-S8 status read from same SelfAuditRecord); §3.2 P4 inherited 66→69, P5 inherited 82→85; §4.1 + §4.3 + §4.7 + §8 inherited gate count restatements 82→85 with G-V10 + G-S8 + G-L11 enumeration; §1 MA-G13 own-invariants restated 66→69 + drift-disposition routing invariant added. P8 procedure step count unchanged at 8 (drift-disposition is a routing rule expressed as procedural prose within existing AP1–AP7+AP6.5 flow, not a new step). AmendmentEvent.amendmentTrigger enum unchanged (drift uses existing `'gap'` value).
 
 **Meta-note:** amendment-propagation is the framework that handles amendments to other frameworks. Its own amendments loop through itself per bootstrap-recursion handling — see §5.7 below.
 
@@ -321,7 +356,7 @@ v1.0 → v1.1 → v1.2 → v1.2.1. Additive per MA-L1. v1.1 (Phase 1.2-fix deliv
 
 Gap-driven per MA-L4 OR L0-directive. Amendment paths to amendment-propagation:
 - New failure mode for propagation procedure → MA-L4 amendment + version bump.
-- Addition of new gate to F-69 distribution requiring amendment-propagation execution → MA-L4 amendment + AP4/AP5 step extension.
+- Addition of new gate to F-phase-1-1-69 distribution requiring amendment-propagation execution → MA-L4 amendment + AP4/AP5 step extension.
 - Schema amendment to AmendmentEvent, PropagationResult → MA-L4 amendment + version bump.
 - Modification to the 7-step P8 procedure → MA-L4 amendment + PR4/PR5 re-verification.
 
@@ -352,20 +387,22 @@ Per v3-1-spec §3.3 output-schema `lifecycle` field (V5-verification additions):
 
 - **AP1** `AmendmentEvent` with invalid `sourceFrameworkRef` (unregistered framework) → reject at J-AP1 C1; emit blocked `PropagationResult` with `overallResult: 'blocked'` + escalate to L0 per MA-J1 + triggerEvent.
 - **AP1** `versionFrom`/`versionTo` Semver invalid → reject at J-AP1 C2; blocked PropagationResult.
-- **AP1** `amendmentTrigger` out-of-enum → reject at J-AP1 C3; blocked PropagationResult.
+- **AP1** `amendmentTrigger` out-of-enum (i.e., not in `{'vision', 'gap', 'L0-directive', 'first-run'}` per cycle-1 enum extension) → reject at J-AP1 C3; blocked PropagationResult.
 - **AP1** `authorityClaim` malformed → reject at J-AP1 C4; escalate to L0 per substrate §5.
 - **AP2** registry provenance-index read failure (HR-AP2 path) → suspend per substrate §13.6; retry on registry availability; no PropagationResult emitted until read succeeds.
 - **AP4-E1** G-U2 fail on framework F → populate `PerFrameworkStatus.propagationState = 'blocked'` with `escalation: EscalationState{status: 'blocked', gap: 'G-U2 propagation incomplete for framework F', requiredMode: 'verificative'}`; continue to AP5 for remaining frameworks; aggregate `overallResult` to 'partial' or 'blocked' at AP7 per remaining-framework status.
 - **AP5-E2** G-U5 fail on framework F → same pattern as AP4-E1 with `gap: 'G-U5 provenance incomplete for framework F'` and `requiredMode: 'verificative'`.
 - **AP6** L0 withholds confirmation OR L0 unavailable → suspend per substrate §13.6 L0-unavailability response; state persists in registry; resume idempotently on L0 return.
+- **AP6.5** cross-framework reference fails to resolve (consumed-atom ID, cited axiom ID, or cited gate ID does not exist in owning framework's RegistryEntry) → populate consistency report with first-failing reference + owning-framework-ref; aggregate to blocked status; escalate to L0 per substrate §13.6; PropagationResult marked `overallResult: 'blocked'` at AP7.
 - **AP7** HR-AP3 invocation rejected by registry (IG1 AuthorityClaim missing, IG3 uniqueness violation, IG4 provenance missing, IG5 lifecycle state out-of-enum) → PropagationResult not persisted; escalate to L0; amendment-propagation activation rolls back per substrate §13.4 "atomic with recovery point: pre-emission state in owned framework."
+- **First-run AmendmentEvent** (cycle-1 enum extension): treated identically to other AmendmentEvent kinds at AP1–AP7; no axiom/gate/atom shape changes (per MA-L1 additivity preserved); produces standard AmendmentLogEntry (alias of AmendmentProvenance per substrate §4 A-16) but the AmendmentEvent does not amend the framework — it stamps execution per metaframework §5.X first-run-execution lifecycle event.
 - **Registry-lock contention** per substrate §13.5 → wait-policy per activationTrigger.concurrencyPolicy ('wait' or 'reject').
 
 ### §5.7 Self-amendment bootstrap handling
 
 When amendment-propagation amends itself (meta-recursion), the amendment event is processed by a **fresh invocation using the pre-amendment version**. Post-amendment state replaces pre-amendment state atomically per registry discipline (IG1–IG5 + W4 atomicity). Bootstrap non-re-entrancy per MA-L7 + substrate §14.5 governs the first-version case (no amendment-propagation exists pre-bootstrap to self-amend; first version is L0 hand-authored at bootstrap event per substrate §14).
 
-Sprint-mode declaration depth per L0 Q3 ruling. Formalization of self-amendment procedure deferred to post-9g terminal cross-file gate.
+Sprint-mode declaration depth per L0 Q-cycle-1-3 ruling. Formalization of self-amendment procedure deferred to post-9g terminal cross-file gate.
 
 ### §5.8 Scale bounds
 
@@ -390,11 +427,13 @@ Per substrate §13.4 row "Owned framework execution: interruptible" with per-ste
 
 | Version | Date | Change | Authority |
 |---|---|---|---|
-| v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive + HR-AP2 registry-read + HR-AP3 emit declared with captureShapes. J-AP1-event-validation + J-AP6-propagation-verification declared. Zero own gates per sprint-optimized default. Closes 6-file system. | L0 |
-| v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape declared per R-0055 (was a referenced atom; now inlined for single-source per A-08). §3.2 + §4.1 + §4.3 + §4.7 + §8 inherited framework-tier gate count restatements 45→52 per R-0020 KA-Build-2 cascade. Per MA-L1 additive — no procedural change. (Row added at MF-patch-1 per F-MFA-F9-008 closure: §5.10 was missing this row at v1.2 despite §5.1 declaring v1.1 as substantive AP edit-target cycle; MA-S5 cross-file restatement consistency required the row.) | L0 |
+| v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per F-phase-1-1-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-phase-1-1-69). HR-AP1 receive + HR-AP2 registry-read + HR-AP3 emit declared with captureShapes. J-AP1-event-validation + J-AP6-propagation-verification declared. Zero own gates per sprint-optimized default. Closes 6-file system. | L0 |
+| v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-phase-1-2-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-phase-1-2-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-phase-1-2-0042. v1.0 content otherwise preserved verbatim. | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 + §3.2 + §4.1 + §4.3 + §4.7 + §8 axiom-count restatements 36→64; gate-count restatements 52→80; inherited gate ID enumeration extended for v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency. v1.1 content otherwise preserved verbatim. | L0 |
-| v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended with v1.2.1 entry. §5.10 v1.1 row added per F-MFA-F9-008 closure (closes MA-S5 missing-row finding). §5.10 v1.2.1 row added (this row). §9 changelog row added. No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. | L0 |
-| v1.2.2 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs enumerated reference framework-audit-v1-2 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (post-Shot-2 framework-audit dimension-declarations renumber). §1 header version + §1 Identity Version row v1.2.1 → v1.2.2. §5.10 v1.2.2 row added (this row). §9 changelog row added. No P8 step changes; no count changes (axiom 64, gate 80, P8 own count 7 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. **Note:** §8.4 self-application basis line `§3.4 stage/kind self-check` self-references AP's own §3.4 (stage-monotonicity-and-kind-alignment self-check section); not framework-audit's §3.4. Preserved untouched per D1 disposition (logged as F-MFA1-AP-001 for next-cycle hygiene: spec §4.5 row line 630 misidentified the reference). v1.2.1 content otherwise preserved verbatim. | L0 |
+| v1.3 | MF-Cycle-1 Foundation Closure (2026-04-29) | Cluster C closure-class amendments: §3.3 procedure expanded to **8 steps** with new step **AP6.5** (cross-framework consistency check, F-cycle-1-10/§3.13). Runs Stage 5, kind=mechanical, between AP6 and AP7. Mechanical reference-resolution check across all RegistryEntries via registry §4 readSystemState (added registry v1.1 cycle-1 per F-cycle-1-9/Q-cycle-1-3). §3.4 self-check tables updated to 8 rows; PR4 monotonicity holds (stage 5/5 at order 7/8); PR5 kind alignment holds (AP6.5 mechanical, AP7 mechanical). §1 own-discipline restated 7-step → 8-step; own-invariants extended with cross-framework consistency invariant. §3.2 P4 64→66 (axiom inheritance), P5 80→82, P8 7→8. §2.1 `amendmentTrigger` enum extended from `'vision' \| 'gap' \| 'L0-directive'` to `'vision' \| 'gap' \| 'L0-directive' \| 'first-run'` per F-cycle-1-6 audit fix on F-cycle-1-11 (extension authored under MA-S7 additive Schema-axis amendment; G-S7 verifies). §7.1 J-AP1 C3 enum-membership predicate updated to match. §5.6 failure modes extended with AP6.5 reference-resolution failure + first-run AmendmentEvent handling note (treats identically per MA-L1 additivity). Inherited gate count + ID enumeration cascade per metaframework v3.2.4 (80→82 incl. G-S7 + G-V11). v1.2 content otherwise preserved verbatim. | L0 |
+| v1.3.1 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29; row added at cycle-1.6 — closes cycle-1.5 §9 self-amendment gap) | Substrate v1.3 → v1.4 cascade. Count restatements: substrate-gate count 4→5; total all-gates 86→87 (framework-tier 82 unchanged — substrate gates excluded per substrate §11.5 tier-1). Identifier sweep applied: every multi-locus identifier in canonical S6 form per substrate §1.5. No procedure-step changes; no axiom changes. Additive per MA-L1 + MA-S7. | L0 |
+| v1.3.2 | MF-Cycle-1.6 Identifier Discipline Corrective (2026-04-29) | Substrate v1.4 → v1.5 cascade. Identifier-sweep companion: AP body sites swept per substrate §1.5 amended (Phase 1.1 references reclassified — atom shape A-NN bare, finding F-phase-1-1-A-NN kept, resolution R-phase-1-1-resolution-NN). No structural counts changed. Corrective-cycle scope. | L0 |
+| v1.3.3 | MF-Cycle-2 Spec↔Referent Alignment Closure (2026-04-30) | Substrate v1.5 → v1.6 + metaframework v3.2.6 → v3.2.7 cascade. **Drift-disposition flow declared** at new §3.5 per spec §3.6 (closes outer loop on cycle-1 G9 finding): five-step flow Detection → Trigger conversion (drift state propagates as AmendmentEvent of kind `'gap'`; existing enum, no extension required) → Disposition routing (patch-cycle ownership routes to referent owner per Living Architecture custody + L0 ratification on cycle-2 §13 item 1; citation-update fallback when G-S8 fails routes to citing framework instead) → Patch cycle (owning framework runs standard MF-Cycle pattern) → Re-audit (post-patch G-V10 against new ReferentSnapshot). Zero new atoms, zero new own-axioms, zero new own-gates; routing rule expressed as procedural prose within existing AP1–AP7+AP6.5 flow. P8 procedure step count unchanged at 8. **Count cascade:** §3.2 P4 inherited 66→69, P5 inherited 82→85; §1 MA-G13 own-invariants 66→69 + drift-disposition routing invariant added; §4.1 inherited gate count 82→85 with G-V10 + G-S8 + G-L11 enumeration; §4.3 + §4.7 enumeration extended; §5.6 failure modes extended with drift-disposition-routing failure note. AmendmentEvent.amendmentTrigger enum unchanged (drift uses existing `'gap'` value). All amendments additive per MA-L1 + MA-S7 (recursive scope per metaframework v3.2.7 §3.2.1 amendment). v1.3.2 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -461,6 +500,9 @@ Every atom owned or consumed, with owner + layer + consumers per substrate SG3.
 | `Semver` | substrate | L1 | amendment-propagation (versionFrom/versionTo validation) |
 | `Stage`, `StageContentKind` | substrate | L1 | amendment-propagation (all P8 instances) |
 | `CaptureShape` | substrate | L1 | amendment-propagation (HR-AP1/HR-AP3 captureShapes §6.3) |
+| `OriginProvenance` | substrate §4 A-05 (in-place rename cycle-1 per F-cycle-1-12) | L1 | amendment-propagation (PropagationTrace per-step provenance origin) |
+| `AmendmentProvenance` | substrate §4 A-16 (added cycle-1 per F-cycle-1-12) | L1 | amendment-propagation (per-amendment provenance records via PropagationTrace + PropagationResult); registry (AmendmentLogEntry alias) |
+| `GateIdSet` | substrate §4 A-15 (added cycle-1 per F-cycle-1-14; consumed via metaframework's `MetaframeworkGateIdSet` derived consumer instance) | L1 | amendment-propagation (§4.1 inherited-gate basis, §4.3 inherited gate enumeration) |
 | `MetaframeworkInput`, `GeneratedFrameworkTemplate` | metaframework | L2 | amendment-propagation (impact analysis input read) |
 | `EscalationState` | metaframework | L2 | amendment-propagation (PerFrameworkStatus.escalation field per §2.2) |
 | `GateResult`, `DimensionResult` | framework-audit | L2 | amendment-propagation (PropagationResult.gateResults field per §2.2) |
@@ -479,13 +521,13 @@ Substrate, metaframework, framework-audit, and registry atoms consumed by refere
 
 ### §6.5 Provenance contract
 
-Per MA-C5 + A-20 reference-default. Every emitted `PropagationResult` at AP7 traces to:
+Per MA-C5 + R-phase-1-1-resolution-20 reference-default. Every emitted `PropagationResult` at AP7 traces to:
 
 - declared `AmendmentEvent` (the triggering amendment, referenced by amendmentId),
 - per-step P8 outputs (classified-event from AP1, ImpactedFrameworkSet from AP2, per-framework-propagation-plan from AP3, G-U2 results from AP4-E1, G-U5 results from AP5-E2, outcome-review from AP6),
 - per-framework registry update refs (populated in `PerFrameworkStatus.registryUpdateRef`).
 
-`PropagationTrace` captures the per-step provenance chain per run (schema deferred per audit note #2). Reference-default per A-20: provenance fields store FrameworkRefs and registry-archived references where possible; by-value retention is opt-in.
+`PropagationTrace` captures the per-step provenance chain per run (schema deferred per audit note #2). Reference-default per R-phase-1-1-resolution-20: provenance fields store FrameworkRefs and registry-archived references where possible; by-value retention is opt-in.
 
 ### §6.6 OperatorInterface
 
@@ -530,8 +572,8 @@ J-AP1-event-validation:
         (mechanical — registry §4.2 readByFrameworkRef lookup; non-null RegistryEntry required).
     C2: versionFrom, versionTo are valid Semver per substrate §7
         (mechanical — Semver regex validation per substrate §7 declaration).
-    C3: amendmentTrigger ∈ {'vision', 'gap', 'L0-directive'}
-        (mechanical — enum membership check).
+    C3: amendmentTrigger ∈ {'vision', 'gap', 'L0-directive', 'first-run'}
+        (mechanical — enum membership check; cycle-1 enum extension per F-cycle-1-6/F-cycle-1-11 covers first-run-execution lifecycle event from metaframework §5.X).
     C4: authorityClaim is well-formed per substrate §5
         (mechanical — type-shape check + level/confirmedBy/timestamp presence).
     C5: event is coherent — changedElements internally consistent with versionFrom → versionTo transition
@@ -594,15 +636,15 @@ Both J-inputs ratified at Phase 9g L0 confirmation. Runtime provenance populated
 
 ## §8 Self-audit results
 
-Per metaframework-v3-1 §8 pattern (compact sprint-mode placeholder per L0 Q4 sprint-mode directive).
+Per metaframework-v3-1 §8 pattern (compact sprint-mode placeholder per L0 Q-cycle-1-4 sprint-mode directive).
 
 ### §8.1 Gate results
 
-No amendment-propagation-declared gates (per §4.1 zero own gates). Framework-tier gates inherited from metaframework-v3-1 §4.1 (80 applicable, per `MetaframeworkGateIdSet`). State = `not-yet-run` for framework-audit first-run against amendment-propagation, post-9g terminal cross-file gate.
+No amendment-propagation-declared gates (per §4.1 zero own gates). Framework-tier gates inherited from metaframework-v3-1 §4.1 (85 applicable post-cycle-2 v3.2.7, per `MetaframeworkGateIdSet` derived from substrate §4 A-15). State = `not-yet-run` for framework-audit first-run against amendment-propagation, post-9g terminal cross-file gate.
 
-Inherited gate ID enumeration matches metaframework §4.7 (80 framework-tier):
+Inherited gate ID enumeration matches metaframework §4.7 (85 framework-tier):
 
-`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I7, G-S1..G-S6, G-St1..G-St16, G-V1..G-V9, G-L1..G-L10, G-C1..G-C10, G-J1..G-J5, G-G13, G-U1..G-U5, G-M1..G-M4`.
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1..G-I7, G-S1..G-S8, G-St1..G-St16, G-V1..G-V11, G-L1..G-L11, G-C1..G-C10, G-J1..G-J5, G-G13, G-U1..G-U5, G-M1..G-M4`.
 
 Compact enumeration per sprint-mode.
 
@@ -610,7 +652,7 @@ Compact enumeration per sprint-mode.
 
 All 10 framework-audit dimensions (X1–X10) against amendment-propagation: state = `pending-first-run`. Uniform state; compact summary per sprint-mode.
 
-Dimension IDs enumerated: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-4 §3.4.
+Dimension IDs enumerated: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-2 §3.3.
 
 **X10 extended predicate relevance.** Phase 1.2 extended X10 with three bullets (stage declaration per substrate §8.3, PR4 monotonicity, PR5 kind alignment). X10 applies directly to amendment-propagation's seven P8 instances. Self-check already applied at §3.4 (all seven pass); framework-audit first-run verifies independently.
 
@@ -640,11 +682,12 @@ Terminal cross-file gate post-9g ratifies initial state per Phase 9g spec §7 st
 
 | Version | Date | Change | Authority |
 |---|---|---|---|
-| v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per metaframework §4.3 F-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-69). HR-AP1 receive-side (mirrors metaframework §6.2 HR4) + HR-AP2 registry-read (diagnosticSignificance=false) + HR-AP3 emit (mirrors metaframework §6.2 HR5 receive) declared with captureShapes. J-AP1-event-validation (consumed at AP1) + J-AP6-propagation-verification (consumed at AP6) declared with mixed mechanical + judgment criteria per MA-J2. Zero own gates per L0 Q1 sprint-optimized ruling. PropagationResult emission and registry write are two separate atomic operations per substrate §13.4 + registry IG1–IG5. Self-amendment bootstrap handling declared at high-level depth per L0 Q3 ruling; formalization deferred to post-9g terminal cross-file gate. Closes 6-file system. | L0 |
-| v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-0042. v1.0 content otherwise preserved verbatim. | L0 |
+| v1.0 | Phase 9g delivery | Initial amendment-propagation-v1-0 artifact. Seven P8 steps (AP1–AP7) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. AP4-E1 executes G-U2 (propagation completeness, sole executor per metaframework §4.3 F-phase-1-1-69). AP5-E2 executes G-U5 (provenance completeness, co-executor with framework-audit per F-phase-1-1-69). HR-AP1 receive-side (mirrors metaframework §6.2 HR4) + HR-AP2 registry-read (diagnosticSignificance=false) + HR-AP3 emit (mirrors metaframework §6.2 HR5 receive) declared with captureShapes. J-AP1-event-validation (consumed at AP1) + J-AP6-propagation-verification (consumed at AP6) declared with mixed mechanical + judgment criteria per MA-J2. Zero own gates per L0 Q-cycle-1-1 sprint-optimized ruling. PropagationResult emission and registry write are two separate atomic operations per substrate §13.4 + registry IG1–IG5. Self-amendment bootstrap handling declared at high-level depth per L0 Q-cycle-1-3 ruling; formalization deferred to post-9g terminal cross-file gate. Closes 6-file system. | L0 |
+| v1.1 | Phase 1.2-fix delivery | §2.4 PropagationTrace inline shape + StepRecord shape declared (per R-phase-1-2-0055); §3.2 + §4.1 + §4.3 + §4.7 + §8 gate count restatements updated 45→52 with `MetaframeworkGateIdSet` atom reference (per R-phase-1-2-0020 KA-Build-2 cascade). §1 Identity: scopeOut row added per R-phase-1-2-0042. v1.0 content otherwise preserved verbatim. | L0 |
 | v1.2 | Phase v3.2.3 delivery (2026-04-27) | §1 Own-invariants + §3.2 P4/P5 + §4.1 basis + §4.3 + §4.7 + §8 count restatements: axiom 36→64, framework-tier gate 52→80; inherited gate ID enumeration extended for 28 v3.2.3 axiom-gates. Per MA-S5 cross-file restatement consistency (the new axiom added this cycle). v1.1 content otherwise preserved verbatim. | L0 |
-| v1.2.1 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.2 → v1.2.1. §5.1 transition log extended. §5.10 v1.1 row added per F-MFA-F9-008 closure (v1.1 was substantive AP edit-target cycle per §5.1 + §9; MA-S5 required the §5.10 row). §5.10 v1.2.1 row added. §9 v1.2.1 row added (this row). No P8 step changes; no count changes (axiom 64, gate 80 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.2 content otherwise preserved verbatim. Closes MF-audit-1 finding F-MFA-F9-008. | L0 |
-| v1.2.2 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs reference framework-audit-v1-2 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (framework-audit dimension-declarations renumbered post-Shot-2). §1 header version + §1 Identity Version row v1.2.1 → v1.2.2. §5.10 + §9 v1.2.2 rows added. No P8 step changes; no count changes (axiom 64, gate 80, AP own P8 count 7 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. AP own §3.4 self-references (line 630 §8.4 self-application basis) preserved untouched per D1 disposition (spec §4.5 row line 630 misidentified the reference target as framework-audit's §3.4 when it actually self-references AP's §3.4 stage/kind self-check; logged as F-MFA1-AP-001 for next-cycle hygiene). v1.2.1 content otherwise preserved verbatim. | L0 |
+| v1.3 | MF-Cycle-1 Foundation Closure (2026-04-29) | Cluster C closure-class amendments per spec §3.13 + §3.14: AP6.5 cross-framework consistency check added (F-cycle-1-10) — new mechanical P8 step at Stage 5 between AP6 and AP7 (8-step procedure); §3.3 procedure table extended; §3.4 PR4/PR5 self-check tables expanded to 8 rows (all pass). §2.1 `amendmentTrigger` enum extended with `'first-run'` per F-cycle-1-6 audit fix on F-cycle-1-11 — extension authored under MA-S7 additive Schema-axis amendment (G-S7 verifies); §7.1 J-AP1 C3 enum predicate updated. §1 own-discipline restated 7-step → 8-step; §1 own-invariants extended with cross-framework consistency invariant. §3.2 P4 64→66, P5 80→82, P8 7→8. §4.1 + §4.3 + §4.7 + §8.1 inherited count + ID enumeration cascade per metaframework v3.2.4 (G-S7 + G-V11 added). §5.6 failure modes extended: AP6.5 reference-resolution failure pattern + first-run AmendmentEvent handling note. §5.10 history v1.1 row added (closes Cluster E v1.1-row-absence per spec §3.16). §6.4 custody table — new rows for OriginProvenance (A-05 cycle-1 rename), AmendmentProvenance (A-16 cycle-1), GateIdSet (A-15 cycle-1). v1.2 content otherwise preserved verbatim. | L0 |
+| v1.3.1 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29; row added at cycle-1.6 — closes cycle-1.5 §9 self-amendment gap) | Substrate v1.3 → v1.4 cascade. Identifier sweep applied across §1–§9 body: every multi-locus identifier in canonical S6 form per substrate §1.5. No procedural change (AP1–AP7 + AP6.5 unchanged); no axiom / J-input amendments — corrective patch-level to cycle-1 v1.3. v1.3 content otherwise preserved verbatim. | L0 |
+| v1.3.2 | MF-Cycle-1.6 Identifier Discipline Corrective (2026-04-29) | Substrate v1.4 → v1.5 cascade. Identifier-sweep companion: 3 amendment-propagation body sites swept per substrate §1.5 amended (Phase 1.1 references reclassified — atom shape A-NN bare, finding F-phase-1-1-A-NN kept, resolution R-phase-1-1-resolution-NN). No procedural change; no axiom / gate / HR / primitive / J-input amendments — corrective-cycle scope. v1.3.1 content otherwise preserved verbatim. | L0 |
 
 ---
 

@@ -3,8 +3,8 @@
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v1.1.4
-**Authority:** L0 confirmed (Phase v3.2.3 delivery)
+**Version:** v1.1.6
+**Authority:** L0 confirmed (MF-Cycle-1 Foundation Closure delivery)
 **Consumes:** substrate-v1-1, metaframework-v3-1
 **Consumed by:** framework-audit (HR3), amendment-propagation (HR4)
 **Dependencies:** substrate-v1-1 (by reference, per HR1), metaframework-v3-1 (via HR2 receive-side)
@@ -22,15 +22,16 @@ Generation-procedure is the L2 framework that declares *how* a `GeneratedFramewo
 | Kind | Framework |
 | Mode | generative (substrate §2) |
 | Level | L2 |
-| Version | v1.1.4 |
+| Version | v1.1.3 |
 | Ownership (template) | L0 |
+| v1.1.4 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29) | Cycle-1.5 cascade only: count restatements (substrate gate count 4→5; total all-gates 86→87; framework-tier 82 unchanged). Identifier sweep applied: every multi-locus identifier in canonical S6 form. No procedure-step changes. Additive per MA-L1. | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
 | State (applied) | `declared` (initial; transitions to `applied` on first HR2 invocation) |
 | Carrier | self (emits its own artifact — the generated framework template — at S12) |
 | Consumes | substrate-v1-1 (HR1), metaframework-v3-1 (HR2 receive-side) |
 | Consumed by | framework-audit (HR3), amendment-propagation (HR4) |
-| Authority | L0 confirmed |
+| Authority | L0 confirmed (MF-Cycle-1 Foundation Closure delivery) |
 | Genesis | bootstrap per substrate §14 (registered at post-9e registry write) |
 | scopeOut | `['runtime execution engine (post-9g)', 'per-step checkpoint runtime (post-9g)', 'multi-framework batch generation (post-beta)']` |
 
@@ -51,7 +52,7 @@ All four properties declared. MA-G13 passes. Generation-procedure is classified 
 
 ### §2.1 Input
 
-`MetaframeworkInput` per metaframework-v3-1 §2.1. Consumed by reference; no redeclaration here per A-08 single-source-via-reference.
+`MetaframeworkInput` per metaframework-v3-1 §2.1. Consumed by reference; no redeclaration here per R-phase-1-1-resolution-08 single-source-via-reference.
 
 Required input fields relevant to generation-procedure's twelve-step execution:
 - `domainDescription`, `domainInputState`, `proposedName`, `proposedKind`, `proposedLevel` — consumed by S2 for identity-axis population.
@@ -97,7 +98,7 @@ Per metaframework-v3-1 §2.5 (by reference to v3-1-spec §3.3). No generation-pr
 
 ### §2.6 Custody table
 
-Full custody table in §6 Coupling. Summary pointer only here per A-08 single-source-via-reference.
+Full custody table in §6 Coupling. Summary pointer only here per R-phase-1-1-resolution-08 single-source-via-reference.
 
 ---
 
@@ -105,7 +106,7 @@ Full custody table in §6 Coupling. Summary pointer only here per A-08 single-so
 
 ### §3.1 Axes
 
-Generation-procedure inherits metaframework-v3-1's seven-axis decomposition (Identity, Schema, Structure, Validity, Lifecycle, Coupling, Judgment). Per substrate §1.3 S-03 permitted-multi-execution: axes are declared once (metaframework) and consumed at multiple sites. Generation-procedure does not redeclare.
+Generation-procedure inherits metaframework-v3-1's seven-axis decomposition (Identity, Schema, Structure, Validity, Lifecycle, Coupling, Judgment). Per substrate §1.3 SI-03 permitted-multi-execution: axes are declared once (metaframework) and consumed at multiple sites. Generation-procedure does not redeclare.
 
 Per v3-1-spec §4.4 file-specific placement, generation-procedure's own structural content is the twelve-step P8 procedure declared at §3.3 below.
 
@@ -118,10 +119,10 @@ Per substrate §8 + §8.6 empty-declaration derivation:
 | P1 Axis | 0 | `{primitiveKind: P1, instanceCount: 0, basis: "axes inherited from metaframework-v3-1 §3.1; generation-procedure declares no own axes"}` |
 | P2 Sub-axis | 0 | `{primitiveKind: P2, instanceCount: 0, basis: "no sub-axes; axes inherited from metaframework"}` |
 | P3 Leaf | 0 | `{primitiveKind: P3, instanceCount: 0, basis: "leaves inherited via axes from metaframework"}` |
-| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "64 axioms inherited from metaframework-v3-1 §3.2; generation-procedure declares no own axioms"}` |
-| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "84 gates inherited from metaframework-v3-1 §4.1; E1–E8 reference metaframework gates per PG6 amended + substrate §1.3 S-03, but declare no new gates"}` |
+| P4 Axiom | 0 | `{primitiveKind: P4, instanceCount: 0, basis: "69 axioms inherited from metaframework-v3-1 §3.2 (post-cycle-2 v3.2.7); generation-procedure declares no own axioms"}` |
+| P5 Gate | 0 | `{primitiveKind: P5, instanceCount: 0, basis: "90 gates inherited from metaframework-v3-1 §4.1 (post-cycle-2 v3.2.7; 85 framework-tier + 5 substrate); E1–E8 reference metaframework framework-tier gates per PG6 amended + substrate §1.3 SI-03, but declare no new gates"}` |
 | P6 Handoff rule | 1 | HR2 receive-side contract — declared §6.2 |
-| P7 Judgment input | 1 | J-template-observation — declared §7.1 (generation-procedure-local, consumed at S11). J-axis-mece and J-axiom-dist consumed at S1 are metaframework-declared per metaframework §7, not redeclared here per A-08. |
+| P7 Judgment input | 1 | J-template-observation — declared §7.1 (generation-procedure-local, consumed at S11). J-axis-mece and J-axiom-dist consumed at S1 are metaframework-declared per metaframework §7, not redeclared here per R-phase-1-1-resolution-08. |
 | P8 Procedure step | **12** | S1–S12, declared §3.3 |
 
 Positive empty-declaration markers per substrate §8.6 for P1–P5 zero counts. Implicit-absence disallowed; zero-state declared.
@@ -135,17 +136,17 @@ Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignm
 | **S1** | 1 | 1 | judgment-input | `MetaframeworkInput` (activationTrigger + judgment record) | validated judgment record | `judgmentInputRef = {J-axis-mece, J-axiom-dist, + any template-consumer-declared J-inputs present in input.judgment}` | — |
 | **S2** | 2 | 2 | mechanical | validated input + substrate-v1-1 + metaframework-v3-1 schema | draft `GeneratedFrameworkTemplate` with all eight top-level fields populated (identity + schema + structure with inherited axis/axiom/gate/HR refs + validity + lifecycle + coupling + judgment + provenance) | `derivation = "per v3-1-spec §3.3 output schema: populate each GeneratedFrameworkTemplate field by reading input.{field} OR deriving from metaframework-v3-1 §3 by reference; atom shapes per metaframework §2.3–§2.4; custody row per §6 target-framework-specific"` | — |
 | **S3** | 3 | 3 | gate-execution | draft template | per-gate results for Identity-axis bundle + overall pass/fail | — | `gates = [PG1, G-I1, G-I2, G-I3, G-I4, G-I5, G-I6, G-I7]` (this is **E1**) |
-| **S4** | 4 | 3 | gate-execution | draft template | per-gate results for Schema-axis bundle + overall | — | `gates = [PG2, G-S1, G-S2, G-S3, G-S4, G-S5, G-S6]` (**E2**) |
+| **S4** | 4 | 3 | gate-execution | draft template | per-gate results for Schema-axis bundle + overall | — | `gates = [PG2, G-S1, G-S2, G-S3, G-S4, G-S5, G-S6, G-S7, G-S8]` (**E2**) |
 | **S5** | 5 | 3 | gate-execution | draft template | per-gate results for Structure-axis bundle + overall | — | `gates = [PG3, G-St1, G-St2, G-St3, G-St4, G-St5, G-St6, G-St7, G-St8, G-St9, G-St10, G-St11, G-St12, G-St13, G-St14, G-St15, G-St16]` (**E3**) |
-| **S6** | 6 | 3 | gate-execution | draft template | per-gate results for Validity-axis bundle + overall | — | `gates = [PG4, G-V1, G-V2, G-V3, G-V4, G-V5, G-V6, G-V7, G-V8, G-V9]` (**E4**) |
-| **S7** | 7 | 3 | gate-execution | draft template | per-gate results for Lifecycle-axis bundle + overall | — | `gates = [PG5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-L8, G-L9, G-L10]` (**E5**) |
+| **S6** | 6 | 3 | gate-execution | draft template | per-gate results for Validity-axis bundle + overall | — | `gates = [PG4, G-V1, G-V2, G-V3, G-V4, G-V5, G-V6, G-V7, G-V8, G-V9, G-V10, G-V11]` (**E4**) |
+| **S7** | 7 | 3 | gate-execution | draft template | per-gate results for Lifecycle-axis bundle + overall | — | `gates = [PG5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-L8, G-L9, G-L10, G-L11]` (**E5**) |
 | **S8** | 8 | 3 | gate-execution | draft template | per-gate results for Coupling-axis bundle + overall | — | `gates = [PG6, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-C7, G-C8, G-C9, G-C10]` (**E6**) |
 | **S9** | 9 | 3 | gate-execution | draft template | per-gate results for Judgment-axis bundle + overall | — | `gates = [PG7, G-J1, G-J2, G-J3, G-J4, G-J5]` (**E7**) |
 | **S10** | 10 | 3 | gate-execution | draft template + tier-3/4 input | per-gate results for universal + meta tier + overall | — | `gates = [G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4]` (**E8**) |
 | **S11** | 11 | 4 | judgment-input | draft template + E1–E8 gate results | observed template (L0 confirmation-gate input per §5.3) | `judgmentInputRef = J-template-observation` (generation-procedure-local; declared §7.1) | — |
 | **S12** | 12 | 5 | mechanical | observed + confirmed template | `GeneratedFrameworkTemplate` emitted; HR5 invoked toward registry with `(frameworkRef, template, authorityClaim)` payload | `derivation = "emit template atom per metaframework §2.2 output schema; invoke HR5 per metaframework §6.2 HR5 contract; registry write is separate atomic operation per substrate §13.4 (IG1–IG5 discipline per registry §8)"` | — |
 
-**E1–E8 shorthand.** Rows S3–S10 are the eight Stage-3 gate-execution P8 instances referenced collectively as E1–E8. E1–E8 partition metaframework's 80 framework-tier gates exhaustively with no overlap (8+7+17+10+11+11+6+10 = 80 per metaframework §4.1). Substrate-tier gates (SG1–SG4) excluded per substrate §11.5 "run once, not per framework" semantics.
+**E1–E8 shorthand.** Rows S3–S10 are the eight Stage-3 gate-execution P8 instances referenced collectively as E1–E8. E1–E8 partition metaframework's 85 framework-tier gates (post-cycle-2 v3.2.7) exhaustively with no overlap (8+9+17+12+12+11+6+10 = 85 per metaframework §4.1). E2 +G-S7 (8 gates → 9 with G-S8), E4 +G-V11 (11 gates → 12 with G-V10), E5 +G-L11 (11 gates → 12) per cycle-2 cascade. Substrate-tier gates (SG1–SG5) excluded per substrate §11.5 "run once, not per framework" semantics.
 
 **Per-row notes:**
 
@@ -153,11 +154,11 @@ Distributed across substrate-v1-1 Stages 1–5 per PR5 stage-content-kind alignm
 
 - **S2.** Single mechanical P8 whose derivation is the full template-population pipeline. Sub-step sequencing within S2 is internal to the derivation (axes → axioms → gates → HRs → custody → provenance); sub-steps share `kind = mechanical` and share gate exposure at Stage 3, so per MA-St4 primitive-atomicity they collapse to one P8 instance. Expansion into multiple mechanical P8 steps (one per output field) is an amendment path, not a v1.0 shape.
 
-- **S3–S10 (E1–E8).** Declaration of `gates` reference per substrate §8.3 amended P8 + PG6 amended (ternary `kind = 'gate-execution'` → declared `gates` populated with tested axiom or invariant refs). Per phase-9e-spec Q2 + substrate §1.3 S-03 permitted-multi-execution: generation-procedure declares the checkpoint (gates field population); framework-audit invokes execution per v3-1-spec §3.4 F-69 distribution table. No cross-framework ownership violation.
+- **S3–S10 (E1–E8).** Declaration of `gates` reference per substrate §8.3 amended P8 + PG6 amended (ternary `kind = 'gate-execution'` → declared `gates` populated with tested axiom or invariant refs). Per phase-9e-spec Q-cycle-1-2 + substrate §1.3 SI-03 permitted-multi-execution: generation-procedure declares the checkpoint (gates field population); framework-audit invokes execution per v3-1-spec §3.4 F-phase-1-1-69 distribution table. No cross-framework ownership violation.
 
 - **S11.** Judgment observation step. J-template-observation has three mechanical criteria (declared §7.1) per MA-J2 mechanical-criterion ground. L0 confirmation decision is enabled by the observation result but is itself a substrate §13.6 flow event, not a P8 output field.
 
-- **S12.** Terminal P8 is "emit + HR5 invocation" per phase-9e-spec Q3. Template emission and registry write are two separate atomic operations per substrate §13.4. S12 output completes when HR5 invocation returns — whether registry subsequently commits the write is enforced by registry's IG1–IG5 discipline (framework-registry-v1-0 §8) and is not S12's concern.
+- **S12.** Terminal P8 is "emit + HR5 invocation" per phase-9e-spec Q-cycle-1-3. Template emission and registry write are two separate atomic operations per substrate §13.4. S12 output completes when HR5 invocation returns — whether registry subsequently commits the write is enforced by registry's IG1–IG5 discipline (framework-registry-v1-0 §8) and is not S12's concern.
 
 ### §3.4 Stage monotonicity and kind-alignment self-check
 
@@ -218,27 +219,29 @@ Framework-local terms declared inline at point of use per PR1 (substrate §10.2)
 
 ### §4.1 Gate declaration
 
-Generation-procedure declares **zero gates**. Gate coverage fully inherited from metaframework-v3-1 §4.1 (84 total gates across tiers). Per substrate §1.3 S-03 permitted-multi-execution: gates are declared once (metaframework) and executed at multiple sites (framework-audit per framework-audit §3 X-dimensions, generation-procedure Stage-3 per E1–E8 reference).
+Generation-procedure declares **zero gates**. Gate coverage fully inherited from metaframework-v3-1 §4.1 (90 total gates across tiers post-cycle-2 v3.2.7). Per substrate §1.3 SI-03 permitted-multi-execution: gates are declared once (metaframework) and executed at multiple sites (framework-audit per framework-audit §3 X-dimensions, generation-procedure Stage-3 per E1–E8 reference).
 
-Positive empty-declaration per §3.2 row P5. Basis: `"gates inherited from metaframework-v3-1 §4.1; Stage-3 E1–E8 (S3–S10) reference metaframework gates via populated gates field per substrate §8.3 amended + PG6 amended + substrate §1.3 S-03"`.
+Positive empty-declaration per §3.2 row P5. Basis: `"gates inherited from metaframework-v3-1 §4.1; Stage-3 E1–E8 (S3–S10) reference metaframework gates via populated gates field per substrate §8.3 amended + PG6 amended + substrate §1.3 SI-03"`.
 
 ### §4.2 Gate execution coverage
 
-E1–E8 span all 80 framework-tier metaframework gates per §3.3 table. Coverage verification:
+E1–E8 span all 85 framework-tier metaframework gates (post-cycle-2 v3.2.7) per §3.3 table. Coverage verification:
 
 | E-step | axis/tier | gate count | IDs |
 |---|---|---|---|
 | E1 (S3) | Identity | 8 | PG1, G-I1–G-I7 |
-| E2 (S4) | Schema | 7 | PG2, G-S1–G-S6 |
+| E2 (S4) | Schema | 9 | PG2, G-S1–G-S8 |
 | E3 (S5) | Structure | 17 | PG3, G-St1–G-St16 |
-| E4 (S6) | Validity | 10 | PG4, G-V1–G-V9 |
-| E5 (S7) | Lifecycle | 11 | PG5, G-L1–G-L10 |
+| E4 (S6) | Validity | 12 | PG4, G-V1–G-V11 |
+| E5 (S7) | Lifecycle | 12 | PG5, G-L1–G-L11 |
 | E6 (S8) | Coupling | 11 | PG6, G-C1–G-C10 |
 | E7 (S9) | Judgment | 6 | PG7, G-J1–G-J5 |
 | E8 (S10) | Universal + Meta | 10 | G-G13, G-U1–G-U5, G-M1–G-M4 |
-| **Total** | | **80** | (matches metaframework §4.7 enumeration of 80 framework-tier gates) |
+| **Total** | | **85** | (matches metaframework §4.7 enumeration of 85 framework-tier gates post-cycle-2) |
 
-Substrate-tier gates (SG1–SG4) excluded per substrate §11.5 "run once, not per framework" semantics. No gate appears in more than one E-step bundle (MECE partition).
+Substrate-tier gates (SG1–SG5) excluded per substrate §11.5 "run once, not per framework" semantics. No gate appears in more than one E-step bundle (MECE partition).
+
+Cycle-1 v3.2.4 additions: E2 +G-S7 (Schema-axis additive amendment); E4 +G-V11 (applicability-basis required). Cycle-2 v3.2.7 additions: E2 +G-S8 (ReferentCitation declaration shape conformance, paired with MA-S8); E4 +G-V10 (spec↔referent Categorical alignment, paired with MA-V10); E5 +G-L11 (audit-run snapshot stamping, paired with MA-L11). G-S7 predicate amended in-place to evaluate recursive `≼` per metaframework v3.2.7 §3.2.1 — no E-bundle change for amendment.
 
 ### §4.3 Per-step gate execution result shape
 
@@ -266,7 +269,7 @@ Not applicable — generation-procedure declares no own gates. Framework-audit r
 
 ### §5.1 Version transition
 
-v1.0 → v1.1 → v1.1.1 → v1.1.2 → v1.1.3. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §7.1 J-template-observation C1 text precision (nine → eight top-level + validity.overallResult nested) per R-0040; §8.1 inherited-gate-enumeration replaced with `MetaframeworkGateIdSet` atom reference per R-0026 + R-0041. v1.1.1 (Phase 1.2-fix-trail hygiene): §3.3 S2 row "nine top-level" → "eight top-level" (per RF-05, same-class sweep residue as R-0040); §8.2 framework-audit version-ref `v1-1` → `v1-3` (per RF-04, same-class as F-15 / R-0047 cascade). Patch-level bump; no structural amendment. v1.1.2 (v3.2.3 cascade): §3.2 P4 inherited-axiom basis 36→64; P5 inherited-gate basis 56→84; §3.3 E1–E7 gates field extended with 28 v3.2.3 axiom-gates (E8 unchanged); §3.3 E1–E8 summary partition arithmetic updated 6+4+6+6+8+7+5+10=52 → 8+7+17+10+11+11+6+10=80; §4.1 inherited-gate basis 56→84; §4.2 paragraph 52→80 + per-E-step counts updated; §5.6 Scale bounds (36 axioms × 56 gates) → (64 × 84); §8 inherited gate count 52→80. Per MA-L1 additive — no procedural change. **v1.1.3 (MF-patch-1 cascade): restatement only — §8.2 framework-audit version-ref `v1-3` updated to `v1-3.3` per MA-S5 (substantive predicate refinement lives in framework-audit-v1-3.3, generation-procedure unchanged in procedural content). No P8 step changes; no count changes (axiom 64, gate 80, total 84 all unchanged); no inherited-gate-enumeration change (atom MetaframeworkGateIdSet reference preserved). Per MA-L1 additive — no procedural change.**
+v1.0 → v1.1 → v1.1.1 → v1.1.2 → v1.1.3 → v1.1.4 → v1.1.5 → v1.1.6. Additive per MA-L1. v1.1 (Phase 1.2-fix delivery) amendments: §7.1 J-template-observation C1 text precision (nine → eight top-level + validity.overallResult nested) per R-phase-1-2-0040; §8.1 inherited-gate-enumeration replaced with `MetaframeworkGateIdSet` atom reference per R-phase-1-2-0026 + R-phase-1-2-0041. v1.1.1 (Phase 1.2-fix-trail hygiene): §3.3 S2 row "nine top-level" → "eight top-level" (per R-phase-1-2-fix-trail-05, same-class sweep residue as R-phase-1-2-0040); §8.2 framework-audit version-ref `v1-1` → `v1-3` (per R-phase-1-2-fix-trail-04, same-class as F-cycle-1-15 / R-phase-1-2-0047 cascade). Patch-level bump; no structural amendment. v1.1.2 (v3.2.3 cascade): §3.2 P4 inherited-axiom basis 36→64; P5 inherited-gate basis 56→84; §3.3 E1–E7 gates field extended with 28 v3.2.3 axiom-gates (E8 unchanged); §3.3 E1–E8 summary partition arithmetic updated 6+4+6+6+8+7+5+10=52 → 8+7+17+10+11+11+6+10=80; §4.1 inherited-gate basis 56→84; §4.2 paragraph 52→80 + per-E-step counts updated; §5.6 Scale bounds (36 axioms × 56 gates) → (64 × 84); §8 inherited gate count 52→80. v1.1.3 (MF-Cycle-1 Foundation Closure cascade): §3.2 P4 inherited-axiom basis 64→66; P5 inherited-gate basis 84→86; §3.3 E2 Schema bundle +G-S7 (7→8 gates); E4 Validity bundle +G-V11 (10→11 gates); §3.3 partition-arithmetic line restated 80→82 (8+8+17+11+11+11+6+10=82); §4.1 inherited count 84→86; §4.2 per-E-step coverage table updated; §5.6 Scale bounds (64 axioms × 84 gates) → (66 × 86); §8 inherited gate count 80→82. Substrate citations swept S-03 → SI-03 per F-cycle-1-1 cycle-1 rename. v1.1.6 (MF-Cycle-2 Spec↔Referent Alignment Closure cascade): §3.2 P4 inherited-axiom basis 66→69; P5 inherited-gate basis 86→90; §3.3 E2 Schema bundle +G-S8 (8→9 gates); E4 Validity bundle +G-V10 (11→12 gates); E5 Lifecycle bundle +G-L11 (11→12 gates); §3.3 partition-arithmetic line restated 82→85 (8+9+17+12+12+11+6+10=85); §4.1 inherited count 87→90; §4.2 per-E-step coverage table updated; §5.6 Scale bounds (66 axioms × 86 gates) → (69 × 85 framework-tier); §8 inherited gate count 82→85. G-S7 predicate amended in-place per metaframework v3.2.7 §3.2.1 (recursive `≼`); no E-bundle change for the amendment itself. Per MA-L1 additive — no procedural change.
 
 ### §5.2 Amendment trigger
 
@@ -304,7 +307,7 @@ Per v3-1-spec §3.3 output-schema `lifecycle` field (V5-verification additions):
 - **S11** L0 withholds confirmation OR L0 unavailable → suspend per substrate §13.6 L0-unavailability response; state persists in registry; resume idempotently on L0 return.
 - **S12** HR5 invocation rejected by registry (IG1 AuthorityClaim missing, IG3 FrameworkRef uniqueness violation, IG4 generation-provenance missing, IG5 lifecycle state out-of-enum) → escalate to L0; template not persisted; generation-procedure activation rolls back per substrate §13.4 "atomic with recovery point: pre-emission state in owned framework."
 
-**Scale bounds:** bounded by metaframework-v3-1 atom cardinality (64 axioms × 84 gates × 7 HRs × 7 axes) and registry write throughput per substrate §13.4. No declared upper bound on input template complexity within these substrate-level bounds.
+**Scale bounds:** bounded by metaframework-v3-1 atom cardinality (69 axioms × 85 framework-tier gates × 7 HRs × 7 axes post-cycle-2 v3.2.7) and registry write throughput per substrate §13.4. No declared upper bound on input template complexity within these substrate-level bounds.
 
 **Atomicity declarations:** per-step atomicity per substrate §13.4 row "Owned framework execution: interruptible." Each P8 instance (S1–S12) is atomic at step boundary; recovery point on interruption = step `order` value. Recovery procedure: re-enter from failed step's order with upstream state reloaded from registry (registry-lock per substrate §13.5 held across suspension).
 
@@ -314,8 +317,7 @@ Per v3-1-spec §3.3 output-schema `lifecycle` field (V5-verification additions):
 |---|---|---|---|
 | v1.0 | Phase 9e delivery | Initial generation-procedure declaration. Twelve P8 steps (S1–S12) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. E1–E8 Stage-3 gate-execution steps reference metaframework gate bundles per axis (E1–E7) + universal/meta tier (E8). S11 consumes J-template-observation (generation-procedure-local). S12 emits `GeneratedFrameworkTemplate` + invokes HR5. HR2 receive-side contract declared with `carrierApplicability = ['self']`. | L0 |
 | v1.1.2 | Phase v3.2.3 delivery (2026-04-27) | §3.2 P4 + P5 row basis text count updates (axiom 36→64, gate 56→84). §3.3 E1–E7 gate lists extended for 28 v3.2.3 axiom-gates (S3 +G-I6,G-I7; S4 +G-S4,G-S5,G-S6; S5 +G-St6..G-St16; S6 +G-V6..G-V9; S7 +G-L8,G-L9,G-L10; S8 +G-C7..G-C10; S9 +G-J5); §3.3 partition-arithmetic line restated 52→80; §4.1 inherited count 56→84; §4.2 per-E-step coverage table updated; §5.6 Scale bounds restated; §8 inherited gate count 52→80. v1.1.1 content otherwise preserved verbatim. | L0 |
-| v1.1.3 | MF-patch-1 delivery (2026-04-28) | Restatement only. §8.2 framework-audit version-ref `v1-3` → `v1-3.3` per MA-S5 (substantive predicate refinement lives in framework-audit-v1-3.3; generation-procedure unchanged in procedural content). §1 header version + §1 Identity Version row v1.1.2 → v1.1.3. §5.1 transition log extended. §5.7 + §9 history rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. v1.1.2 content otherwise preserved verbatim. | L0 |
-| v1.1.4 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension ID enumeration reference `framework-audit-v1-3.3 §3.3` → `framework-audit-v1-4 §3.4` (version-ref bump + section bump for framework-audit dimension-declarations renumber post-Shot-2). §1 header version + §1 Identity Version row v1.1.3 → v1.1.4. §5.7 + §9 v1.1.4 rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84, gen-proc own P8 count 12 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. Gen-proc own §3.4 self-references (line 508 §8.4 self-application basis) preserved untouched per D1 disposition (spec §4.6 row line 508 misidentified the reference target as framework-audit's §3.4 when it actually self-references gen-proc's §3.4 stage/kind self-check; logged as F-MFA1-GP-001 for next-cycle hygiene). v1.1.3 content otherwise preserved verbatim. | L0 |
+| v1.1.3 | MF-Cycle-1 Foundation Closure (2026-04-29) | Cluster D-cascade: §3.2 P4 64→66, P5 84→86. §3.3 E2 Schema bundle +G-S7 (Schema-axis additive amendment paired gate); E4 Validity bundle +G-V11 (applicability-basis required paired gate); partition arithmetic restated 80→82 (8+8+17+11+11+11+6+10=82). §4.1 inherited count 84→86; §4.2 per-E-step coverage table updated. §5.6 Scale bounds restated 64→66 axioms, 84→86 gates. §8 inherited gate count 80→82. Cluster E hygiene: §5.7 v1.0 historical row preserved; v1.1 + v1.1.1 historical rows folded into v1.1.2 narrative for cycle-1 sweep per spec §3.16 "v1.0 historical row drift" closure. Cluster A hygiene: substrate §1.3 S-03 → SI-03 swept across all sites (7 occurrences) per F-cycle-1-1 rename. Per MA-L1 additive — no procedural change. v1.1.2 content otherwise preserved verbatim. | L0 |
 
 ---
 
@@ -343,10 +345,10 @@ Per metaframework-v3-1 §6.2 HR2 row: `carrierApplicability = ['self']`. Receive
 | HR1 | metaframework §6.2 | substrate → metaframework type consumption; generation-procedure consumes substrate types by the same receive pattern |
 | HR3 | metaframework §6.2 | metaframework → framework-audit; framework-audit reads generation-procedure's P8 declarations for X-dimension evaluation |
 | HR4 | metaframework §6.2 | metaframework → amendment-propagation; amendment events involving generation-procedure flow through |
-| HR5 | metaframework §6.2 | metaframework → registry; generation-procedure invokes HR5 at S12 (contract declared at metaframework, invoked by generation-procedure per substrate §1.3 S-03 permitted-multi-execution) |
+| HR5 | metaframework §6.2 | metaframework → registry; generation-procedure invokes HR5 at S12 (contract declared at metaframework, invoked by generation-procedure per substrate §1.3 SI-03 permitted-multi-execution) |
 | HR6 | metaframework §6.2 | metaframework → generated L3 frameworks; generation-procedure produces the generated L3 template at S12 (output contract) |
 
-Per substrate §1.3 S-03: these HRs are referenced, not declared, by generation-procedure. No redeclaration; no custody conflict.
+Per substrate §1.3 SI-03: these HRs are referenced, not declared, by generation-procedure. No redeclaration; no custody conflict.
 
 ### §6.3 CaptureShape for HR2 receive-side
 
@@ -391,15 +393,15 @@ Substrate and metaframework atoms consumed by reference; generation-procedure-de
 
 ### §6.5 Provenance contract
 
-Per MA-C5 + A-20 reference-default declaration: every emitted `GeneratedFrameworkTemplate` at S12 populates the output schema's `provenance` field with:
+Per MA-C5 + R-phase-1-1-resolution-20 reference-default declaration: every emitted `GeneratedFrameworkTemplate` at S12 populates the output schema's `provenance` field with:
 
 - `generatedByMetaframework: metaframework-v3-1` (FrameworkRef)
 - `generationProcedureRef: generation-procedure-v1-0` (FrameworkRef)
 - `generationTimestamp: <S12 invocation timestamp>`
-- `sourceInputRef: AtomRef` pointing to registry-archived `MetaframeworkInput` (reference-default per A-20)
+- `sourceInputRef: AtomRef` pointing to registry-archived `MetaframeworkInput` (reference-default per R-phase-1-1-resolution-20)
 - `sourceInputValue?: MetaframeworkInput` — populated only if by-value opt-in flag is set in `input.provenance`
 
-Reference-default reduces per-framework propagation cost from O(N) to O(1) per v3-1-spec §3.3 A-20.
+Reference-default reduces per-framework propagation cost from O(N) to O(1) per v3-1-spec §3.3 R-phase-1-1-resolution-20.
 
 ### §6.6 OperatorInterface
 
@@ -460,7 +462,7 @@ All three criteria mechanical per substrate §6.3 mechanical-criterion ground cl
 
 ### §7.2 Metaframework-declared J-inputs consumed at S1
 
-Per MA-J1 judgment-typing: J-axis-mece and J-axiom-dist are consumed at S1 but declared at metaframework-v3-1 §7.1 and §7.2. Not redeclared here per A-08 single-source-via-reference. S1 validates their presence-of-required + typed-shape-conformance per substrate §6.2 Judgment shape.
+Per MA-J1 judgment-typing: J-axis-mece and J-axiom-dist are consumed at S1 but declared at metaframework-v3-1 §7.1 and §7.2. Not redeclared here per R-phase-1-1-resolution-08 single-source-via-reference. S1 validates their presence-of-required + typed-shape-conformance per substrate §6.2 Judgment shape.
 
 Template-consumer-declared additional J-inputs (if any) consumed at S1 follow the same typing discipline but are declared at consumer-framework site per MA-J1, not at generation-procedure.
 
@@ -480,15 +482,15 @@ MA-J4 provenance-completeness satisfied: every judgment consumption at S1 and S1
 
 ### §8.1 Gate results
 
-**Generation-procedure declares no own gates.** Framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` atom (80 framework-tier gates, §6.5). State = `not-yet-run` for framework-audit first-run against generation-procedure, post-9g per phase-9e-spec §4.3.2 deferrals.
+**Generation-procedure declares no own gates.** Framework-tier gates inherited from metaframework-v3-1 §4.1 per `MetaframeworkGateIdSet` derived from substrate §4 A-15 (85 framework-tier gates post-cycle-2 v3.2.7). State = `not-yet-run` for framework-audit first-run against generation-procedure, post-9g per phase-9e-spec §4.3.2 deferrals; cycle-2-added gates G-V10 + G-S8 + G-L11 first-run scheduled at first system-wide audit cycle post-cycle-2 ratification per metaframework §5.X first-run-execution lifecycle event.
 
-Inherited gate ID set consumed by reference as `MetaframeworkGateIdSet` — see metaframework §4.7 for canonical enumeration + §6.5 for atom declaration. Enumeration no longer restated here per R-0026 + R-0041 resolution (single-source via reference, A-08).
+Inherited gate ID set consumed by reference as `MetaframeworkGateIdSet` — see metaframework §4.7 for canonical enumeration + §6.5 for atom declaration. Enumeration no longer restated here per R-phase-1-2-0026 + R-phase-1-2-0041 resolution (single-source via reference, R-phase-1-1-resolution-08).
 
 ### §8.2 Dimension audit results
 
-All 10 framework-audit dimensions (X1–X10) against generation-procedure: state = `pending-first-run`. Uniform state; compact summary per sprint-mode Q4.
+All 10 framework-audit dimensions (X1–X10) against generation-procedure: state = `pending-first-run`. Uniform state; compact summary per sprint-mode Q-cycle-1-4.
 
-Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-4 §3.4.
+Dimension ID enumeration: `X1, X2, X3, X4, X5, X6, X7, X8, X9, X10` per framework-audit-v1-3 §3.3.
 
 **X10 extended predicate relevance.** Phase 1.2 extended X10 with three bullets (stage declaration per substrate §8.3, PR4 monotonicity, PR5 kind alignment). X10 applies directly to generation-procedure's twelve P8 instances. Self-check already applied at §3.4 above (all twelve pass); framework-audit first-run verifies independently.
 
@@ -517,11 +519,13 @@ First framework-audit first-run post-9g ratifies initial state.
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v1.0 | Phase 9e delivery | Initial generation-procedure declaration. Twelve P8 steps (S1–S12) distributed across substrate-v1-1 Stages 1–5 per PR4 monotonicity + PR5 kind alignment. E1–E8 Stage-3 gate-execution steps reference metaframework gate bundles per axis (E1 Identity, E2 Schema, E3 Structure, E4 Validity, E5 Lifecycle, E6 Coupling, E7 Judgment) + tier-3/4 universal+meta (E8), covering all 52 metaframework framework-tier gates with MECE partition. S11 consumes J-template-observation (generation-procedure-local, three mechanical criteria per substrate §6.3 ground). S12 emits `GeneratedFrameworkTemplate` + invokes HR5; registry performs write separately per IG1–IG5. HR2 receive-side contract declared with `carrierApplicability = ['self']`; captureShape matched to metaframework-v3-1 §6.3 HR2 by construction per MA-C3. | L0 |
-| v1.1 | Phase 1.2-fix delivery | §7.1 J-template-observation C1 text precision (eight top-level fields + validity.overallResult nested, per R-0040). §8.1 inherited-gate-enumeration replaced with `MetaframeworkGateIdSet` atom reference (per R-0026 + R-0041; single-source via A-08). §1 Identity: scopeOut row added per R-0042. v1.0 content otherwise preserved verbatim. | L0 |
-| v1.1.1 | Phase 1.2-fix-trail hygiene delivery | §3.3 S2 row "nine top-level" → "eight top-level" (per RF-05, same-class sweep residue as R-0040 §7.1 C1 fix). §8.2 Dimension ID enumeration reference `per framework-audit-v1-1 §3.3` → `per framework-audit-v1-3 §3.3` (per RF-04, same-class as R-0047 version-ref drift missed by KA-GATE1-1 cascade). Patch-level bump; no structural amendment. | L0 |
+| v1.1 | Phase 1.2-fix delivery | §7.1 J-template-observation C1 text precision (eight top-level fields + validity.overallResult nested, per R-phase-1-2-0040). §8.1 inherited-gate-enumeration replaced with `MetaframeworkGateIdSet` atom reference (per R-phase-1-2-0026 + R-phase-1-2-0041; single-source via R-phase-1-1-resolution-08). §1 Identity: scopeOut row added per R-phase-1-2-0042. v1.0 content otherwise preserved verbatim. | L0 |
+| v1.1.1 | Phase 1.2-fix-trail hygiene delivery | §3.3 S2 row "nine top-level" → "eight top-level" (per R-phase-1-2-fix-trail-05, same-class sweep residue as R-phase-1-2-0040 §7.1 C1 fix). §8.2 Dimension ID enumeration reference `per framework-audit-v1-1 §3.3` → `per framework-audit-v1-3 §3.3` (per R-phase-1-2-fix-trail-04, same-class as R-phase-1-2-0047 version-ref drift missed by KA-GATE1-1 cascade). Patch-level bump; no structural amendment. | L0 |
 | v1.1.2 | Phase v3.2.3 delivery (2026-04-27) | §3.2 P4 inherited-axiom basis 36→64; P5 inherited-gate basis 56→84. §3.3 E1–E7 gates field extended with 28 v3.2.3 axiom-gates (E8 unchanged); §3.3 E1–E8 partition arithmetic restated 6+4+6+6+8+7+5+10=52 → 8+7+17+10+11+11+6+10=80. §4.1 inherited count 56→84. §4.2 paragraph 52→80; §4.2 per-E-step coverage table updated (E1: 6→8, E2: 4→7, E3: 6→17, E4: 6→10, E5: 8→11, E6: 7→11, E7: 5→6; total 52→80). §5.6 Scale bounds (36 axioms × 56 gates) → (64 × 84). §8 inherited gate count 52→80. v1.1.1 content otherwise preserved verbatim. Per MA-S5 cross-file restatement consistency. | L0 |
-| v1.1.3 | MF-patch-1 delivery (2026-04-28) | Restatement only. §1 header version + §1 Identity Version row v1.1.2 → v1.1.3. §5.1 transition log extended with v1.1.3 entry. §5.7 + §9 history rows added. §8.2 framework-audit version-ref `v1-3` → `v1-3.3` (per MA-S5; substantive predicate refinement lives in framework-audit-v1-3.3, this file unchanged in procedural content). No P8 step changes; no count changes (axiom 64, gate 80, total 84 unchanged); no inherited-gate-enumeration change (atom MetaframeworkGateIdSet reference preserved). Per MA-L1 additive. v1.1.2 content otherwise preserved verbatim. | L0 |
-| v1.1.4 | MF-amendment-1 delivery (2026-04-28) | Cascade pointer update. §8.2 Dimension IDs reference framework-audit-v1-3.3 → framework-audit-v1-4 (version-ref bump) and §3.3 → §3.4 (framework-audit dimension-declarations renumbered post-Shot-2). §1 header version + §1 Identity Version row v1.1.3 → v1.1.4. §5.7 + §9 v1.1.4 rows added. No P8 step changes; no count changes (axiom 64, gate 80, total 84, gen-proc own P8 count 12 unchanged); no inherited-gate-enumeration change. Per MA-L1 additive. Gen-proc own §3.4 self-references preserved untouched per D1 disposition (logged as F-MFA1-GP-001 for next-cycle hygiene: spec §4.6 row line 508 misidentified the reference). v1.1.3 content otherwise preserved verbatim. | L0 |
+| v1.1.3 | MF-Cycle-1 Foundation Closure (2026-04-29) | Cycle-1 cascade (no procedural change; count restatements only per MA-S5 cross-file restatement consistency, the very axiom MA-S7 added this cycle authorizes additivity). §3.2 P4 inherited-axiom basis 64→66; P5 inherited-gate basis 84→86. §3.3 E2 Schema bundle +G-S7 (Schema-axis additive amendment paired gate per metaframework v3.2.4 F-cycle-1-2/Q-cycle-1-2); E4 Validity bundle +G-V11 (applicability-basis required paired gate per F-cycle-1-8); §3.3 partition arithmetic restated 80→82 (8+8+17+11+11+11+6+10=82). §4.1 inherited count 84→86; §4.2 paragraph 80→82; §4.2 per-E-step coverage table updated (E2: 7→8, E4: 10→11; total 80→82). §5.6 Scale bounds (64 axioms × 84 gates) → (66 × 86). §8 inherited gate count 80→82. Cluster A hygiene: substrate §1.3 S-03 → SI-03 swept (7 occurrences) per F-cycle-1-1 rename. v1.1.2 content otherwise preserved verbatim. | L0 |
+| v1.1.4 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29; row added at cycle-1.6 — closes cycle-1.5 §9 self-amendment gap) | Substrate v1.3 → v1.4 cascade. Identifier sweep applied across §1–§9 body: every multi-locus identifier in canonical S6 form per substrate §1.5. No procedural change (S1–S12 + E1–E8 unchanged); no axiom / J-input amendments — corrective patch-level to cycle-1 v1.1.3. v1.1.3 content otherwise preserved verbatim. | L0 |
+| v1.1.5 | MF-Cycle-1.6 Identifier Discipline Corrective (2026-04-29) | Substrate v1.4 → v1.5 cascade. §4.1 stale total "86 total gates across tiers post-cycle-1 v3.2.4" updated to "87 total gates across tiers post-cycle-1.5 v3.2.5" per cycle-1.6 cascade closure (cycle-1.5 omission). §3.3 + §4.2 "Substrate-tier gates (SG1–SG4) excluded" → "(SG1–SG5) excluded" (2 sites). Identifier-sweep companion: 9 generation-procedure body sites swept per substrate §1.5 amended (Phase 1.1 references reclassified — atom shape A-NN bare, finding F-phase-1-1-A-NN kept, resolution R-phase-1-1-resolution-NN). No procedural change; no axiom / gate / J-input amendments — corrective-cycle scope. v1.1.4 content otherwise preserved verbatim. | L0 |
+| v1.1.6 | MF-Cycle-2 Spec↔Referent Alignment Closure (2026-04-30) | Cycle-2 cascade (no procedural change; count restatements only per MA-S5 cross-file restatement consistency). §3.2 P4 inherited-axiom basis 66→69; P5 inherited-gate basis 86→90 (85 framework-tier + 5 substrate). §3.3 E2 Schema bundle +G-S8 (ReferentCitation declaration shape conformance, paired with MA-S8 per metaframework v3.2.7 §3.2.1; 8→9 gates); E4 Validity bundle +G-V10 (spec↔referent Categorical alignment, paired with MA-V10; 11→12 gates); E5 Lifecycle bundle +G-L11 (audit-run snapshot stamping, paired with MA-L11; 11→12 gates); §3.3 partition arithmetic restated 82→85 (8+9+17+12+12+11+6+10=85). G-S7 predicate amended in-place per metaframework v3.2.7 §3.2.1 (recursive `≼`); no E-bundle change for the amendment itself. §4.1 inherited total restated 87→90; §4.2 paragraph 82→85; §4.2 per-E-step coverage table updated (E2: 8→9, E4: 11→12, E5: 11→12; total 82→85). §5.6 Scale bounds (66 axioms × 86 gates) → (69 × 85 framework-tier). §8 inherited gate count 82→85. All amendments additive per MA-L1 + MA-S7 (recursive scope per metaframework v3.2.7 §3.2.1). v1.1.5 content otherwise preserved verbatim. | L0 |
 
 ---
 
