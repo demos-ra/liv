@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b, lm-v2-2-shot2, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
+// amended:    phase-b-item2, phase-5.1-r1, phase-5.2, phase-5-audit, 6.3-6.4-registry, 6.5-6.6-routing, 6.9-6.13-modules, phase-6-sprint-b, lm-v2-2-shot2, lm-v2-2-shot5-fix-2, cog-v1.2.1-rename, sprint-5-rs
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -25,6 +25,7 @@
 //   W-ATOM   DISCOVERY_MODULE            ←  F-codec/R2 (codec-discovery)
 //   W-ATOM   VERIFY_MODULE               ←  F-codec/R2 (codec-verify)
 //   W-ATOM   PLAN_MODULE                 ←  F-plan/R3 (plan-module, phase-6-sprint-b)
+//   W-ATOM   DISCOVER_FRAMEWORK_MODULE   ←  F-discover/R3 (discover-contract, sprint-5-rs)
 //   W-ATOM   ModuleExecutionResult       ←  F-codec/R0
 // wires-out:
 //   W-HOOK  processMessage()  →  F-codec/R3
@@ -95,6 +96,7 @@ import { DISCOVERY_MODULE } from './codec-discovery'
 import { VERIFY_MODULE } from './codec-verify'
 import { PLAN_MODULE } from '@/features/F-plan/contract/plan-module'
 import { VERIFY_FRAMEWORK_MODULE } from '@/features/F-verify/contract/verify-contract'
+import { DISCOVER_FRAMEWORK_MODULE } from '@/features/F-discover/contract/discover-contract'
 
 // BUILD_MODULE stub executor — never invoked. Generative-mode messages route
 // to `dispatch-planner` (synchronous handleBuildRequest W-HOOK), not to
@@ -125,7 +127,8 @@ const BUILD_MODULE: FrameworkModule = {
 }
 
 registerModule(BUILD_MODULE)
-registerModule(DISCOVERY_MODULE)
+registerModule(DISCOVERY_MODULE)            // 'narrative-discovery' — LLM narrative discovery (Sprint 5 D-RS-MODULE-ID rename)
+registerModule(DISCOVER_FRAMEWORK_MODULE)   // 'liv-discovery' — F-discover mechanical Research Standard module (Sprint 5)
 // Structural-mode routes deterministically to PLAN_MODULE.
 registerModule(VERIFY_MODULE)              // 'narrative-audit' — LLM narrative audit (Sprint 4 D5 rename)
 registerModule(VERIFY_FRAMEWORK_MODULE)     // 'liv-verification' — F-verify mechanical Verification Standard module (Sprint 4)

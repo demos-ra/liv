@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    4b-discovery-unregister, lm-v2-2-shot2, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
+// amended:    4b-discovery-unregister, lm-v2-2-shot2, lm-v2-2-shot4, lm-v2-2-shot5-fix-2, sprint-5-rs
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -41,6 +41,14 @@
 //   unregisterDiscovery() here is the ergonomic wrapper that matches the
 //   existing `registerModule(DISCOVERY_MODULE)` call pattern at codec-orchestrate
 //   startup. No cascading artifact cleanup — see codec-registry.ts comment.
+//
+// Sprint 5 D-RS-MODULE-ID namespace migration (Demos confirmed 2026-05-01):
+//   id renamed 'discovery' → 'narrative-discovery' to disambiguate from
+//   F-discover's mechanical Research Standard module ('liv-discovery').
+//   Both modules persist; names match function (Research Standard mechanical
+//   research-artifact composition ≠ LLM narrative discovery). Mirror of
+//   Sprint 4 D5 codec-verify rename. File name + variable name
+//   `DISCOVERY_MODULE` retained per Sprint 4 D5 line-for-line precedent.
 
 import type { Result } from '@/core/types/primitives'
 import type { FrameworkModule, ModuleExecutionResult } from '../config/codec-module-types'
@@ -54,9 +62,9 @@ import { unregisterModule } from './codec-registry'
 // ─── Module Definition ──────────────────────────────────────────────────────
 
 export const DISCOVERY_MODULE: FrameworkModule = {
-  id:    'discovery',
+  id:    'narrative-discovery',
   mode:  'epistemic',
-  label: 'Discovery',
+  label: 'Narrative Discovery',
   artifactSchema: {
     name:   'findings',
     fields: [

@@ -52,7 +52,8 @@
     "F-planner",
     "F-intake",
     "F-output",
-    "F-verify"
+    "F-verify",
+    "F-discover"
   ],
   "reserved_slices": [
     "F-workspace"

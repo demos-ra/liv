@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.3-symmetry
+// amended:    6.8-artifact-decode, 4b-nodeid-propagation, lm-v2-2-shot5-fix-2, cog-v1.3-symmetry, sprint-5-rs
 // slice:      F-codec
 // layer:      R1
 // wires-in:
@@ -615,10 +615,27 @@ function findArtifactFields(
 }
 
 // Static moduleId → mode fallback map for known modules.
+//
+// Scope: this map is consulted at decode-time only for artifacts that flow
+// through F-codec's codec-artifact carrier (the LLM narrative path). Mechanical
+// L3-framework modules (F-verify 'liv-verification', F-discover 'liv-discovery')
+// emit via the AS v2.2 carrier directly (F-artifact/createArtifact) and never
+// reach this fallback path. Map entries for those module-ids would be dead
+// code — intentionally omitted (parallel to Sprint 4 D5's silent omission of
+// 'liv-verification').
+//
+// sprint-5-rs (Sprint 5 audit-close fix per F2 / F3):
+//   - 'discovery' → 'narrative-discovery' rename (Sprint 5 D-RS-MODULE-ID).
+//   - 'narrative-audit' added to close Sprint 4 D5 carryover (auditor F2 HIGH;
+//     same map being edited; one-line gap-closure).
+//   - 'liv-discovery' NOT added (auditor F3 MEDIUM; F-discover emits via AS,
+//     never reaches this fallback; mirror of F-verify omission of
+//     'liv-verification').
 const MODULE_MODE_MAP: Record<string, FrameworkMode> = {
-  'build':     'generative',
-  'discovery': 'epistemic',
-  'planning':  'structural',
+  'build':                'generative',
+  'narrative-discovery':  'epistemic',       // sprint-5-rs: renamed from 'discovery' per D-RS-MODULE-ID
+  'narrative-audit':      'verificative',    // sprint-5-rs: closes Sprint 4 D5 carryover (auditor F2)
+  'planning':             'structural',
 }
 
 /**
