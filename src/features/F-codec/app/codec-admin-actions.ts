@@ -63,7 +63,12 @@ export async function seedGlobalNode(input: GlobalSeedInput): Promise<Result<voi
   // A6: declared shape — MemNode with global defaults (M4, closure 0, asymmetry 0)
   // lm-v2-2-shot3 (LMA21): scope stamped at construction. Admin seeds the
   // global graph with userId: null → 'global' scope per stampScope rule.
-  const node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'> = {
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata fields optional at
+  // the admin seed surface (Partial<>). R2 admin-service default-fills missing
+  // values from SYSTEM_DEFAULT_ARRIVAL — admin-authored knowledge is a
+  // system-tagged write, not a real perimeter call.
+  const node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry' | 'modality' | 'sourceAuthority' | 'confidence'>
+            & Partial<Pick<MemNode, 'modality' | 'sourceAuthority' | 'confidence'>> = {
     id:            nodeId,
     userId:        null,
     scope:         stampScope(null),

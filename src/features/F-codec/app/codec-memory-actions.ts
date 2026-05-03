@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    lm-v2-2-shot5-fix-2, cog-v1.2.1-rename
+// amended:    lm-v2-2-shot5-fix-2, cog-v1.2.1-rename, lm-v2-3-shot1
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -14,6 +14,7 @@
 //   W-FN    traverse()         ←  F-memory/R3
 //   W-FN    getUserGraph()     ←  F-memory/R3
 //   W-FN    emitEvent()        ←  F-event-system/R3
+//   W-ATOM  SYSTEM_DEFAULT_ARRIVAL  ←  F-memory/R3 (LMA22+LMA23+LMA24, lm-v2-3-shot1)
 // wires-out:
 //   W-FN  executeMemoryAction()  →  F-codec/R4 (API route)
 // deps:
@@ -28,11 +29,16 @@
 //      with an explicit primitiveType. Mechanical encode for UI actions.
 // A1: F-codec owns encode intent. F-memory owns graph mutation.
 // A2: depends on F-memory (lower), F-event-system (lower).
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): UI button-driven memory actions are
+// system-tagged writes — wearer clicked an explicit button, no cognitive-
+// typing pipeline involved. SYSTEM_DEFAULT_ARRIVAL (perception/wearer-
+// utterance/1.0) preserves the implicit pre-v2.3 reading.
 
 import type { Result } from '@/core/types/primitives'
 import type { MemoryAction } from '../config/codec-memory-types'
 import type { EdgePrimitiveType } from '@/features/F-memory/contract/memory-contract'
-import { traverse, getUserGraph } from '@/features/F-memory/contract/memory-contract'
+import { traverse, getUserGraph, SYSTEM_DEFAULT_ARRIVAL } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
 // ─── Event constant ──────────────────────────────────────────────────────────
@@ -120,7 +126,8 @@ async function callTraverse(
   userId:        string,
   primitiveType: EdgePrimitiveType,
 ): Promise<void> {
-  const result = await traverse(label, userId, { primitiveType })
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): UI button-driven write — system-tagged.
+  const result = await traverse(label, userId, { primitiveType }, SYSTEM_DEFAULT_ARRIVAL)
   if (!result.ok) {
     throw new Error(`traverse failed: ${result.error.message}`)
   }

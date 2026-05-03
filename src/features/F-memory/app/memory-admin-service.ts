@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot3, lm-v2-2-shot5-fix-2
+// amended:    w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot3, lm-v2-2-shot5-fix-2, lm-v2-3-shot1
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -12,6 +12,7 @@
 //   W-ATOM   MemNode, MemEdge, GraphMutation, MemGraph, GraphThresholds  F-memory/R0
 //   W-ATOM   ActivationMap, M4_INPUT, M3_CONTEXT                         F-memory/R0
 //   W-ATOM   GlobalSeedNode                                               F-memory/R0
+//   W-ATOM   SYSTEM_DEFAULT_ARRIVAL                                        F-memory/R0 (LMA22/23/24, lm-v2-3-shot1)
 // wires-out:
 //   W-INJECT seedGlobalNode        →  F-memory/R3 (memory-contract)
 //   W-INJECT removeGlobalNode      →  F-memory/R3 (memory-contract)
@@ -51,7 +52,7 @@ import type {
   GraphThresholds,
   ActivationMap,
 } from '../config/memory-types'
-import { M4_INPUT, M3_CONTEXT } from '../config/memory-types'
+import { M4_INPUT, M3_CONTEXT, SYSTEM_DEFAULT_ARRIVAL } from '../config/memory-types'
 // lm-v2-2-shot3: stampScope helper from peer R2 service for LMA21 stamping.
 import { stampScope, ensureNodeScopeStamped } from './memory-service'
 import type { GlobalSeedNode } from '../config/memory-seed-data'
@@ -99,9 +100,14 @@ const TRAVERSAL_ORDER: string[] = [
 // Direct node + edge insert into global graph (userId: null).
 // Not a traversal — no propagation, no sparsification, no activation.
 // Defaults: M4 layer, closure 0, asymmetry 0 (fresh node, no topology yet).
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): admin seed is a system-tagged write.
+// Caller may pre-stamp arrival metadata; if not, default-fills from
+// SYSTEM_DEFAULT_ARRIVAL. Same idempotency pattern as LMA21 scope-stamping at
+// this seam — pre-stamped passes through, unstamped gets defaulted.
 
 export async function seedGlobalNode(
-  node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'>,
+  node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry' | 'modality' | 'sourceAuthority' | 'confidence'> & Partial<Pick<MemNode, 'modality' | 'sourceAuthority' | 'confidence'>>,
   edges: MemEdge[],
 ): Promise<Result<void>> {
   const fullNode: MemNode = {
@@ -113,6 +119,12 @@ export async function seedGlobalNode(
     cachedLayer:     M4_INPUT,
     cachedClosure:   0,
     cachedAsymmetry: 0,
+    // lm-v2-3-shot1 (LMA22, LMA23, LMA24): default-fill arrival metadata at
+    // the admin seed seam. Caller may pre-stamp via the Partial<> fields;
+    // unset values fall through to SYSTEM_DEFAULT_ARRIVAL.
+    modality:        node.modality        ?? SYSTEM_DEFAULT_ARRIVAL.modality,
+    sourceAuthority: node.sourceAuthority ?? SYSTEM_DEFAULT_ARRIVAL.sourceAuthority,
+    confidence:      node.confidence      ?? SYSTEM_DEFAULT_ARRIVAL.confidence,
   }
 
   const mutation: GraphMutation = {
@@ -217,6 +229,12 @@ export async function seedAndTraverseGlobal(
       cachedLayer:     M4_INPUT,
       cachedClosure:   0,
       cachedAsymmetry: 0,
+      // lm-v2-3-shot1 (LMA22, LMA23, LMA24): batch-seed is a system-tagged
+      // write — admin-authored knowledge entering the global graph. Defaults
+      // preserve the implicit pre-v2.3 reading.
+      modality:        SYSTEM_DEFAULT_ARRIVAL.modality,
+      sourceAuthority: SYSTEM_DEFAULT_ARRIVAL.sourceAuthority,
+      confidence:      SYSTEM_DEFAULT_ARRIVAL.confidence,
     }
 
     const edges: MemEdge[] = node.edges.map(e => ({

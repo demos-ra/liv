@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-3-shot2
 // slice:      F-memory
 // layer:      R1
 // wires-in:
@@ -33,6 +33,14 @@
 //     primitiveType: null (learning is sub-op, not a direct primitive)
 //     createdAt: Date.now() (timestamp of the learning event)
 //     userId: preserved from source edge (scope continuity)
+//
+// lm-v2-3-shot2 (LMA28): trust-weighted accumulation at commit.
+//   propagate() and learn() accept τ (scalar derived from the writing node's
+//   sourceAuthority by the R2 seam). τ multiplies the inline learning Δw
+//   before the new edge weight is computed. τ = 1.0 reduces LMA28 to identity
+//   (preserves v2.2 behavior). τ is constant within a single propagate()
+//   invocation — one traversal, one τ. LMA12 preserved: τ is derived at
+//   write, applied at write; not a function of elapsed wall-clock time.
 
 import type {
   MemGraph,
@@ -58,8 +66,9 @@ export type PropagationResult = {
 }
 
 export function propagate(
-  seed: ActivationMap,
+  seed:  ActivationMap,
   graph: MemGraph,
+  tau:   number = 1.0,   // lm-v2-3-shot2 (LMA28): trust scalar; default = identity
 ): PropagationResult {
   if (seed.size === 0) {
     return { activation: new Map(), edgeMutations: [] }
@@ -92,7 +101,8 @@ export function propagate(
         next.set(edge.toId, (next.get(edge.toId) ?? 0) + flow)
 
         // §7 learn(): inline reinforcement — same pass as propagation (MA2)
-        const mutations = learn(edge, flow, graph)
+        // lm-v2-3-shot2 (LMA28): thread τ into reinforcement Δw multiplication.
+        const mutations = learn(edge, flow, graph, tau)
         allEdgeMutations.push(...mutations)
       }
     }
@@ -133,11 +143,16 @@ export function propagate(
 //   primitiveType: null — learning is sub-op, not a direct primitive (A6)
 //   createdAt: Date.now() — timestamp of the learning event (A6)
 //   userId: preserved from source edge — scope continuity (A6)
+//
+// lm-v2-3-shot2 (LMA28): τ-multiplied reinforcement.
+//   Final Δw = base Δw × τ. τ = 1.0 reduces to v2.2 identity behavior.
+//   τ is constant within a single propagate() invocation.
 
 function learn(
-  edge: MemEdge,
-  flow: number,
+  edge:  MemEdge,
+  flow:  number,
   graph: MemGraph,
+  tau:   number,
 ): MemEdge[] {
   if (flow <= 0) return []
 
@@ -156,7 +171,9 @@ function learn(
 
   // Self-regulating: (1 - w/sum) → strong edges learn slower
   const ratio = sumOutgoing > 0 ? edge.weight / sumOutgoing : 0
-  const delta = lr * flow * (1 - ratio)
+  // lm-v2-3-shot2 (LMA28): trust-weighted reinforcement.
+  // base Δw = lr × flow × (1 - ratio); final Δw = base × τ.
+  const delta = lr * flow * (1 - ratio) * tau
 
   if (Math.abs(delta) < 1e-8) return []
 

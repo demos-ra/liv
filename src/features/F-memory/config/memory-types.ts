@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2, lm-v2-3-shot1, lm-v2-3-shot2
 // slice:      F-memory
 // layer:      R0
 // wires-in:
@@ -16,7 +16,7 @@
 //   W-ATOM  MemEdge           →  F-memory/*
 //   W-ATOM  MemGraph          →  F-memory/*
 //   W-ATOM  MLayer            →  F-memory/*
-//   W-ATOM  PresentState      →  F-chat/R4 (lm-io); body retained at v2.1 shape per LM v2.2 §D natural deferral (axis algorithms in Shot 4)
+//   W-ATOM  PresentState      →  F-chat/R4 (lm-io); body retained at v2.1 shape per LM v2.2 §D natural deferral (axis algorithms in Shot 4); +conflictGroups annotation lm-v2-3-shot2 (LMA27)
 //   W-ATOM  GraphMutation     →  F-memory/*
 //   W-ATOM  TraversalResult   →  F-memory/*
 //   W-ATOM  MemArm            →  F-memory/*
@@ -32,7 +32,15 @@
 //   W-ATOM  AxisSet           →  F-memory/R3 (Present axis-set per LM v2.2 §D)
 //   W-ATOM  EdgeKindSet       →  F-memory/R3 (Lineage edge filter per LM v2.2 §F)
 //   W-ATOM  LineageGraph      →  F-memory/R3 (Lineage return atom per LM v2.2 §F)
-//   W-ATOM  MemNodeRow        →  F-memory/R4 (raw row shape returned by loadAllNodes; lm-v2-2-shot5-fix-2)
+//   W-ATOM  MemNodeRow        →  F-memory/R4 (raw row shape returned by loadAllNodes; lm-v2-2-shot5-fix-2; widened lm-v2-3-shot1)
+//   W-ATOM  Modality          →  F-codec, F-memory, F-chat (LMA22, lm-v2-3-shot1)
+//   W-ATOM  SourceAuthority   →  F-codec, F-memory, F-chat (LMA23, lm-v2-3-shot1)
+//   W-ATOM  Confidence        →  F-codec, F-memory, F-chat (LMA24, lm-v2-3-shot1)
+//   W-ATOM  ArrivalMetadata   →  F-codec, F-memory, F-chat (LMA22+LMA23+LMA24 bundle, lm-v2-3-shot1)
+//   W-ATOM  TrustWeightMap    →  F-memory/R2 (LMA28 τ-derivation table, lm-v2-3-shot2)
+//   W-ATOM  DEFAULT_TRUST_WEIGHT          →  F-memory/R2 (LMA28 default τ table, lm-v2-3-shot2)
+//   W-ATOM  LMA25_MAX_RESTRUCTURE_DEPTH   →  F-memory/R1 (LMA25 bind transitive resolution cap, lm-v2-3-shot2)
+//   W-ATOM  SUPPRESS_EDGE_DEFAULT_WEIGHT  →  F-memory/R2 (LMA26 suppress-edge base weight, lm-v2-3-shot2)
 // deps:
 //   R5  @/core/types/primitives
 // validated:  pending
@@ -42,6 +50,24 @@
 //   Net-new constants: PRESENT_LIMIT_MAX (reused from MEMORY_CONFIG.PRESENT_STATE_MAX = 20 per D-LIMIT-MAX).
 //   PresentState body: unchanged this shot per D-PRESENTSTATE-BODY-V21 (option γ — natural
 //   deferral; v2.2 §D return body lands in Shot 4 with axis algorithms; canonical name preserved).
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata atom shapes.
+//   Net-new atoms: Modality, SourceAuthority, Confidence, ArrivalMetadata.
+//   MemNode extended (additive, no reorder): +modality, +sourceAuthority, +confidence.
+//   MemNodeRow widened to also exclude the three new fields — DB schema unchanged
+//   per spec §2.3; arrival-metadata defaults are R2-hydrated at boot (same pattern
+//   as LMA21's `scope` via ensureNodeScopeStamped).
+//
+// lm-v2-3-shot2 (LMA25, LMA26, LMA27, LMA28): substrate-rule mechanisms.
+//   PresentState extended (additive, no reorder): +conflictGroups (LMA27 annotation).
+//   Net-new constants: LMA25_MAX_RESTRUCTURE_DEPTH (LMA25 bind transitive resolution
+//   cap), SUPPRESS_EDGE_DEFAULT_WEIGHT (LMA26 suppress-edge base weight),
+//   DEFAULT_TRUST_WEIGHT (LMA28 τ-derivation default table).
+//   Net-new types: TrustWeightMap (LMA28 keyed by SourceAuthority).
+//   Net-new function: validateTrustWeightMap (load-time validator; runs on
+//   DEFAULT_TRUST_WEIGHT at module load — fails fast on invariant break).
+//   Five-primitive EdgePrimitiveType enum unchanged: `restructure` and
+//   `suppress` activated, not added.
 
 // Living Memory v1.1 — all domain types.
 // A6: declared at R0. Imports NodeId from core/R5 primitives (AK-REF brand).
@@ -84,6 +110,49 @@ export const M4_INPUT     = 4 as const satisfies MLayer
 
 export type EdgePrimitiveType = 'anchor' | 'relate' | 'restructure' | 'reinforce' | 'suppress'
 
+// ─── Arrival-metadata atoms (Substance/arrival-metadata sub-axis) ─────────────
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): perimeter-supplied stamps preserved by
+// the substrate for the life of the node. Lockstep with core/R5
+// living-memory.types.ts per E4 — net-new atoms declared at both type sites.
+
+export type Modality =
+  | 'perception'
+  | 'assertion'
+  | 'typing-failure'
+
+export type SourceAuthority =
+  | 'wearer-utterance'
+  | 'tool-reply'
+  | 'scheduled-trigger'
+  | 'external-integration'
+  | 'program-emission'
+
+export type Confidence = number   // (0, 1] — runtime-validated at the LM seam (V3)
+
+/**
+ * ArrivalMetadata — bundle of LMA22+LMA23+LMA24 stamps. Required input to
+ * `runTraversal` (the LM seam). Stamped onto every MemNode in the produced
+ * commit set. W-ATOM bundle precedent: ScopeFilter, AxisSet.
+ */
+export type ArrivalMetadata = {
+  modality:        Modality
+  sourceAuthority: SourceAuthority
+  confidence:      Confidence
+}
+
+/**
+ * SYSTEM_DEFAULT_ARRIVAL — default-fill bundle for system-tagged writes
+ * (test scaffolding, seed data, admin verify pings, boot hydration). Real
+ * perimeter callers (F-codec → F-memory) thread values from ClassifyResult /
+ * CodecPipelineResult. Values reduce LMA22/23/24 stamping to the implicit
+ * pre-v2.3 reading. Constant export, not a W-ATOM.
+ */
+export const SYSTEM_DEFAULT_ARRIVAL: ArrivalMetadata = {
+  modality:        'perception',
+  sourceAuthority: 'wearer-utterance',
+  confidence:      1.0,
+}
+
 // ─── Node ─────────────────────────────────────────────────────────────────────
 // A unit of memory. No type tag. Layer computed from connectivity depth.
 // source_text: original input text. Populated at M4/M3, pruned on M3→M2 transition.
@@ -107,21 +176,34 @@ export type MemNode = {
   cachedLayer:     MLayer           // cache of computeLayer() result
   cachedClosure:   number           // cycle participation ratio, updated incrementally
   cachedAsymmetry: number           // non-reciprocal weight differential
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata stamps.
+  // Non-null at write; preserved for the life of the node. Cognitive Standard
+  // authors values at the perimeter; LM seam validates (V1, V2, V3) and stamps.
+  // Confidence range invariant (0, 1] enforced at the seam, not in the type.
+  modality:        Modality         // LMA22 — non-null at write
+  sourceAuthority: SourceAuthority  // LMA23 — non-null at write
+  confidence:      Confidence       // LMA24 — non-null at write, 0 < c ≤ 1
 }
 
-// ─── MemNodeRow (lm-v2-2-shot5-fix-2: G1 Move-to-R2) ─────────────────────────
-// Raw DB-row shape for a node. Lacks the LMA21 scope field, which is a
-// domain-derived projection added during R2 hydration (per LIV-Standard T1.1:
-// R4 = "DB queries, external I/O only"; domain transformation lives at R2).
+// ─── MemNodeRow (lm-v2-2-shot5-fix-2: G1 Move-to-R2; widened lm-v2-3-shot1) ──
+// Raw DB-row shape for a node. Lacks the LMA21 scope field and (lm-v2-3-shot1)
+// the LMA22/23/24 arrival-metadata fields, which are domain-derived projections
+// added during R2 hydration (per LIV-Standard T1.1: R4 = "DB queries, external
+// I/O only"; domain transformation lives at R2).
 //
 // R4 (memory-repository.loadAllNodes) returns Map<NodeId, MemNodeRow>. R2
 // (memory-service boot-load paths) iterates rows through ensureNodeScopeStamped
-// to produce the full MemNode atom. This keeps scope-stamping logic out of R4.
+// to produce the full MemNode atom (scope + arrival-metadata default-filled per
+// the v2.3 boot-time backward-compat rule: modality='perception',
+// sourceAuthority='wearer-utterance', confidence=1.0). No DB schema migration
+// required — the fields land on the in-memory MemNode atom only.
 //
 // Closes G1 (LMA21 V2 violation at memory-repository.ts) and D-G1-INLINE-STAMP
 // (patch3 inline stamp at R4 — no longer needed once stamping moves to R2).
+// lm-v2-3-shot1 widening: same R4-vs-R2 split for arrival-metadata; LMA22/23/24
+// V1/V2/V3 hold across the boot-load → hydration path.
 
-export type MemNodeRow = Omit<MemNode, 'scope'>
+export type MemNodeRow = Omit<MemNode, 'scope' | 'modality' | 'sourceAuthority' | 'confidence'>
 
 // ─── Scope tag set (LMA21, lm-v2-2-shot3) ─────────────────────────────────────
 // Per LM v2.2 §C: scope is a set of tags carried on a node (not a separate type
@@ -242,10 +324,16 @@ export type TraversalOptions = {
 // PresentStateStatement atom deleted per D-PRESENTSTATEMENT-RETAIN — no
 // consumer post-rewrite. ConfidenceTier retired with it.
 
+// lm-v2-3-shot2 (LMA27): conflictGroups annotation field added — pairs
+// (n, n') where both n and n' appear in `projected` and a `suppress`-typed
+// edge (n → n') exists. Lockstep with core/R5 PresentState. Annotation only
+// — does not filter, score, or rank. LMA20 closure preserved.
+
 export type PresentState = {
-  projected:    NodeId[]
-  axisScores:   Map<NodeId, Map<AxisId, number>>
-  scopeContext: ScopeFilter
+  projected:      NodeId[]
+  axisScores:     Map<NodeId, Map<AxisId, number>>
+  scopeContext:   ScopeFilter
+  conflictGroups: Array<[NodeId, NodeId]>
 }
 
 // ─── Binding Result ───────────────────────────────────────────────────────────
@@ -387,3 +475,70 @@ export const MEMORY_CONFIG = {
   DOMINANCE_WALK_STEPS: 1000,   // random walk steps for convergence analysis
   DOMINANCE_WALKS:      50,     // number of walks per node
 } as const
+
+// ─── lm-v2-3-shot2 (LMA25): restructure-edge supersession depth cap ──────────
+// Bound traversal during transitive restructure resolution at bind. Cap basis:
+// 16 — chosen as a power-of-two ceiling that comfortably exceeds any realistic
+// human-comprehensible supersession chain depth (versioning chains in practice
+// are <10; the cap is a runaway-protection guard, not a design parameter).
+// On cap-hit, bind returns the deepest resolved node and the seam emits a
+// warning trace so out-of-policy restructure chains surface for review without
+// halting traversal.
+
+export const LMA25_MAX_RESTRUCTURE_DEPTH = 16 as const
+
+// ─── lm-v2-3-shot2 (LMA26): suppress-edge default weight ─────────────────────
+// Base weight for suppress edges persisted by `runTraversal` from the writing
+// context's `suppressEdges` array. τ-multiplied at the seam per LMA28 §5.3
+// before commit. Default 1.0 — reduces to unscaled base weight pre-LMA28.
+// Suppress edges are conflict annotations, not physics-driven edges; weight
+// carries no propagation semantic at v2.3 (see LMA27 — projection is
+// annotation-only). Future shots may refine.
+
+export const SUPPRESS_EDGE_DEFAULT_WEIGHT = 1.0 as const
+
+// ─── lm-v2-3-shot2 (LMA28): trust-weighted accumulation map ──────────────────
+// τ-derivation table keyed by `SourceAuthority`. τ multiplies every weight
+// change in a `runTraversal` commit set (new edge weights, inline learn() Δw,
+// reinforcement adjustments). One τ per traversal, derived from the writing
+// node's sourceAuthority. Each value ∈ (0, 1].
+//
+// Default values reduce LMA28 to identity (τ = 1.0 across all authorities) —
+// preserves v2.2 weight behavior. Map is table-driven: extending the
+// `SourceAuthority` enum per §H wildcard does not require an LMA28 amendment,
+// only a new map entry. Load-time validator below enforces the (0, 1]
+// invariant on every map entry; throws on violation so out-of-range trust
+// values cannot reach the seam.
+
+export type TrustWeightMap = Record<SourceAuthority, number>
+
+export const DEFAULT_TRUST_WEIGHT: TrustWeightMap = {
+  'wearer-utterance':       1.0,
+  'tool-reply':             1.0,
+  'scheduled-trigger':      1.0,
+  'external-integration':   1.0,
+  'program-emission':       1.0,
+}
+
+/**
+ * lm-v2-3-shot2 (LMA28): load-time validator. Throws if any trust-weight
+ * value is outside the (0, 1] range or is non-finite. Run on the default map
+ * at module load below, and consumed by R2 `runTraversal` if a non-default
+ * map is ever introduced via config (currently table-driven; future shots
+ * may surface a configurable seam).
+ */
+export function validateTrustWeightMap(map: TrustWeightMap): void {
+  for (const key of Object.keys(map) as SourceAuthority[]) {
+    const v = map[key]
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new Error(`LM_INVALID_TRUST_WEIGHT: ${key} value is non-finite (LMA28)`)
+    }
+    if (!(v > 0 && v <= 1)) {
+      throw new Error(`LM_INVALID_TRUST_WEIGHT: ${key} value out of range (0, 1] (LMA28): ${v}`)
+    }
+  }
+}
+
+// Validate the default map at module load — fails fast if a future edit
+// breaks the invariant.
+validateTrustWeightMap(DEFAULT_TRUST_WEIGHT)

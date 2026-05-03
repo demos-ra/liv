@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    phase-b-item1, lm-v2-2-shot2, lm-v2-2-shot4, cog-v1.2.1-rename
+// amended:    phase-b-item1, lm-v2-2-shot2, lm-v2-2-shot4, cog-v1.2.1-rename, lm-v2-3-shot1
 // slice:      F-codec
 // layer:      R2
 // wires-in:
@@ -16,6 +16,7 @@
 //   W-FN    traverse(), Present()  ←  F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
 //   W-FN    getUserGraph(), getGlobalGraph()  ←  F-memory/R3 (lm-v2-2-shot4: render projected NodeIds)
 //   W-FN    emitEvent()  ←  F-event-system/R3
+//   W-ATOM  ArrivalMetadata, SYSTEM_DEFAULT_ARRIVAL  ←  F-memory/R3 (LMA22+LMA23+LMA24, lm-v2-3-shot1)
 // wires-out:
 //   W-FN  encodeLLM()         →  F-codec/R3
 //   W-FN  encodeMechanical()  →  F-codec/R3
@@ -31,6 +32,14 @@
 //   classifyAndLabel() import moved from R4 (codec-ai-io) to R3 (codec-inject).
 //   R2 no longer imports R4 directly. T1.1: "R4: Never directly imported."
 //   Axiom cite: A2 — directional deps, lower layers only.
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24):
+//   F-codec is the real perimeter for cognitive typing. encodeLLM threads
+//   ClassifyResult.confidence onto the arrival bundle; modality and
+//   sourceAuthority remain default until the Cognitive Standard amendment
+//   wires them through (inherited surface gap — see Sprint 6 spec §6 G1
+//   pattern). encodeMechanical and buildFallbackAnchor pass
+//   SYSTEM_DEFAULT_ARRIVAL — system-tagged write semantics.
 
 // R2: orchestration. No I/O of its own — delegates to R4 for LLM, F-memory/R3 for graph.
 // Two encode modes: LLM (conversation) and Mechanical (system events).
@@ -44,6 +53,8 @@ import { buildClassifyPrompt, parseClassifyResponse } from '../domain/codec-clas
 import { normalizeLabel, parseLabelResponse } from '../domain/codec-label'
 import { classifyAndLabel } from '../contract/codec-inject'
 import { traverse, Present, getUserGraph, getGlobalGraph } from '@/features/F-memory/contract/memory-contract'
+import type { ArrivalMetadata } from '@/features/F-memory/contract/memory-contract'
+import { SYSTEM_DEFAULT_ARRIVAL } from '@/features/F-memory/contract/memory-contract'
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
 // ─── Encode LLM (Conversation) ───────────────────────────────────────────────
@@ -103,7 +114,7 @@ export async function encodeLLM(
       return buildFallbackAnchor(content, userId)
     }
 
-    const { primitive, label: rawLabel } = parsed
+    const { primitive, label: rawLabel, confidence: rawConfidence } = parsed
 
     // 5. Reference — read-only, no graph mutation
     if (primitive === 'reference') {
@@ -124,12 +135,25 @@ export async function encodeLLM(
     const label = parseLabelResponse(rawLabel)
       ?? normalizeLabel(content.slice(0, CODEC_CONFIG.LABEL_MAX_LENGTH))
 
+    // lm-v2-3-shot1 (LMA24): clamp ClassifyResult.confidence to (0, 1]. The
+    // R1 parser already clamps to [0, 1]; this coerces 0 → ε to satisfy V3.
+    // Modality and sourceAuthority remain default until Cognitive Standard
+    // wires them through (inherited gap; tracked as Cognitive Standard
+    // amendment scope per Sprint 6 spec §6 G1 pattern).
+    const confidence = rawConfidence > 0 ? rawConfidence : 1e-6
+    const arrival: ArrivalMetadata = {
+      modality:        SYSTEM_DEFAULT_ARRIVAL.modality,
+      sourceAuthority: SYSTEM_DEFAULT_ARRIVAL.sourceAuthority,
+      confidence,
+    }
+
     // 7. Execute traversal — F-memory handles graph mutation
     // A2: F-codec tells F-memory what primitive. F-memory executes without knowing why.
     const traversalResult = await traverse(
       label,
       userId,
       { primitiveType: primitive as MutatingPrimitive, returnActivation: true },
+      arrival,
     )
 
     // Extract boundToNodeId from traversal result if available
@@ -191,10 +215,15 @@ export async function encodeMechanical(
     }
 
     // 4. Execute traversal — same graph mutation path as LLM encode
+    // lm-v2-3-shot1 (LMA22, LMA23, LMA24): mechanical encode is a system-tagged
+    // write — the event-system invokes encode from a structured event payload,
+    // not from a wearer utterance. SYSTEM_DEFAULT_ARRIVAL preserves the
+    // implicit pre-v2.3 reading.
     const traversalResult = await traverse(
       label,
       userId,
       { primitiveType: primitive },
+      SYSTEM_DEFAULT_ARRIVAL,
     )
 
     const boundToNodeId = traversalResult.ok && traversalResult.data
@@ -261,6 +290,10 @@ async function buildFallbackAnchor(
     label,
     userId,
     { primitiveType: 'anchor' as MutatingPrimitive, returnActivation: true },
+    // lm-v2-3-shot1 (LMA22, LMA23, LMA24): fallback path — classify failed
+    // or LLM call failed. No ClassifyResult.confidence available; default
+    // arrival preserves the implicit pre-v2.3 reading.
+    SYSTEM_DEFAULT_ARRIVAL,
   )
 
   if (!traversalResult.ok) {

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot5-fix-2
+// amended:    lm-v1.1, w3-17-contract-ext, w3-20-admin-write, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot5-fix-2, lm-v2-3-shot1, lm-v2-3-shot2
 // slice:      F-memory
 // layer:      R3
 // wires-in:
@@ -17,6 +17,15 @@
 //   W-ATOM   PRESENT_LIMIT_MAX F-memory/R0 (memory-types)   — LM v2.2 §D
 //   W-ATOM   ScopeTagSet       F-memory/R0 (memory-types) — LMA21, lm-v2-2-shot3
 //   W-FN     stampScope        F-memory/R2 (memory-service) — LMA21 helper, re-exported for cross-slice
+//   W-ATOM   ArrivalMetadata   F-memory/R0 (memory-types) — LMA22+LMA23+LMA24 bundle, lm-v2-3-shot1
+//   W-ATOM   Modality          F-memory/R0 (memory-types) — LMA22, lm-v2-3-shot1
+//   W-ATOM   SourceAuthority   F-memory/R0 (memory-types) — LMA23, lm-v2-3-shot1
+//   W-ATOM   Confidence        F-memory/R0 (memory-types) — LMA24, lm-v2-3-shot1
+//   W-ATOM   SYSTEM_DEFAULT_ARRIVAL F-memory/R0 (memory-types) — system-tagged default-fill, lm-v2-3-shot1
+//   W-ATOM   TrustWeightMap    F-memory/R0 (memory-types) — LMA28 τ-derivation table, lm-v2-3-shot2
+//   W-ATOM   DEFAULT_TRUST_WEIGHT F-memory/R0 (memory-types) — LMA28 default τ table, lm-v2-3-shot2
+//   W-ATOM   LMA25_MAX_RESTRUCTURE_DEPTH F-memory/R0 (memory-types) — LMA25 cap, lm-v2-3-shot2
+//   W-ATOM   SUPPRESS_EDGE_DEFAULT_WEIGHT F-memory/R0 (memory-types) — LMA26 base weight, lm-v2-3-shot2
 // wires-out:
 //   W-HOOK  traverse           →  F-chat/R4 (lm-io)
 //   W-HOOK  Present            →  F-chat, F-codec, F-plan, app/admin (LM v2.2 §D parameter-recovered; replaces v2.1 getPresentState)
@@ -91,8 +100,25 @@ import type {
   AxisSet,
   LineageGraph,
   EdgeKindSet,
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata bundle + leaf enums
+  // surfaced for cross-slice perimeter callers (F-codec → F-memory).
+  ArrivalMetadata,
+  Modality,
+  SourceAuthority,
+  Confidence,
+  // lm-v2-3-shot2 (LMA28): trust-weight map type for cross-slice consumption.
+  TrustWeightMap,
 } from '../config/memory-types'
-import { PRESENT_LIMIT_MAX } from '../config/memory-types'
+import {
+  PRESENT_LIMIT_MAX,
+  SYSTEM_DEFAULT_ARRIVAL,
+  // lm-v2-3-shot2 (LMA25, LMA26, LMA28): substrate-rule mechanism constants.
+  // Re-exported for cross-slice consumption — perimeter callers may inspect
+  // these but the R2 seam is the canonical consumer.
+  DEFAULT_TRUST_WEIGHT,
+  LMA25_MAX_RESTRUCTURE_DEPTH,
+  SUPPRESS_EDGE_DEFAULT_WEIGHT,
+} from '../config/memory-types'
 import type { Result, NodeId } from '@/core/types/primitives'
 
 import {
@@ -125,19 +151,42 @@ import type { GlobalSeedNode } from '../config/memory-seed-data'
 // Also recomputes Present State as side effect.
 // Amendment 3: +userId — scoped to per-user graph (A6).
 //
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): +arrival — required ArrivalMetadata
+// bundle. Validated at the LM seam (V1/V2/V3) and stamped onto every node
+// produced in the commit set. Cognitive Standard authors values; LM holds
+// them. System-tagged callers (test scaffolding, admin pings) can pass
+// SYSTEM_DEFAULT_ARRIVAL re-exported below.
+//
+// lm-v2-3-shot2 (LMA26): +suppressEdges — optional positional 5th parameter.
+// Caller-supplied conflict declarations land as `suppress`-typed MemEdges in
+// this traversal's atomic commit set per LMA11. Same-scope endpoints
+// validated at the seam (LMA3); cross-scope or unresolved-endpoint references
+// fail the traversal with LM_VALIDITY_FAILED. Weight =
+// SUPPRESS_EDGE_DEFAULT_WEIGHT × τ per LMA28 §I (no exception clause —
+// LMA28 governs every weight change).
+//
+// Positional optional shape per L0 confirm: suppressEdges has no sub-axis
+// grouping at LM v2.3 §A subAxisDelta and is one field at write-context.
+// Bundled W-ATOM (ArrivalMetadata) was justified for the three stamps
+// sharing one sub-axis at standard level; this is not. AxR3-additive permits
+// both shapes.
+//
 // Usage per §20 flow:
 //   1. Present({scope: {user: userId}, axes: PRESENT_DEFAULTS, limit: PRESENT_LIMIT_MAX}) → inject as system context
-//   2. traverse(userMessage, userId, { returnActivation: true })  → query-specific context
+//   2. traverse(userMessage, userId, { returnActivation: true }, arrival)  → query-specific context
 //   3. Both injected into LLM context
 //   4. LLM responds
-//   5. traverse(llmResponse, userId)        → write path, no activation returned
+//   5. traverse(llmResponse, userId, undefined, arrival)        → write path
+//   (optional) 6. traverse(text, userId, opts, arrival, suppressEdges) → declare conflicts at write
 
 export async function traverse(
-  text: string,
-  userId: string,
-  options?: TraversalOptions,
+  text:    string,
+  userId:  string,
+  options: TraversalOptions | undefined,
+  arrival: ArrivalMetadata,
+  suppressEdges?: Array<{ from: NodeId; to: NodeId }>,
 ): Promise<Result<TraversalResult | null>> {
-  return runTraversal(text, userId, options)
+  return runTraversal(text, userId, options ?? {}, arrival, suppressEdges)
 }
 
 // ─── Present (LM v2.2 §D) ─────────────────────────────────────────────────────
@@ -242,8 +291,12 @@ export function getUserArms(userId: string): MemArm[] {
 // Thin R3 wrappers over R2 admin service. Same pattern as traverse → runTraversal.
 
 // Seed a global node with optional edges. Admin-authored knowledge.
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata fields are
+// optional at the admin seed surface. Default-fill applied at the R2
+// seam (memory-admin-service.seedGlobalNode) — same idempotency pattern
+// as LMA21 scope-stamping.
 export async function seedGlobalNode(
-  node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'>,
+  node: Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry' | 'modality' | 'sourceAuthority' | 'confidence'> & Partial<Pick<MemNode, 'modality' | 'sourceAuthority' | 'confidence'>>,
   edges: MemEdge[],
 ): Promise<Result<void>> {
   return _seedGlobalNode(node, edges)
@@ -286,6 +339,14 @@ export type {
   AxisConfig,
   LineageGraph,
   EdgeKindSet,
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata bundle + leaf enums
+  // re-exported for perimeter callers (F-codec → F-memory) and F-chat lm-io.
+  ArrivalMetadata,
+  Modality,
+  SourceAuthority,
+  Confidence,
+  // lm-v2-3-shot2 (LMA28): trust-weight map type for cross-slice consumption.
+  TrustWeightMap,
 } from '../config/memory-types'
 
 // lm-v2-2-shot2: PRESENT_DEFAULTS + PRESENT_LIMIT_MAX re-exported as values
@@ -298,6 +359,23 @@ export { PRESENT_LIMIT_MAX } from '../config/memory-types'
 // sites (F-codec admin actions). Keeps the LMA21 token-format ('user:'+id,
 // 'project:'+id, 'global') as a single source of truth at F-memory R2.
 export { stampScope } from '../app/memory-service'
+
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): SYSTEM_DEFAULT_ARRIVAL re-exported for
+// system-tagged perimeter writes (admin verify pings, test scaffolding).
+// Real perimeter callers (F-codec encode/artifact) thread their own values
+// from ClassifyResult / CodecPipelineResult.
+export { SYSTEM_DEFAULT_ARRIVAL } from '../config/memory-types'
+
+// lm-v2-3-shot2 (LMA25, LMA26, LMA28): substrate-rule mechanism constants
+// re-exported for cross-slice inspection. The R2 seam is the canonical
+// consumer (τ derivation, suppress-edge weighting, restructure depth cap);
+// these exports surface the values for perimeter audit and future config
+// surfacing without forcing consumers through R0 directly.
+export {
+  DEFAULT_TRUST_WEIGHT,
+  LMA25_MAX_RESTRUCTURE_DEPTH,
+  SUPPRESS_EDGE_DEFAULT_WEIGHT,
+} from '../config/memory-types'
 
 export type { GlobalSeedNode, GlobalSeedEdge } from '../config/memory-seed-data'
 

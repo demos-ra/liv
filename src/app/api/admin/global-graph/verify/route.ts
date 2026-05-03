@@ -45,6 +45,9 @@ import {
   seedAndTraverseGlobal,
   PRESENT_DEFAULTS,
   PRESENT_LIMIT_MAX,
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): default arrival for system-tagged
+  // verify ping — admin route, not a real perimeter call.
+  SYSTEM_DEFAULT_ARRIVAL,
 } from '@/features/F-memory/contract/memory-contract'
 import type { PresentState, MemGraph } from '@/features/F-memory/contract/memory-contract'
 import { GLOBAL_SEED_NODES } from '@/features/F-memory/contract/memory-contract'
@@ -98,7 +101,7 @@ export async function GET() {
     // ── Test 1: Present state from global graph alone ────────────────────────
     // Trigger ensureUserLoaded for test user, then read present state.
     // Test user has no prior traversals → empty user graph + global graph.
-    await traverse('verification ping', TEST_USER_ID)
+    await traverse('verification ping', TEST_USER_ID, undefined, SYSTEM_DEFAULT_ARRIVAL)
     // lm-v2-2-shot2: getPresentState(TEST_USER_ID) → Present({scope, axes, limit}) per LM v2.2 §D.
     const presentState: PresentState = Present({
       scope: { user: TEST_USER_ID },

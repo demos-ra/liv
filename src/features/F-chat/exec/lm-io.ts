@@ -4,20 +4,21 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    lm-v1.1-wire-fix, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4
+// amended:    lm-v1.1-wire-fix, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-3-shot1, lm-v2-3-shot2
 // slice:      F-chat
 // layer:      R4
 // wires-in:
 //   W-ATOM  PresentState     F-memory/R3 (re-export from memory-types via memory-contract)
 //   W-ATOM  TraversalResult  F-memory/R3 (re-export)
 //   W-ATOM  ScopeFilter, AxisSet  F-memory/R3 (re-export — LM v2.2 §C, §D; D-LIAISON-STRIKE close)
+//   W-ATOM  ArrivalMetadata  F-memory/R3 (re-export — LMA22+LMA23+LMA24, lm-v2-3-shot1)
 // wires-out:  none (consumed by R2 chat-workflow)
 // deps:       none (deps injected via MemoryDeps)
 // validated:  pending
 
 // Living Memory v1.1 adapter for F-chat.
 // R4: I/O boundary. Adapts chat-workflow call signatures to F-memory contract.
-// §20 integration: two surfaces — traverse(text, userId, options?) + Present({scope, axes, limit}).
+// §20 integration: two surfaces — traverse(text, userId, options?, arrival, suppressEdges?) + Present({scope, axes, limit}).
 // O3: fail-silent — memory down must never break chat.
 //
 // lm-v2-2-shot2: MemoryDeps.getPresentState renamed to MemoryDeps.present per
@@ -28,14 +29,39 @@
 // `ScopeFilterLike`, `AxisSetLike`, `PresentStateLike` deleted. Atom types
 // imported from F-memory/R3 (cross-slice re-export per A2 — R3 is the public
 // surface). R-layer discipline preserved: R4 imports R3, not R0.
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): MemoryDeps.traverse port shape extended
+// with required `arrival: ArrivalMetadata`. Read-path (wearer → graph) and
+// write-path (LLM emission → graph) both thread arrival values. F-chat callers
+// label authority by direction:
+//   - read path  (lmTraverseRead)  → modality='perception',
+//     sourceAuthority='wearer-utterance' (text originates from the wearer)
+//   - write path (lmTraverseWrite) → modality='assertion',
+//     sourceAuthority='tool-reply'      (text originates from the LLM tool)
+// Confidence defaults to 1.0 at the F-chat seam — the cognitive-typing pipeline
+// at F-codec already authored confidence on its own write paths; the F-chat
+// surface (read-path query bind, write-path emission echo) does not reclassify.
+//
+// lm-v2-3-shot2 (LMA26): MemoryDeps.traverse port widened with optional
+// positional 5th `suppressEdges?: Array<{from: NodeId; to: NodeId}>`. F-chat
+// callers do not produce conflict declarations at v2.3 (cosine-similarity
+// bind at LM v1.1 Amendment 2 may collapse opposing assertions before
+// perimeter marks them as suppress peers — inherited surface gap G1, deferred
+// to Sprint 7 Cognitive Standard amendment cycle). Both lmTraverseRead and
+// lmTraverseWrite continue to pass 4 args; the optional 5th defaults to
+// undefined and the seam treats absence as "no suppress edges this traversal."
 
 import type { Result } from '@/core/types/primitives'
+import type { NodeId } from '@/core/types/primitives'
 // lm-v2-2-shot3: R0 atoms imported via F-memory/R3 cross-slice (D-LIAISON-STRIKE close).
 import type {
   ScopeFilter,
   AxisSet,
   PresentState,
   TraversalResult,
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata bundle threaded
+  // through the F-chat memory-deps port.
+  ArrivalMetadata,
 } from '@/features/F-memory/contract/memory-contract'
 
 // ─── Memory deps interface ────────────────────────────────────────────────────
@@ -46,9 +72,20 @@ import type {
 // optional params; R3 fills defaults.
 // lm-v2-2-shot3 (D-LIAISON-STRIKE close): types are R0 atoms imported via R3
 // cross-slice; no liaisons.
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): +arrival on traverse port. Required.
+// Validated at the LM seam (V1/V2/V3); stamped onto every produced node.
+// lm-v2-3-shot2 (LMA26): +suppressEdges on traverse port. Optional positional.
+// F-chat callers pass 4 args — undefined 5th flows to seam as "no suppress
+// edges" (no-op LMA26 path).
 
 export interface MemoryDeps {
-  traverse:        (text: string, userId: string, options?: { returnActivation?: boolean }) => Promise<Result<TraversalResult | null>>
+  traverse:        (
+    text:    string,
+    userId:  string,
+    options: { returnActivation?: boolean } | undefined,
+    arrival: ArrivalMetadata,
+    suppressEdges?: Array<{ from: NodeId; to: NodeId }>,
+  ) => Promise<Result<TraversalResult | null>>
   present:         (params?: { scope?: ScopeFilter; axes?: AxisSet; limit?: number }) => PresentState
   userId:          string
 }
@@ -85,13 +122,22 @@ export function lmGetPresentState(deps: MemoryDeps): string {
 
 // ─── Traverse (read path) ─────────────────────────────────────────────────────
 // §20 step 2: traverse user message, return activated nodes as context.
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): wearer-utterance perception write —
+// text originates from the wearer; modality='perception',
+// sourceAuthority='wearer-utterance'. Confidence=1.0 (F-chat does not
+// reclassify — cognitive typing happens at F-codec when invoked).
 
 export async function lmTraverseRead(
   text: string,
   deps: MemoryDeps,
 ): Promise<string> {
   try {
-    const result = await deps.traverse(text, deps.userId, { returnActivation: true })
+    const arrival: ArrivalMetadata = {
+      modality:        'perception',
+      sourceAuthority: 'wearer-utterance',
+      confidence:      1.0,
+    }
+    const result = await deps.traverse(text, deps.userId, { returnActivation: true }, arrival)
     if (!result.ok || !result.data) return ''
 
     const lines: string[] = []
@@ -108,13 +154,21 @@ export async function lmTraverseRead(
 // ─── Traverse (write path) ────────────────────────────────────────────────────
 // §20 step 5: traverse LLM response, write-only (no activation returned).
 // Also recomputes Present State as side effect.
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): tool-reply assertion write — text
+// originates from the LLM tool; modality='assertion',
+// sourceAuthority='tool-reply'. Confidence=1.0 (F-chat does not reclassify).
 
 export async function lmTraverseWrite(
   text: string,
   deps: MemoryDeps,
 ): Promise<void> {
   try {
-    await deps.traverse(text, deps.userId)
+    const arrival: ArrivalMetadata = {
+      modality:        'assertion',
+      sourceAuthority: 'tool-reply',
+      confidence:      1.0,
+    }
+    await deps.traverse(text, deps.userId, undefined, arrival)
   } catch {
     // Memory down — fail silent
   }

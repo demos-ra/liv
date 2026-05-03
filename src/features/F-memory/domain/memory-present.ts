@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot4
+// amended:    lm-v1.1, 4b-nodeid-propagation, lm-v2-2-shot4, lm-v2-3-shot2
 // slice:      F-memory
 // layer:      R1
 // wires-in:
@@ -12,7 +12,7 @@
 //   W-ATOM  MemGraph              F-memory/R0
 //   W-ATOM  ScopedGraphSet        F-memory/R0
 //   W-ATOM  MemArm                F-memory/R0
-//   W-ATOM  PresentState          F-memory/R0 (v2.2 §D shape)
+//   W-ATOM  PresentState          F-memory/R0 (v2.2 §D shape; +conflictGroups lm-v2-3-shot2)
 //   W-ATOM  AxisId, AxisSet, ScopeFilter  F-memory/R0
 //   W-ATOM  AXIS_SCORERS          F-memory/R1 (memory-axes)
 //   W-ATOM  PRESENT_LIMIT_MAX     F-memory/R0
@@ -51,6 +51,16 @@
 // Combiner (this file) reads all axis scores AFTER they're computed — that's
 // the ranking step, not the orthogonality-violation type (axes don't see each
 // other; the combiner sees all).
+//
+// lm-v2-3-shot2 (LMA27): conflictGroups annotation.
+//   After projected ranking is finalized, scan edgesByFrom (already built for
+//   axis context) for `suppress`-typed edges where both endpoints appear in
+//   `projected`. Each such (n → n') is emitted as `[n, n']` into
+//   conflictGroups. Pairs sorted lexicographically by (first NodeId, then
+//   second NodeId) for stable output. Annotation only — does not filter
+//   `projected`, modify `axisScores`, or alter ranking. Both members of every
+//   conflict pair remain visible to consumers. LMA20 eight-axis closure
+//   preserved: conflictGroups is annotation, not axis.
 
 import type {
   MemGraph,
@@ -93,9 +103,10 @@ export function computePresentState(
   // from v2.1: never block on computation).
   if (graphs.user.nodes.size === 0 && graphs.global.nodes.size === 0) {
     return {
-      projected:    [],
-      axisScores:   new Map(),
-      scopeContext: scope,
+      projected:      [],
+      axisScores:     new Map(),
+      scopeContext:   scope,
+      conflictGroups: [],   // lm-v2-3-shot2 (LMA27): empty annotation on cold boot
     }
   }
 
@@ -116,9 +127,10 @@ export function computePresentState(
 
   if (candidates.size === 0) {
     return {
-      projected:    [],
-      axisScores:   new Map(),
-      scopeContext: scope,
+      projected:      [],
+      axisScores:     new Map(),
+      scopeContext:   scope,
+      conflictGroups: [],   // lm-v2-3-shot2 (LMA27): empty annotation on no-candidates
     }
   }
 
@@ -199,10 +211,37 @@ export function computePresentState(
     .slice(0, Math.min(limit, candidates.size))
     .map(([id]) => id)
 
+  // ── Step 7: lm-v2-3-shot2 (LMA27) conflictGroups annotation ─────────────
+  // Scan edgesByFrom (already built in Step 2 for axis context) for `suppress`-
+  // typed edges. Emit pair (n → n') iff both endpoints are in `ranked`. Pairs
+  // sorted lexicographically by NodeId — first element ascending, then second
+  // element ascending — for stable output across calls.
+  //
+  // LMA20 eight-axis closure preserved: this is annotation, not axis. Does
+  // not filter `ranked`, modify `axisScores`, or alter rank order.
+  const projectedSet = new Set<NodeId>(ranked)
+  const conflictGroups: Array<[NodeId, NodeId]> = []
+  for (const [, edges] of edgesByFrom) {
+    for (const e of edges) {
+      if (e.primitiveType !== 'suppress') continue
+      if (!projectedSet.has(e.fromId)) continue
+      if (!projectedSet.has(e.toId)) continue
+      conflictGroups.push([e.fromId, e.toId])
+    }
+  }
+  conflictGroups.sort((a, b) => {
+    if (a[0] < b[0]) return -1
+    if (a[0] > b[0]) return 1
+    if (a[1] < b[1]) return -1
+    if (a[1] > b[1]) return 1
+    return 0
+  })
+
   return {
-    projected:    ranked,
+    projected:      ranked,
     axisScores,
-    scopeContext: scope,
+    scopeContext:   scope,
+    conflictGroups,
   }
 }
 

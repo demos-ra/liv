@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5, lm-v2-2-shot5-fix-2
+// amended:    lm-v1.1, A2-event-bus-r3, w3-17-contract-ext, 6.1-global-seed, 4b-nodeid-propagation, lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5, lm-v2-2-shot5-fix-2, lm-v2-3-shot1, lm-v2-3-shot2
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -94,6 +94,12 @@ import type {
   // lm-v2-2-shot3: LMA21 scope-tag set for persistence stamping
   ScopeTagSet,
   EdgePrimitiveType,
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata bundle + leaf enums
+  ArrivalMetadata,
+  Modality,
+  SourceAuthority,
+  // lm-v2-3-shot2 (LMA28): trust-weight map type
+  TrustWeightMap,
 } from '../config/memory-types'
 import {
   MEMORY_CONFIG,
@@ -101,6 +107,13 @@ import {
   M4_INPUT,
   // lm-v2-2-shot4: cache-callsite computePresentState invocations need limit cap.
   PRESENT_LIMIT_MAX,
+  // lm-v2-3-shot1: default-fill bundle for system-tagged writes (boot hydration,
+  // test scaffolding, admin pings). Real perimeter callers thread their own.
+  SYSTEM_DEFAULT_ARRIVAL,
+  // lm-v2-3-shot2 (LMA26, LMA28): suppress-edge default weight + τ-derivation
+  // default table.
+  SUPPRESS_EDGE_DEFAULT_WEIGHT,
+  DEFAULT_TRUST_WEIGHT,
 } from '../config/memory-types'
 import { MEMORY_EVENTS } from '../config/memory-events'
 
@@ -187,9 +200,75 @@ export function stampScope(
  * R4 returns row shapes; this R2 helper produces the full domain atom by adding
  * the LMA21 scope field. Always stamps (no idempotent short-circuit needed —
  * MemNodeRow lacks scope by construction).
+ *
+ * lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata default-fill at the
+ * same hydration boundary. MemNodeRow lacks the three fields by construction
+ * (DB schema unchanged this shot — D-MEMNODE-ARRIVAL-DEFER); boot-loaded rows
+ * get SYSTEM_DEFAULT_ARRIVAL — modality='perception',
+ * sourceAuthority='wearer-utterance', confidence=1.0 — preserving the
+ * implicit pre-v2.3 reading. New writes carry their own values per
+ * runTraversal's required `arrival` parameter.
  */
 export function ensureNodeScopeStamped(row: MemNodeRow): MemNode {
-  return { ...row, scope: stampScope(row.userId) }
+  return {
+    ...row,
+    scope: stampScope(row.userId),
+    // lm-v2-3-shot1 (LMA22, LMA23, LMA24): boot-time default-fill.
+    modality:        SYSTEM_DEFAULT_ARRIVAL.modality,
+    sourceAuthority: SYSTEM_DEFAULT_ARRIVAL.sourceAuthority,
+    confidence:      SYSTEM_DEFAULT_ARRIVAL.confidence,
+  }
+}
+
+/**
+ * lm-v2-3-shot1 (LMA22, LMA23, LMA24): runtime validator for the arrival-metadata
+ * bundle at the LM seam. Throws LivingMemoryError(LM_INPUT_INVALID) on V1/V2/V3
+ * violation. Called from runTraversal before any node construction.
+ *
+ * V1 (LMA22): non-null modality ∈ ModalityEnum
+ * V2 (LMA23): non-null sourceAuthority ∈ SourceAuthorityEnum
+ * V3 (LMA24): non-null confidence ∈ (0, 1]
+ *
+ * Enums are TypeScript string-literal unions; runtime check uses Set lookups
+ * declared once below to keep the seam allocation-free.
+ */
+const MODALITY_ENUM: ReadonlySet<Modality> = new Set<Modality>([
+  'perception',
+  'assertion',
+  'typing-failure',
+])
+
+const SOURCE_AUTHORITY_ENUM: ReadonlySet<SourceAuthority> = new Set<SourceAuthority>([
+  'wearer-utterance',
+  'tool-reply',
+  'scheduled-trigger',
+  'external-integration',
+  'program-emission',
+])
+
+export function validateArrival(arrival: ArrivalMetadata): void {
+  // V1 — modality
+  if (arrival.modality === null || arrival.modality === undefined) {
+    throw new Error('LM_INPUT_INVALID: arrival.modality is null/undefined (LMA22 V1)')
+  }
+  if (!MODALITY_ENUM.has(arrival.modality)) {
+    throw new Error(`LM_INPUT_INVALID: arrival.modality not in ModalityEnum (LMA22 V1): ${String(arrival.modality)}`)
+  }
+  // V2 — sourceAuthority
+  if (arrival.sourceAuthority === null || arrival.sourceAuthority === undefined) {
+    throw new Error('LM_INPUT_INVALID: arrival.sourceAuthority is null/undefined (LMA23 V2)')
+  }
+  if (!SOURCE_AUTHORITY_ENUM.has(arrival.sourceAuthority)) {
+    throw new Error(`LM_INPUT_INVALID: arrival.sourceAuthority not in SourceAuthorityEnum (LMA23 V2): ${String(arrival.sourceAuthority)}`)
+  }
+  // V3 — confidence ∈ (0, 1]
+  const c = arrival.confidence
+  if (c === null || c === undefined || typeof c !== 'number' || !Number.isFinite(c)) {
+    throw new Error('LM_INPUT_INVALID: arrival.confidence is null/non-finite (LMA24 V3)')
+  }
+  if (!(c > 0 && c <= 1)) {
+    throw new Error(`LM_INPUT_INVALID: arrival.confidence out of range (0, 1] (LMA24 V3): ${c}`)
+  }
 }
 
 /**
@@ -362,7 +441,8 @@ async function ensureUserLoaded(userId: string): Promise<UserGraphState> {
       dominanceMap: new Map(),
       thresholds:   { bind: 0, close: 0.5, stable: 0.3, asym: 0.2, dom: 0.5 },
       // lm-v2-2-shot4: v2.2 §D empty shape
-      presentState: { projected: [], axisScores: new Map(), scopeContext: { user: userId } },
+      // lm-v2-3-shot2 (LMA27): conflictGroups annotation initialized empty
+      presentState: { projected: [], axisScores: new Map(), scopeContext: { user: userId }, conflictGroups: [] },
       loaded:       true,
     }
     _userStates.set(userId, state)
@@ -422,10 +502,35 @@ async function ensureUserLoaded(userId: string): Promise<UserGraphState> {
 //  10. return → if read: return top-K activated nodes
 
 export async function runTraversal(
-  text: string,
-  userId: string,
+  text:    string,
+  userId:  string,
   options: TraversalOptions = {},
+  arrival: ArrivalMetadata,
+  // lm-v2-3-shot2 (LMA26): optional caller-supplied suppress-edge declarations.
+  // Each entry persists a MemEdge with primitiveType='suppress' as part of
+  // this traversal's atomic commit set. Validated for same-scope endpoints
+  // (LMA3) before persistence.
+  suppressEdges?: Array<{ from: NodeId; to: NodeId }>,
 ): Promise<Result<TraversalResult | null>> {
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): seam validation. V1/V2/V3 fail-fast
+  // before any node construction or graph mutation. Throws are caught by the
+  // outer try-equivalent (we surface them as LM_INPUT_INVALID Result errors so
+  // the contract surface stays Result-shaped).
+  try {
+    validateArrival(arrival)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'LM_INPUT_INVALID', message } }
+  }
+
+  // lm-v2-3-shot2 (LMA28): τ derivation. One traversal, one τ. Constant
+  // throughout this invocation; multiplies every weight change in the commit
+  // set (new edges, inline learn() Δw, suppress-edge weight). LMA12 preserved
+  // — τ derived at write, applied at write; not a function of elapsed time.
+  // Default trust map yields τ = 1.0 across all authorities (identity).
+  const trustMap: TrustWeightMap = DEFAULT_TRUST_WEIGHT
+  const tau = trustMap[arrival.sourceAuthority]
+
   // Turbopack module isolation: lazy-boot if needed
   if (!_booted) {
     await onBoot()
@@ -521,6 +626,12 @@ export async function runTraversal(
       cachedLayer:     M4_INPUT,
       cachedClosure:   0,
       cachedAsymmetry: 0,
+      // lm-v2-3-shot1 (LMA22, LMA23, LMA24): stamp perimeter-supplied
+      // arrival metadata at construction. Validated above (V1/V2/V3 hold).
+      // Substrate preserves these for the life of the node.
+      modality:        arrival.modality,
+      sourceAuthority: arrival.sourceAuthority,
+      confidence:      arrival.confidence,
     }
     mutation.nodeCreates.push(newNode)
     changedNodeIds.add(activeNodeId)
@@ -545,11 +656,14 @@ export async function runTraversal(
   // ── Step 4: connect → create edges to bound nodes ───────────────────────────
   // Amendment 1+3: 6-field edges with primitiveType, createdAt, userId (A6)
   // Fallthrough: edges point to global node IDs but stored with userId in per-user graph
+  // lm-v2-3-shot2 (LMA28): connect-edge base weight × τ — one of the three
+  // weight-change paths covered by V7. Base = max(0.01, similarity).
   for (const bound of binding.nodes) {
+    const baseWeight = Math.max(0.01, bound.similarity)
     const edge: MemEdge = {
       fromId:        activeNodeId,
       toId:          bound.nodeId,
-      weight:        Math.max(0.01, bound.similarity),
+      weight:        baseWeight * tau,
       primitiveType: options.primitiveType ?? null,  // Amendment 4: caller-specified or null (A6)
       createdAt:     now,                            // Amendment 1 (A6)
       userId,                                        // Amendment 3: scoped (A6)
@@ -571,13 +685,15 @@ export async function runTraversal(
   }
 
   // ── Step 5: propagate → spread activation + inline learning ─────────────────
+  // lm-v2-3-shot2 (LMA28): pass τ through to learn(); inline reinforcement Δw
+  // is multiplied by τ before the new edge weight is computed.
   const seed: ActivationMap = new Map()
   for (const bound of binding.nodes) {
     seed.set(bound.nodeId, bound.similarity)
   }
   seed.set(activeNodeId, binding.score)
 
-  const { activation, edgeMutations } = propagate(seed, userGraph)
+  const { activation, edgeMutations } = propagate(seed, userGraph, tau)
 
   for (const learnedEdge of edgeMutations) {
     mutation.edgeUpserts.push(learnedEdge)
@@ -590,6 +706,65 @@ export async function runTraversal(
     if (idx >= 0) outEdges[idx] = learnedEdge
     else outEdges.push(learnedEdge)
     userGraph.edges.set(learnedEdge.fromId, outEdges)
+  }
+
+  // ── Step 5b: lm-v2-3-shot2 (LMA26) suppress-edge persistence ────────────────
+  // Caller-supplied conflict declarations land as `suppress`-typed MemEdges in
+  // this traversal's commit set. Validation:
+  //   - Both endpoints must resolve to nodes visible from this user's view
+  //     (userGraph or fallthrough _globalGraph) — same-scope predicate per
+  //     LMA3. Cross-scope or unresolved-endpoint references → reject the
+  //     traversal with LM_VALIDITY_FAILED before committing anything (LMA11
+  //     atomic commit invariant).
+  //   - Endpoints are not validated against any peer-relation predicate
+  //     beyond same-scope: LM does not classify which pairs *should* be in
+  //     tension; perimeter (Cognitive Standard) declares the tension; LM
+  //     records it (per LM v2.3 §F).
+  // Weight: SUPPRESS_EDGE_DEFAULT_WEIGHT × τ. τ multiplication aligns with
+  // LMA28 §5.3 first bullet — final MemEdge.weight = baseWeight × τ for new
+  // edges produced by this traversal. Default base = 1.0; default τ = 1.0;
+  // identity in the v2.2 baseline.
+  // Suppress edges are persisted AFTER propagate runs so they do not act as
+  // activation conduits during the current traversal's flow step. They do
+  // participate in subsequent reads (LMA27 projection annotation; future
+  // traversals' propagate may cross them).
+  if (suppressEdges && suppressEdges.length > 0) {
+    for (const decl of suppressEdges) {
+      const fromInUser   = userGraph.nodes.has(decl.from)
+      const fromInGlobal = _globalGraph.nodes.has(decl.from)
+      const toInUser     = userGraph.nodes.has(decl.to)
+      const toInGlobal   = _globalGraph.nodes.has(decl.to)
+      if (!(fromInUser || fromInGlobal) || !(toInUser || toInGlobal)) {
+        return {
+          ok: false,
+          error: {
+            code: 'LM_VALIDITY_FAILED',
+            message: `LMA26: suppress-edge endpoint not in scope (from=${decl.from}, to=${decl.to})`,
+          },
+        }
+      }
+      const suppressEdge: MemEdge = {
+        fromId:        decl.from,
+        toId:          decl.to,
+        weight:        SUPPRESS_EDGE_DEFAULT_WEIGHT * tau,
+        primitiveType: 'suppress',
+        createdAt:     now,
+        userId,
+      }
+      mutation.edgeUpserts.push(suppressEdge)
+      changedNodeIds.add(decl.from)
+      changedNodeIds.add(decl.to)
+
+      // Apply to in-memory user graph for immediate visibility in subsequent
+      // present-state recomputation at Step 9.
+      const outEdges = userGraph.edges.get(decl.from) ?? []
+      const existingIdx = outEdges.findIndex(e =>
+        e.toId === decl.to && e.primitiveType === 'suppress',
+      )
+      if (existingIdx >= 0) outEdges[existingIdx] = suppressEdge
+      else outEdges.push(suppressEdge)
+      userGraph.edges.set(decl.from, outEdges)
+    }
   }
 
   // ── Step 6: sparsify → edge prune + isolate removal ─────────────────────────
@@ -813,10 +988,12 @@ export function present(params: {
   if (userId && !otherScope) {
     const state = _userStates.get(userId)
     // lm-v2-2-shot4: v2.2 §D empty shape on cache miss.
+    // lm-v2-3-shot2 (LMA27): conflictGroups annotation initialized empty.
     return state?.presentState ?? {
-      projected:    [],
-      axisScores:   new Map(),
-      scopeContext: params.scope,
+      projected:      [],
+      axisScores:     new Map(),
+      scopeContext:   params.scope,
+      conflictGroups: [],
     }
   }
 

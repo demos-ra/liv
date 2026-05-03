@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2
+// amended: lm-v2-2-shot2, lm-v2-2-shot3, lm-v2-2-shot4, lm-v2-2-shot5-fix-2, lm-v2-3-shot1, lm-v2-3-shot2
 // slice: core
 // layer: R5
 // wires-in:
@@ -13,6 +13,10 @@
 //   W-ATOM AppError            ← core/R5 primitives
 //   W-ATOM ArtifactEmission    ← core/R5 ./artifact-standard.types
 // wires-out:
+//   W-ATOM Modality                → F-codec, F-memory, F-chat (LMA22 lm-v2-3-shot1)
+//   W-ATOM SourceAuthority         → F-codec, F-memory, F-chat (LMA23 lm-v2-3-shot1)
+//   W-ATOM Confidence              → F-codec, F-memory, F-chat (LMA24 lm-v2-3-shot1)
+//   W-ATOM ArrivalMetadata         → F-codec, F-memory, F-chat (LMA22+LMA23+LMA24 bundle, lm-v2-3-shot1)
 //   W-ATOM ScopeKey                → all graph-aware consumers (AK-REF branded)
 //   W-ATOM NodeRef                 → all graph-aware consumers
 //   W-ATOM EdgeRef                 → all graph-aware consumers
@@ -46,7 +50,7 @@
 //   W-ATOM DirectInsertBatchInput  → F-codec admin
 //   W-ATOM GraphReadRef            → LM internal
 //   W-ATOM TraversalResult         → F-chat, F-codec
-//   W-ATOM PresentState            → F-chat
+//   W-ATOM PresentState            → F-chat (lm-v2-3-shot2: +conflictGroups annotation per LMA27)
 //   W-ATOM ScopeFilter             → F-memory/R3 (Present, Lineage entry shape per LM v2.2 §C, §D)
 //   W-ATOM ScopeTagSet             → F-memory/* (per-node stamped scope tags per LMA21, lm-v2-2-shot3)
 //   W-ATOM AxisId                  → F-memory/R3 (Present axes per LM v2.2 §E)
@@ -162,6 +166,53 @@ export type EdgePrimitiveType =
  */
 export type EdgeKind = EdgePrimitiveType | null
 
+// ─── Arrival-metadata atoms (Substance/arrival-metadata sub-axis) ────────────
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): perimeter-supplied stamps preserved by
+// the substrate for the life of the node. Cognitive Standard authors values;
+// LM holds them. §H wildcard pattern — enums extend without amending LMA22/23.
+
+/**
+ * Modality — kind of arrival per LMA22. v2.3 declared set; open per §H.
+ *   'perception'      — ambient observation entering memory
+ *   'assertion'       — claim made into memory
+ *   'typing-failure'  — perimeter could not classify; still recorded
+ */
+export type Modality =
+  | 'perception'
+  | 'assertion'
+  | 'typing-failure'
+
+/**
+ * SourceAuthority — origin authority of the write per LMA23. v2.3 declared set;
+ * open per §H. Drives LMA28 trust-weighted accumulation at Shot 2.
+ */
+export type SourceAuthority =
+  | 'wearer-utterance'
+  | 'tool-reply'
+  | 'scheduled-trigger'
+  | 'external-integration'
+  | 'program-emission'
+
+/**
+ * Confidence — perimeter-supplied scalar in (0, 1] per LMA24. Type is `number`;
+ * range invariant enforced at the LM seam (V3) — non-null, 0 < c ≤ 1. Produced
+ * at Cognitive Standard (`ClassifyResult.confidence`); LM preserves only.
+ */
+export type Confidence = number
+
+/**
+ * ArrivalMetadata — bundle of LMA22+LMA23+LMA24 stamps. Required input to
+ * `runTraversal`; stamped onto every MemNode in the produced commit set.
+ * Bundled at the seam matching the standard's `Substance/arrival-metadata`
+ * sub-axis composition (LM v2.3 §A subAxisDelta). Same W-ATOM bundle precedent
+ * as ScopeFilter / AxisSet.
+ */
+export type ArrivalMetadata = {
+  modality:        Modality
+  sourceAuthority: SourceAuthority
+  confidence:      Confidence
+}
+
 // ─── Substance axis atoms (§3.4 Substance sub-axes) ──────────────────────────
 
 /**
@@ -185,6 +236,13 @@ export type MemNode = {
   cachedLayer:     MLayer                // LMA14 = M4_INPUT at creation; LMA16 equivalence
   cachedClosure:   number                // derived per LMA18
   cachedAsymmetry: number                // derived per LMA18
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata stamps.
+  // Non-null at write; preserved for the life of the node. Cognitive Standard
+  // authors values at the perimeter; LM seam validates (V1, V2, V3) and stamps.
+  // Confidence range invariant (0, 1] enforced at the seam, not in the type.
+  modality:        Modality              // LMA22 — non-null at write
+  sourceAuthority: SourceAuthority       // LMA23 — non-null at write
+  confidence:      Confidence            // LMA24 — non-null at write, 0 < c ≤ 1
 }
 
 /**
@@ -385,7 +443,11 @@ export type GraphReadInput = {
 
 export type DirectInsertInput = {
   ownerId: ScopeKey                       // non-empty (LMA2)
-  node:    Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry'>
+  // lm-v2-3-shot1 (LMA22, LMA23, LMA24): arrival-metadata fields optional at
+  // declarative R5 input shape; admin seed seam at R2 default-fills missing
+  // values from SYSTEM_DEFAULT_ARRIVAL. Same pattern as LMA21 scope at R5.
+  node:    Omit<MemNode, 'cachedLayer' | 'cachedClosure' | 'cachedAsymmetry' | 'modality' | 'sourceAuthority' | 'confidence'>
+         & Partial<Pick<MemNode, 'modality' | 'sourceAuthority' | 'confidence'>>
   edges:   MemEdge[]                      // all edges must satisfy LMA3 (same ownerId)
 }
 
@@ -418,10 +480,19 @@ export type TraversalResult = {
 // lm-v2-2-shot4 (D-PRESENTSTATE-BODY-V21 close): PresentState body swapped
 // to LM v2.2 §D shape per natural-deferral closure at the seam where
 // 8-axis algorithms exist. Lockstep with F-memory R0.
+//
+// lm-v2-3-shot2 (LMA27): conflictGroups annotation field added. Pairs
+// (n, n') where both n and n' appear in `projected` AND a `suppress`-typed
+// edge (n → n') exists in the candidate edge set. Annotation only — does
+// not filter, score, or rank. Both members remain visible to consumers.
+// LMA20 eight-axis closure preserved: conflictGroups is annotation, not axis.
+// Deterministic ordering: pairs sorted lexicographically by NodeId (first
+// element ascending, then second element ascending) for stable output.
 export type PresentState = {
-  projected:    NodeId[]
-  axisScores:   Map<NodeId, Map<AxisId, number>>
-  scopeContext: ScopeFilter
+  projected:      NodeId[]
+  axisScores:     Map<NodeId, Map<AxisId, number>>
+  scopeContext:   ScopeFilter
+  conflictGroups: Array<[NodeId, NodeId]>
 }
 
 export type MemoryVitalSigns = {

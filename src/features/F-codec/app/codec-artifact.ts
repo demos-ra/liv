@@ -4,12 +4,13 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.7-artifact-creation
+// amended:    6.7-artifact-creation, lm-v2-3-shot1
 // slice:      F-codec
 // layer:      R2
 // wires-in:
 //   W-ATOM  ArtifactData, ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX  F-codec/R0
 //   W-ATOM  Result                                               core/R0
+//   W-ATOM  SYSTEM_DEFAULT_ARRIVAL                                F-memory/R3 (LMA22+LMA23+LMA24, lm-v2-3-shot1)
 // wires-out:
 //   W-INJECT  createArtifact  → F-codec/R2 (future module execution)
 // deps:
@@ -23,11 +24,16 @@
 // R2: orchestration. Takes module schema + completed data → traverse calls
 // + relational edges. Artifacts enter via traverse() (not seedGlobalNode)
 // so they participate in normal physics.
+//
+// lm-v2-3-shot1 (LMA22, LMA23, LMA24): artifact emission is a system-tagged
+// write — F-codec emits artifacts on behalf of structured module runs, not
+// from a wearer utterance. SYSTEM_DEFAULT_ARRIVAL preserves the implicit
+// pre-v2.3 reading. Threaded onto every artifact-emitting traverse call.
 
 import type { Result } from '@/core/types/primitives'
 import type { ArtifactData } from '../config/codec-artifact-types'
 import { ARTIFACT_PREFIX, ARTIFACT_DATA_PREFIX } from '../config/codec-artifact-types'
-import { traverse } from '@/features/F-memory/contract/memory-contract'
+import { traverse, SYSTEM_DEFAULT_ARRIVAL } from '@/features/F-memory/contract/memory-contract'
 
 // ─── createArtifact ──────────────────────────────────────────────────────────
 // Creates an artifact in the graph:
@@ -59,7 +65,7 @@ export async function createArtifact(
     const result = await traverse(traversalContent, userId, {
       primitiveType: 'anchor',
       returnActivation: true,
-    })
+    }, SYSTEM_DEFAULT_ARRIVAL)
 
     if (!result.ok || result.data === null) {
       return {
@@ -84,13 +90,14 @@ export async function createArtifact(
 
     // 5. Store artifact field data as companion node
     const dataContent = `${ARTIFACT_DATA_PREFIX}${data.moduleId}:${data.version}] ${JSON.stringify(data.fields)}`
-    await traverse(dataContent, userId, { primitiveType: 'anchor' })
+    await traverse(dataContent, userId, { primitiveType: 'anchor' }, SYSTEM_DEFAULT_ARRIVAL)
 
     // 6. Categorical edge — connect artifact to its mode node in global graph
     await traverse(
       `${content} operates in ${data.mode} mode`,
       userId,
       { primitiveType: 'relate' },
+      SYSTEM_DEFAULT_ARRIVAL,
     )
 
     // 7. Dependency edges — relational connections to dependency artifacts
@@ -100,6 +107,7 @@ export async function createArtifact(
           `${data.title} depends on ${depNodeId}`,
           userId,
           { primitiveType: 'relate' },
+          SYSTEM_DEFAULT_ARRIVAL,
         )
       }
     }
@@ -110,6 +118,7 @@ export async function createArtifact(
         `${content} supersedes version ${data.version - 1}`,
         userId,
         { primitiveType: 'restructure' },
+        SYSTEM_DEFAULT_ARRIVAL,
       )
     }
 
