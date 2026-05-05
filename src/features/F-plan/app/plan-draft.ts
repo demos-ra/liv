@@ -100,12 +100,14 @@ const ARTIFACT_PREFIX = '[artifact:'
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Assemble PlanComposerInput from raw user content + F-memory present-state.
+ * Assemble PlanComposerInput from raw user content.
  *
- * Per spec §3.3.2: graphContext uses Present (LM v2.2 §D, was v2.1
- * getPresentState) + ARTIFACT_PREFIX filter
- * for findingsRefs. F-plan reads typed cognitive output
- * F-codec already deposited — never re-encodes.
+ * sprint-8-shot-3b: F-memory dissolved its LM v2.x engine. The previous
+ * present-state read (`graph.present({...})` returning PresentStateStatement[])
+ * was already a dead-bookkeeping read — graphContext.statements + findingsRefs
+ * are populated as empty arrays since plan-compose.ts:284 never reads them.
+ * Sprint 9 wires substrate thread-query (identity-recurrence on session-relevant
+ * identities) at the graphContext input boundary.
  *
  * D-TURNID note: turnId flows through input.turnId (caller-supplied).
  *
@@ -132,9 +134,9 @@ export function buildComposerInput(
   userId:      string,
   deps:        R2Deps,
 ): PlanComposerInput {
-  // lm-v2-2-shot2: graph.present({scope: {user: userId}}) per LM v2.2 §D.
-  const presentState = graph.present({ scope: { user: userId } })
-  void presentState  // currently unused — see D-PLAN-DEAD-BOOKKEEPING below
+  // sprint-8-shot-3b: F-memory dissolved. The previously-dead `graph.present()`
+  // call (already `void presentState  // currently unused`) is removed entirely.
+  // Sprint 9 reauthors graphContext input from substrate thread-query.
 
   // lm-v2-2-shot4 (D-PLAN-DEAD-BOOKKEEPING): pre-flight identified that
   // graphContext.statements + graphContext.findingsRefs flow into
@@ -147,7 +149,7 @@ export function buildComposerInput(
   // we drop the population and emit empty arrays. PlanComposerInput.shape
   // is preserved (no plan-types.ts touch) for cross-slice stability.
   // When a live composer consumer surfaces (Shot 5+), this populates from
-  // presentState.projected via a graph accessor extension on IPlanGraph.
+  // substrate thread-query results via a graph accessor extension on IPlanGraph.
   const statements: PlanComposerStatement[] = []
   const findingsRefs: string[] = []
 

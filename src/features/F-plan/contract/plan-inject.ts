@@ -4,14 +4,13 @@
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-6-sprint-a (slice introduction), lm-v2-2-shot2, lm-v2-2-shot3
+// amended:    phase-6-sprint-a (slice introduction), lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3b (F-memory LM v2.x reads removed; createArtifactGraphPort repointed to F-artifact)
 // slice:      F-plan
 // layer:      R3
 // wires-in:
 //   W-ATOM    Result, NodeId, UserId   ←  core/R5 primitives
 //   W-ATOM    EpochMs, PlanArtifactContent, PlanValidityError ← core/R5 plan-standard.types
 //   W-ATOM    CreateArtifactInput, ArtifactGraphPort, CreateArtifactResult ← F-artifact/R3
-//   W-ATOM    PresentState           ←  F-memory/R3 (re-export from memory-types)
 //   W-ATOM    PlanDraftId, PlanDraftState ← F-plan/R0 plan-types
 //   W-FN      dbInsertPlanDraft      ←  F-plan/R4 plan-db
 //   W-FN      dbGetOpenDraft         ←  F-plan/R4 plan-db
@@ -20,8 +19,7 @@
 //   W-FN      dbMarkDraftEmitting    ←  F-plan/R4 plan-db (Phase 6 cleanup F005)
 //   W-FN      dbMarkDraftEmitted     ←  F-plan/R4 plan-db
 //   W-FN      dbMarkDraftSuperseded  ←  F-plan/R4 plan-db
-//   W-FN      Present                ←  F-memory/R3 memory-contract (LM v2.2 §D; replaces v2.1 getPresentState)
-//   W-FN      createArtifactGraphPort ← F-memory/R3 memory-graph-contract
+//   W-FN      createArtifactGraphPort ← F-artifact/R3 artifact-graph-port (relocated from F-memory at Sprint 8 Shot 3b)
 //   W-FN      createArtifact         ←  F-artifact/R3 artifact-contract
 // wires-out:
 //   W-INJECT  IPlanDb               →  F-plan/R2 (plan-draft, plan-emit consume)
@@ -33,8 +31,7 @@
 //   R4  ../exec/plan-db
 //   R5  @/core/types/primitives
 //   R5  @/core/types/plan-standard.types
-//   R3  @/features/F-memory/contract/memory-contract
-//   R3  @/features/F-memory/contract/memory-graph-contract
+//   R3  @/features/F-artifact/contract/artifact-graph-port
 //   R3  @/features/F-artifact/contract/artifact-contract
 // validated:  pending
 //
@@ -71,9 +68,16 @@ import {
 // ─── Cross-slice R3 imports (wired into IPlanGraph factory) ──────────────────
 // A2 permitted: R3→R3 cross-slice imports.
 
-import { Present } from '@/features/F-memory/contract/memory-contract'
-import type { PresentState, ScopeFilter, AxisSet } from '@/features/F-memory/contract/memory-contract'
-import { createArtifactGraphPort } from '@/features/F-memory/contract/memory-graph-contract'
+// sprint-8-shot-3b: F-memory dissolved its LM v2.x engine.
+//   Removed: Present, PresentState, ScopeFilter, AxisSet imports (LM v2.x reads).
+//   Removed: present() field from IPlanGraph (the only consumer call site,
+//            plan-draft.ts:136, was already a dead read — `void presentState`).
+//   Repointed: createArtifactGraphPort from F-memory/R3 memory-graph-contract
+//              to F-artifact/R3 artifact-graph-port (relocated at Sprint 8 Shot 3b).
+//   Sprint 9 wires substrate thread-query (identity-recurrence) at the
+//   plan-composer graphContext input boundary.
+
+import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import {
   createArtifact,
 } from '@/features/F-artifact/contract/artifact-contract'
@@ -133,23 +137,16 @@ export interface IPlanDb {
 }
 
 // ─── IPlanGraph ──────────────────────────────────────────────────────────────
-// Bundles the F-memory + F-artifact reads R2 needs into a single port.
-// Present is sync (per F-memory contract); createArtifact is async.
-// Port wraps each so R2 sees one consistent injection surface.
+// Bundles the F-artifact reads R2 needs into a single port.
 //
-// lm-v2-2-shot2: getPresentState field renamed to `present` per LM v2.2 §D
-// (D-PRESENT-OPTIONAL-PARAMS). Port shape mirrors R3 export — partial-optional
-// params; R3 fills defaults. R2 callers (plan-draft) pass `{scope: {user: userId}}`.
-//
-// lm-v2-2-shot3 (D-LIAISON-STRIKE close): port shape now uses R0 atom types
-// (ScopeFilter, AxisSet, PresentState) imported via F-memory R3 re-export.
-// Inline structural liaison object struck.
+// sprint-8-shot-3b: F-memory dissolved. Previously bundled F-memory + F-artifact
+// reads; now F-artifact only. The `present()` field (LM v2.x getPresentState)
+// was removed — its only call site (plan-draft.ts:136) was already a dead read
+// (`void presentState`). Sprint 9 reauthors plan-composer graphContext input
+// against substrate thread-query.
 
 export interface IPlanGraph {
-  /** F-memory R3: project user's present state for graph context assembly (LM v2.2 §D). */
-  present: (params?: { scope?: ScopeFilter; axes?: AxisSet; limit?: number }) => PresentState
-
-  /** F-memory R3: build the graph port createArtifact needs to write nodes. */
+  /** F-artifact R3: build the graph port createArtifact needs to write nodes. */
   createArtifactGraphPort: () => ArtifactGraphPort
 
   /** F-artifact R3: emit an artifact via AS pipeline. */
@@ -181,14 +178,11 @@ export function createPlanDb(): IPlanDb {
 }
 
 /**
- * Build a concrete IPlanGraph instance from F-memory + F-artifact contracts.
+ * Build a concrete IPlanGraph instance from F-artifact contracts.
  * Each method is a thin pass-through to the underlying R3 surface.
  */
 export function createPlanGraph(): IPlanGraph {
   return {
-    // lm-v2-2-shot2: present binds R3 Present (overloaded; zero-arg or
-    // partial-optional params). Branch resolves the overload at call time.
-    present:                 (params)         => params ? Present(params) : Present(),
     createArtifactGraphPort: ()              => createArtifactGraphPort(),
     createArtifact:          (input, port)   => createArtifact(input, port),
   }

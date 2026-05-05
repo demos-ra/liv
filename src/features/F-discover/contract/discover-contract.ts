@@ -11,7 +11,7 @@
 //   W-FN     executeResearch                ←  F-discover/R2 execute-research
 //   W-FN     loadResearchBinding            ←  F-discover/R4 discover-binding-loader
 //   W-FN     createArtifact                 ←  F-artifact/R3 artifact-contract
-//   W-FN     createArtifactGraphPort        ←  F-memory/R3 memory-graph-contract
+//   W-FN     createArtifactGraphPort        ←  F-artifact/R3 artifact-graph-port (relocated from F-memory at Sprint 8 Shot 3b)
 //   W-ATOM   ResearchExecuteInput,
 //            ResearchEmissionResult,
 //            FrameworkModule,
@@ -25,7 +25,7 @@
 //   R2 ../app/execute-research
 //   R4 ../exec/discover-binding-loader
 //   R3 ../../F-artifact/contract/artifact-contract
-//   R3 ../../F-memory/contract/memory-contract
+//   R3 ../../F-artifact/contract/artifact-graph-port
 //   R0 ../../F-codec/config/codec-module-types
 // validated:  pending
 //
@@ -53,20 +53,22 @@ import type {
   ArtifactEmission,
   CreateArtifactInput,
 } from '../config/f-discover-types'
-import type {
-  FrameworkModule,
-  ModuleExecutor,
-} from '@/features/F-codec/config/codec-module-types'
+// sprint-8-shot-3a: F-codec dissolved.
+//   FrameworkModule + ModuleExecutor imports removed; DISCOVER_FRAMEWORK_MODULE
+//   and livDiscoveryStubExecutor exports removed (codec registry no longer exists).
+//   F-discover remains reachable programmatically via executeResearchFromInput
+//   (the Research Standard authoring program path). Sprint 9 wires F-router
+//   rules pointing epistemic-mode messages at this entry point directly.
 import { executeResearch } from '../app/execute-research'
 import type { DiscoverServiceContainer, ArtifactGraphPort } from '../app/execute-research'
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
-import { createArtifactGraphPort } from '@/features/F-memory/contract/memory-graph-contract'
+import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import type { EpochMs } from '../config/f-discover-types'
 
 // ─── Default service container (real wiring) ─────────────────────────────────
 
 /**
- * Default service container — wires F-artifact + F-memory real implementations.
+ * Default service container — wires F-artifact real implementations.
  * Test paths construct alternate containers (in-memory port, fake clock).
  *
  * Mirrors F-verify/contract/verify-contract.ts defaultServices() pattern.
@@ -123,52 +125,10 @@ export async function executeResearchFromInputWithServices(
   return executeResearch(input, services)
 }
 
-// ─── DISCOVER_FRAMEWORK_MODULE — codec-orchestrate registration ──────────────
-//
-// Sprint 5 D-RS-MODULE-ID decision (Demos confirmed):
-//   - codec-discovery.ts retains its module but renames id 'discovery' →
-//     'narrative-discovery' in Shot 2. F-discover takes id 'liv-discovery'.
-//   - Both modules persist; names match function (Research Standard mechanical
-//     research-artifact composition ≠ LLM narrative discovery).
-//   - Mirror of Sprint 4 D5 (codec-verify 'verification' → 'narrative-audit',
-//     F-verify takes 'liv-verification').
-//
-// F-discover's executor is a STUB at v1.0 — codec does NOT route user messages
-// to F-discover mechanically. Programmatic invocation is the active path
-// (executeResearchFromInput). Stub mirrors F-verify's VERIFY_FRAMEWORK_MODULE
-// pattern: registry visibility + typed unreachable error if reached.
-//
-// When the first F-codec routing-rule lands that points epistemic-mode
-// mechanical messages at F-discover, the executor will replace the stub with
-// a real adapter (parallel to F-plan/contract/plan-module planExecutorAdapter).
-
-const livDiscoveryStubExecutor: ModuleExecutor = async () => ({
-  ok: false,
-  error: {
-    code:    'LIV_DISCOVERY_EXECUTOR_UNREACHABLE',
-    message: 'DISCOVER_FRAMEWORK_MODULE.executor is a stub at v1.0 — F-discover is reached programmatically via executeResearchFromInput, not via codec dispatch. Reaching this code indicates a routing bug.',
-  },
-})
-
-export const DISCOVER_FRAMEWORK_MODULE: FrameworkModule = {
-  id:    'liv-discovery',
-  mode:  'epistemic',
-  label: 'LIV Discovery',
-  artifactSchema: {
-    name:   'research-artifact',
-    fields: [
-      { key: 'researchId',           label: 'Research ID',                          required: true  },
-      { key: 'questionId',           label: 'Root question ID',                     required: true  },
-      { key: 'questionText',         label: 'Root question text',                   required: true  },
-      { key: 'closureTruthValue',    label: 'Closure (closed | open | partial | null)', required: true  },
-      { key: 'aggregationBasis',     label: 'Aggregation basis',                    required: true  },
-      { key: 'leafCount',            label: 'Finding leaf cardinality',             required: true  },
-      { key: 'unresolvedCount',      label: 'Unresolved-question cardinality',      required: false },
-      { key: 'bindingDomain',        label: 'Binding domain (domainId)',            required: true  },
-    ],
-  },
-  executor: livDiscoveryStubExecutor,
-}
+// sprint-8-shot-3a: DISCOVER_FRAMEWORK_MODULE + livDiscoveryStubExecutor
+// removed (F-codec dissolved). F-discover is reached programmatically via
+// executeResearchFromInput. Sprint 9 wires F-router rules pointing
+// epistemic-mode messages at this entry point directly.
 
 // ─── discoverRouter — tRPC placeholder at v1.0 ───────────────────────────────
 //

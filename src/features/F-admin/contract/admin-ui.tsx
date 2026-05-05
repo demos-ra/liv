@@ -1,29 +1,24 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1
 // [F-admin/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    w3-20-admin-tab
+// standard:   LIV-Standard v1.5.1
+// amended:    sprint-8-shot-3a (F-codec dissolved; Global Graph admin tab removed)
 // slice:      F-admin
 // layer:      R3
-// wires-in:
-//   W-ATOM  GlobalGraphAdmin  @/features/F-codec/contract/global-graph-admin
+// wires-in:   none
 // wires-out:  none (rendered by page.tsx via AdminRegister)
-// deps:
-//   R3  ../../F-codec/contract/global-graph-admin
-// A2-admin-codec-r3: F-admin → F-codec dependency. The admin shell renders
-//   admin tools. F-codec provides an admin tool. Shell imports tool.
-//   Same pattern as F-admin importing F-planner build data.
+// deps:       none
 // validated:  pending
 
 // Admin dashboard — protocol shell for admin programs.
-// w3-20-admin-tab: added tab toggle between Builds and Global Graph views.
+// sprint-8-shot-3a: Global Graph tab removed (GlobalGraphAdmin lived in F-codec, dissolved).
+//                   Sprint 9 reauthors admin global-scope tools against substrate.
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GlobalGraphAdmin } from '@/features/F-codec/contract/global-graph-admin'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +34,8 @@ type BuildInfo = {
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'builds' | 'graph'>('builds')
+  // sprint-8-shot-3a: tab type narrowed to 'builds' only (graph view removed with F-codec).
+  const [activeTab, setActiveTab] = useState<'builds'>('builds')
   const [builds, setBuilds] = useState<BuildInfo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -56,18 +52,13 @@ export function AdminDashboard() {
   return (
     <div style={{ padding: 'var(--u4)', maxWidth: '960px' }}>
       {/* ── Tab Toggle ── */}
+      {/* sprint-8-shot-3a: only one tab remaining (Global Graph view removed with F-codec). */}
       <div style={{ display: 'flex', gap: 'var(--u3)', marginBottom: 'var(--u3)' }}>
         <button
           onClick={() => setActiveTab('builds')}
           style={activeTab === 'builds' ? activeTabStyle : tabStyle}
         >
           Builds
-        </button>
-        <button
-          onClick={() => setActiveTab('graph')}
-          style={activeTab === 'graph' ? activeTabStyle : tabStyle}
-        >
-          Global Graph
         </button>
       </div>
 
@@ -107,9 +98,6 @@ export function AdminDashboard() {
           )}
         </>
       )}
-
-      {/* ── Global Graph View ── */}
-      {activeTab === 'graph' && <GlobalGraphAdmin />}
     </div>
   )
 }

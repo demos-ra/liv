@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3
+// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed)
 // slice:      F-chat
 // layer:      R2
 // wires-in:
@@ -11,10 +11,7 @@
 //   W-ATOM    LIV_SPEC         F-chat/R0
 //   W-INJECT  persistMessage   F-chat/R4 (chat-db)
 //   W-INJECT  getMessages      F-chat/R4 (chat-db)
-//   W-INJECT  lmTraverseWrite    F-chat/R4 (lm-io)
 //   W-HOOK   streamAIResponse F-ai-adapter/R3
-//   W-HOOK   traverse         F-memory/R3
-//   W-HOOK   Present          F-memory/R3 (LM v2.2 §D; replaces v2.1 getPresentState)
 //   W-HOOK   getApiKey        F-user-profile/R3
 //   W-ATOM    providerForModel F-ai-adapter/R0
 //   W-ATOM    PROVIDERS        F-user-profile/R0
@@ -27,30 +24,27 @@
 // deps:
 //   R0  ../config/chat-config
 //   R4  ../exec/chat-db
-//   R4  ../exec/lm-io
 //   R3  @/features/F-ai-adapter/contract/ai-contract
-//   R3  @/features/F-memory/contract/memory-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
 //   R0  @/features/F-user-profile/config/provider-keys-config
 //   R5  @/core/types/primitives
 // validated:  pending
 //
-// phase-5.1-r1 (A2):
-//   Removed redundant read-path memory calls (lmGetPresentState, lmTraverseRead).
-//   Codec's processMessage() already does encode + traverse + decode. The
-//   systemContext parameter carries the decoded graph context. Direct memory
-//   reads here duplicated codec's work.
-//   Retained: lmTraverseWrite for write-path (persisting LLM response to graph).
-//   Codec does not handle the write path — it only processes inbound user messages.
-//   Removed W-INJECT for lmGetPresentState and lmTraverseRead from manifest.
+// sprint-8-shot-3b (F-memory dissolved):
+//   Removed:
+//     - traverse, Present imports (LM v2.x F-memory contract reads)
+//     - ScopeFilter, AxisSet type imports
+//     - lmTraverseWrite import (R4 lm-io adapter — file deleted in 3b)
+//     - memoryDeps construction (no consumers after removals)
+//     - post-stream lmTraverseWrite call (write-path to LM v2.x graph)
+//   Sprint 9 wires substrate write of LLM response (channel='ai', scope=userId)
+//   directly at the post-stream callback, replacing the deleted lmTraverseWrite.
+//   Surviving flow: AI streaming + chat-db persistence (both unchanged).
 
 import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
-import { lmTraverseWrite } from '../exec/lm-io'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
-import { traverse, Present } from '@/features/F-memory/contract/memory-contract'
-import type { ScopeFilter, AxisSet } from '@/features/F-memory/contract/memory-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
 import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
@@ -94,33 +88,19 @@ function updateSessionState(state: SessionState): void {
 }
 
 // ── Send message ──────────────────────────────────────────────────────────────
-// phase-5.1-r1: read-path memory (getPresentState, traverseRead) removed.
-// Codec pipeline now owns the read path. systemContext carries decoded graph context.
-// Write path (lmTraverseWrite) retained — codec does not handle post-stream writes.
 
 export interface SendMessageInput {
   projectId:      string
   content:        string
   modelId:        string
   userId:         string
-  systemContext?: string  // phase-b-item2: decoded graph context from codec pipeline
+  systemContext?: string  // retained as optional; chat-contract.ts no longer
+                          // populates it (codec pipeline removed at 3a).
+                          // Sprint 9 wires substrate thread-query results here.
 }
 
 export async function* sendMessage(input: SendMessageInput): AsyncGenerator<string> {
   const { projectId, content, modelId, userId, systemContext } = input
-
-  // v1.1: MemoryDeps for write path only.
-  // lm-v2-2-shot2: getPresentState field renamed to `present` per LM v2.2 §D
-  // (D-PRESENT-OPTIONAL-PARAMS). Branch resolves R3 Present overload at call
-  // time (zero-arg or partial-optional params).
-  // lm-v2-2-shot3 (D-LIAISON-STRIKE close): wrapper signature uses R0 atoms
-  // imported via R3 cross-slice; inline structural type struck.
-  const memoryDeps = {
-    traverse,
-    present: (params?: { scope?: ScopeFilter; axes?: AxisSet; limit?: number }) =>
-      params ? Present(params) : Present(),
-    userId,
-  }
 
   // Session rotation
   const state = getOrCreateSessionState(userId)
@@ -133,7 +113,6 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   const lmSessionId = state.lmSessionId
 
   // Assemble system prompt
-  // phase-5.1-r1: read-path memory removed. systemContext from codec is the sole context source.
   const systemParts: string[] = [LIV_ANCHOR]
   if (isFirstMessage) systemParts.push(LIV_SPEC)
   if (systemContext) systemParts.push(systemContext)
@@ -162,10 +141,11 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     }
   }
 
-  // §20 step 5: traverse(llmResponse) → write path (async, never blocks)
-  // Also: persist both messages to chat history.
+  // sprint-8-shot-3b: lmTraverseWrite removed (F-memory LM v2.x dissolved).
+  // Sprint 9 wires substrate writeStateChange here (channel='ai', scope=userId,
+  // identities + relations derived from fullResponse).
+  // Chat-db persistence retained — chat history is independent of substrate.
   Promise.all([
-    lmTraverseWrite(fullResponse.slice(0, 500), memoryDeps),
     persistMessage({
       messageId: generateId('msg'), projectId, sessionId: lmSessionId, userId,
       role: 'user', content, status: 'complete',

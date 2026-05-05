@@ -11,6 +11,8 @@ import type { FSlice } from './primitives'
 //         F-workspace reserved for Phase 2 (IDE surface).
 // Step 3: F-executor added — Docker code execution. Count parity with FSlice maintained.
 // Phase 4b: F-artifact + F-multi-instance added (AS v2.2 + M-I v2.3 runtimes).
+// Sprint 8 Shot 2: F-router added — pure routing slice (no DB-backed state at Shot 2; namespace declared for FSlice parity).
+// Sprint 8 Shot 3a: F-codec removed — dissolved entirely.
 export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-executor':        'executor',      // Step 3
   'F-design-system':   'designSystem',
@@ -33,12 +35,12 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
   'F-memory':          'memory',
-  'F-codec':           'codec',            // W3 — cognitive codec slice
   'F-planner':         'planner',          // Phase 4
   'F-intake':          'intake',           // Phase 5
   'F-output':          'output',           // Phase 6
   'F-artifact':        'artifact',         // Phase 4b — AS v2.2 runtime
   'F-multi-instance':  'multiInstance',    // Phase 4b — M-I v2.3 runtime
+  'F-router':          'router',           // Sprint 8 Shot 2 — message routing infrastructure
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

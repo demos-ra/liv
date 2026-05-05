@@ -11,7 +11,7 @@
 //   W-FN     executeVerification           ←  F-verify/R2 execute-verification
 //   W-FN     loadVerificationBinding       ←  F-verify/R4 verify-binding-loader
 //   W-FN     createArtifact                ←  F-artifact/R3 artifact-contract
-//   W-FN     createArtifactGraphPort       ←  F-memory/R3 memory-graph-contract
+//   W-FN     createArtifactGraphPort       ←  F-artifact/R3 artifact-graph-port (relocated from F-memory at Sprint 8 Shot 3b)
 //   W-ATOM   VerificationExecuteInput,
 //            VerificationEmissionResult,
 //            FrameworkModule,
@@ -25,7 +25,7 @@
 //   R2 ../app/execute-verification
 //   R4 ../exec/verify-binding-loader
 //   R3 ../../F-artifact/contract/artifact-contract
-//   R3 ../../F-memory/contract/memory-graph-contract
+//   R3 ../../F-artifact/contract/artifact-graph-port
 //   R0 ../../F-codec/config/codec-module-types
 // validated:  pending
 //
@@ -52,20 +52,22 @@ import type {
   ArtifactEmission,
   CreateArtifactInput,
 } from '../config/f-verify-types'
-import type {
-  FrameworkModule,
-  ModuleExecutor,
-} from '@/features/F-codec/config/codec-module-types'
+// sprint-8-shot-3a: F-codec dissolved.
+//   FrameworkModule + ModuleExecutor imports removed; VERIFY_FRAMEWORK_MODULE
+//   and liVerificationStubExecutor exports removed (codec registry no longer exists).
+//   F-verify remains reachable programmatically via executeVerificationFromInput
+//   (the LIV-Standard mechanical predicate-verification path). Sprint 9 wires
+//   F-router rules pointing verificative-mode messages at this entry point directly.
 import { executeVerification } from '../app/execute-verification'
 import type { VerifyServiceContainer, ArtifactGraphPort } from '../app/execute-verification'
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
-import { createArtifactGraphPort } from '@/features/F-memory/contract/memory-graph-contract'
+import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import type { EpochMs } from '../config/f-verify-types'
 
 // ─── Default service container (real wiring) ─────────────────────────────────
 
 /**
- * Default service container — wires F-artifact + F-memory real implementations.
+ * Default service container — wires F-artifact real implementations.
  * Test paths construct alternate containers (in-memory port, fake clock).
  *
  * Mirrors F-plan/contract/plan-inject.ts pattern.
@@ -122,50 +124,10 @@ export async function executeVerificationFromInputWithServices(
   return executeVerification(input, services)
 }
 
-// ─── VERIFY_FRAMEWORK_MODULE — codec-orchestrate registration ────────────────
-//
-// Sprint 4 D5 decision (Demos confirmed):
-//   - codec-verify.ts retains its module but renames id 'verification' →
-//     'narrative-audit'. F-verify takes id 'liv-verification'.
-//   - Both modules persist; names match function (LIV-Standard mechanical
-//     predicate-verification ≠ LLM narrative audit).
-//
-// F-verify's executor is a STUB at v1.0 — codec does NOT route user messages
-// to F-verify mechanically. Programmatic invocation is the active path
-// (executeVerificationFromInput). Stub mirrors F-plan's BUILD_MODULE pattern:
-// registry visibility + typed unreachable error if reached.
-//
-// When the first F-codec routing-rule lands that points verificative-mode
-// mechanical messages at F-verify, the executor will replace the stub with a
-// real adapter (parallel to F-plan/contract/plan-module planExecutorAdapter).
-
-const liVerificationStubExecutor: ModuleExecutor = async () => ({
-  ok: false,
-  error: {
-    code:    'LIV_VERIFICATION_EXECUTOR_UNREACHABLE',
-    message: 'VERIFY_FRAMEWORK_MODULE.executor is a stub at v1.0 — F-verify is reached programmatically via executeVerificationFromInput, not via codec dispatch. Reaching this code indicates a routing bug.',
-  },
-})
-
-export const VERIFY_FRAMEWORK_MODULE: FrameworkModule = {
-  id:    'liv-verification',
-  mode:  'verificative',
-  label: 'LIV Verification',
-  artifactSchema: {
-    name:   'verification-artifact',
-    fields: [
-      { key: 'verificationId',      label: 'Verification ID',                   required: true  },
-      { key: 'targetArtifactRef',   label: 'Target artifact reference',         required: true  },
-      { key: 'targetArtifactKind',  label: 'Target artifact kind',              required: true  },
-      { key: 'verdictTruthValue',   label: 'Verdict (verified | failed | null)', required: true  },
-      { key: 'aggregationBasis',    label: 'Aggregation basis',                 required: true  },
-      { key: 'failedPredicateIds',  label: 'Failed predicate IDs',              required: false },
-      { key: 'predicateCount',      label: 'Predicate cardinality',             required: true  },
-      { key: 'bindingDomain',       label: 'Binding domain (domainId)',         required: true  },
-    ],
-  },
-  executor: liVerificationStubExecutor,
-}
+// sprint-8-shot-3a: VERIFY_FRAMEWORK_MODULE + liVerificationStubExecutor
+// removed (F-codec dissolved). F-verify is reached programmatically via
+// executeVerificationFromInput. Sprint 9 wires F-router rules pointing
+// verificative-mode messages at this entry point directly.
 
 // ─── verifyRouter — tRPC placeholder at v1.0 ─────────────────────────────────
 //

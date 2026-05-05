@@ -80,8 +80,9 @@ export type Semver = string & { readonly _brand: 'Semver' }
 //   - Artifact Standard v1.1 (ArtifactWriteA4.primitive per §8)
 //   - Living Memory v1.1 (MemEdge.primitiveType via EdgePrimitiveType)
 // A1: declared once, at R5 core. Slices import — never redeclare.
-// Backlog: F-codec retrofit to import this canonical type (currently declared
-//          locally in src/features/F-codec/config/codec-types.ts).
+// sprint-8-shot-3a: F-codec dissolved; CognitivePrimitive retained as cross-standard
+//                   atom (still consumed by Artifact Standard / surviving consumers)
+//                   pending review at sprint close.
 
 export type CognitivePrimitive =
   | 'anchor'
@@ -100,6 +101,8 @@ export type RLayer = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 //         Axiom cite: A7 — deletability. Phantom slices removed.
 // Step 3: F-executor added — Docker execution slice. FSlice count +1; STATE_NAMESPACES parity maintained.
 // Phase 4b: F-artifact (AS v2.2 runtime) + F-multi-instance (M-I v2.3 runtime) added.
+// Sprint 8 Shot 2: F-router added — pure routing slice (infrastructure, not a governed program).
+// Sprint 8 Shot 3a: F-codec removed — dissolved entirely (only codec-ai-io.ts retained as standalone exec utility).
 export type FSlice =
   | 'F-executor'      // Step 3 — Docker code execution
   | 'F-design-system'
@@ -122,12 +125,12 @@ export type FSlice =
   | 'F-health-panel'
   | 'F-execution-panel'
   | 'F-memory'
-  | 'F-codec'       // W3 — cognitive codec slice
   | 'F-planner'     // Phase 4 — pipeline orchestration
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
   | 'F-artifact'         // Phase 4b — AS v2.2 createArtifact runtime
   | 'F-multi-instance'   // Phase 4b — M-I v2.3 executeRun runtime
+  | 'F-router'      // Sprint 8 Shot 2 — message routing infrastructure
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

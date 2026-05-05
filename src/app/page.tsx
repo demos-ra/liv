@@ -19,9 +19,7 @@
 //   W-ATOM  ChatUI             @/features/F-chat/contract/chat-ui
 //   W-ATOM  AuthPage           @/features/F-identity/contract/auth-pages
 //   W-ATOM  AccountPage        @/features/F-user-profile/contract/account-page  (dynamic import — deferred)
-//   W-ATOM  FrameworkProgramRegister  @/features/F-codec/contract/framework-program-register
 //   W-ATOM  AdminRegister      @/features/F-admin/contract/admin-register
-//   W-ATOM  MemoryRegister     @/features/F-codec/contract/memory-register
 // wires-out:  none  (mount point)
 // deps:
 //   R4  @/features/F-design-system/exec/use-planet          (A4 — DOM I/O)
@@ -34,12 +32,13 @@
 //   R3  @/features/F-identity/contract/auth-pages       (A5)
 //   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R3  @/features/F-user-profile/contract/account-page (A5)
-//   R3  @/features/F-codec/contract/framework-program-register  (A5 — composition root)
 //   R3  @/features/F-admin/contract/admin-register      (A5 — composition root)
-//   R3  @/features/F-codec/contract/memory-register     (A5 — composition root)
 //   R5  react
 //   R5  next/dynamic
 // validated: pending
+//
+// sprint-8-shot-3a: FrameworkProgramRegister + MemoryRegister removed (F-codec dissolved).
+//   Sprint 9 reauthors program registration via F-router destination registry.
 //
 // phase2-account-extraction (A1, A5):
 //   activePage state: 'chat' | 'account'. Both pages always mounted in DOM,
@@ -94,9 +93,9 @@ import { Brand, StatusDot } from '@/features/F-design-system/contract/primitives
 import { usePlanet } from '@/features/F-design-system/exec/use-planet'
 import { usePageTransition } from '@/features/F-design-system/exec/use-page-transition'
 import { ATTACK } from '@/features/F-design-system/config/board'
-import { FrameworkProgramRegister } from '@/features/F-codec/contract/framework-program-register'
 import { AdminRegister }    from '@/features/F-admin/contract/admin-register'
-import { MemoryRegister }   from '@/features/F-codec/contract/memory-register'
+// sprint-8-shot-3a: F-codec dissolved — FrameworkProgramRegister + MemoryRegister removed.
+//                   Sprint 9 reauthors program registration via F-router destination registry.
 
 const AccountPage = dynamic(
   () => import('@/features/F-user-profile/contract/account-page').then(m => ({ default: m.AccountPage })),
@@ -189,9 +188,9 @@ export default function Home() {
   return (
     <>
       {/* ── Program registrations (composition root — A1) ── */}
-      <FrameworkProgramRegister />
+      {/* sprint-8-shot-3a: FrameworkProgramRegister + MemoryRegister removed (F-codec dissolved).
+          Sprint 9 reauthors via F-router destination registry. */}
       {state.isAdmin && <AdminRegister />}
-      <MemoryRegister />
 
       {/* ── HEADER (persistent — outside all pages) ── */}
       <header ref={headerRef} className="chat-header">
