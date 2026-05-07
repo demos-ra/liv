@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // [F-la-config/exec/la-validator.ts]
 // R4 — LA integrity validator. CLI tool only.
-// Run manually: npx ts-node src/features/F-la-config/exec/la-validator.ts
+// Run manually: npx tsx src/features/F-la-config/exec/la-validator.ts
 // Or in CI. Never imported at runtime.
 //
 // w5-item-6.7 (A2, A3, A7):
@@ -55,7 +55,13 @@ check('No R4 cross-slice imports', () => {
 check('No stale flat imports (@/config, @/domain, @/exec, @/lib)', () => {
   const violations: string[] = []
   const stale = ["from '@/config/", "from '@/domain/", "from '@/exec/", "from '@/lib/", "from '@/shared/"]
+  // Self-allow-list: the validator's own source contains these literal
+  // patterns inside its `stale` array (it has to, to scan for them).
+  // Skip self to avoid spurious self-match violations. Same discipline
+  // as §1.20.1 excluding the registry declaration site.
+  const SELF = path.join(ROOT, 'src/features/F-la-config/exec/la-validator.ts')
   walkTs(path.join(ROOT, 'src'), (filePath, content) => {
+    if (filePath === SELF) return
     for (const pattern of stale) {
       if (content.includes(pattern)) {
         violations.push(`${shortPath(filePath)}: stale import '${pattern}'`)
@@ -103,6 +109,39 @@ check('CC.18: Cross-slice imports target R0 or R3 only', () => {
       violations.push(
         `${shortPath(filePath)} imports cross-slice ${targetLayer}/ from ${targetSlice}`
       )
+    }
+  })
+  return violations
+})
+
+// 6. §1.20.1: Strict-registry-consultation (Placement Standard PL-A2)
+//    TS/TSX files in src/ must not contain literal LIV-shaped path strings
+//    (frameworks/..., sprint-records/..., src/.../*.md) outside the
+//    PLACEMENT_REGISTRY declaration site itself. All such paths are
+//    authoritatively declared once in core/constants/placement-standard.ts;
+//    consumers consult by registry identifier, never redeclare.
+//    First-run expectation per Sprint Placement Framework Shot 4: vacuous
+//    pass per substrate §10.1 S4 (zero applicable violations at HEAD).
+check('§1.20.1: Strict-registry-consultation (no hardcoded LIV-shaped paths)', () => {
+  const violations: string[] = []
+  const REGISTRY_DECL = path.join(ROOT, 'src/core/constants/placement-standard.ts')
+  const SRC_ROOT = path.join(ROOT, 'src')
+
+  // LIV-shaped path patterns — literal string occurrences only.
+  // Prefix-anchored to avoid false-positives on substrings like
+  // 'metaframework/' that don't begin a path.
+  const PATTERNS: RegExp[] = [
+    /['"`](frameworks\/[A-Za-z0-9_\-./]+)['"`]/g,
+    /['"`](sprint-records\/[A-Za-z0-9_\-./]+)['"`]/g,
+    /['"`](src\/[A-Za-z0-9_\-./]+\.md)['"`]/g,
+  ]
+
+  walkTs(SRC_ROOT, (filePath, content) => {
+    if (filePath === REGISTRY_DECL) return  // PL-A1: declaration site is authoritative
+    for (const pattern of PATTERNS) {
+      for (const m of content.matchAll(pattern)) {
+        violations.push(`${shortPath(filePath)}: hardcoded LIV-shaped path '${m[1]}'`)
+      }
     }
   })
   return violations

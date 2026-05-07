@@ -32,22 +32,12 @@
     "F-event-system",
     "F-la-config",
     "F-identity",
-    "F-session",
     "F-permissions",
-    "F-git-connector",
-    "F-terminal-bridge",
     "F-project",
-    "F-topography",
     "F-ai-adapter",
     "F-chat",
-    "F-constitution",
-    "F-notifications",
-    "F-commit-log",
     "F-user-profile",
     "F-dashboard",
-    "F-editor",
-    "F-health-panel",
-    "F-execution-panel",
     "F-memory",
     "F-planner",
     "F-intake",
@@ -56,9 +46,30 @@
     "F-discover"
   ],
   "reserved_slices": [
-    "F-workspace"
+    "F-workspace",
+    "F-session",
+    "F-git-connector",
+    "F-terminal-bridge",
+    "F-topography",
+    "F-constitution",
+    "F-notifications",
+    "F-commit-log",
+    "F-editor",
+    "F-health-panel",
+    "F-execution-panel"
   ],
   "_reserved_notes": {
-    "F-workspace": "Phase 2 — IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only."
+    "F-workspace": "Phase 2 — IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only.",
+    "_aspirational_retraction_note": "Sprint Placement Framework Shot 4 retraction: 10 names moved from declared_slices to reserved_slices because they have no on-disk presence under src/features/. They retain FSlice type membership and STATE_NAMESPACES entries (load-bearing for event-bus routing and core/types/state-registry.ts) — a JSON-vs-TS structural drift logged as F-FORWARD-11 for forward-LIV-Standard cycle. Do NOT remove these names from FSlice or STATE_NAMESPACES without the forward sprint's structural ratification.",
+    "F-session": "Reserved — session events absorbed by F-identity (per identity/config/auth-events.ts §A1 single-owner). FSlice + STATE_NAMESPACES entries retained for future re-extraction; no on-disk slice.",
+    "F-git-connector": "Reserved — referenced in user-profile/event-bus mappings; will be re-introduced when GitHub-connector slice is built (per user-profile-config.ts comment).",
+    "F-terminal-bridge": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-topography": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-constitution": "Reserved — referenced in event-bus mapping; not yet built.",
+    "F-notifications": "Reserved — referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-commit-log": "Reserved — referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-editor": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-health-panel": "Reserved — la-results-db/la-runner stub consumers per la-config comments; not yet built.",
+    "F-execution-panel": "Reserved — la-results-db/la-runner stub consumers per la-config comments; not yet built."
   }
 }
