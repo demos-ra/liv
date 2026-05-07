@@ -52,7 +52,7 @@
 // ═══════════════════════════════════════════════════════════════
 // VS v1.0 landing: generated against metaframework-v3-1 v3.2.7 via
 // generation-procedure-v1-0 v1.1.6. Mode-symmetric L3 sibling of Plan v2.2.
-// Canonical spec: src/core/standards/verification-standard.md
+// Canonical spec: PLACEMENT_REGISTRY.verification_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 
 // verification-standard.types.ts

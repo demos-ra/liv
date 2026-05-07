@@ -28,7 +28,7 @@
 
 // Living Memory v3.1 — F-memory slice-internal substrate config.
 // R0: type declarations + constants. Zero domain logic.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // Sprint 8 Shot 1: authored alongside legacy memory-types.ts. Files
 // distinguished by name prefix: substrate-* (new) vs memory-* (legacy

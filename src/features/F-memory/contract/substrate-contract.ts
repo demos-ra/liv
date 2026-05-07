@@ -37,7 +37,7 @@
 
 // Living Memory v3.1 — substrate public contract.
 // R3: thin wire. No logic. No DB. No procedures.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // HR-LM1 — perimeter/intake → LM write surface (LM v3.1 §6.2).
 //   Caller submits SubstrateWriteInput. LM executes SW1–SW3 atomically (LMA4).

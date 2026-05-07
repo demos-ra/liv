@@ -14,14 +14,13 @@
 //   W-ATOM    AdvanceStagePayload   ../types/planner-types
 //   W-ATOM    FailStagePayload      ../types/planner-types
 //   W-ATOM    FreezeContractPayload ../types/planner-types
-//   W-ATOM    SESSION_COOKIE_NAME   F-identity/contract/auth-contract
-//   W-ATOM    validateSession       F-identity/contract/auth-contract
+//   W-FN      getPerimeterSession   F-identity/contract/perimeter-consultation
 //   W-ATOM    PLANNER_RATE_LIMIT    ../types/planner-const
 //   W-ATOM    AdminBuild, AdminBuildsFilter  F-admin/types/admin-types
 //   W-INJECT  dbCountActiveBuildsForUser  ../exec/planner-db
 // wires-out:
 //   W-HOOK  usePlanner                →  F-dashboard/R3
-//   W-HOOK  handleBuildRequest        →  F-codec/R2 (codec-orchestrate), route.ts
+//   W-HOOK  handleBuildRequest        →  (formerly F-codec/R2 codec-orchestrate; F-codec dissolved Sprint 8 Shot 3a; route currently inactive — see app/api routes returning 501 pending Sprint 9 reauthor against substrate)
 //   W-HOOK  handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
 // deps:
 //   R0  ../types/planner-types
@@ -30,7 +29,7 @@
 //   R1  @/core/domain/rate-limiter
 //   R2  ../workflow/planner-workflow
 //   R3  ./planner-inject
-//   R3  @/features/F-identity/contract/auth-contract
+//   R3  @/features/F-identity/contract/perimeter-consultation
 //   R4  ../exec/planner-db
 //   R5  next/server
 // validated:  pending
@@ -66,7 +65,7 @@
 //   concurrent build check, minimal boundary crossing.
 
 import { NextRequest, NextResponse }            from 'next/server'
-import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession }                  from '@/features/F-identity/contract/perimeter-consultation'
 import { createRateLimiter }                    from '@/core/domain/rate-limiter'
 import { PLANNER_RATE_LIMIT }                   from '../types/planner-const'
 import { dbCountActiveBuildsForUser }           from '../exec/planner-db'
@@ -92,10 +91,10 @@ import type { AdminBuild, AdminBuildsFilter } from '@/features/F-admin/types/adm
 import type { PlannerResult } from '../types/planner-types'
 
 // ── Shared session helper ─────────────────────────────────────────────────────
+// Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
+// R3 reads middleware-set headers via getPerimeterSession per PS v1.0 §6.9.
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!token) return null
-  return validateSession(token)
+  return getPerimeterSession(req)
 }
 
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────

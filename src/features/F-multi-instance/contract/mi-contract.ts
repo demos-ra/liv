@@ -32,7 +32,7 @@
 //   ports.plan.resolvePlan         →  F-memory R3 (one-hop read)
 //   ports.adapter.invokeRole       →  F-ai-adapter R3 streamAIResponse (via per-role wrapper)
 //   ports.adapter.resolveValidateContract  →  F-la-config R3 (LIV-Standard contract registry)
-//   ports.cognitive.classifyRunReport →  F-codec R3 encodeLLM (post-beta integration)
+//   ports.cognitive.classifyRunReport →  F-ai-adapter R3 llm-classify-io (post-beta integration; F-codec dissolved Sprint 8 Shot 3a)
 //   ports.graph                    →  F-memory R3 primitives for F-artifact (shared impl)
 
 export { executeRun } from '../app/mi-execute'

@@ -23,9 +23,9 @@
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-FN    emitEvent()            →  F-ai-adapter/R2, F-permissions/R2, F-project/R2,
-//                                     F-memory/R2, F-planner/R2, F-codec/R2, F-output/R2
+//                                     F-memory/R2, F-planner/R2, F-output/R2 (F-codec/R2 consumer removed — F-codec dissolved Sprint 8 Shot 3a)
 //   W-ATOM  EVENTS                 →  F-ai-adapter/R2, F-permissions/R2
-//   W-FN    subscribeToEvent()     →  F-codec/R2 (codec-subscribe)
+//   W-FN    subscribeToEvent()     →  (formerly F-codec/R2 codec-subscribe; F-codec dissolved Sprint 8 Shot 3a)
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 //   W-EVENT  (hub — aggregates all slice events into EVENTS schema)

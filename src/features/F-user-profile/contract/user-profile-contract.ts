@@ -12,8 +12,7 @@
 //   W-ATOM  PROVIDERS         ../config/provider-keys-config
 //   W-ATOM  ModelPreferences  ../types/profile-types
 //   W-ATOM  ModelTierPreference ../types/profile-types
-//   W-ATOM  SESSION_COOKIE_NAME  F-identity/contract/auth-contract
-//   W-ATOM  validateSession      F-identity/contract/auth-contract
+//   W-FN    getPerimeterSession  F-identity/contract/perimeter-consultation
 // wires-out:
 //   W-HOOK  useUserProfile       →  F-chat/R3, F-dashboard/R3
 //   W-FN    upsertProfileForUser →  F-identity/R3
@@ -25,7 +24,7 @@
 //   R0  ../config/provider-keys-config
 //   R0  ../types/profile-types
 //   R2  ../app/user-profile-workflow
-//   R3  @/features/F-identity/contract/auth-contract
+//   R3  @/features/F-identity/contract/perimeter-consultation
 //   R4  ../exec/api-key-db
 //   R4  ../exec/user-profile-db
 //   R5  next/server
@@ -45,7 +44,7 @@
 
 import { NextRequest, NextResponse }                         from 'next/server'
 import { loadProfile, setPreferredModel, setDisplayName }   from '../app/user-profile-workflow'
-import { validateSession, SESSION_COOKIE_NAME }             from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession }                              from '@/features/F-identity/contract/perimeter-consultation'
 import { setApiKey, deleteApiKey, getApiKey, hasApiKey }    from '../exec/api-key-db'
 import { dbGetModelPreferences, dbSetModelPreferences }     from '../exec/user-profile-db'
 import { PROVIDERS }                                        from '../config/provider-keys-config'
@@ -53,10 +52,10 @@ import type { ProviderId }                                  from '../config/prov
 import type { ModelPreferences, ModelTierPreference }       from '../types/profile-types'
 
 // ── Session helper ─────────────────────────────────────────────────────────────
+// Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
+// R3 reads middleware-set headers via getPerimeterSession per PS v1.0 §6.9.
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!token) return null
-  return validateSession(token)
+  return getPerimeterSession(req)
 }
 
 // ── GET /api/profile ───────────────────────────────────────────────────────────

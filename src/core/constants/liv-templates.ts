@@ -406,6 +406,13 @@ export async function runJob(
 // A2: R3 never calls R4 directly.
 // A3: R3 validates shape — schema, required fields, format.
 // R3 maps Result to HTTP status code — never exposes raw error internals.
+//
+// Sprint 6 Shot 3 wire-in note (template-tier): scaffolding tooling supplying
+// AUTH_CONTRACT + AUTH_CONTRACT_PATH placeholders should set:
+//   AUTH_CONTRACT      = 'getPerimeterSession'
+//   AUTH_CONTRACT_PATH = '@/features/F-identity/contract/perimeter-consultation'
+// per Perimeter Standard v1.0 §6.9 (perimeter consultation surface) — distributed
+// validateSession pattern dissolved by F-005 closure.
 
 import { {FRAMEWORK_SERVER} } from '{FRAMEWORK_SERVER_PATH}'
 import { {AUTH_CONTRACT} } from '{AUTH_CONTRACT_PATH}'
@@ -415,11 +422,11 @@ import type { {INPUT_OUTPUT_ATOMS} } from '../types/{slice}-types'
 
 // A3: R3 extracts identity into RequestContext before calling R2.
 // R2 receives RequestContext — never reads session directly.
+// Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
+// R3 reads middleware-set headers via getPerimeterSession per Perimeter Standard v1.0 §6.9.
 
 async function getSession(req: {REQUEST_TYPE}) {
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!token) return null
-  return validateSession(token)
+  return getPerimeterSession(req)
 }
 
 {ROUTE_HANDLERS}`,

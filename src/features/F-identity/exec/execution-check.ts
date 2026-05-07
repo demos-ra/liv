@@ -37,7 +37,7 @@ const DECLARED_FILES: Array<{ layer: string; file: string; required: boolean }> 
   { layer: 'R3', file: 'contract/auth-routes.ts',     required: true },
   { layer: 'R3', file: 'contract/auth-hooks.ts',      required: true },
   { layer: 'R3', file: 'contract/auth-pages.tsx',     required: true },
-  { layer: 'R3', file: 'contract/auth-middleware.ts', required: true },
+  { layer: 'R3', file: 'contract/perimeter-consultation.ts', required: true },
   { layer: 'R4', file: 'exec/auth-db.ts',             required: true },
   { layer: 'R4', file: 'exec/auth-queries.ts',        required: true },
 ];

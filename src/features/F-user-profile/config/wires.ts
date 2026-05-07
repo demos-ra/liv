@@ -8,8 +8,7 @@
 
 // ─── Inbound (consumed by this slice) ─────────────────────────────────────────
 //   W-FN    useNamespace()         ←  F-la-config/R3 (registry-hook)
-//   W-FN    validateSession()      ←  F-identity/R3 (auth-contract)
-//   W-ATOM  SESSION_COOKIE_NAME    ←  F-identity/R3 (auth-contract)
+//   W-FN    getPerimeterSession()  ←  F-identity/R3 (perimeter-consultation; replaces validateSession+SESSION_COOKIE_NAME pattern per Sprint 6 Shot 3)
 //   W-ATOM  Surface, Button, ButtonText, Text, Heading, Label, Divider, Toast
 //                                  ←  F-design-system/R3 (primitives)
 

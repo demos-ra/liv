@@ -70,7 +70,7 @@
 // RS v1.0 landing: generated against metaframework-v3-1 v3.2.7 via
 // generation-procedure-v1-0 v1.1.6. Mode-symmetric L3 sibling of VS v1.0
 // (verificative) and Plan v2.2 (structural). Mode = epistemic (unknown → known).
-// Canonical spec: src/core/standards/research-standard.md
+// Canonical spec: PLACEMENT_REGISTRY.research_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 
 // research-standard.types.ts

@@ -30,7 +30,7 @@
 // A4: all I/O isolated at R4.
 // A2: imports R0 types and R5 db client only. No upward imports.
 // Result<T> on all fallible operations.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // DB row → typed atom boundary:
 //   DB reads are the external-origin ingress boundary. Raw row strings are cast

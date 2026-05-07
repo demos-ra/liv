@@ -8,7 +8,7 @@
 
 // ─── Inbound (consumed by this slice) ─────────────────────────────────────────
 //   W-FN    useRegisterProgram()   ←  F-dashboard/R3 (dashboard-registry)
-//   W-ATOM  GlobalGraphAdmin       ←  F-codec/R3 (global-graph-admin)
+//   W-ATOM  GlobalGraphAdmin       ←  (formerly F-codec/R3 global-graph-admin; F-codec dissolved Sprint 8 Shot 3a — admin global-graph routes return 501 pending Sprint 9 reauthor)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-ATOM  AdminBuild             →  (internal — route surface only)

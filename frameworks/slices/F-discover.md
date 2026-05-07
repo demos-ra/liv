@@ -1,5 +1,7 @@
 # F-discover
 
+> **Doc-lag acknowledgment (Structure-Tightening Sprint close, F-004 closure):** the body of this SLICE.md references F-codec encoding (codec-discovery.ts) for epistemic-mode routing. **F-codec was dissolved at Sprint 8 Shot 3a.** F-discover remains reachable via direct programmatic invocation (`executeResearchFromInput()` from R3); the codec-mediated dispatch path is presently inactive. Substantive SLICE.md rewrite for the post-F-codec dispatch path is queued for Sprint 9.
+
 **Identity:** Research Standard v1.0 authoring program — composes RA1–RA10 research artifact from a `ResearchInput` + per-domain `ResearchBinding` and emits via AS v2.2.
 
 **Ownership:** F-discover owns the orchestration logic that turns a research request into a structurally valid `ResearchArtifactContent`. F-discover does **not** own encoding (F-codec), graph reads (F-memory R3), AS emission mechanics (F-artifact), or Research Standard atom declarations (core/R5). (A1)

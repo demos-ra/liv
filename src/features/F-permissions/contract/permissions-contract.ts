@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Action } from '../config/permissions-config'
 import { requirePermission as _requirePermission, assignDefaultRole as _assignDefaultRole, setMemberRole as _setMemberRole } from '../app/permissions-workflow'
-import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // ─── requirePermission (D6 fix — cross-slice contract surface) ────────────────
 // Any slice needing permission checks imports this, not permissions-workflow.
@@ -38,10 +38,8 @@ export function withPermission(action: Action, projectIdParam = 'projectId') {
     handler: (req: NextRequest, ctx: { userId: string; projectId: string }) => Promise<NextResponse>
   ) {
     return async (req: NextRequest, { params }: { params: Record<string, string> }) => {
-      const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
-      if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
-
-      const session = await validateSession(accessToken)
+      // Sprint 6 Shot 3: perimeter validates at unitary site; R3 reads via getPerimeterSession.
+      const session = getPerimeterSession(req)
       if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
       const projectId = params[projectIdParam]

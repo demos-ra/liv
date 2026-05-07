@@ -42,7 +42,7 @@
 // Living Memory v3.1 — substrate service.
 // R2: orchestrates SW1–SW3 (substrate write) and TQ1–TQ3 (thread query)
 // procedures. Composes 6 operations declared in §3.10 of the standard.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // Procedure structure (LM v3.1 §3.8, §3.9):
 //   SW1 (mechanical, stage 2)        — validate shape; assign position + time

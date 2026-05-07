@@ -1,0 +1,38 @@
+// @liv-standard v1.5.1
+// [core/R5]
+// Built with LIV · livai.dev
+// @manifest
+// standard: LIV-Standard v1.5.1
+// amended:  none
+// slice:    core
+// layer:    R5
+// wires-in: none
+// wires-out:
+//   W-ATOM PERIMETER_HEADER_USER_ID     → root middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_SESSION_ID  → root middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+// deps: none
+// validated: pending
+
+// ═══════════════════════════════════════════════════════════════
+// PERIMETER HEADER NAMES — R5 placement-stable constants
+// ═══════════════════════════════════════════════════════════════
+// Canonical spec: F-FORWARD-1 (governance doc not yet authored; see PLACEMENT_REGISTRY change log)
+//
+// Rationale (DD-Step-5 = 5B): the perimeter site (root middleware.ts) is
+// placement-mobile per LIV-Standard (Next.js convention places it at root,
+// not inside src/). The header-name string constants it produces are
+// placement-stable R5 atoms consumed by both the site (setter) and
+// downstream contracts (reader at F-identity/contract/perimeter-
+// consultation.ts). Co-locating the constants with the site would violate
+// R5 placement stability; relocating them to src/core/constants/ keeps
+// them inside the typed-runtime tree where LIV-Standard R-layer rules
+// apply uniformly.
+//
+// Header naming convention: 'x-perimeter-*' marks headers as perimeter-
+// internal — set only by the perimeter site, consumed only by F-identity/
+// contract/perimeter-consultation.ts. Programs and contracts MUST NOT
+// set these headers; the unitary-site invariant (PA-I) requires that
+// perimeter-validated state can only originate at the perimeter site.
+
+export const PERIMETER_HEADER_USER_ID    = 'x-perimeter-user-id'
+export const PERIMETER_HEADER_SESSION_ID = 'x-perimeter-session-id'

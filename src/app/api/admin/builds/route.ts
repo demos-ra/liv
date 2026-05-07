@@ -8,14 +8,14 @@
 // slice:      F-admin
 // layer:      R4
 // wires-in:
-//   W-ATOM  SESSION_COOKIE_NAME  @/features/F-identity/contract/auth-contract
-//   W-ATOM  validateSession      @/features/F-identity/contract/auth-contract
+//   W-FN    getPerimeterSession  @/features/F-identity/contract/perimeter-consultation
 //   W-ATOM  isEmailAllowed       @/features/F-identity/contract/auth-contract
 //   W-FN    dbGetBuilds          @/features/F-admin/exec/admin-db
 //   W-FN    dbGetUserEmail       @/features/F-admin/exec/admin-db
 // wires-out:  none  (external HTTP surface)
 // deps:
-//   R3  @/features/F-identity/contract/auth-contract  (A5)
+//   R3  @/features/F-identity/contract/auth-contract              (A5; isEmailAllowed)
+//   R3  @/features/F-identity/contract/perimeter-consultation     (A5; getPerimeterSession per PS v1.0 §6.9)
 //   R4  @/features/F-admin/exec/admin-db              (A4 — I/O at R4)
 //   R5  next/server
 // validated: pending
@@ -30,18 +30,14 @@
 //   Axiom cite: A4 — email resolution is I/O, lives at R4. A1 — F-admin owns this route.
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { SESSION_COOKIE_NAME, validateSession, isEmailAllowed } from '@/features/F-identity/contract/auth-contract'
+import { isEmailAllowed } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 import { dbGetBuilds, dbGetUserEmail } from '@/features/F-admin/exec/admin-db'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // ── Session auth ──────────────────────────────────────────────────────────
-  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
-
-  if (!accessToken) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const session = await validateSession(accessToken)
+  // Sprint 6 Shot 3: perimeter validates at unitary site; R4 reads via getPerimeterSession.
+  const session = getPerimeterSession(req)
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

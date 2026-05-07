@@ -35,7 +35,7 @@
 // ═══════════════════════════════════════════════════════════════
 // Living Memory v3.1 substrate atoms. Pure event-store: two axes,
 // state-change records, identity threads, scope as attribute.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 //
 // Sprint 8 Shot 1: authored alongside (not replacing) legacy

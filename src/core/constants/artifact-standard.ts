@@ -42,7 +42,7 @@
 // ═══════════════════════════════════════════════════════════════
 // Artifact Standard v2.2 landing: regenerated against metaframework-v3-1;
 // fix-round-1 applied.
-// Canonical spec: src/core/standards/artifact-standard.md
+// Canonical spec: PLACEMENT_REGISTRY.artifact_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 
 // artifact-standard.ts

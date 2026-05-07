@@ -16,7 +16,7 @@
 
 // Living Memory v3.1 — substrate event declarations.
 // R0: zero dependencies. Pure constant + type.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // A5: each slice declares its own events.
 // A6: declared at R0.

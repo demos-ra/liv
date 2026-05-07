@@ -14,8 +14,7 @@
 //   W-ATOM    ProjectDelta         ../types/project-types
 //   W-ATOM    ProjectId            ../types/project-types
 //   W-ATOM    CreateBuildPayload   ../types/project-types
-//   W-ATOM    SESSION_COOKIE_NAME  F-identity/contract/auth-contract (W-ATOM)
-//   W-ATOM    validateSession      F-identity/contract/auth-contract (W-ATOM)
+//   W-FN      getPerimeterSession  F-identity/contract/perimeter-consultation (W-FN; perimeter consultation per PS v1.0 §6.9)
 // wires-out:
 //   W-HOOK  useProject  →  F-chat/R3, F-workspace/R3
 // deps:
@@ -26,7 +25,7 @@
 // validated:  2026-03-12
 
 import { NextRequest, NextResponse } from 'next/server'
-import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 import {
   createProject,
   getProject,
@@ -42,11 +41,11 @@ import type {
 } from '../types/project-types'
 
 // ── Shared session helper ─────────────────────────────────────────────────────
-// FL-AUTH: R3 extracts token → R2 validates → R4 reads session → R3 receives result
+// FL-AUTH (Sprint 6 Shot 3): perimeter validates at unitary site (src/middleware.ts);
+// R3 reads middleware-set headers via getPerimeterSession. No DB call here per
+// Perimeter Standard v1.0 PA-I unitarity (validation site singular).
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!token) return null
-  return validateSession(token)
+  return getPerimeterSession(req)
 }
 
 // ── GET /api/projects ─────────────────────────────────────────────────────────

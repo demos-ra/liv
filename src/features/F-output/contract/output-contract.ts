@@ -13,8 +13,7 @@
 //   W-ATOM    OutputResult            ../types/output-types
 //   W-ATOM    PushPayload             ../types/output-types
 //   W-ATOM    OUTPUT_CONST            ../types/output-const
-//   W-ATOM    validateSession         @/features/F-identity/contract/auth-contract
-//   W-ATOM    SESSION_COOKIE_NAME     @/features/F-identity/contract/auth-contract
+//   W-FN      getPerimeterSession     @/features/F-identity/contract/perimeter-consultation
 //   W-FN      dbReplaceOutputFiles    ../exec/output-db
 // wires-out:
 //   W-HOOK    handleGetFiles          →  app/api/output/[jobId]/files/route.ts
@@ -26,7 +25,7 @@
 //   R0  ../types/output-const
 //   R2  ../workflow/output-workflow
 //   R3  ./output-inject
-//   R3  @/features/F-identity/contract/auth-contract
+//   R3  @/features/F-identity/contract/perimeter-consultation
 //   R4  ../exec/output-db
 // validated:  pending
 //
@@ -37,7 +36,7 @@
 //   Axiom cite: A1 — F-output owns output_files column. A2 — R4 via R3 bridge.
 
 import { NextRequest, NextResponse }           from 'next/server'
-import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession }                 from '@/features/F-identity/contract/perimeter-consultation'
 import { getFiles, assembleZip, pushToRemote } from '../workflow/output-workflow'
 import { createOutputDb, createGitPush }       from './output-inject'
 import { OUTPUT_CONST }                        from '../types/output-const'
@@ -56,11 +55,11 @@ export async function writeOutputFiles(
 }
 
 // ── Shared session helper ─────────────────────────────────────────────────────
+// Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
+// R3 reads middleware-set headers via getPerimeterSession per PS v1.0 §6.9.
 
 async function getSession(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!token) return null
-  return validateSession(token)
+  return getPerimeterSession(req)
 }
 
 // ── GET /api/output/[jobId]/files ─────────────────────────────────────────────

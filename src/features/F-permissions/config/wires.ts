@@ -10,8 +10,7 @@
 //   W-FN    emitEvent()            ←  F-event-system/R3 (event-bus)
 //   W-ATOM  EVENTS                 ←  F-event-system/R0 (event-schema)
 //   W-FN    useNamespace()         ←  F-la-config/R3 (registry-hook)
-//   W-FN    validateSession()      ←  F-identity/R3 (auth-contract)
-//   W-ATOM  SESSION_COOKIE_NAME    ←  F-identity/R3 (auth-contract)
+//   W-FN    getPerimeterSession()  ←  F-identity/R3 (perimeter-consultation; replaces validateSession+SESSION_COOKIE_NAME pattern per Sprint 6 Shot 3)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-FN    requirePermission()    →  F-la-config/R3 (la-contract)

@@ -69,7 +69,7 @@
 // ═══════════════════════════════════════════════════════════════
 // Plan Standard v2.2 landing: regenerated against metaframework-v3-1;
 // fix-round-1 (§6 Coupling consolidation) + fix-round-2 (§1 scopeOut row per X4).
-// Canonical spec: src/core/standards/plan-standard.md
+// Canonical spec: PLACEMENT_REGISTRY.plan_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 
 // plan-standard.types.ts

@@ -1,5 +1,7 @@
 # F-verify
 
+> **Doc-lag acknowledgment (Structure-Tightening Sprint close, F-004 closure):** the body of this SLICE.md references F-codec encoding (codec-verify.ts) for verificative-mode routing. **F-codec was dissolved at Sprint 8 Shot 3a.** F-verify remains reachable via direct programmatic invocation (`executeVerificationFromInput()` from R3); the codec-mediated dispatch path is presently inactive. Substantive SLICE.md rewrite for the post-F-codec dispatch path is queued for Sprint 9.
+
 **Identity:** Verification Standard v1.0 authoring program — composes VA1–VA9 verification artifact from a `VerificationInput` + per-domain `VerificationBinding` and emits via AS v2.2.
 
 **Ownership:** F-verify owns the orchestration logic that turns a verification request into a structurally valid `VerificationArtifactContent`. F-verify does **not** own encoding (F-codec), graph reads (F-memory R3), AS emission mechanics (F-artifact), or Verification Standard atom declarations (core/R5). (A1)

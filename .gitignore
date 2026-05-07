@@ -42,4 +42,3 @@ next-env.d.ts
 src.zip
 backups/
 *.tar.gz
-.deploy-records/

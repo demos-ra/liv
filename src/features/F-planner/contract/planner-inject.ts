@@ -66,7 +66,7 @@
 //   build-scoped — a module-level binding would leak plan cache across runs
 //   and contradict A7. Long-lived dependencies (db, ai, executor, output)
 //   remain bound here as before. Real wiring in Phase 6/7 (F-memory R3
-//   primitives, F-codec R3 encodeLLM adapter) replaces createPhase5StubSurface
+//   primitives, F-ai-adapter R3 llm-classify-io adapter post Sprint 8 Shot 3a F-codec dissolution) replaces createPhase5StubSurface
 //   without touching this file.
 
 import type { IPlannerDb, IAiAdapter, IExecutor, IOutputWriter } from '../workflow/planner-workflow'

@@ -1,5 +1,7 @@
 # F-plan
 
+> **Doc-lag acknowledgment (Structure-Tightening Sprint close, F-004 closure):** the body of this SLICE.md describes the pre-Sprint-8-Shot-3a wire path through F-codec (codec-orchestrate dispatch, PLAN_MODULE registry, post-A6 typed output reads). **F-codec was dissolved at Sprint 8 Shot 3a.** The salvaged classifier lives at `F-ai-adapter/exec/llm-classify-io.ts`; the dispatch surfaces (`/api/modules/*`, `/api/memory/*`) currently return HTTP 501 pending Sprint 9 reauthor against substrate. F-plan's own composition logic and Plan Standard v2.2 contract remain valid; the *runtime entry path* is staged for Sprint 9 wire-in. The per-section claims below are preserved verbatim as historical record of the Sprint B wire-up; substantive SLICE.md rewrite for the post-F-codec dispatch path is queued for the same Sprint 9 cycle that wires the BCR-emission scaffold.
+
 **Identity:** Plan Standard v2.2 authoring program — composes PA1–PA12 declaration set from typed cognitive output and emits via AS v2.3.
 
 **Ownership:** F-plan owns the composition logic that turns user intent into a structurally valid `PlanArtifactContent`. F-plan does **not** own encoding (F-codec), graph reads (F-memory R3), execution (M-I), or Plan Standard atom declarations (core/R5). (A1)

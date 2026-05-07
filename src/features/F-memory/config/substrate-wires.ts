@@ -15,7 +15,7 @@
 // Wire contract registry for the F-memory substrate (Living Memory v3.1).
 // A1: F-memory owns every wire declared here.
 // A6: all outbound wires declared at R0 of the defining slice.
-// Canonical spec: src/core/standards/living-memory.md
+// Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 //
 // Sprint 8 Shot 1: authored alongside legacy memory-wires.ts.
 // Substrate wires below are independent of legacy LM v1.1 wires; both files

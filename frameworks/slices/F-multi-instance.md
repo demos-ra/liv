@@ -51,7 +51,7 @@ build DispatchPlan       assemble RunReportContent             return MIEmission
 - Port interfaces:
   - `PlanResolutionPort` — F-memory read primitive
   - `AIAdapterPort` — F-ai-adapter invocation surface
-  - `CognitiveClassificationPort` — F-codec encodeLLM supply for AS emission
+  - `CognitiveClassificationPort` — F-ai-adapter llm-classify-io supply for AS emission (F-codec dissolved Sprint 8 Shot 3a; salvaged classifier lives at F-ai-adapter/exec/llm-classify-io.ts)
   - `ArtifactGraphPort` (re-exported from F-artifact)
 
 ## What This Slice Does NOT Own
@@ -60,7 +60,7 @@ build DispatchPlan       assemble RunReportContent             return MIEmission
 - Plan composition / validity (PA1–PA12) → Plan authoring programs (not yet a slice in 4b)
 - LLM streaming → F-ai-adapter
 - Graph primitives → F-memory
-- Cognitive classification → F-codec
+- Cognitive classification → F-ai-adapter (post Sprint 8 Shot 3a salvage; F-codec dissolved)
 - DomainBinding instance content → domain standards (F-la-config for LIV-Standard)
 
 ## Public Contract (R3)

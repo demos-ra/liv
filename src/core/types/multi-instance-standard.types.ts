@@ -57,7 +57,7 @@
 // Multi-Instance Standard v2.3 landing: regenerated against metaframework-v3-1;
 // fix-round-1 (§3.8 Relational + §6 Coupling + §10 externalization).
 // Consumes Plan Standard v2.2 by graph identity. Carrier pinned to AS v2.2.
-// Canonical spec: src/core/standards/multi-instance-standard.md
+// Canonical spec: PLACEMENT_REGISTRY.multi_instance_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
 
 // @liv-standard v1.5.1

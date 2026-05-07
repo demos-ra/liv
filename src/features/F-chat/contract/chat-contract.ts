@@ -8,8 +8,7 @@
 // slice:      F-chat
 // layer:      R3
 // wires-in:
-//   W-ATOM  SESSION_COOKIE_NAME  F-identity/contract/auth-contract
-//   W-ATOM  validateSession      F-identity/contract/auth-contract
+//   W-FN    getPerimeterSession  F-identity/contract/perimeter-consultation
 //   W-ATOM  MODELS               F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  CHAT_CONFIG          ../config/chat-config
 //   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
@@ -21,7 +20,7 @@
 //   R1  ../domain/chat-logic
 //   R1  @/core/domain/rate-limiter
 //   R2  ../app/chat-workflow
-//   R3  @/features/F-identity/contract/auth-contract
+//   R3  @/features/F-identity/contract/perimeter-consultation
 //   R3  @/features/F-planner/contract/planner-contract
 //   R5  next/server
 // validated:  pending
@@ -45,7 +44,7 @@
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { sendMessage, getMessages }             from '../app/chat-workflow'
-import { SESSION_COOKIE_NAME, validateSession } from '@/features/F-identity/contract/auth-contract'
+import { getPerimeterSession }                  from '@/features/F-identity/contract/perimeter-consultation'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }         from '../config/chat-config'
 import { validateMessageContent }               from '../domain/chat-logic'
 import { MODELS }                               from '@/features/F-ai-adapter/config/ai-adapter-config'
@@ -67,9 +66,8 @@ export async function POST_message(
   req:    NextRequest,
   { params }: { params: { projectId: string } }
 ): Promise<Response> {
-  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!accessToken) return new Response('Unauthenticated', { status: 401 })
-  const session = await validateSession(accessToken)
+  // Sprint 6 Shot 3: perimeter validates at unitary site; R3 reads via getPerimeterSession.
+  const session = getPerimeterSession(req)
   if (!session) return new Response('Unauthenticated', { status: 401 })
 
   // ── Rate limit ──────────────────────────────────────────────────────────────
@@ -181,9 +179,8 @@ export async function GET_messages(
   req:    NextRequest,
   { params }: { params: { projectId: string } }
 ): Promise<NextResponse> {
-  const accessToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
-  if (!accessToken) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
-  const session = await validateSession(accessToken)
+  // Sprint 6 Shot 3: perimeter validates at unitary site; R3 reads via getPerimeterSession.
+  const session = getPerimeterSession(req)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
   const { projectId } = params
