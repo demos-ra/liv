@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # verification-standard-v1-0
 
 **Kind:** Framework

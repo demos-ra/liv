@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/manual/
+---
+
 # LIV MANUAL
 
 SPEC-v11.2 · 2026-05-07

@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-verify
 
 > **Doc-lag acknowledgment (Structure-Tightening Sprint close, F-004 closure):** the body of this SLICE.md references F-codec encoding (codec-verify.ts) for verificative-mode routing. **F-codec was dissolved at Sprint 8 Shot 3a.** F-verify remains reachable via direct programmatic invocation (`executeVerificationFromInput()` from R3); the codec-mediated dispatch path is presently inactive. Substantive SLICE.md rewrite for the post-F-codec dispatch path is queued for Sprint 9.

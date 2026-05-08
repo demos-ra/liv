@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # MF-amendment-1 — Sprint-close audit report
 
 **Cycle:** MF-amendment-1 (substrate-touching amendment; two-shot sprint)

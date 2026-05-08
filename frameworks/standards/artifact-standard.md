@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # artifact-standard-v2-2
 
 **Kind:** Framework

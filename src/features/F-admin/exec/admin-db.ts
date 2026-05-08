@@ -32,7 +32,7 @@
 // phase-ab-blast-radius (A4):
 //   Result<T> return types restored. Phase A (CC.07) wrapped these in Result<T>.
 //   Phase B delegation dropped the wrapper. Callers (builds/route.ts Phase A version,
-//   global-graph routes) expect Result<T>. Signature contract restored.
+//   global-graph routes deleted Sprint 9 Shot 2) expect Result<T>. Signature contract retained for builds route.
 //   Axiom cite: A4 — typed error propagation at I/O boundary.
 
 import type { Result } from '@/core/types/primitives'

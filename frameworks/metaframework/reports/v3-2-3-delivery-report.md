@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # v3-2-3 Delivery Report
 
 **Cycle:** v3.2.3 declaration-tier additive

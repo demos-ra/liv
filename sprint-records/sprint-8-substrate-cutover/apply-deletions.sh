@@ -1,4 +1,6 @@
 #!/bin/bash
+# @kind cycle-record
+# @placement sprint-records/sprint-8-substrate-cutover/
 # Run from ~/liv-app-v2
 # Deletes all dissolved files per Sprint 8 shots 3a + 3b
 FILES=(

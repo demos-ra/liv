@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-identity Slice
 
 **LIV Build Bible Phase 2 — Vertical Proof**

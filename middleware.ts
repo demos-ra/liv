@@ -55,6 +55,8 @@
 // A4: I/O at R4 only — validateSession calls DB via auth-contract.
 // A6: SESSION_COOKIE_NAME imported from F-identity canonical source.
 // Note: Middleware runs on nodejs runtime (declared in config below).
+// @kind typed-runtime-projectroot
+// @placement ./
 
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession, SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'

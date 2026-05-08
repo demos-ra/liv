@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-multi-instance Slice
 
 **Multi-Instance Standard v2.3 · LIV-Standard v1.5.1**

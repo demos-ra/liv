@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/frameworks/
+---
+
 # framework-registry-v1-0
 
 **Kind:** non-framework (state store)

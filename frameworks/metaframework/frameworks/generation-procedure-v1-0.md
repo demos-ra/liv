@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/frameworks/
+---
+
 # generation-procedure-v1-0
 
 **Kind:** Framework

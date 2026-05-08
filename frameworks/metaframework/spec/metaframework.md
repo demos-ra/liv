@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/spec/
+---
+
 # v3.2.7 Spec — Metaframework System
 
 **Status:** MF-Cycle-2 Spec↔Referent Alignment Closure delivery. Builds on cycle-1.6 baseline by closing the three uncovered cells (Categorical, Schema, Lifecycle) of the spec↔referent column with one column-coherent amendment: 3 new substrate atoms (A-18 ReferentCitation with inline ExpectedShape sub-shape + A-19 ReferentAlignmentState + A-20 ReferentSnapshot), 3 new metaframework axioms with paired gates (MA-V10/G-V10 Validity, MA-S8/G-S8 Schema, MA-L11/G-L11 Lifecycle), MA-S7 predicate tightened in-place to recursive `≼` (governs A-18.ExpectedShape discriminated-union sub-shape), 4-site framework-audit schema-field cluster, drift-disposition flow declared at amendment-propagation §3.5. Spec rev-4.

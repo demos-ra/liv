@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-memory Slice
 
 **Living Memory v3.1 · Substrate-only**

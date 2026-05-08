@@ -59,11 +59,11 @@
 
 // ─── Framework identity ──────────────────────────────────────────────────────
 
-// ─── Cross-tree placement consultation (PL-A2) ─────────────────────────────
-// Per Placement Standard PL-A2: the perimeter site path is consulted from
-// the PLACEMENT_REGISTRY rather than hardcoded. Registry entry
-// 'perimeter_site' is the single declaration of canonical placement.
-import { PLACEMENT_REGISTRY } from './placement-standard'
+// ─── Cross-tree placement (PL-A1 inverted, Sprint 9 Shot 1) ────────────────
+// Per inverted Placement Standard PL-A1: middleware.ts declares its own
+// kind+placement inline. The canonical path is the self-declaration on that file.
+// Static literal replaces registry lookup; value is authoritative per PL-A1 inversion.
+// PLACEMENT_REGISTRY import removed — registry dissolved at Sprint 9 Shot 1 (Stream A).
 
 export const PERIMETER_FRAMEWORK_ID = 'perimeter' as const
 export const PERIMETER_FRAMEWORK_VERSION = '1.0' as const
@@ -309,12 +309,10 @@ export const PERIMETER_CARRIER_REF = {
 // LIV_INSTANCE_PERIMETER_SITE_REF: the identifier of the one perimeter site
 // per LIV instance per Manual §I.4 unitarity.
 //
-// Value resolved via PLACEMENT_REGISTRY.perimeter_site.home (PL-A2
-// consultation). Single declaration of canonical placement lives in the
-// registry; this constant is the consumption surface. G-PS-A6 + G-PS-I
-// evaluate against the registry-resolved value.
+// Value: 'middleware.ts' — self-declared by middleware.ts per inverted PL-A1 (Sprint 9 Shot 1).
+// Registry lookup replaced with static literal; PLACEMENT_REGISTRY dissolved.
 
-export const LIV_INSTANCE_PERIMETER_SITE_REF: string = PLACEMENT_REGISTRY.perimeter_site.home
+export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'middleware.ts'
 
 // ─── Default PerimeterBinding (§6.2; G-PS-Cn3 vacuous-pass target at v1.0) ──
 // Default permitted-authority bindings for the seven named channels. Sprint 6
@@ -367,7 +365,7 @@ export const DEFAULT_PERIMETER_BINDING = {
     maxIndexSize:  null,    // unbounded at v1.0; Sprint 9 wire-in may bound
   },
 
-  unitarySiteRef: PLACEMENT_REGISTRY.perimeter_site.home,
+  unitarySiteRef: 'middleware.ts',  // inverted PL-A1: static literal (Sprint 9 Shot 1)
 }
 
 // ─── End of perimeter-standard.ts ───────────────────────────────────────────

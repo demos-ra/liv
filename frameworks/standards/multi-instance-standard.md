@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # multi-instance-standard-v2-3
 
 **Kind:** Framework

@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # Phase 9h Work Item 1 — G-U1 First-Run Report
 
 **Executor:** framework-audit-v1-3.1 runtime (build instance acting as executor per phase-9h-spec §2.2).

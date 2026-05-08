@@ -1,3 +1,8 @@
+---
+kind: cycle-record
+placement: sprint-records/sprint-8-substrate-cutover/deploy-notes/
+---
+
 # Sprint 8 — Migration 016 (substrate tables)
 
 ## Migration file

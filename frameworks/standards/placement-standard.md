@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # placement-standard-v1-0
 
 **Kind:** Framework
@@ -174,48 +179,48 @@ Six own axioms, distributed across MFv3 axes per AxR1 (every axiom binds to exac
 
 | Axiom ID | Axis binding | Mechanical condition |
 |---|---|---|
-| PL-A1 | Schema | Single-declaration: every item registered in `PLACEMENT_REGISTRY` has exactly one entry keyed by `PlacementId`; no `PlacementId` appears as key more than once. |
-| PL-A2 | Validity | Consultation-only: every code reference to a registry-declared placement consults `PLACEMENT_REGISTRY[<identifier>].home` rather than hardcoding the path string literal. |
-| PL-A3 | Lifecycle | Versioned identity: `PLACEMENT_REGISTRY` carries a Semver-pattern `registryVersion` field; historical references cite the registryVersion at read time. |
-| PL-A4 | Lifecycle | Amendment propagation: registry mutations follow `amendment-propagation-v1-0` AmendmentEvent flow (per substrate §4 A-12 ActivationTrigger + amendment-propagation §3.3 AP1–AP7+AP6.5 procedure). |
-| PL-A5 | Identity | Domain-bounded: registry declares placement of LIV-shaped items only (kind ∈ `PlacementItemKind` enum: framework | cycle-record | typed-runtime-projectroot | build-config | platform-tooling); items outside the enum are out of scope. |
-| PL-A6 | Schema | Unitarity: exactly one canonical `home` per registered `itemId` — no multi-home items; no two distinct `PlacementRecord`s share the same `itemId`. |
+| PL-A1 | Schema | Self-declaration: each LIV-shaped artifact is the authoritative declaration of its own kind and placement; every artifact declares `kind` and `placement` inline (YAML frontmatter for MD; `// @kind` + `// @placement` comments for TS/MJS/SH; `# @kind` + `# @placement` for shell/gitignore). |
+| PL-A2 | Validity | Filesystem authority: filesystem is authoritative for position; declared placement must match actual filesystem location of the declaring file. Drift = mismatch between declared and observed. |
+| PL-A3 | Lifecycle | Domain-bounded declaration: declared `kind` must be a member of `PlacementItemKind` enum (`'framework' | 'cycle-record' | 'typed-runtime-projectroot' | 'build-config' | 'platform-tooling'`); declarations with kind values outside the enum are violations. |
+| PL-A4 | Lifecycle | Amendment propagation: additions or changes to inline declarations follow `amendment-propagation-v1-0` AmendmentEvent flow (per substrate §4 A-12 ActivationTrigger + amendment-propagation §3.3 AP1–AP7+AP6.5 procedure). |
+| PL-A5 | Identity | Domain-bounded scope: Placement Standard governs cross-tree placement of LIV-shaped items only; inside-slice placement (within `src/features/F-*/`) is governed by LIV-Standard; items not meeting any PlacementItemKind definition are out of scope. |
+| PL-A6 | Schema | Self-declaration is additive: adding a kind+placement declaration to an existing file requires no other amendment; the declaration is complete at the file boundary. |
 
 #### §3.3.1 Per-axiom AxR conformance
 
-**PL-A1 (Schema).**
-- AxR1: binds Schema axis ✓ (typed-shape cardinality discipline on the registry's keyed entries).
-- AxR2: one mechanical condition (cardinality on PlacementId key uniqueness; substrate §6.3 cardinality + reference-resolution classes) ✓.
-- AxR3: additive ✓ (registering new items extends the registry; existing keys remain stable).
-- AxR4: declarative ✓ ("every item has exactly one entry").
+**PL-A1 (Schema). Sprint 9 Shot 1 inverted form.**
+- AxR1: binds Schema axis ✓ (typed-shape discipline on inline declaration fields).
+- AxR2: one mechanical condition (structural property: every LIV-shaped artifact has inline kind+placement declaration fields; substrate §6.3 structural property class) ✓.
+- AxR3: additive ✓ (adding declarations to existing files leaves other declarations stable).
+- AxR4: declarative ✓ ("each artifact declares its own kind and placement").
 
-**PL-A2 (Validity).**
-- AxR1: binds Validity axis ✓ (verification surface: what counts as a valid placement reference in code).
-- AxR2: one mechanical condition (structural property: every path-string reference in TS/TSX/MD files matching registry-declared patterns appears in registry-consumption position; substrate §6.3 structural property + reference-resolution classes) ✓.
-- AxR3: additive ✓ (new consumption sites comply by registering consultation; existing hardcodes are caught at first audit run).
+**PL-A2 (Validity). Sprint 9 Shot 1 inverted form.**
+- AxR1: binds Validity axis ✓ (verification surface: what counts as a valid placement — declared matches observed).
+- AxR2: one mechanical condition (structural property: declared placement string matches actual directory of the declaring file per filesystem observation; substrate §6.3 structural property + reference-resolution classes) ✓.
+- AxR3: additive ✓ (new files comply by adding declarations; drift on existing files is caught at next validator run).
 - AxR4: declarative ✓.
 
-**PL-A3 (Lifecycle).**
-- AxR1: binds Lifecycle axis ✓ (versioning concern).
-- AxR2: one mechanical condition (type-check: registryVersion field present and Semver-pattern conforming per substrate §7) ✓.
-- AxR3: additive ✓.
-- AxR4: declarative ✓.
-
-**PL-A4 (Lifecycle).**
-- AxR1: binds Lifecycle axis ✓ (amendment concern).
-- AxR2: one mechanical condition (reference-resolution: registry mutations resolve to declared AmendmentEvent in amendment-propagation §3.3 AP1 input; substrate §6.3 reference-resolution class) ✓.
-- AxR3: additive ✓.
-- AxR4: declarative ✓.
-
-**PL-A5 (Identity).**
-- AxR1: binds Identity axis ✓ (scope/domain concern; complements §1 scopeOut declaration).
-- AxR2: one mechanical condition (enum-membership: every PlacementRecord.itemKind value ∈ PlacementItemKind enum; substrate §6.3 enum-membership class) ✓.
+**PL-A3 (Lifecycle). Sprint 9 Shot 1 inverted form.**
+- AxR1: binds Lifecycle axis ✓ (domain/scope concern at declaration site).
+- AxR2: one mechanical condition (enum-membership: declared kind value ∈ PlacementItemKind enum literal set; substrate §6.3 enum-membership class) ✓.
 - AxR3: additive ✓ (PlacementItemKind extends additively per PR2 if new kinds emerge).
 - AxR4: declarative ✓.
 
-**PL-A6 (Schema).**
-- AxR1: binds Schema axis ✓ (cardinality discipline on the home field per item).
-- AxR2: one mechanical condition (cardinality: |{record.home : record.itemId = X}| = 1 for every X ∈ registry keys; substrate §6.3 cardinality class) ✓.
+**PL-A4 (Lifecycle). Unchanged.**
+- AxR1: binds Lifecycle axis ✓ (amendment concern).
+- AxR2: one mechanical condition (reference-resolution: declaration additions/changes resolve to declared AmendmentEvent in amendment-propagation §3.3 AP1 input; substrate §6.3 reference-resolution class) ✓.
+- AxR3: additive ✓.
+- AxR4: declarative ✓.
+
+**PL-A5 (Identity). Sprint 9 Shot 1 inverted form.**
+- AxR1: binds Identity axis ✓ (scope/domain concern; complements §1 scopeOut declaration).
+- AxR2: one mechanical condition (scope-boundary: LIV-Standard governs inside-slice; Placement Standard governs cross-tree; boundary is the slice root `src/features/F-*/`; substrate §6.3 structural property class) ✓.
+- AxR3: additive ✓.
+- AxR4: declarative ✓.
+
+**PL-A6 (Schema). Sprint 9 Shot 1 inverted form.**
+- AxR1: binds Schema axis ✓ (additive-only discipline on declaration sites).
+- AxR2: one mechanical condition (additive: adding a declaration to an existing file produces no side-effect amendment obligations on other files; substrate §6.3 cardinality class — declaration count per file = 1) ✓.
 - AxR3: additive ✓.
 - AxR4: declarative ✓.
 
@@ -324,41 +329,41 @@ Placement Standard declares **6 own gates** (G-PL1..G-PL6, 1:1 paired with PL-A1
 
 ### §4.2 Own gates (1:1 paired with PL-A1..PL-A6 per G-M1)
 
-#### §4.2.1 G-PL1 — Single-declaration
+#### §4.2.1 G-PL1 — Self-declaration (Sprint 9 Shot 1 inverted)
 
-*Claim:* Every key in `PLACEMENT_REGISTRY` is unique; no `PlacementId` appears as a key more than once.
+*Claim:* Every LIV-shaped artifact within la-validator walk scope has an inline kind+placement declaration (YAML frontmatter for MD; `// @kind` + `// @placement` for TS/MJS; `# @kind` + `# @placement` for SH/gitignore).
 
-*Test (mechanical):* Enumerate keys of `PLACEMENT_REGISTRY` constant exported from `src/core/constants/placement-standard.ts`; verify `|keys| === |new Set(keys)|`. Per substrate §6.3 cardinality class.
+*Test (mechanical):* Walk `src/`, `frameworks/`, `sprint-records/` plus root-level in-scope files; for each file read self-declaration; report files with both fields absent as undeclared (notes — not hard-fail per Sprint 9 brief §A.2). Per substrate §6.3 structural property class.
 
-*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff key uniqueness holds; `failed` with first-duplicating-key logged); applicability='applicable' for any non-empty registry; basis populated when applicability='n/a' (vacuously satisfied if registry empty per MA-V11 — not the case at v1.0).
+*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff zero kind-declared-but-placement-absent or placement-declared-but-kind-absent violations; `failed` with violating file logged); undeclared items reported as notes only.
 
 *Tests:* PL-A1.
 
-*Escalation path:* G-PL1 failure → MA-L4 amendment trigger (registry malformed; deploy halt; remediation re-runs at next audit cycle).
+*Escalation path:* G-PL1 failure (partial declaration — one field present, other absent) → MA-L4 amendment trigger; remediation: complete declaration on flagged file.
 
-#### §4.2.2 G-PL2 — Consultation-only
+#### §4.2.2 G-PL2 — Filesystem authority (Sprint 9 Shot 1 inverted)
 
-*Claim:* Every code reference to a registry-declared placement consults `PLACEMENT_REGISTRY[<identifier>].home` rather than hardcoding the path string literal.
+*Claim:* Every file with a self-declared placement has a declared placement value that matches its actual filesystem directory.
 
-*Test (mechanical):* Scan TS/TSX/MD files in repo (excluding `node_modules/`, `.next/`, `liv-scaffold/` per substrate §6.3 reference-resolution + structural property classes); flag any path string matching `frameworks/`, `sprint-records/`, or `src/.../*.md` patterns that does not appear in registry-consumption position (`PLACEMENT_REGISTRY.<id>.home` reference in source). Allow-list: build-config files (per PL-A5 register-only) + registry's own declaration site (`src/core/constants/placement-standard.ts`) + slice-internal references staying out of scope per Sprint Shot 5 spec §3.
+*Test (mechanical):* Walk tree (same scope as G-PL1); for each file with a placement declaration, normalize declared placement string and compare to `path.relative(ROOT, path.dirname(filePath))`; report mismatch as violation. Per substrate §6.3 structural property + reference-resolution classes.
 
-*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff zero hardcoded violations outside allow-list; `failed` with first-violating file:line logged); applicability='applicable' for any non-empty consumption surface.
+*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff zero placement mismatches; `failed` with file + declared vs actual logged).
 
 *Tests:* PL-A2.
 
-*Escalation path:* G-PL2 failure → MA-L4 amendment trigger; offending file flagged; refactor to consultation form before next audit cycle. Implemented mechanically via la-validator §1.20.1 extension at Sprint Shot 5.
+*Escalation path:* G-PL2 failure → MA-L4 amendment trigger; offending file's declared placement does not match its location; remediation: correct declaration or move file. Implemented mechanically via la-validator check #6 (Sprint 9 Shot 1).
 
-#### §4.2.3 G-PL3 — Versioned identity
+#### §4.2.3 G-PL3 — Domain-bounded declaration (Sprint 9 Shot 1 inverted)
 
-*Claim:* `PLACEMENT_REGISTRY` constant exposes a `registryVersion` field of Semver-pattern string per substrate §7.
+*Claim:* Every file with a self-declared kind has a kind value that is a member of `PlacementItemKind` enum (`'framework' | 'cycle-record' | 'typed-runtime-projectroot' | 'build-config' | 'platform-tooling'`).
 
-*Test (mechanical):* Read `PLACEMENT_REGISTRY_VERSION` exported constant from `src/core/constants/placement-standard.ts`; type-check string + Semver-regex conformance per substrate §7. Per substrate §6.3 type-check class.
+*Test (mechanical):* Walk tree (same scope as G-PL1); for each file with a kind declaration, check `kind ∈ PLACEMENT_ITEM_KIND_VALUES` literal set; report out-of-enum values as violations. Per substrate §6.3 enum-membership class.
 
-*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff version field present and Semver-conforming; `failed` with malformed-value logged).
+*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff zero out-of-enum kind values; `failed` with file + declared kind logged).
 
 *Tests:* PL-A3.
 
-*Escalation path:* G-PL3 failure → MA-L4 amendment trigger; framework version surface compromised; remediation required.
+*Escalation path:* G-PL3 failure → MA-L4 amendment trigger; either declared kind is a typo (correct it) or a new kind is needed (extend PlacementItemKind via PR2 additive amendment).
 
 #### §4.2.4 G-PL4 — Amendment propagation
 
@@ -372,29 +377,29 @@ Placement Standard declares **6 own gates** (G-PL1..G-PL6, 1:1 paired with PL-A1
 
 *Escalation path:* G-PL4 failure → MA-L4 amendment trigger; registry mutation lacks declared AmendmentEvent; remediation re-runs at next audit cycle with proper AmendmentEvent emission.
 
-#### §4.2.5 G-PL5 — Domain-bounded
+#### §4.2.5 G-PL5 — Domain-bounded scope (Sprint 9 Shot 1 inverted)
 
-*Claim:* Every `PlacementRecord.itemKind` value in `PLACEMENT_REGISTRY` ∈ `PlacementItemKind` enum (`'framework' | 'cycle-record' | 'typed-runtime-projectroot' | 'build-config' | 'platform-tooling'`).
+*Claim:* Placement Standard governs cross-tree placement only; inside-slice placement (within `src/features/F-*/`) is governed by LIV-Standard. No file declares Placement Standard kind values for inside-slice placement items.
 
-*Test (mechanical):* Enumerate registry entries; per entry, verify `itemKind ∈ PlacementItemKind` enum literal set declared at `src/core/constants/placement-standard.ts` `PLACEMENT_ITEM_KIND_VALUES`. Per substrate §6.3 enum-membership class.
-
-*Reporting:* binary truthValue per substrate §10.1 S4 (`passed` iff all entries enum-conforming; `failed` with first-violating entry logged).
-
-*Tests:* PL-A5.
-
-*Escalation path:* G-PL5 failure → MA-L4 amendment trigger; registry contains out-of-domain item; either the item is genuinely out-of-scope (remove from registry; declare deferred per spec §1.3 pattern) or the enum requires additive extension per PR2 (extend PlacementItemKind; G-PL5 then re-passes).
-
-#### §4.2.6 G-PL6 — Unitarity
-
-*Claim:* Exactly one `home` value per `itemId` in `PLACEMENT_REGISTRY`; no two distinct registry entries share the same `itemId`. Composes with G-PL1 (key uniqueness) for total no-multi-home discipline.
-
-*Test (mechanical):* Group registry entries by `itemId`; verify per-group cardinality = 1; per substrate §6.3 cardinality class. **Note:** G-PL1 (key uniqueness on `PlacementId`) is a stricter version of this same property at the registry-data-structure level (a JS object literal cannot have duplicate keys). G-PL6 generalizes the discipline to any registry instantiation form (e.g., if registry is later sourced from migration/import — TypeScript object literal duplicates would compile-error, but a Map or array-of-records form would not, hence the gate). At v1.0 with object-literal `PLACEMENT_REGISTRY`, G-PL6 reduces to G-PL1 + structural property check.
+*Test (mechanical):* Walk tree; for any file under `src/features/F-*/` with a kind declaration, verify the declaration is within la-validator's defined scope (i.e., the file is itself a cross-tree item, not an inside-slice item). Inside-slice files with kind declarations are flagged as out-of-scope. Per substrate §6.3 structural property class. **Note:** at Sprint 9 Shot 1 the practical enforcement is that `src/features/` files do not carry kind+placement declarations — those declarations are on governance/config items only. Future: if a feature-slice file needs a placement declaration (e.g., it is also a framework artifact), escalate to L0.
 
 *Reporting:* binary truthValue per substrate §10.1 S4.
 
+*Tests:* PL-A5.
+
+*Escalation path:* G-PL5 failure → MA-L4 amendment trigger; boundary enforcement between Placement Standard and LIV-Standard compromised; escalate to L0.
+
+#### §4.2.6 G-PL6 — Additive declaration (Sprint 9 Shot 1 inverted)
+
+*Claim:* Adding a kind+placement declaration to an existing file produces no required amendments on other files. Each declaration is self-contained at the file boundary.
+
+*Test (mechanical):* Structural property: declaration format (YAML frontmatter block or comment lines) is confined to the declaring file; no cross-file ripple required. Per substrate §6.3 structural property class. Validator confirms: after adding a declaration to file F, zero other files require modification for the declaration to be valid (G-PL2 still passes, G-PL3 still passes). This gate is vacuously-pass for any correctly-formed declaration (PL-A6 is an additive discipline rule, not a runtime check).
+
+*Reporting:* binary truthValue per substrate §10.1 S4; applicability='applicable'; evaluated structurally at framework authoring time rather than per-run.
+
 *Tests:* PL-A6.
 
-*Escalation path:* G-PL6 failure → MA-L4 amendment trigger; multi-home item detected; remediation: declare which placement is canonical, deprecate the other.
+*Escalation path:* G-PL6 failure → MA-L4 amendment trigger; declaration format requires cross-file amendment (would violate additive discipline); remediation: revise declaration format to be self-contained.
 
 ### §4.3 Inherited framework-tier gates
 
@@ -687,9 +692,9 @@ Canonical site for forward-deferred items surfaced during placement-standard cyc
 
 **F-FORWARD-2 — F-identity execution-check.ts SLICE.md hardcode (added Sprint Placement Framework Shot 4 from Shot 3 ratification; migrated from §5.9 dangle).** `src/features/F-identity/exec/execution-check.ts` `knownMetaFiles` set contains literal `'SLICE.md'` per `Set(['execution-check.ts', 'SLICE.md', 'index.ts'])`. After Shot 3 relocation of `SLICE.md` files to `frameworks/slices/F-<id>.md`, the hardcode is structurally stale at the F-identity slice — the slice no longer contains a `SLICE.md` file. Untouched per DD-Exec-Check-Scope (minimal-mechanical-only); the hardcode is slice-internal governance, owned by LIV-Standard / F-identity slice maintenance, not Placement Standard. Forward LIV-Standard cycle: resolve hardcode (remove from `knownMetaFiles` or update to reflect new convention).
 
-**F-FORWARD-3 — Regex-against-text registry counts (added Sprint Placement Framework Shot 4; transitional).** Sprint Placement Framework Shot 2 + Shot 3 applicators count `PLACEMENT_REGISTRY` entries via regex against the file's text representation, not via the registry's typed shape (`Object.keys(PLACEMENT_REGISTRY).length` would be the durable form). Same distributed-truth defect class as F-005: the regex carries an assumption about file format that drifts when entry formatting changes. Acceptable as transitional during sprint while staging artifacts live outside the build context. Forward sprint: when registry consumers stabilize and validators run inside the built TS project, replace regex-extraction with typed-shape consultation.
+**F-FORWARD-3 — CLOSED Sprint 9 Shot 1.** Registry dissolved at Sprint 9 Shot 1 (Stream A). PLACEMENT_REGISTRY constant removed from `src/core/constants/placement-standard.ts`; walk-tree-and-join replaces registry-lookup in la-validator. Regex-against-text registry count concern is moot — no registry to count. Basis: §1.20 strict-functional (no live consumer after dissolution) + Sprint 9 Shot 1 inversion per brief §A.3.
 
-**F-FORWARD-4 — Genesis-report registration class (added Sprint Placement Framework Shot 4).** `placement-standard-v1-0-genesis-report.md` lives at `frameworks/metaframework/reports/` post-Shot-3 but does not have a `PLACEMENT_REGISTRY` entry. Same natural-defer pattern as F-FORWARD-1: registering one genesis report when more will follow without a class-level decision creates inconsistency. Forward sprint authors a class-level decision on genesis-report registration, then amends registry to include all genesis reports through `amendment-propagation` flow.
+**F-FORWARD-4 — CLOSED Sprint 9 Shot 1.** Registry dissolved at Sprint 9 Shot 1 (Stream A). Genesis-report registration-class decision is superseded: under the inverted Placement Standard, genesis reports self-declare via YAML frontmatter. No registry entry needed. Any genesis report added to `frameworks/metaframework/reports/` declares its own kind (`framework`) and placement inline. Basis: PL-A1 (inverted) — self-declaration replaces registry-registration.
 
 **F-FORWARD-5 — Sprint 6 authoring defect (`as const` on Next.js config) (added Sprint Placement Framework Shot 4 from Shot 3 deploy verification).** Sprint 6 deploy bundle authored `runtime: 'nodejs' as const` inside the middleware `config` export. Turbopack's static AST extraction rejects the type assertion, breaking deploy. Surfaced at Sprint Placement Framework Shot 3 deploy verification when the perimeter site relocated to root `middleware.ts`. Sprint 6 audit cycle did not catch it because audits ran against artifact contents, not against `npm run build` over composed reality (Playbook §1.17 applies recursively: artifact-level audit is insufficient when the artifact targets a static-extraction toolchain). Pattern: type assertions inside Next.js `config` exports must be avoided. Constraint is currently undocumented in LIV-Standard. Forward LIV-Standard cycle: document the constraint, add la-validator check if mechanical enforcement is feasible.
 

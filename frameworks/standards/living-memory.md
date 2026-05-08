@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # living-memory
 
 **Kind:** Framework  

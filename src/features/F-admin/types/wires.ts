@@ -8,7 +8,7 @@
 
 // ─── Inbound (consumed by this slice) ─────────────────────────────────────────
 //   W-FN    useRegisterProgram()   ←  F-dashboard/R3 (dashboard-registry)
-//   W-ATOM  GlobalGraphAdmin       ←  (formerly F-codec/R3 global-graph-admin; F-codec dissolved Sprint 8 Shot 3a — admin global-graph routes return 501 pending Sprint 9 reauthor)
+//   W-ATOM  GlobalGraphAdmin       ←  (formerly F-codec/R3 global-graph-admin; F-codec dissolved Sprint 8 Shot 3a — Sprint 9 Shot 2 Decision-D: global-graph stub routes deleted per §1.20 strict-functional + §1.21 natural-defer; implementation deferred to Sprint 11 / Phase 3)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-ATOM  AdminBuild             →  (internal — route surface only)

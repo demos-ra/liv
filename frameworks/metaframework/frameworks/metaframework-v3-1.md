@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/frameworks/
+---
+
 # metaframework-v3-1
 
 **Kind:** Framework

@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # MF-patch-1 — Delivery Report
 
 **Cycle:** MF-patch-1 (framework-audit predicate-refinement cycle)

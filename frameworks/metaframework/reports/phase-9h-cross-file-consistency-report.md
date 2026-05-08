@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # Phase 9h Work Item 2 — Cross-File Consistency Report
 
 **Executor:** build instance per phase-9h-spec §3.2.

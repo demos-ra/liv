@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # plan-standard-v2-2
 
 **Kind:** Framework

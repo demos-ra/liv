@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # design-standard-v1-0
 
 **Kind:** Framework

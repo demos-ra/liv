@@ -1,3 +1,5 @@
+// @kind build-config
+// @placement ./
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {

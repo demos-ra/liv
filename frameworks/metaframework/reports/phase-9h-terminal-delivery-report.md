@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # Phase 9h Terminal Delivery Report
 
 **Build instance:** L2 build (Claude, Demos-directed, per Work Protocol).

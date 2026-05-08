@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # Phase 9h Work Item 3 — Amendment-Propagation Self-Recursion Report
 
 **Executor:** build instance acting as amendment-propagation runtime per phase-9h-spec §4.2.

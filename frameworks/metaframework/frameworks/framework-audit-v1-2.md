@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/frameworks/
+---
+
 # framework-audit-v1-2
 
 **Kind:** Framework

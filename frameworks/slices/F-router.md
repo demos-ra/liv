@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-router Slice
 
 **Sprint 8 Shot 2 · Pure routing infrastructure**

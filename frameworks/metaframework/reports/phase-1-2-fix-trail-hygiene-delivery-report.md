@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # Phase 1.2-fix-trail Hygiene Delivery Report
 
 **Build instance:** L2 build (Claude, Demos-directed, per Work Protocol).

@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-design-system
 
 **Type:** Infrastructure slice — design board, physics engines, UI primitives

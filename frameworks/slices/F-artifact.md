@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/slices/
+---
+
 # F-artifact Slice
 
 **Artifact Standard v2.2 · LIV-Standard v1.5.1**

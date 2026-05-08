@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/reports/
+---
+
 # MF-amendment-1 — Delivery Report
 
 **Cycle:** MF-amendment-1 (substrate-touching amendment cycle; two-shot sprint)

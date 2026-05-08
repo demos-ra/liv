@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/frameworks/
+---
+
 # substrate-v1-1
 
 **Kind:** non-framework (universal declarations)

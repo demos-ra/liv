@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # core/standards
 
 Artifact Standard v2.2 landed. Canonical document at `artifact-standard.md`. R5 constants at `core/constants/artifact-standard.ts`. Types at `core/types/artifact-standard.types.ts`. See Manual §II when registered at L3. v2.2: regenerated against metaframework-v3-1; 11 axioms (ArA1..ArA8 with ArA4 split a–d); Mode = generative; P8 = 3 steps; fix-round-1 amendments (§3.8 Relational cell cleanup + §6 Coupling consolidation per substrate A-18).

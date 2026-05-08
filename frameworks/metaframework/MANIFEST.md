@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/metaframework/
+---
+
 # v3.2.7 Canonical Bundle Manifest
 
 **Cycle:** MF-Cycle-2 Spec↔Referent Alignment Closure

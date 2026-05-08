@@ -1,3 +1,8 @@
+---
+kind: framework
+placement: frameworks/standards/
+---
+
 # research-standard-v1-0
 
 **Kind:** Framework

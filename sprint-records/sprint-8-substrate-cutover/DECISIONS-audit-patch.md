@@ -1,3 +1,8 @@
+---
+kind: cycle-record
+placement: sprint-records/sprint-8-substrate-cutover/
+---
+
 # Sprint 8 Audit-Patch — Decision-D Table
 
 Per Manager Playbook §1.8.
