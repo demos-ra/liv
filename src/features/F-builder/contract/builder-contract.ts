@@ -1,10 +1,12 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6
+// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-12-micro
 // [F-builder/R3]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-11-shot-5 (initial authoring — F-builder spin-out)
+//             sprint-12-micro  (F-S12-K: add createBuilderExecutor + dbCountActiveBuildsForUser
+//                               pass-throughs so F-plan/R3 can import from R3, not R4 directly)
 // slice:      F-builder
 // layer:      R3
 // wires-in:
@@ -13,30 +15,28 @@
 //   W-INJECT  createBuilderAi    F-builder/R4 builder-inject
 //   W-INJECT  createBuilderExecutor  F-builder/R4 builder-inject
 //   W-INJECT  createBuilderOutput    F-builder/R4 builder-inject
+//   W-FN      dbCountActiveBuildsForUser  F-builder/R4 planner-db
 //   W-ATOM    BuildDirective     F-builder/R0 builder-types
 //   W-ATOM    BuildEmission      F-builder/R0 builder-types
 // wires-out:
-//   W-HOOK  executeBuild  →  F-planner/R3 planner-contract (handleBuildRequest — fire-and-forget)
-//   W-ATOM  BuildDirective  →  F-planner/R3 planner-contract (type import)
-//   W-ATOM  BuildEmission   →  substrate consumers (via substrate writes)
+//   W-HOOK  executeBuild            →  F-plan/R3 plan-contract (handleBuildRequest)
+//   W-INJECT createBuilderExecutor  →  F-plan/R3 plan-contract (handleAdvanceStage)
+//   W-FN    dbCountActiveBuildsForUser → F-plan/R3 plan-contract (handleStartPipeline)
+//   W-ATOM  BuildDirective          →  F-plan/R3 plan-contract (type import)
+//   W-ATOM  BuildEmission           →  substrate consumers (via substrate writes)
 // deps:
 //   R0  ../config/builder-types
 //   R2  ../app/builder-workflow
 //   R4  ../exec/builder-inject
+//   R4  ../exec/planner-db
 // validated:  pending
 //
-// F-builder R3 — public contract.
-// A5: all cross-slice calls enter here only. R2 and R4 are slice-internal.
-//
-// Decision-D-S5-OUTPUT: F-output fold vs stay-separate.
-//   F-output has three independent consumers outside F-planner:
-//     - app/api/output/[jobId]/files/route.ts  (handleGetFiles)
-//     - app/api/output/[jobId]/download/route.ts  (handleDownload)
-//     - app/api/output/[jobId]/push/route.ts  (handlePush)
-//   F-output is a slice with HTTP route surface, independent consumers, and
-//   its own R-layer structure. Stay-separate is the correct boundary.
-//   F-builder imports writeOutputFiles from F-output R3 (same pattern as
-//   F-planner currently does). F-output is not folded into F-builder.
+// F-builder R3 — public contract. A5: all cross-slice calls enter here only.
+// sprint-12-micro: F-plan/R3 was reaching into F-builder/R4 directly for
+//   createBuilderExecutor (builder-inject) and dbCountActiveBuildsForUser
+//   (planner-db). Both are now re-exported here at R3 per A2/A5.
+//   Axiom cite: A2 — R4 not imported cross-slice. A5 — cross-slice via R3 only.
+//   A6 — declared at R3 of owning slice.
 
 import { runBuild }  from '../app/builder-workflow'
 import {
@@ -65,5 +65,11 @@ export async function executeBuild(directive: BuildDirective): Promise<void> {
 // ─── Type re-exports — consumers pull everything from R3 ─────────────────────
 
 export type { BuildDirective, BuildEmission, BuildStatus } from '../config/builder-types'
+
+// ─── R4 pass-throughs (F-S12-K) ──────────────────────────────────────────────
+// F-plan/R3 consumes these. Declared here so R4 is never imported cross-slice.
+
+export { createBuilderExecutor }        from '../exec/builder-inject'
+export { dbCountActiveBuildsForUser }   from '../exec/planner-db'
 
 // ─── End ──────────────────────────────────────────────────────────────────────

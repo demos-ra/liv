@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-4 sprint-11-shot-6 sprint-11-shot-6b sprint-12-shot-2
+// @liv-standard v1.5.1 amended sprint-11-shot-4 sprint-11-shot-6 sprint-11-shot-6b sprint-12-shot-2 sprint-12-micro
 // [F-plan/R3]
 // Built with LIV · livai.dev
 //
@@ -32,6 +32,7 @@
 //   R2  ../app/plan-emit
 //   R3  ./plan-inject
 //   R3  @/features/F-memory/contract/substrate-contract
+//   R3  @/features/F-builder/contract/builder-contract  (sprint-12-micro: was R4 direct — F-S12-K)
 //   R5  @/core/types/primitives
 //   R5  @/core/types/plan-standard.types
 //   R5  @/core/types/substrate.types
@@ -414,8 +415,7 @@ import type {
   FailStagePayload,
   FreezeContractPayload,
 }                                                      from '../types/pipeline-types'
-import { createBuilderExecutor }                       from '@/features/F-builder/exec/builder-inject'
-import { dbCountActiveBuildsForUser }                  from '@/features/F-builder/exec/planner-db'
+import { createBuilderExecutor, dbCountActiveBuildsForUser } from '@/features/F-builder/contract/builder-contract'
 
 export async function isPipelineActive(
   projectId: string,

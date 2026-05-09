@@ -4,9 +4,8 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
-// slice:      F-builder
 // amended:    sprint-12-shot-3 (moved from F-planner/exec — dissolution)
+//             sprint-12-micro (F-S12-I: slice label corrected F-planner → F-builder in error log)
 // layer:      R4
 // wires-in:
 //   W-ATOM  streamAIResponse  F-ai-adapter/contract/ai-contract  (R3 surface — A5 compliant)
@@ -57,9 +56,9 @@ export async function ioStreamCompletion(opts: {
   } catch (e) {
     console.error(JSON.stringify({
       level:     'error',
-      event:     'planner.ai-io.error',
+      event:     'builder.ai-io.error',
       message:   e instanceof Error ? e.message : String(e),
-      slice:     'F-planner',
+      slice:     'F-builder',
       layer:     'R4',
       timestamp: new Date().toISOString(),
     }))
