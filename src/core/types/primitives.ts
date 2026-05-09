@@ -3,7 +3,8 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: none
+// amended: sprint-11-shot-3 (F-plan, F-discover, F-verify added to FSlice)
+//          sprint-11-shot-5 (F-builder added to FSlice)
 // slice: core
 // layer: R5
 // wires-in: none
@@ -103,6 +104,7 @@ export type RLayer = 'R0' | 'R1' | 'R2' | 'R3' | 'R4'
 // Phase 4b: F-artifact (AS v2.2 runtime) + F-multi-instance (M-I v2.3 runtime) added.
 // Sprint 8 Shot 2: F-router added — pure routing slice (infrastructure, not a governed program).
 // Sprint 8 Shot 3a: F-codec removed — dissolved entirely (only codec-ai-io.ts retained as standalone exec utility).
+// Sprint 11 Shot 3: F-plan, F-discover, F-verify added — domain program slices for router registration.
 export type FSlice =
   | 'F-executor'      // Step 3 — Docker code execution
   | 'F-design-system'
@@ -131,6 +133,10 @@ export type FSlice =
   | 'F-artifact'         // Phase 4b — AS v2.2 createArtifact runtime
   | 'F-multi-instance'   // Phase 4b — M-I v2.3 executeRun runtime
   | 'F-router'      // Sprint 8 Shot 2 — message routing infrastructure
+  | 'F-plan'        // Sprint 11 Shot 3 — planning program
+  | 'F-discover'    // Sprint 11 Shot 3 — discovery/research program
+  | 'F-verify'      // Sprint 11 Shot 3 — verification program
+  | 'F-builder'     // Sprint 11 Shot 5 — build execution slice (F-planner spin-out)
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

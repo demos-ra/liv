@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-6c
 // [core/types/state-registry.ts]
 // Built with LIV · livai.dev
 // R5 — pure namespace declaration. Zero dependencies.
@@ -41,6 +41,10 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-artifact':        'artifact',         // Phase 4b — AS v2.2 runtime
   'F-multi-instance':  'multiInstance',    // Phase 4b — M-I v2.3 runtime
   'F-router':          'router',           // Sprint 8 Shot 2 — message routing infrastructure
+  'F-plan':            'plan',             // Sprint 11 Shot 6c
+  'F-discover':        'discover',          // Sprint 11 Shot 6c
+  'F-verify':          'verify',            // Sprint 11 Shot 6c
+  'F-builder':         'builder',           // Sprint 11 Shot 6c
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

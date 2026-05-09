@@ -1,23 +1,28 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-4a sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b
 // [F-verify/R3]
 // Built with LIV · livai.dev
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-4-vs (slice introduction)
+//             sprint-11-shot-4 (substrate threadQuery on entry + writeStateChange on completion)
+//             sprint-11-shot-4a (projectId added to VerificationExecuteInput; substrate scope now (userId, projectId))
+//             sprint-11-shot-6 (permission gate rationale recorded)
+//             sprint-11-shot-6a (S11-B1: projectId added to completion write identity array)
+//             sprint-11-shot-6b (source.scope corrected: userId → projectId at writeStateChange callsite)
 // slice:      F-verify
 // layer:      R3
 // wires-in:
 //   W-FN     executeVerification           ←  F-verify/R2 execute-verification
 //   W-FN     loadVerificationBinding       ←  F-verify/R4 verify-binding-loader
 //   W-FN     createArtifact                ←  F-artifact/R3 artifact-contract
-//   W-FN     createArtifactGraphPort       ←  F-artifact/R3 artifact-graph-port (relocated from F-memory at Sprint 8 Shot 3b)
-//   W-ATOM   VerificationExecuteInput,
-//            VerificationEmissionResult,
-//            FrameworkModule,
-//            ModuleExecutor               ←  F-verify/R0 + F-codec/R0
+//   W-FN     createArtifactGraphPort       ←  F-artifact/R3 artifact-graph-port
+//   W-ATOM   VerificationExecuteInput, VerificationEmissionResult  ←  F-verify/R0
+//   W-FN     threadQuery                   ←  F-memory/contract/substrate-contract  (sprint-11-shot-4)
+//   W-FN     writeStateChange              ←  F-memory/contract/substrate-contract  (sprint-11-shot-4)
+//   W-ATOM   SubstrateWriteInput, ThreadQueryInput, IdentityRef, ScopeRef, RoleRef ← core/types/substrate.types
 // wires-out:
-//   W-ATOM   VERIFY_FRAMEWORK_MODULE       →  F-codec/R2 codec-orchestrate (registry)
+//   [DISSOLVED sprint-8-shot-3a] W-ATOM VERIFY_FRAMEWORK_MODULE  →  F-codec/R2 (F-codec dissolved; wire dead)
 //   W-FN     executeVerificationFromInput   →  F-verify external callers
 //   W-ATOM   verifyRouter                  →  F-app api/router (tRPC)
 // deps:
@@ -26,25 +31,41 @@
 //   R4 ../exec/verify-binding-loader
 //   R3 ../../F-artifact/contract/artifact-contract
 //   R3 ../../F-artifact/contract/artifact-graph-port
-//   R0 ../../F-codec/config/codec-module-types
+//   R3 @/features/F-memory/contract/substrate-contract
+//   [DISSOLVED sprint-8-shot-3a] R0 F-codec/config/codec-module-types (F-codec dissolved)
+//   R5 @/core/types/substrate.types
 // validated:  pending
 //
 // F-verify R3 — public boundary.
 //
 // A5: cross-slice calls enter here only. R2 and R1 are slice-internal.
 //
-// Three exports:
-//   1. executeVerificationFromInput — direct programmatic entry (preferred).
-//      Takes VerificationExecuteInput, returns VerificationEmissionResult.
-//   2. VERIFY_FRAMEWORK_MODULE — codec-orchestrate registry registration.
-//      id = 'liv-verification' (per Sprint 4 D5 decision: 'verification'
-//      module-id retained by codec-verify.ts as 'narrative-audit').
-//      Executor stub: codec routes verificative-mode user messages to
-//      narrative-audit (LLM-backed); F-verify is reachable only via
-//      programmatic invocation (executeVerificationFromInput) at v1.0.
-//   3. verifyRouter — tRPC router (placeholder at v1.0; programmatic surface
-//      is the active path for first emission per Sprint 4 close criteria).
+// sprint-8-shot-3a: F-codec dissolved. VERIFY_FRAMEWORK_MODULE + executor removed.
+//
+// sprint-11-shot-4 substrate wiring:
+//   Decision-D (F-verify): Identity/relation shape.
+//     Entry threadQuery: identity-recurrence on userId, scope=userId only.
+//     Gap closed (sprint-11-shot-4a): VerificationExecuteInput now carries projectId.
+//     Previously: VerificationExecuteInput carried no projectId at any level
+//     (VerificationInput.userId present; no projectId field). Scope narrows to
+//     userId-only until VerificationExecuteInput is extended with projectId
+//     (deferred — no input-shape change in this shot per scope constraint).
+//     Completion write identities: ['verification-output', userId, turnId, projectId].
+//     sprint-11-shot-6a (S11-B1): projectId added for consistent graph anchoring with F-plan.
+//     turnId sourced from input.verificationInput.turnId.
+//     Relation: { type: 'verification-emitted', modality: 'declarative',
+//       identitiesWithRoles: [{ identity: userId, role: 'agent' }], negation: false }.
+//     Source: { channel: 'internal-derivation', scope: userId }.
+//     Fire-and-forget on completion write per CA4 independence.
+//     Substrate read failure → empty context, program continues (parallel to §5.6).
 
+//
+// sprint-11-shot-6 (permission gate rationale):
+//   writeStateChange callsites in this file are downstream of authenticated
+//   entry points (F-chat session-gated for F-plan; F-router dispatch gated
+//   by F-chat session for F-discover/F-verify). requirePermission() gates
+//   for substrate_write and program_invoke_* are Sprint 9 scope per Perimeter
+//   Standard scopeOut (F-009). Perimeter session auth is the active gate.
 import type {
   VerificationExecuteInput,
   VerificationEmissionResult,
@@ -53,30 +74,25 @@ import type {
   CreateArtifactInput,
 } from '../config/f-verify-types'
 // sprint-8-shot-3a: F-codec dissolved.
-//   FrameworkModule + ModuleExecutor imports removed; VERIFY_FRAMEWORK_MODULE
-//   and liVerificationStubExecutor exports removed (codec registry no longer exists).
-//   F-verify remains reachable programmatically via executeVerificationFromInput
-//   (the LIV-Standard mechanical predicate-verification path). Sprint 9 wires
-//   F-router rules pointing verificative-mode messages at this entry point directly.
 import { executeVerification } from '../app/execute-verification'
 import type { VerifyServiceContainer, ArtifactGraphPort } from '../app/execute-verification'
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
 import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import type { EpochMs } from '../config/f-verify-types'
+import { threadQuery, writeStateChange }    from '@/features/F-memory/contract/substrate-contract'
+import type {
+  SubstrateWriteInput,
+  ThreadQueryInput,
+  IdentityRef,
+  ScopeRef,
+  RoleRef,
+}                                           from '@/core/types/substrate.types'
 
 // ─── Default service container (real wiring) ─────────────────────────────────
 
-/**
- * Default service container — wires F-artifact real implementations.
- * Test paths construct alternate containers (in-memory port, fake clock).
- *
- * Mirrors F-plan/contract/plan-inject.ts pattern.
- */
 function defaultServices(): VerifyServiceContainer {
   return {
     createArtifact: async (input: CreateArtifactInput, port: ArtifactGraphPort) => {
-      // Cast through unknown: F-artifact's CreateArtifactResult shape matches
-      // VerifyServiceContainer.createArtifact return shape structurally.
       const result = await createArtifact(
         input as unknown as Parameters<typeof createArtifact>[0],
         port  as unknown as Parameters<typeof createArtifact>[1],
@@ -98,25 +114,80 @@ function defaultServices(): VerifyServiceContainer {
   }
 }
 
+// ─── Substrate helpers ────────────────────────────────────────────────────────
+
+async function readVerifyContext(userId: string, projectId: string): Promise<string> {
+  // sprint-11-shot-4a: scope is now (userId, projectId) — gap closed.
+  try {
+    const queryInput: ThreadQueryInput = {
+      threadKind: 'identity-recurrence',
+      anchor:     userId as IdentityRef,
+      scope:      projectId as ScopeRef,
+      limit:      20,
+    }
+    const result = await threadQuery(queryInput)
+    if (result.ok && result.data.records.length > 0) {
+      return result.data.records
+        .map(r => r.content.identities.join(' | '))
+        .join('\n')
+    }
+  } catch (err) {
+    console.error('[F-verify] threadQuery failed', err instanceof Error ? err.message : err)
+  }
+  return ''
+}
+
+function writeVerificationOutput(userId: string, turnId: string, projectId: string): void {
+  const write: SubstrateWriteInput = {
+    content: {
+      identities: [
+        'verification-output' as IdentityRef,
+        userId                as IdentityRef,
+        turnId                as IdentityRef,
+        projectId             as IdentityRef,
+      ],
+      relations: [
+        {
+          type:                'verification-emitted' as IdentityRef,
+          modality:            'declarative',
+          identitiesWithRoles: [
+            { identity: userId as IdentityRef, role: 'agent' as RoleRef },
+          ],
+          negation: false,
+        },
+      ],
+    },
+    metadata: {
+      time:   Date.now(),
+      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+    },
+  }
+  writeStateChange(write).catch((err: unknown) => {
+    console.error('[F-verify] writeStateChange failed', err instanceof Error ? err.message : err)
+  })
+}
+
 // ─── executeVerificationFromInput — primary programmatic entry ───────────────
 
-/**
- * Direct programmatic entry point for VS emission.
- * Callers (F-verify-internal admin, future F-research-verify, framework-audit
- * runtime probes) construct VerificationExecuteInput and invoke this. Returns
- * VerificationEmissionResult with success → ArtifactEmission containing the
- * verificationAnchorNodeId at writes.a7.artifactAnchorNodeId.
- */
 export async function executeVerificationFromInput(
   input: VerificationExecuteInput,
 ): Promise<VerificationEmissionResult> {
-  return executeVerification(input, defaultServices())
+  const userId = input.verificationInput.userId
+  const turnId = input.verificationInput.turnId
+
+  // Substrate context read on entry — failure → empty context, program continues.
+  const _substrateContext = await readVerifyContext(userId, input.projectId)
+
+  const result = await executeVerification(input, defaultServices())
+
+  // Substrate write on completion — fire-and-forget per CA4 independence.
+  if (result.ok) {
+    writeVerificationOutput(userId, turnId, input.projectId)
+  }
+
+  return result
 }
 
-/**
- * Allow callers to inject a custom service container (test paths, alternate
- * graph backends, deterministic clock).
- */
 export async function executeVerificationFromInputWithServices(
   input:    VerificationExecuteInput,
   services: VerifyServiceContainer,
@@ -124,24 +195,15 @@ export async function executeVerificationFromInputWithServices(
   return executeVerification(input, services)
 }
 
-// sprint-8-shot-3a: VERIFY_FRAMEWORK_MODULE + liVerificationStubExecutor
-// removed (F-codec dissolved). F-verify is reached programmatically via
-// executeVerificationFromInput. Sprint 9 wires F-router rules pointing
-// verificative-mode messages at this entry point directly.
+// sprint-8-shot-3a: VERIFY_FRAMEWORK_MODULE + liVerificationStubExecutor removed.
 
 // ─── verifyRouter — tRPC placeholder at v1.0 ─────────────────────────────────
-//
-// At Sprint 4 close, programmatic invocation is the active path. The tRPC
-// surface is declared as a placeholder for HTTP-bound consumers (admin probes,
-// future client-side audit triggers). When the first HTTP-bound caller lands,
-// this slot is filled with a real tRPC router (mirroring F-plan/contract/plan-contract).
 
 export const verifyRouter = {
-  // Placeholder. Populated when first HTTP consumer lands.
   __sprint_4_status: 'programmatic-only',
 } as const
 
-// ─── Type re-exports — consumers can pull everything from R3 ─────────────────
+// ─── Type re-exports ─────────────────────────────────────────────────────────
 
 export type {
   VerificationExecuteInput,

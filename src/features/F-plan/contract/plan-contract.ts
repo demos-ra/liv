@@ -1,10 +1,13 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-4 sprint-11-shot-6 sprint-11-shot-6b
 // [F-plan/R3]
 // Built with LIV · livai.dev
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    phase-6-sprint-a (slice introduction), phase-6-cleanup-cycle-4 (F015 lane-emitting symmetry)
+//             sprint-11-shot-4 (substrate threadQuery on entry + writeStateChange on completion)
+//             sprint-11-shot-6 (permission gate rationale recorded)
+//             sprint-11-shot-6b (source.scope corrected: userId → projectId at writeStateChange callsite)
 // slice:      F-plan
 // layer:      R3
 // wires-in:
@@ -15,6 +18,9 @@
 //   W-HOOK    confirmAndEmit, isConfirmKeyword                              ← F-plan/R2 plan-emit
 //   W-INJECT  IPlanDb, createPlanDb        ← F-plan/R3 plan-inject
 //   W-INJECT  IPlanGraph, createPlanGraph  ← F-plan/R3 plan-inject
+//   W-FN      threadQuery                  ← F-memory/contract/substrate-contract  (sprint-11-shot-4)
+//   W-FN      writeStateChange             ← F-memory/contract/substrate-contract  (sprint-11-shot-4)
+//   W-ATOM    SubstrateWriteInput, ThreadQueryInput, IdentityRef, ScopeRef, RoleRef ← core/types/substrate.types
 // wires-out:
 //   W-HOOK    executePlan          →  Sprint B registry pointer; smoke harness Shot 5
 //   W-HOOK    getOpenDraftSummary  →  Sprint B/dashboard
@@ -25,8 +31,10 @@
 //   R2  ../app/plan-draft
 //   R2  ../app/plan-emit
 //   R3  ./plan-inject
+//   R3  @/features/F-memory/contract/substrate-contract
 //   R5  @/core/types/primitives
 //   R5  @/core/types/plan-standard.types
+//   R5  @/core/types/substrate.types
 // validated:  pending
 //
 // F-plan R3 — public contract. Wires concrete ports, exposes the three spec'd
@@ -43,16 +51,36 @@
 //   This is the ONLY R2/R3 file allowed to call `Date.now()` and `generateId()`
 //   directly — they're constructed once here and injected as deps into all
 //   downstream R2 calls. R1/R2 functions never call these directly.
+//
+// sprint-11-shot-4 substrate wiring:
+//   Decision-D (F-plan): Identity/relation shape.
+//     Entry threadQuery: identity-recurrence on userId, scope=userId, scope=projectId
+//     not threaded into LM query (projectId available as param — used as ScopeRef).
+//     Completion write identities: ['plan-output', planId-or-turnId, userId, projectId].
+//     Relation: { type: 'plan-emitted', modality: 'declarative',
+//       identitiesWithRoles: [{ identity: userId, role: 'agent' }], negation: false }.
+//     Source: { channel: 'internal-derivation', scope: userId }.
+//     Rationale: 'internal-derivation' channel correct for program-generated output
+//     (not a direct wearer or ai message — a structured program result).
+//     Fire-and-forget on completion write per CA4 independence.
+//     Substrate read failure → empty context, program continues (parallel to §5.6).
 
-import { generateId } from '@/core/types/primitives'
-import type { Result, NodeId } from '@/core/types/primitives'
-import type { EpochMs } from '@/core/types/plan-standard.types'
+//
+// sprint-11-shot-6 (permission gate rationale):
+//   writeStateChange callsites in this file are downstream of authenticated
+//   entry points (F-chat session-gated for F-plan; F-router dispatch gated
+//   by F-chat session for F-discover/F-verify). requirePermission() gates
+//   for substrate_write and program_invoke_* are Sprint 9 scope per Perimeter
+//   Standard scopeOut (F-009). Perimeter session auth is the active gate.
+import { generateId }                          from '@/core/types/primitives'
+import type { Result, NodeId }                 from '@/core/types/primitives'
+import type { EpochMs }                        from '@/core/types/plan-standard.types'
 import type {
   PlanExecuteResult,
   PlanRejectError,
   PlanDraftSummary,
   PlanArtifactSummary,
-} from '../types/plan-types'
+}                                              from '../types/plan-types'
 
 import {
   createDraft,
@@ -60,28 +88,29 @@ import {
   getDraftSummary as formatDraftSummary,
   type ExecutePlanInput,
   type R2Deps,
-} from '../app/plan-draft'
+}                                              from '../app/plan-draft'
 import {
   confirmAndEmit,
   isConfirmKeyword,
-} from '../app/plan-emit'
+}                                              from '../app/plan-emit'
 
 import {
   createPlanDb,
   createPlanGraph,
   type IPlanDb,
   type IPlanGraph,
-} from './plan-inject'
+}                                              from './plan-inject'
+
+import { threadQuery, writeStateChange }       from '@/features/F-memory/contract/substrate-contract'
+import type {
+  SubstrateWriteInput,
+  ThreadQueryInput,
+  IdentityRef,
+  ScopeRef,
+  RoleRef,
+}                                              from '@/core/types/substrate.types'
 
 // ─── deps construction (A4 boundary) ─────────────────────────────────────────
-// Concrete deps built once at R3. Injected into every R2 call.
-//
-// epochNow: Date.now() wrapped + branded as EpochMs.
-// generateId: re-exports core/R5 generateId.
-//
-// Per A4: R3 is the boundary where ambient time/randomness is captured.
-// R1/R2 functions are pure and accept these via deps.
-
 function makeDeps(): R2Deps {
   return {
     generateId: (prefix?: string) => generateId(prefix),
@@ -90,9 +119,6 @@ function makeDeps(): R2Deps {
 }
 
 // ─── Singleton ports (lazy) ──────────────────────────────────────────────────
-// One port instance per process — same pattern F-planner uses with
-// createPlannerDb. R4/R3 dependencies are stateless wrappers; safe to share.
-
 let _db:    IPlanDb    | null = null
 let _graph: IPlanGraph | null = null
 
@@ -106,26 +132,62 @@ function getGraph(): IPlanGraph {
   return _graph
 }
 
+// ─── Substrate helpers ────────────────────────────────────────────────────────
+
+async function readPlanContext(userId: string, projectId: string): Promise<string> {
+  try {
+    const queryInput: ThreadQueryInput = {
+      threadKind: 'identity-recurrence',
+      anchor:     userId    as IdentityRef,
+      scope:      projectId as ScopeRef,
+      limit:      20,
+    }
+    const result = await threadQuery(queryInput)
+    if (result.ok && result.data.records.length > 0) {
+      return result.data.records
+        .map(r => r.content.identities.join(' | '))
+        .join('\n')
+    }
+  } catch (err) {
+    console.error('[F-plan] threadQuery failed', err instanceof Error ? err.message : err)
+  }
+  return ''
+}
+
+function writePlanOutput(userId: string, projectId: string, planRef: string): void {
+  const write: SubstrateWriteInput = {
+    content: {
+      identities: [
+        'plan-output' as IdentityRef,
+        planRef       as IdentityRef,
+        userId        as IdentityRef,
+        projectId     as IdentityRef,
+      ],
+      relations: [
+        {
+          type:                'plan-emitted' as IdentityRef,
+          modality:            'declarative',
+          identitiesWithRoles: [
+            { identity: userId as IdentityRef, role: 'agent' as RoleRef },
+          ],
+          negation: false,
+        },
+      ],
+    },
+    metadata: {
+      time:   Date.now(),
+      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+    },
+  }
+  writeStateChange(write).catch((err: unknown) => {
+    console.error('[F-plan] writeStateChange failed', err instanceof Error ? err.message : err)
+  })
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PUBLIC ENTRY: executePlan — three-mode dispatch
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * F-plan executor — single entry point used by Sprint B's registry pointer.
- *
- * Per Manager Shot 4 dispatch + spec §3.5:
- *
- *   1. D-PROJECT gate first. Empty/undefined projectId →
- *      Result.err({ code: 'PLAN_REJECTED_NO_PROJECT_SCOPE' }). Before any DB read.
- *   2. db.getOpenDraft(userId, projectId) → existing draft or null.
- *   3. No draft → createDraft(...) → return { kind: 'draft', ... }.
- *   4. Draft + content matches D-CONFIRM-PATTERN → confirmAndEmit(...) →
- *      return { kind: 'emitted', ... }.
- *   5. Draft + content doesn't match → amendDraft(...) → return { kind: 'amended', ... }.
- *
- * D-TURNID: turnId is a required parameter. Sprint A: smoke harness supplies
- * a generated turnId. Sprint B: registry pointer threads codec's turnId.
- */
 export async function executePlan(
   content:    string,
   userId:     string,
@@ -133,7 +195,7 @@ export async function executePlan(
   turnId:     string,
   modelId?:   string,
 ): Promise<Result<PlanExecuteResult, PlanRejectError>> {
-  // Step 1 — D-PROJECT gate. Reject before any DB read.
+  // Step 1 — D-PROJECT gate. Reject before any DB read or substrate I/O.
   if (typeof projectId !== 'string' || projectId.trim().length === 0) {
     return {
       ok: false,
@@ -143,6 +205,10 @@ export async function executePlan(
       },
     }
   }
+
+  // Step 1.5 — substrate context read (sprint-11-shot-4).
+  // Failure → empty context; program continues per §5.6 parallel.
+  const _substrateContext = await readPlanContext(userId, projectId)
 
   const db    = getDb()
   const graph = getGraph()
@@ -167,7 +233,7 @@ export async function executePlan(
   if (openResult.data === null) {
     const createResult = await createDraft(input, db, graph, deps)
     if (!createResult.ok) return createResult
-    return {
+    const result: Result<PlanExecuteResult, PlanRejectError> = {
       ok: true,
       data: {
         kind:    'draft',
@@ -175,16 +241,11 @@ export async function executePlan(
         summary: formatDraftSummary(createResult.data),
       },
     }
+    writePlanOutput(userId, projectId, createResult.data.draftId)
+    return result
   }
 
-  // Step 3b — F015: lane in-flight emission. Migration 003 widened lane to
-  // (draft|emitting); dbGetOpenDraft now surfaces 'emitting' rows. Reject
-  // with typed retry context — caller retries once the in-flight emission
-  // resolves to terminal (success → 'emitted', failure → 'emitting' stays
-  // for admin reconciliation per F005). Derived mechanically: MFv3.0
-  // directional symmetry (typed return), Cognitive Standard (don't destroy
-  // intent via supersede), LIV-Standard A1 (don't merge into the in-flight
-  // composition).
+  // Step 3b — F015: lane in-flight emission.
   if (openResult.data.status === 'emitting') {
     return {
       ok: false,
@@ -200,7 +261,7 @@ export async function executePlan(
   if (isConfirmKeyword(content)) {
     const emitResult = await confirmAndEmit(openResult.data, input, db, graph, deps)
     if (!emitResult.ok) return emitResult
-    return {
+    const result: Result<PlanExecuteResult, PlanRejectError> = {
       ok: true,
       data: {
         kind:             'emitted',
@@ -208,12 +269,14 @@ export async function executePlan(
         summary:          emitResult.data.summary,
       },
     }
+    writePlanOutput(userId, projectId, String(emitResult.data.planAnchorNodeId))
+    return result
   }
 
   // Step 5 — draft exists + content is amendment: re-compose.
   const amendResult = await amendDraft(openResult.data, input, db, graph, deps)
   if (!amendResult.ok) return amendResult
-  return {
+  const result: Result<PlanExecuteResult, PlanRejectError> = {
     ok: true,
     data: {
       kind:    'amended',
@@ -221,20 +284,14 @@ export async function executePlan(
       summary: formatDraftSummary(amendResult.data),
     },
   }
+  writePlanOutput(userId, projectId, amendResult.data.draftId)
+  return result
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PUBLIC ENTRY: getOpenDraftSummary
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Read the open draft for a (userId, projectId) lane and format its summary.
- * Returns null when no open draft exists. Used by Sprint B / dashboard.
- *
- * Note: spec §3.6 named this `getDraftSummary`. Renamed here to
- * `getOpenDraftSummary` to disambiguate from the pure formatter
- * `formatDraftSummary` re-exported from plan-draft.ts. Same semantics.
- */
 export async function getOpenDraftSummary(
   userId:    string,
   projectId: string,
@@ -262,9 +319,6 @@ export async function getOpenDraftSummary(
     }
   }
   if (openResult.data === null) return { ok: true, data: null }
-  // F015: open lane row may be status='draft' or status='emitting' (migration
-  // 003). Summary carries `status` field (PlanDraftSummary.status) so callers
-  // can discriminate. Read-only entry — no confirm/amend gate here.
   return { ok: true, data: formatDraftSummary(openResult.data) }
 }
 
@@ -272,17 +326,6 @@ export async function getOpenDraftSummary(
 // PUBLIC ENTRY: confirmDraft
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Explicit confirmation entry — distinct from executePlan's keyword path.
- * Used by smoke harness (Shot 5) and Sprint B's potential explicit-button path.
- *
- * Looks up open draft for (userId, projectId), then runs confirmAndEmit. The
- * `content` parameter is required for buildComposerInput (used during the
- * fresh re-compose at confirm time per spec §3.6). Smoke harness should pass
- * the same content that originally created the draft (or a confirm keyword —
- * doesn't matter for compose, since compose only reads it as the userMessage
- * for fresh decomposition).
- */
 export async function confirmDraft(
   userId:    string,
   projectId: string,
@@ -325,8 +368,6 @@ export async function confirmDraft(
     }
   }
 
-  // F015: 'emitting' row means an in-flight emission is in progress.
-  // Caller cannot double-confirm — retry after the in-flight resolves.
   if (openResult.data.status === 'emitting') {
     return {
       ok: false,
@@ -339,7 +380,11 @@ export async function confirmDraft(
   }
 
   const input: ExecutePlanInput = { content, userId, projectId, turnId, modelId }
-  return confirmAndEmit(openResult.data, input, db, graph, deps)
+  const emitResult = await confirmAndEmit(openResult.data, input, db, graph, deps)
+  if (emitResult.ok) {
+    writePlanOutput(userId, projectId, String(emitResult.data.planAnchorNodeId))
+  }
+  return emitResult
 }
 
 // ─── End of plan-contract.ts ─────────────────────────────────────────────────

@@ -1,8 +1,15 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1 amended sprint-11-shot-1
 // [F-permissions/R0]
 // Built with LIV · livai.dev
 // [F-permissions/R0/C2] Permission configuration — roles, actions, resources
 // R0: pure config, zero dependencies
+// wires-out: ROLES, ACTIONS, Action, PERMISSION_MATRIX, PERMISSIONS_NAMESPACE
+//   actions: project_create, project_read, project_update, project_delete,
+//            constitution_read, constitution_write, constitution_confirm,
+//            build_trigger, commit_confirm, git_connect, git_read,
+//            terminal_connect, topography_read, la_run,
+//            substrate_write, program_invoke_plan, program_invoke_discover,
+//            program_invoke_verify, program_invoke_build
 
 export const ROLES = {
   owner: 'owner',
@@ -33,6 +40,13 @@ export const ACTIONS = {
   // topography
   topography_read: 'topography_read',
   la_run: 'la_run',
+  // substrate
+  substrate_write: 'substrate_write',
+  // program invoke
+  program_invoke_plan: 'program_invoke_plan',
+  program_invoke_discover: 'program_invoke_discover',
+  program_invoke_verify: 'program_invoke_verify',
+  program_invoke_build: 'program_invoke_build',
 } as const
 
 export type Action = keyof typeof ACTIONS
@@ -47,6 +61,11 @@ export const PERMISSION_MATRIX: Record<Role, Action[]> = {
     'commit_confirm',
     'git_read',
     'topography_read',
+    'substrate_write',
+    'program_invoke_plan',
+    'program_invoke_discover',
+    'program_invoke_verify',
+    'program_invoke_build',
   ],
   viewer: [
     'project_read',

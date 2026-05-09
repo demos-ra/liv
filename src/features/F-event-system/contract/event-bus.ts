@@ -38,6 +38,10 @@ function eventTypeToSlice(eventType: string): FSlice {
     'constitution':  'F-constitution',
     'ai':            'F-ai-adapter',
     'chat':          'F-chat',
+    'plan':          'F-plan',            // Sprint 11 Shot 6c
+    'discover':      'F-discover',         // Sprint 11 Shot 6c
+    'verify':        'F-verify',           // Sprint 11 Shot 6c
+    'build':         'F-builder',          // Sprint 11 Shot 6c
     'topography':    'F-topography',
     'commit-log':    'F-commit-log',
     'health':        'F-health-panel',

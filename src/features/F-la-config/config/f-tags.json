@@ -7,43 +7,57 @@
   "core_infrastructure": {
     "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
     "modules": [
-      "src/core/db/client.ts        — Postgres pool singleton",
-      "src/core/api/trpc-setup.ts   — tRPC init",
-      "src/core/api/trpc-client.ts  — tRPC React client",
-      "src/core/api/router.ts       — App router assembly",
-      "src/core/types/primitives.ts — Shared types and ID generation",
-      "src/core/types/state-registry.ts — Namespace registry map"
+      "src/core/db/client.ts        \u2014 Postgres pool singleton",
+      "src/core/api/trpc-setup.ts   \u2014 tRPC init",
+      "src/core/api/trpc-client.ts  \u2014 tRPC React client",
+      "src/core/api/router.ts       \u2014 App router assembly",
+      "src/core/types/primitives.ts \u2014 Shared types and ID generation",
+      "src/core/types/state-registry.ts \u2014 Namespace registry map"
     ],
-    "absorbed_from": ["F-types", "F-state-registry", "F-integration"]
+    "absorbed_from": [
+      "F-types",
+      "F-state-registry",
+      "F-integration"
+    ]
   },
   "completeness": {
-    "required_layers": ["domain", "contract", "exec"],
-    "optional_layers": ["config", "app"],
+    "required_layers": [
+      "domain",
+      "contract",
+      "exec"
+    ],
+    "optional_layers": [
+      "config",
+      "app"
+    ],
     "exceptions": {
-      "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events.",
-      "F-dashboard":     "Composition root and render surface owner. No server ops, no DB, no events — no exec/ needed. Orchestrates F-intake, F-planner, F-output hooks. providers.tsx lives here.",
-      "F-intake":        "Client-only intake form. No server ops beyond calling F-planner/F-project contracts.",
-      "F-output":        "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/."
+      "F-design-system": "Pure token/component library. No app/ or exec/ \u2014 no server ops, no DB, no events.",
+      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events \u2014 no exec/ needed. Orchestrates F-intake, F-planner, F-output hooks. providers.tsx lives here.",
+      "F-intake": "Client-only intake form. No server ops beyond calling F-planner/F-project contracts.",
+      "F-output": "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/.",
+      "F-builder": "pipeline execution shell; no domain/ until Sprint 12 when F-planner dissolves and domain logic migrates"
     },
     "description": "A complete feature slice requires domain logic, contract boundary, and execution/I/O."
   },
   "declared_slices": [
-    "F-design-system",
-    "F-event-system",
-    "F-la-config",
-    "F-identity",
-    "F-permissions",
-    "F-project",
     "F-ai-adapter",
+    "F-builder",
     "F-chat",
-    "F-user-profile",
     "F-dashboard",
-    "F-memory",
-    "F-planner",
+    "F-design-system",
+    "F-discover",
+    "F-event-system",
+    "F-identity",
     "F-intake",
+    "F-la-config",
+    "F-memory",
     "F-output",
-    "F-verify",
-    "F-discover"
+    "F-permissions",
+    "F-plan",
+    "F-planner",
+    "F-project",
+    "F-user-profile",
+    "F-verify"
   ],
   "reserved_slices": [
     "F-workspace",
@@ -59,17 +73,17 @@
     "F-execution-panel"
   ],
   "_reserved_notes": {
-    "F-workspace": "Phase 2 — IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only.",
-    "_aspirational_retraction_note": "Sprint Placement Framework Shot 4 retraction: 10 names moved from declared_slices to reserved_slices because they have no on-disk presence under src/features/. They retain FSlice type membership and STATE_NAMESPACES entries (load-bearing for event-bus routing and core/types/state-registry.ts) — a JSON-vs-TS structural drift logged as F-FORWARD-11 for forward-LIV-Standard cycle. Do NOT remove these names from FSlice or STATE_NAMESPACES without the forward sprint's structural ratification.",
-    "F-session": "Reserved — session events absorbed by F-identity (per identity/config/auth-events.ts §A1 single-owner). FSlice + STATE_NAMESPACES entries retained for future re-extraction; no on-disk slice.",
-    "F-git-connector": "Reserved — referenced in user-profile/event-bus mappings; will be re-introduced when GitHub-connector slice is built (per user-profile-config.ts comment).",
-    "F-terminal-bridge": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
-    "F-topography": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
-    "F-constitution": "Reserved — referenced in event-bus mapping; not yet built.",
-    "F-notifications": "Reserved — referenced in event-bus + F-output consumer comments; not yet built.",
-    "F-commit-log": "Reserved — referenced in event-bus + F-output consumer comments; not yet built.",
-    "F-editor": "Reserved — Phase 2 IDE surface (component of F-workspace). Not yet built.",
-    "F-health-panel": "Reserved — la-results-db/la-runner stub consumers per la-config comments; not yet built.",
-    "F-execution-panel": "Reserved — la-results-db/la-runner stub consumers per la-config comments; not yet built."
+    "F-workspace": "Phase 2 \u2014 IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only.",
+    "_aspirational_retraction_note": "Sprint Placement Framework Shot 4 retraction: 10 names moved from declared_slices to reserved_slices because they have no on-disk presence under src/features/. They retain FSlice type membership and STATE_NAMESPACES entries (load-bearing for event-bus routing and core/types/state-registry.ts) \u2014 a JSON-vs-TS structural drift logged as F-FORWARD-11 for forward-LIV-Standard cycle. Do NOT remove these names from FSlice or STATE_NAMESPACES without the forward sprint's structural ratification.",
+    "F-session": "Reserved \u2014 session events absorbed by F-identity (per identity/config/auth-events.ts \u00a7A1 single-owner). FSlice + STATE_NAMESPACES entries retained for future re-extraction; no on-disk slice.",
+    "F-git-connector": "Reserved \u2014 referenced in user-profile/event-bus mappings; will be re-introduced when GitHub-connector slice is built (per user-profile-config.ts comment).",
+    "F-terminal-bridge": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-topography": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-constitution": "Reserved \u2014 referenced in event-bus mapping; not yet built.",
+    "F-notifications": "Reserved \u2014 referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-commit-log": "Reserved \u2014 referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-editor": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-health-panel": "Reserved \u2014 la-results-db/la-runner stub consumers per la-config comments; not yet built.",
+    "F-execution-panel": "Reserved \u2014 la-results-db/la-runner stub consumers per la-config comments; not yet built."
   }
 }

@@ -1,10 +1,12 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6
 // [F-planner/R3]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    w2-item-12, phase-b-item4, phase-b-item2, phase-4.3, phase-5.2, phase-5-audit
+//             sprint-11-shot-5 (transition shell: runPipeline delegated to F-builder/R3 executeBuild)
+//             sprint-11-shot-6 (SPRINT-11-STRUCTURAL-EXCEPTION annotation in wires-out; manifest sweep)
 // slice:      F-planner
 // layer:      R3
 // wires-in:
@@ -22,6 +24,10 @@
 //   W-HOOK  usePlanner                →  F-dashboard/R3
 //   W-HOOK  handleBuildRequest        →  (formerly F-codec/R2 codec-orchestrate; F-codec dissolved Sprint 8 Shot 3a; route currently inactive — see app/api routes returning 501 pending Sprint 9 reauthor against substrate)
 //   W-HOOK  handleGetVersionHistory   →  src/app/api/planner/[projectId]/versions/route.ts  (step5e)
+//   W-HOOK  executeBuild (delegated) →  F-builder/R3 builder-contract  (sprint-11-shot-5 — transition shell)
+// SPRINT-11-STRUCTURAL-EXCEPTION (wires-out): runPipeline from F-planner R2 is imported by
+//   F-builder R2 (builder-workflow.ts). This is declared debt per D-S5-EXTRACTION.
+//   Auditor: treat as known exception, not axiom violation. Resolved Sprint 12.
 // deps:
 //   R0  ../types/planner-types
 //   R0  ../types/planner-const
@@ -76,9 +82,8 @@ import {
   freezeContract,
   getPipelineStatus,
   handleInMainTurn,
-  runPipeline,
 } from '../workflow/planner-workflow'
-import { createPlannerDb, createAiAdapter, createExecutor, createOutputWriter } from './planner-inject'
+import { createPlannerDb, createAiAdapter, createExecutor } from './planner-inject'
 import type {
   PlannerJobId,
   BuildRequestPayload,
@@ -89,6 +94,8 @@ import type {
 } from '../types/planner-types'
 import type { AdminBuild, AdminBuildsFilter } from '@/features/F-admin/types/admin-types'
 import type { PlannerResult } from '../types/planner-types'
+import { executeBuild }                                   from '@/features/F-builder/contract/builder-contract'
+import type { BuildDirective }                          from '@/features/F-builder/contract/builder-contract'
 
 // ── Shared session helper ─────────────────────────────────────────────────────
 // Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
@@ -121,22 +128,24 @@ export async function handleBuildRequest(
     return { ok: false, error: result.error.message }
   }
 
-  // ── Fire-and-forget: launch pipeline on confirmation ──────────────────────
-  // runPipeline() is called without await. The SSE stream returns the ack
-  // message to the user immediately. Pipeline runs in background.
-  // .catch() ensures any thrown error sets pipeline_status = 'failed'
-  // internally — it never propagates to the chat route handler (A4).
+  // ── Fire-and-forget: launch build on confirmation — sprint-11-shot-5 ─────────
+  // executeBuild() (F-builder/R3) is called without await. The SSE stream returns
+  // the ack message to the user immediately. Build runs in background.
+  // sprint-11-shot-5: delegation moved from runPipeline (F-planner R2) to
+  // executeBuild (F-builder R3). F-planner is a transition shell.
   if (result.data.isConfirmation) {
-    const executor = createExecutor()
-    const output   = createOutputWriter()
-    const jobId    = result.data.job.jobId
+    const jobId = result.data.job.jobId
 
-    runPipeline({ db, ai, executor, output }, jobId, result.data.readSnapshot ?? null).catch(err => {
-      // Last-resort catch — runPipeline should handle its own failures internally.
-      // If it throws unexpectedly, log and attempt to mark pipeline failed.
+    const directive: BuildDirective = {
+      jobId:     jobId as string,
+      userId:    (result.data.job as unknown as Record<string, unknown>).userId   as string ?? '',
+      projectId: (result.data.job as unknown as Record<string, unknown>).projectId as string ?? '',
+    }
+
+    executeBuild(directive).catch(err => {
       console.error(JSON.stringify({
         level:     'error',
-        event:     'pipeline.unhandled.error',
+        event:     'builder.unhandled.error',
         jobId:     jobId as string,
         message:   err instanceof Error ? err.message : String(err),
         slice:     'F-planner',

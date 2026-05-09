@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-4a
 // [F-verify/R0]
 // Built with LIV · livai.dev
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-4-vs (slice introduction)
+//             sprint-11-shot-4a (projectId added to VerificationExecuteInput for substrate scope)
 // slice:      F-verify
 // layer:      R0
 // wires-in:
@@ -116,6 +117,7 @@ export type ClassificationTriple = {
  */
 export type VerificationExecuteInput = {
   verificationInput: VerificationInput
+  projectId:         string          // sprint-11-shot-4a: substrate scope requires projectId
   classification:    ClassificationTriple
 }
 

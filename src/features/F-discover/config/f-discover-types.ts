@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-11-shot-4a
 // [F-discover/R0]
 // Built with LIV · livai.dev
 //
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-5-rs (slice introduction)
+//             sprint-11-shot-4a (projectId added to ResearchExecuteInput for substrate scope)
 // slice:      F-discover
 // layer:      R0
 // wires-in:
@@ -134,7 +135,8 @@ export type ClassificationTriple = {
  * fields outside the W-ATOM schema.
  */
 export type ResearchExecuteInput = {
-  researchInput: ResearchInput
+  researchInput:  ResearchInput
+  projectId:      string          // sprint-11-shot-4a: substrate scope requires projectId
   classification: ClassificationTriple
 }
 
