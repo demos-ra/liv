@@ -35,7 +35,7 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
   'F-memory':          'memory',
-  'F-planner':         'planner',          // Phase 4
+  // 'F-planner': dissolved Sprint 12 Shot 3
   'F-intake':          'intake',           // Phase 5
   'F-output':          'output',           // Phase 6
   'F-artifact':        'artifact',         // Phase 4b — AS v2.2 runtime

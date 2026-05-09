@@ -1,10 +1,10 @@
 // @liv-standard v1.5.1
-// [F-planner/contract/planner-adapter-port.ts]
+// [F-builder/contract/planner-adapter-port.ts]
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    phase-5
-// slice:      F-planner
+// slice:      F-builder
 // layer:      R3
 // wires-in:
 //   W-ATOM  DeclId, TypedAtom                    ← F-multi-instance/R3 mi-contract
@@ -50,10 +50,10 @@
 import type { AIAdapterPort } from '@/features/F-multi-instance/contract/mi-contract'
 import type { DeclId } from '@/core/types/plan-standard.types'
 import type { TypedAtom } from '@/core/types/multi-instance-standard.types'
-import type { IAiAdapter } from '@/features/F-planner/workflow/planner-workflow'
+import type { IAiAdapter } from '../domain/builder-pipeline'
 import type { InstanceId } from '@/core/constants/liv-standard.types'
 import { validateHandoff } from '@/core/constants/liv-api'
-import { PLANNER_CONST } from '@/features/F-planner/types/planner-const'
+import { PLANNER_CONST } from '../config/builder-const'
 
 // ─── Tier selection helper ───────────────────────────────────────────────────
 

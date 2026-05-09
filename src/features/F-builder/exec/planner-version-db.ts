@@ -1,11 +1,12 @@
 // @liv-standard v1.3
-// [F-planner/exec/planner-version-db.ts]
+// [F-builder/exec/planner-version-db.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    step5e
-// slice:      F-planner
+// slice:      F-builder
+// amended:    sprint-12-shot-3 (moved from F-planner/exec — dissolution)
 // layer:      R4
 // wires-in:
 //   W-ATOM  BuildVersion   ../types/planner-version-types
@@ -29,8 +30,8 @@
 //   A6 — types declared at R0.
 
 import { db }                  from '@/core/db/client'
-import type { BuildVersion }   from '../types/planner-version-types'
-import type { PlannerResult }  from '../types/planner-types'
+import type { BuildVersion }   from '@/features/F-plan/types/planner-version-types'
+import type { PlannerResult }  from '@/features/F-plan/types/pipeline-types'
 
 // ── dbGetLatestVersion ────────────────────────────────────────────────────────
 // Returns the latest version string for completed builds in this project.

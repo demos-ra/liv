@@ -1,10 +1,10 @@
 // @liv-standard v1.5.1
-// [F-planner/workflow/planner-plan-emit.ts]
+// [F-builder/domain/builder-plan-emit.ts]
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase-5
-// slice:      F-planner
+// amended:    sprint-12-shot-3 (NEW — moved from F-planner/workflow/planner-plan-emit — dissolution)
+// slice:      F-builder
 // layer:      R2
 // wires-in:
 //   W-ATOM  NodeId                        ← core/R5 primitives
@@ -47,7 +47,7 @@
 //   R0 @/core/constants/liv-standard.types
 //   R3 @/features/F-artifact/contract/artifact-contract
 //   R3 @/features/F-la-config/contract/liv-standard-binding
-//   R0 @/features/F-planner/types/planner-const
+//   R0 @/features/F-builder/config/builder-const
 // validated:  pending
 //
 // Phase 5 — Build #2:
@@ -109,13 +109,13 @@ import type { ArtifactGraphPort } from '@/features/F-artifact/contract/artifact-
 
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
 import { LIV_STANDARD_DOMAIN_BINDING } from '@/features/F-la-config/contract/liv-standard-binding'
-import { PLANNER_CONST } from '@/features/F-planner/types/planner-const'
+import { PLANNER_CONST } from '@/features/F-builder/config/builder-const'
 import { generateId } from '@/core/types/primitives'
 
 // ─── Authoring program identity (Plan v2.2 §6 custody: caller R0) ────────────
 
 const AUTHORING_PROGRAM: AuthoringProgramRef = {
-  programId:      'F-planner',
+  programId:      'F-builder',
   programVersion: 'v1.5.1' as Semver,
 }
 

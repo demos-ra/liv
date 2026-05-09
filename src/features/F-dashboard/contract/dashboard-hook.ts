@@ -57,7 +57,7 @@ import type {
   OutputState,
 } from '../types/dashboard-types'
 
-export function useWorkspace(): WorkspaceHook {
+export function useWorkspace(userId: string = ''): WorkspaceHook {
   const [isExpanded, setIsExpanded]         = useState<boolean>(false)
   const [activeProgramId, setActiveProgramId] = useState<string | null>(null)
 
@@ -136,6 +136,7 @@ export function useWorkspace(): WorkspaceHook {
     programs,
     activeProgramId:  resolvedActiveProgramId,
     setActiveProgram,
+    userId,
     outputState,
     outputActions,
     projectActions,

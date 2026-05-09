@@ -15,7 +15,7 @@
 // validated:  2026-03-12
 
 import { NextRequest } from 'next/server'
-import { handleStartPipeline } from '@/features/F-planner/contract/planner-contract'
+import { handleStartPipeline } from '@/features/F-plan/contract/plan-contract'
 
 export const dynamic = 'force-dynamic'
 

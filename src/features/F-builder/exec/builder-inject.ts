@@ -1,49 +1,42 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6
+// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-12-shot-3
 // [F-builder/R4]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-11-shot-5 (initial authoring — port factories for F-builder)
+//             sprint-12-shot-3 (F-planner dissolution — all imports redirected to local or F-plan)
 // slice:      F-builder
 // layer:      R4  (I/O port factories; never imported from R2 directly)
 // wires-in:
-//   W-INJECT  IPlannerDb    F-planner/workflow/planner-workflow   (R2 type — structural exception, Sprint 12)
-//   W-INJECT  IAiAdapter    F-planner/workflow/planner-workflow   (R2 type — structural exception, Sprint 12)
-//   W-INJECT  IExecutor     F-planner/workflow/planner-workflow   (R2 type — structural exception, Sprint 12)
-//   W-INJECT  IOutputWriter F-planner/workflow/planner-workflow   (R2 type — structural exception, Sprint 12)
+//   W-INJECT  IPlannerDb    F-builder/domain/builder-pipeline   (R2 — post-dissolution)
+//   W-INJECT  IAiAdapter    F-builder/domain/builder-pipeline   (R2 — post-dissolution)
+//   W-INJECT  IExecutor     F-builder/domain/builder-pipeline   (R2 — post-dissolution)
+//   W-INJECT  IOutputWriter F-builder/domain/builder-pipeline   (R2 — post-dissolution)
 // wires-out:
 //   W-INJECT  createBuilderDb      →  F-builder/R3 builder-contract
 //   W-INJECT  createBuilderAi      →  F-builder/R3 builder-contract
 //   W-INJECT  createBuilderExecutor →  F-builder/R3 builder-contract
 //   W-INJECT  createBuilderOutput  →  F-builder/R3 builder-contract
 // deps:
-//   R2  @/features/F-planner/workflow/planner-workflow  (type imports only — Sprint 12 exception)
-//   R4  @/features/F-planner/exec/planner-db
-//   R4  @/features/F-planner/exec/planner-library-db
-//   R4  @/features/F-planner/exec/planner-version-db
-//   R4  @/features/F-planner/exec/ai-adapter-io
+//   R2  ../domain/builder-pipeline         (type imports only)
+//   R4  ./planner-db
+//   R4  ./planner-library-db
+//   R4  ./planner-version-db
+//   R4  ./ai-adapter-io
 //   R3  @/features/F-executor/contract/executor-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
 //   R3  @/features/F-output/contract/output-contract
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
+//   R0  @/features/F-plan/types/pipeline-types
 // validated:  pending
-//
-// Sprint 11 Shot 5 structural exception (Decision-D-S5-EXTRACTION):
-//   F-builder R4 imports interfaces from F-planner R2 (type imports only).
-//   Rationale: F-planner's IPlannerDb/IAiAdapter/IExecutor/IOutputWriter are
-//   declared at R2 (planner-workflow.ts). Full type migration to F-builder R0
-//   is Sprint 12 scope. At Sprint 11: F-builder re-exports the same port
-//   factories as F-planner/planner-inject, bound to the same R4 implementations.
-//   No runtime code from F-planner R2 is imported — only interface types.
-//   This is a declared structural exception, not a layering violation.
 
 import type {
   IPlannerDb,
   IAiAdapter,
   IExecutor,
   IOutputWriter,
-} from '@/features/F-planner/workflow/planner-workflow'
+} from '../domain/builder-pipeline'
 
 import {
   dbGetJob,
@@ -68,7 +61,7 @@ import {
   dbStoreExternalFileCache,
   dbGetPriorPlanAnchor,
   dbSetPlanAnchor,
-} from '@/features/F-planner/exec/planner-db'
+} from './planner-db'
 
 import {
   dbLookupExactFlowLibrary,
@@ -77,20 +70,20 @@ import {
   dbIncrementReuseFailure,
   hashAtomShape,
   hashWireSignature,
-} from '@/features/F-planner/exec/planner-library-db'
+} from './planner-library-db'
 
 import {
   dbGetLatestVersion,
   dbSetBuildVersion,
   dbGetVersionHistory,
-} from '@/features/F-planner/exec/planner-version-db'
+} from './planner-version-db'
 
-import { ioStreamCompletion }   from '@/features/F-planner/exec/ai-adapter-io'
+import { ioStreamCompletion }   from './ai-adapter-io'
 import { runExecution }         from '@/features/F-executor/contract/executor-contract'
 import { getApiKey }            from '@/features/F-user-profile/contract/user-profile-contract'
 import { providerForModel }     from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { writeOutputFiles }     from '@/features/F-output/contract/output-contract'
-import type { FileEntry }       from '@/features/F-planner/types/planner-types'
+import type { FileEntry }       from '@/features/F-plan/types/pipeline-types'
 
 export function createBuilderDb(): IPlannerDb {
   return {

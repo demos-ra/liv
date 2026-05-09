@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -9,6 +9,7 @@
 //             sprint-11-shot-6 (permission gate rationale; stale manifest entries cleaned)
 //             sprint-11-shot-6a (S11-C1: Decision-D terminology aligned — side= → source.channel=)
 //             sprint-11-shot-6b (source.scope corrected: userId → projectId at all writeStateChange callsites)
+//             sprint-12-shot-4 (F-S12-D closed: stale F-planner refs removed; CS v1.0 alignment declared)
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -16,7 +17,7 @@
 //   W-ATOM  MODELS               F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  CHAT_CONFIG          ../config/chat-config
 //   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
-//   W-HOOK  isPipelineActive     F-planner/contract/planner-contract  (R3→R3, read-only query)
+//   W-HOOK  isPipelineActive     F-plan/contract/plan-contract  (R3→R3, read-only query)
 //   W-FN    writeStateChange     F-memory/contract/substrate-contract  (HR-LM1 write surface)
 //   W-FN    threadQuery          F-memory/contract/substrate-contract  (thread read surface)
 //   W-FN    route                F-router/contract/router-contract     (message routing)
@@ -35,12 +36,19 @@
 //   R1  @/core/domain/rate-limiter
 //   R2  ../app/chat-workflow
 //   R3  @/features/F-identity/contract/perimeter-consultation
-//   R3  @/features/F-planner/contract/planner-contract
+//   R3  @/features/F-plan/contract/plan-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R3  @/features/F-router/contract/router-contract
 //   R5  core/types/primitives
 //   R5  next/server
 // validated:  pending
+//
+// Chat Standard v1.0 alignment:
+//   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
+//   CA2 — substrate threadQuery assembles context before LLM call (lines ~202–230)
+//   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
+//   CA4 — stream and write are independent; write failure non-fatal to stream (.catch pattern)
+//   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
 //
 // sprint-8-shot-3a (F-codec dissolved):
 //   Removed:
@@ -51,7 +59,7 @@
 //     - decodedContext systemPromptBlock injection (codec decode output)
 //   Surviving flow:
 //     1. Auth + rate limit (unchanged)
-//     2. Pipeline guard via isPipelineActive (F-planner R3)
+//     2. Pipeline guard via isPipelineActive (F-plan R3)
 //     3. If running → block with informational message
 //     4. Default: streamed AI chat (no system context block at this shot)
 //
@@ -89,7 +97,7 @@ import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
-import { isPipelineActive }                      from '@/features/F-planner/contract/planner-contract'
+import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { writeStateChange, threadQuery }         from '@/features/F-memory/contract/substrate-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
@@ -153,6 +161,7 @@ export async function POST_message(
   const encoder = new TextEncoder()
 
   // ── Wearer-side substrate write (HR-LM1) — sprint-11-shot-2 ───────────────
+  // CA3: wearer-side write (turnId shared with ai-side write below)
   // Generate turnId once per exchange; shared with ai-side write below.
   // Decision-D mapping applied: identities anchor userId + projectId + turnId.
   // Fire-and-forget: CA4 independence — write failure must not affect response path.
@@ -160,6 +169,7 @@ export async function POST_message(
   const arrivedAt = Date.now()
 
   const wearerWrite: SubstrateWriteInput = {
+    userId: session.userId,
     content: {
       identities: [
         session.userId as IdentityRef,
@@ -223,7 +233,7 @@ export async function POST_message(
       scope:      projectId as ScopeRef,
       limit:      20,
     }
-    const queryResult = await threadQuery(queryInput)
+    const queryResult = await threadQuery(queryInput, session.userId)
     if (queryResult.ok && queryResult.data.records.length > 0) {
       contextRef   = queryResult.data
       // Assemble system prompt from thread records: surface identity anchors as context lines.
@@ -305,10 +315,12 @@ export async function POST_message(
       }
 
       // ── Ai-side substrate write — sprint-11-shot-2 ─────────────────────────
+      // CA3: ai-side write (turnId matches wearer-side write above)
       // Fires after stream completes (full or partial on error).
       // CA4: fire-and-forget — write failure must not suppress already-streamed chunks.
       // Same turnId as wearer write; source.channel='ai'.
       const aiWrite: SubstrateWriteInput = {
+        userId: session.userId,
         content: {
           identities: [
             session.userId as IdentityRef,

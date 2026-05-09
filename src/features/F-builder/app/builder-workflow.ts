@@ -1,17 +1,19 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-11-shot-6b
+// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-3
 // [F-builder/R2]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-11-shot-5 (initial authoring — F-builder spin-out)
+//             sprint-12-shot-3 (F-planner dissolution — imports redirected to builder-pipeline)
 // slice:      F-builder
 // layer:      R2
 // wires-in:
 //   W-ATOM    BuildDirective  F-builder/R0 builder-types
 //   W-ATOM    BuildEmission   F-builder/R0 builder-types
 //   W-ATOM    BUILDER_CONFIG  F-builder/R0 builder-config
-//   W-FN      runPipeline     F-planner/R2 planner-workflow  (Sprint 12 exception — see Decision-D-S5-EXTRACTION)
+//   W-FN      runPipeline     F-builder/domain/builder-pipeline  (post-dissolution)
+//   W-INJECT  BuilderPipelineDeps  F-builder/domain/builder-pipeline
 //   W-FN      writeStateChange  F-memory/contract/substrate-contract  (BuildEmission write)
 //   W-ATOM    SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef  core/types/substrate.types
 // wires-out:
@@ -19,37 +21,16 @@
 // deps:
 //   R0  ../config/builder-types
 //   R0  ../config/builder-config
-//   R2  @/features/F-planner/workflow/planner-workflow   (runPipeline — Sprint 12 exception)
+//   R2  ../domain/builder-pipeline
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R5  @/core/types/substrate.types
 // validated:  pending
-//
-// Decision-D-S5-EXTRACTION: F-builder invocation pattern.
-//   F-builder R2 calls runPipeline() from F-planner R2.
-//   This is a declared Sprint 11 structural exception. F-planner's pipeline
-//   logic (394 lines, deeply coupled to F-planner R0/R1 types) cannot be
-//   physically moved in this shot without pulling all transitive F-planner
-//   type dependencies. Sprint 12 will move types to F-builder R0 and the
-//   function body to F-builder R2, dissolving the cross-slice R2→R2 import.
-//   At Sprint 11: F-builder R3 is the public surface; F-planner R3
-//   delegates to F-builder R3. The Sprint 11 extract delivers the public
-//   contract boundary; Sprint 12 completes the physical relocation.
-//
-// BuildEmission substrate write (CA4):
-//   After runPipeline resolves (success, failure, or escalation), F-builder
-//   writes a BuildEmission typed atom to substrate. Fire-and-forget —
-//   write failure must not suppress the build result. channel='internal-derivation'.
 
 import type {
-  IPlannerDb,
-  IAiAdapter,
-  IExecutor,
-  IOutputWriter,
-} from '@/features/F-planner/workflow/planner-workflow'
-// SPRINT-11-STRUCTURAL-EXCEPTION: cross-slice R2→R2 import from F-planner.
-// Resolved at Sprint 12 when F-planner dissolves under F-plan refactor.
-// Declared: D-S5-EXTRACTION. Auditor: treat as known debt, not axiom violation.
-import { runPipeline } from '@/features/F-planner/workflow/planner-workflow'
+  BuilderPipelineDeps,
+} from '../domain/builder-pipeline'
+import { runPipeline } from '../domain/builder-pipeline'
+import type { PlannerJobId } from '@/features/F-plan/types/pipeline-types'
 import type { BuildDirective, BuildEmission, BuildStatus } from '../config/builder-types'
 import { writeStateChange }  from '@/features/F-memory/contract/substrate-contract'
 import type {
@@ -59,15 +40,11 @@ import type {
   RoleRef,
 }                            from '@/core/types/substrate.types'
 
-export type BuilderDeps = {
-  db:       IPlannerDb
-  ai:       IAiAdapter
-  executor: IExecutor
-  output:   IOutputWriter
-}
+export type BuilderDeps = BuilderPipelineDeps
 
 function writeBuildEmission(emission: BuildEmission): void {
   const write: SubstrateWriteInput = {
+    userId: emission.userId,
     content: {
       identities: [
         'build-emission'    as IdentityRef,
@@ -105,21 +82,18 @@ function writeBuildEmission(emission: BuildEmission): void {
 
 // ─── runBuild() ───────────────────────────────────────────────────────────────
 // F-builder R2 — primary build orchestration entry.
-// Delegates to runPipeline (F-planner R2, Sprint 11 exception).
+// Delegates to runPipeline (F-builder/domain/builder-pipeline — sprint-12-shot-3).
 // Writes BuildEmission to substrate on completion (fire-and-forget, CA4).
 // Returns Promise<void> — matches fire-and-forget contract of handleBuildRequest.
 
 export async function runBuild(
-  deps:      BuilderDeps,
+  deps:      BuilderPipelineDeps,
   directive: BuildDirective,
 ): Promise<void> {
   let status: BuildStatus = 'failed'
 
   try {
-    await runPipeline(deps, directive.jobId as import('@/features/F-planner/types/planner-types').PlannerJobId, null)
-    // runPipeline manages its own pipeline_status writes.
-    // It does not return a status — check job state from DB if needed.
-    // For BuildEmission: treat successful resolution (no throw) as 'completed'.
+    await runPipeline(deps, directive.jobId as PlannerJobId, null)
     status = 'completed'
   } catch (err) {
     console.error(JSON.stringify({
@@ -131,8 +105,7 @@ export async function runBuild(
       layer:   'R2',
     }))
     status = 'failed'
-    // Attempt DB fail as last resort (runPipeline normally handles this internally)
-    deps.db.failPipeline(directive.jobId as import('@/features/F-planner/types/planner-types').PlannerJobId).catch(() => {})
+    deps.db.failPipeline(directive.jobId as PlannerJobId).catch(() => {})
   }
 
   writeBuildEmission({

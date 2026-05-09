@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-4a sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b
+// @liv-standard v1.5.1 amended sprint-11-shot-4a sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2
 // [F-discover/R3]
 // Built with LIV · livai.dev
 //
@@ -125,7 +125,7 @@ async function readDiscoverContext(userId: string, projectId: string): Promise<s
       scope:      projectId as ScopeRef,
       limit:      20,
     }
-    const result = await threadQuery(queryInput)
+    const result = await threadQuery(queryInput, userId)
     if (result.ok && result.data.records.length > 0) {
       return result.data.records
         .map(r => r.content.identities.join(' | '))
@@ -139,6 +139,7 @@ async function readDiscoverContext(userId: string, projectId: string): Promise<s
 
 function writeResearchOutput(userId: string, turnId: string, projectId: string): void {
   const write: SubstrateWriteInput = {
+    userId,
     content: {
       identities: [
         'research-output' as IdentityRef,

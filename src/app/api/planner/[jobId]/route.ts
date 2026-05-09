@@ -21,8 +21,8 @@
 // Contract handlers always receive plain strings.
 
 import { NextRequest }              from 'next/server'
-import { handleGetPipelineStatus }  from '@/features/F-planner/contract/planner-contract'
-import type { PlannerJobId }        from '@/features/F-planner/types/planner-types'
+import { handleGetPipelineStatus }  from '@/features/F-plan/contract/plan-contract'
+import type { PlannerJobId }        from '@/features/F-plan/types/pipeline-types'
 
 export const dynamic = 'force-dynamic'
 

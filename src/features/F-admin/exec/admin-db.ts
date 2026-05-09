@@ -10,13 +10,13 @@
 // wires-in:
 //   W-ATOM  AdminBuild            ../types/admin-types
 //   W-ATOM  AdminBuildsFilter     ../types/admin-types
-//   W-FN    getBuildsForAdmin     @/features/F-planner/contract/planner-contract
+//   W-FN    getBuildsForAdmin     @/features/F-plan/contract/plan-contract
 //   W-FN    getUserEmail          @/features/F-identity/contract/auth-contract
 // wires-out:  none  (R4 is never imported. Bound via API route at R4.)
 // deps:
 //   R0  ../types/admin-types
 //   R0  @/core/types/primitives
-//   R3  @/features/F-planner/contract/planner-contract
+//   R3  @/features/F-plan/contract/plan-contract
 //   R3  @/features/F-identity/contract/auth-contract
 // validated: pending
 //
@@ -37,7 +37,7 @@
 
 import type { Result } from '@/core/types/primitives'
 import type { AdminBuild, AdminBuildsFilter } from '../types/admin-types'
-import { getBuildsForAdmin } from '@/features/F-planner/contract/planner-contract'
+import { getBuildsForAdmin } from '@/features/F-plan/contract/plan-contract'
 import { getUserEmail as _getUserEmail } from '@/features/F-identity/contract/auth-contract'
 
 // ── dbGetBuilds ───────────────────────────────────────────────────────────────

@@ -54,6 +54,7 @@ export type StateChangeRow = {
   time_ms:     string                          // bigint serialized as string
   source_channel: string
   source_scope:   string
+  user_id:     string                          // v3.2: authentication identity of writer
   identities:  string[]                        // JSONB array of IdentityRef strings
   relations:   unknown                          // JSONB array of Relation objects (validated at R4 → typed)
 }
@@ -63,6 +64,7 @@ export type StateChangeRow = {
 // Carries the inbound write through the procedure.
 
 export type SubstrateWriteValidated = {
+  userId:     string
   identities: IdentityRef[]
   relations:  Relation[]
   time:       number

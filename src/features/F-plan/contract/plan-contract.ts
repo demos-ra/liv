@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-4 sprint-11-shot-6 sprint-11-shot-6b
+// @liv-standard v1.5.1 amended sprint-11-shot-4 sprint-11-shot-6 sprint-11-shot-6b sprint-12-shot-2
 // [F-plan/R3]
 // Built with LIV · livai.dev
 //
@@ -142,7 +142,7 @@ async function readPlanContext(userId: string, projectId: string): Promise<strin
       scope:      projectId as ScopeRef,
       limit:      20,
     }
-    const result = await threadQuery(queryInput)
+    const result = await threadQuery(queryInput, userId)
     if (result.ok && result.data.records.length > 0) {
       return result.data.records
         .map(r => r.content.identities.join(' | '))
@@ -156,6 +156,7 @@ async function readPlanContext(userId: string, projectId: string): Promise<strin
 
 function writePlanOutput(userId: string, projectId: string, planRef: string): void {
   const write: SubstrateWriteInput = {
+    userId,
     content: {
       identities: [
         'plan-output' as IdentityRef,
@@ -385,6 +386,231 @@ export async function confirmDraft(
     writePlanOutput(userId, projectId, String(emitResult.data.planAnchorNodeId))
   }
   return emitResult
+}
+
+// ── isPipelineActive — moved from F-planner/contract/planner-contract.ts ──────
+// Re-exported here at F-plan R3 surface. F-chat imports from this location.
+// Uses createPlannerDb() (the existing plan-inject factory for IPlannerDb).
+
+import { isPipelineActive as _isPipelineActiveInner } from '../app/plan-pipeline'
+import { createPlannerDb as _createPlannerDb }        from './plan-inject'
+import type { PlannerResult }                          from '../types/pipeline-types'
+import type { AdminBuild, AdminBuildsFilter }          from '@/features/F-admin/types/admin-types'
+import { NextRequest, NextResponse }                   from 'next/server'
+import { getPerimeterSession }                         from '@/features/F-identity/contract/perimeter-consultation'
+import { createRateLimiter }                           from '@/core/domain/rate-limiter'
+import { PLANNER_RATE_LIMIT }                          from '@/features/F-builder/config/builder-const'
+import {
+  startPipeline   as _startPipeline,
+  advanceStage    as _advanceStage,
+  failStage       as _failStage,
+  freezeContract  as _freezeContract,
+  getPipelineStatus as _getPipelineStatus,
+}                                                      from '../app/plan-pipeline'
+import type {
+  PlannerJobId,
+  StartPipelinePayload,
+  AdvanceStagePayload,
+  FailStagePayload,
+  FreezeContractPayload,
+}                                                      from '../types/pipeline-types'
+import { createBuilderExecutor }                       from '@/features/F-builder/exec/builder-inject'
+import { dbCountActiveBuildsForUser }                  from '@/features/F-builder/exec/planner-db'
+
+export async function isPipelineActive(
+  projectId: string,
+): Promise<{ active: boolean; status: string | null }> {
+  const db = _createPlannerDb()
+  return _isPipelineActiveInner(projectId, { db })
+}
+
+// ── getBuildsForAdmin — moved from F-planner/contract/planner-contract.ts ─────
+// F-admin/exec/admin-db.ts imports this. Post-dissolution: lives at F-plan R3.
+
+export async function getBuildsForAdmin(
+  filters: AdminBuildsFilter,
+): Promise<PlannerResult<AdminBuild[]>> {
+  const db = _createPlannerDb()
+  return db.getBuildsForAdmin(filters)
+}
+
+// ── HTTP route handlers — moved from F-planner/contract/planner-contract.ts ───
+// All handlers auth-gated via getPerimeterSession per PS v1.0 §6.9.
+
+let _plannerLimiter: ReturnType<typeof createRateLimiter> | null = null
+function _getPlannerLimiter() {
+  if (!_plannerLimiter) _plannerLimiter = createRateLimiter()
+  return _plannerLimiter
+}
+
+export async function handleGetPipelineStatus(
+  req:   NextRequest,
+  jobId: PlannerJobId
+): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const db     = _createPlannerDb()
+  const result = await _getPipelineStatus({ db }, jobId)
+
+  if (!result.ok) {
+    const status = result.error.code === 'NOT_FOUND' ? 404 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  if (result.data.userId !== session.userId) {
+    return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
+}
+
+export async function handleStartPipeline(req: NextRequest): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const limit = _getPlannerLimiter().check(session.userId, PLANNER_RATE_LIMIT)
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: { code: 'RATE_LIMITED', message: 'Too many build requests. Please wait.' } },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } }
+    )
+  }
+
+  const activeCount = await dbCountActiveBuildsForUser(session.userId)
+  if (activeCount.ok && activeCount.data > 0) {
+    return NextResponse.json(
+      { error: { code: 'CONCURRENT_BUILD', message: 'A build is already in progress.' } },
+      { status: 429 }
+    )
+  }
+
+  let body: unknown
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 }) }
+
+  const input = body as StartPipelinePayload
+  if (!input?.buildId)   return NextResponse.json({ error: 'VALIDATION_FAILED', message: 'buildId required' },   { status: 422 })
+  if (!input?.projectId) return NextResponse.json({ error: 'VALIDATION_FAILED', message: 'projectId required' }, { status: 422 })
+
+  const db     = _createPlannerDb()
+  const result = await _startPipeline({ db }, { ...input, userId: session.userId })
+
+  if (!result.ok) {
+    const status = result.error.code === 'VALIDATION_FAILED' ? 422 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data }, { status: 201 })
+}
+
+export async function handleAdvanceStage(
+  req:   NextRequest,
+  jobId: PlannerJobId
+): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  let body: unknown
+  try { body = await req.json() } catch { body = {} }
+
+  const input: AdvanceStagePayload = {
+    jobId,
+    message: (body as Record<string, unknown>)?.message as string | null ?? null,
+    files:   (body as Record<string, unknown>)?.files   as Array<{ path: string; content: string }> | undefined,
+  }
+
+  const db       = _createPlannerDb()
+  const executor = createBuilderExecutor()
+  const result   = await _advanceStage({ db, executor }, input)
+
+  if (!result.ok) {
+    const status = result.error.code === 'NOT_FOUND'     ? 404
+                 : result.error.code === 'INVALID_STATE' ? 409
+                 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
+}
+
+export async function handleFailStage(
+  req:   NextRequest,
+  jobId: PlannerJobId
+): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  let body: unknown
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 }) }
+
+  const b = body as Record<string, unknown>
+  if (!b?.reason) return NextResponse.json({ error: 'VALIDATION_FAILED', message: 'reason required' }, { status: 422 })
+
+  const input: FailStagePayload = {
+    jobId,
+    reason:    b.reason    as string,
+    axiomCite: (b.axiomCite as string | null) ?? null,
+  }
+
+  const db     = _createPlannerDb()
+  const result = await _failStage({ db }, input)
+
+  if (!result.ok) {
+    const status = result.error.code === 'NOT_FOUND'     ? 404
+                 : result.error.code === 'INVALID_STATE' ? 409
+                 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
+}
+
+export async function handleFreezeContract(
+  req:   NextRequest,
+  jobId: PlannerJobId
+): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  let body: unknown
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'INVALID_BODY' }, { status: 400 }) }
+
+  const b = body as Record<string, unknown>
+  if (!b?.ifContract) return NextResponse.json({ error: 'VALIDATION_FAILED', message: 'ifContract required' }, { status: 422 })
+
+  const input: FreezeContractPayload = {
+    jobId,
+    ifContract: b.ifContract as FreezeContractPayload['ifContract'],
+  }
+
+  const db     = _createPlannerDb()
+  const result = await _freezeContract({ db }, input)
+
+  if (!result.ok) {
+    const status = result.error.code === 'VALIDATION_FAILED' ? 422
+                 : result.error.code === 'NOT_FOUND'         ? 404
+                 : 500
+    return NextResponse.json({ error: result.error }, { status })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
+}
+
+export async function handleGetVersionHistory(
+  req:       NextRequest,
+  projectId: string,
+): Promise<NextResponse> {
+  const session = getPerimeterSession(req)
+  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const db     = _createPlannerDb()
+  const result = await db.getVersionHistory(projectId)
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, data: result.data })
 }
 
 // ─── End of plan-contract.ts ─────────────────────────────────────────────────

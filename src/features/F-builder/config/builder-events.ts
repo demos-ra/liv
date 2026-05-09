@@ -1,11 +1,11 @@
 // @liv-standard v1.5.1
-// [F-planner/R0]
+// [F-builder/config/builder-events.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    6.12-payload-enrichment
-// slice:      F-planner
+// amended:    sprint-12-shot-3 (moved from F-planner/types/planner-events — dissolution)
+// slice:      F-builder
 // layer:      R0
 // wires-in:   none
 // wires-out:
@@ -15,9 +15,9 @@
 //   W-EVENT  stage.completed     →  F-event-system/R0
 //   W-EVENT  stage.failed        →  F-event-system/R0
 // deps:       none
-// validated:  2026-03-12
+// validated:  pending
 
-// A6: declared at R0 of emitting slice. Consumed via event-schema.ts barrel only.
+// A6: declared at R0 of emitting slice (F-builder post-dissolution). Consumed via event-schema.ts barrel only.
 // A5: no slice imports these directly — only through the event bus.
 export const PLANNER_EVENTS = {
   PIPELINE_STARTED:   'pipeline.started',

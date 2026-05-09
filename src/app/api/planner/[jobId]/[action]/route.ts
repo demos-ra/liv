@@ -27,8 +27,8 @@ import {
   handleAdvanceStage,
   handleFailStage,
   handleFreezeContract,
-}                                  from '@/features/F-planner/contract/planner-contract'
-import type { PlannerJobId }       from '@/features/F-planner/types/planner-types'
+}                                  from '@/features/F-plan/contract/plan-contract'
+import type { PlannerJobId }       from '@/features/F-plan/types/pipeline-types'
 
 export const dynamic = 'force-dynamic'
 

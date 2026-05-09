@@ -119,7 +119,7 @@ function DashboardIcon() {
 
 export default function Home() {
   const { state, signOut } = useAuth()
-  const workspace = useWorkspace()
+  const workspace = useWorkspace(state.status === 'authenticated' ? state.user?.id ?? '' : '')
 
   // ── Page transitions ─────────────────────────────────────────────────────
   // headerRef: Deferred — login boundary transitions (Phase 4+).

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    step5b-phaseA, phase-5.2, phase-5-audit
+// amended:    step5b-phaseA, phase-5.2, phase-5-audit, sprint-12-shot-4 (actionKinds + userId)
 // slice:      F-dashboard
 // layer:      R0
 // wires-in:
@@ -24,15 +24,12 @@
 //   R5  react
 // validated: pending
 //
-// step5d-phase1 (A1, A3, A7): (see prior history)
-//
-// step5b-phaseA (A1, A3, A6):
-//   ProgramRenderIntent: added label field. Menu needs human-readable names.
-//     Every program declares its label alongside programId + component.
-//   WorkspaceHook: added activeProgramId (string | null) and setActiveProgram.
-//     null = menu. string = that programId is active and rendered.
-//     isExpanded and activeProgramId are independent axes (spec locked).
-//   Axiom cite: A3 — typed atoms at boundary. A6 — declared at R0.
+// sprint-12-shot-4 (A1, A3, A6):
+//   ProgramRenderIntent: added actionKinds: string[] per Render Standard v1.0 DA1.
+//     Programs declare action kinds at v1.0 as [] (no typed dashboard actions yet).
+//   WorkspaceHook: added userId: string — threaded from authenticated session so
+//     the dashboard shell can pass the context triple (programId, userId, projectId)
+//     to each mounted program component per G-RS4.
 
 import type { ComponentType } from 'react'
 import type {
@@ -43,14 +40,20 @@ import type {
 } from '@/features/F-project/types/project-types'
 import type { PushPayload, PushResult, OutputFiles } from '@/features/F-output/types/output-types'
 
-// ── ProgramRenderIntent (A3) ──────────────────────────────────────────────────
-// step5b-phaseA: added label — human-readable program name for the menu.
-// phase-5.2: added optional statusDot and statusLine for menu card display.
-export type ProgramRenderIntent = {
+export type ProgramProps = {
   programId:  string
-  label:      string
-  component:  ComponentType
-  statusDot?: 'accent' | 'dis' | 'error'
+  userId:     string
+  projectId:  string
+}
+
+// ── ProgramRenderIntent (A3) ──────────────────────────────────────────────────
+// sprint-12-shot-4: added actionKinds per Render Standard v1.0 DA1.
+export type ProgramRenderIntent = {
+  programId:   string
+  label:       string
+  component:   ComponentType<ProgramProps>
+  actionKinds: string[]           // v1.0: empty; DA2/DA3 dispatch wired post-beta
+  statusDot?:  'accent' | 'dis' | 'error'
   statusLine?: string
 }
 
@@ -101,6 +104,7 @@ export type WorkspaceHook = {
   programs:         ProgramRenderIntent[]
   activeProgramId:  string | null
   setActiveProgram: (programId: string | null) => void
+  userId:           string           // sprint-12-shot-4: G-RS4 context triple thread
   outputState:      OutputState
   outputActions:    OutputActions
   projectActions:   ProjectActions

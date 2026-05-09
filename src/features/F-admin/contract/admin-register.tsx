@@ -37,6 +37,7 @@
 
 'use client'
 
+import React from 'react'
 import dynamic from 'next/dynamic'
 import { useRegisterProgram } from '@/features/F-dashboard/contract/dashboard-registry'
 
@@ -45,7 +46,14 @@ const AdminDashboard = dynamic(
   { ssr: false }
 )
 
+import type { ProgramProps } from '@/features/F-dashboard/types/dashboard-types'
+
 export function AdminRegister() {
-  useRegisterProgram({ programId: 'admin', label: 'Admin', component: AdminDashboard })
+  useRegisterProgram({
+    programId:   'admin',
+    label:       'Admin',
+    component:   AdminDashboard as React.ComponentType<ProgramProps>,
+    actionKinds: [],
+  })
   return null
 }

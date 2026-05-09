@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: sprint-8-shot-1 (substrate authoring)
+// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields)
 // slice: core
 // layer: R5
 // wires-in:
@@ -33,7 +33,7 @@
 // ═══════════════════════════════════════════════════════════════
 // SUBSTRATE v1 — TYPE DECLARATIONS
 // ═══════════════════════════════════════════════════════════════
-// Living Memory v3.1 substrate atoms. Pure event-store: two axes,
+// Living Memory v3.2 substrate atoms. Pure event-store: two axes,
 // state-change records, identity threads, scope as attribute.
 // Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
 // A1: declared once, at R5 core. Slices import — never redeclare.
@@ -160,6 +160,7 @@ export type ThreadKind =
 //   SW3 detects RevokeRef and commits atomically (LMA4).
 
 export type SubstrateWriteInput = {
+  userId:  string               // v3.2: authentication identity of writer
   content: {
     identities: IdentityRef[]   // ≥1 enforced at SW1
     relations:  Relation[]      // may be empty (silent positions valid)
@@ -190,6 +191,7 @@ export type ThreadQueryInput = {
 
 export type StateChangeRecord = {
   id:       StateChangeId
+  userId:   string              // v3.2: carried from SubstrateWriteInput (LMA12)
   content: {
     identities: IdentityRef[]
     relations:  Relation[]

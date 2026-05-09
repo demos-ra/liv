@@ -1,11 +1,12 @@
 // @liv-standard v1.3
-// [F-planner/exec/ai-adapter-io.ts]
+// [F-builder/exec/ai-adapter-io.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    none
-// slice:      F-planner
+// slice:      F-builder
+// amended:    sprint-12-shot-3 (moved from F-planner/exec — dissolution)
 // layer:      R4
 // wires-in:
 //   W-ATOM  streamAIResponse  F-ai-adapter/contract/ai-contract  (R3 surface — A5 compliant)
@@ -28,7 +29,7 @@
 
 import { streamAIResponse }  from '@/features/F-ai-adapter/contract/ai-contract'
 import type { ChatMessage }  from '@/features/F-ai-adapter/config/ai-adapter-config'
-import type { PlannerResult } from '../types/planner-types'
+import type { PlannerResult } from '@/features/F-plan/types/pipeline-types'
 
 // apiKey is pre-resolved by planner-inject.ts (R3) via F-user-profile/contract.
 // R4 never resolves identity — it only executes I/O with supplied credentials.

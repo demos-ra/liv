@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through)
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -39,7 +39,7 @@
 //   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v3.1 — substrate service.
+// Living Memory v3.2 — substrate service.
 // R2: orchestrates SW1–SW3 (substrate write) and TQ1–TQ3 (thread query)
 // procedures. Composes 6 operations declared in §3.10 of the standard.
 // Canonical spec: PLACEMENT_REGISTRY.living_memory_standard
@@ -65,6 +65,7 @@
 // happens here in SW3 unconditionally before commitStateChange.)
 
 import type { Result } from '@/core/types/primitives'
+import { enforceSubstrateReadScope } from '@/features/F-permissions/contract/permissions-contract'
 import type {
   SubstrateWriteInput,
   ThreadQueryInput,
@@ -189,9 +190,20 @@ function sw1Validate(input: SubstrateWriteInput): Result<SubstrateWriteValidated
     }
   }
 
+  if (typeof input.userId !== 'string' || input.userId.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code:    'SW1_VALIDATION_FAILED',
+        message: 'userId required (LM v3.2 §2.1)',
+      },
+    }
+  }
+
   return {
     ok: true,
     data: {
+      userId:     input.userId,
       identities: content.identities,
       relations:  content.relations,
       time:       typeof metadata.time === 'number' ? metadata.time : Date.now(),
@@ -484,10 +496,31 @@ async function tq3Execute(
 // ═══════════════════════════════════════════════════════════════
 // threadQuery — R3-callable entry point composing TQ1 → TQ2 → TQ3
 // ═══════════════════════════════════════════════════════════════
+// sprint-12-shot-3: callerUserId added per Stream B scope isolation.
+// enforceSubstrateReadScope called when scope is present and represents
+// a userId scope (D7: callsite passes userId as scope for user-scoped reads).
 
 export async function threadQuery(
-  input: ThreadQueryInput,
+  input:         ThreadQueryInput,
+  callerUserId?: string,
 ): Promise<Result<ThreadResult>> {
+  // B3: enforce user-scope isolation when scope is present and callerUserId provided.
+  // Callsites that pass userId as scope (user-scoped reads) supply callerUserId.
+  // Project-scoped reads do not supply callerUserId — pass through per TQ3.
+  if (callerUserId !== undefined && input.scope !== undefined) {
+    try {
+      enforceSubstrateReadScope(callerUserId, String(input.scope))
+    } catch (err) {
+      return {
+        ok: false,
+        error: {
+          code:    'SUBSTRATE_READ_PERMISSION_DENIED',
+          message: err instanceof Error ? err.message : 'Substrate read scope denied',
+        },
+      }
+    }
+  }
+
   const validated = tq1Validate(input)
   if (!validated.ok) return validated
 

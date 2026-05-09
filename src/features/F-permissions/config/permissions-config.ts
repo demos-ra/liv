@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-1
+// @liv-standard v1.5.1 amended sprint-11-shot-1 sprint-12-shot-3
 // [F-permissions/R0]
 // Built with LIV · livai.dev
 // [F-permissions/R0/C2] Permission configuration — roles, actions, resources
@@ -8,8 +8,11 @@
 //            constitution_read, constitution_write, constitution_confirm,
 //            build_trigger, commit_confirm, git_connect, git_read,
 //            terminal_connect, topography_read, la_run,
-//            substrate_write, program_invoke_plan, program_invoke_discover,
+//            substrate_write, substrate_read,
+//            program_invoke_plan, program_invoke_discover,
 //            program_invoke_verify, program_invoke_build
+//   sprint-12-shot-3: substrate_read added (owner + member only — D6: viewer excluded;
+//     substrate reads are userId-scoped personal memory, viewer has no basis to read)
 
 export const ROLES = {
   owner: 'owner',
@@ -42,6 +45,7 @@ export const ACTIONS = {
   la_run: 'la_run',
   // substrate
   substrate_write: 'substrate_write',
+  substrate_read: 'substrate_read',       // sprint-12-shot-3 (LM v3.2 read isolation)
   // program invoke
   program_invoke_plan: 'program_invoke_plan',
   program_invoke_discover: 'program_invoke_discover',
@@ -62,6 +66,7 @@ export const PERMISSION_MATRIX: Record<Role, Action[]> = {
     'git_read',
     'topography_read',
     'substrate_write',
+    'substrate_read',
     'program_invoke_plan',
     'program_invoke_discover',
     'program_invoke_verify',
@@ -72,6 +77,7 @@ export const PERMISSION_MATRIX: Record<Role, Action[]> = {
     'constitution_read',
     'topography_read',
     'git_read',
+    // substrate_read excluded: D6 — viewer has no basis to read userId-scoped substrate threads
   ],
 }
 

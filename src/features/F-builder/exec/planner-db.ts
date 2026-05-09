@@ -1,11 +1,12 @@
 // @liv-standard v1.4
-// [F-planner/exec/planner-db.ts]
+// [F-builder/exec/planner-db.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.4
 // amended:    w2-item-12, phase-b-item4, phase-4.3
-// slice:      F-planner
+// slice:      F-builder
+// amended:    sprint-12-shot-3 (moved from F-planner/exec — dissolution)
 // layer:      R4
 // wires-in:
 //   W-ATOM  PlannerJob       ../types/planner-types
@@ -73,7 +74,7 @@ import type {
   PlannerResult,
   PipelineReport,
   FileSnapshot,
-} from '../types/planner-types'
+} from '@/features/F-plan/types/pipeline-types'
 import type {
   AdminBuild,
   AdminBuildsFilter,

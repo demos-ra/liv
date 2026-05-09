@@ -29,7 +29,7 @@
 //   the value sent by the UI is always a projectId, not a jobId.
 
 import { NextRequest, NextResponse }  from 'next/server'
-import { handleGetVersionHistory }    from '@/features/F-planner/contract/planner-contract'
+import { handleGetVersionHistory }    from '@/features/F-plan/contract/plan-contract'
 
 export const dynamic = 'force-dynamic'
 

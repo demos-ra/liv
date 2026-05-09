@@ -127,7 +127,7 @@ export type FSlice =
   | 'F-health-panel'
   | 'F-execution-panel'
   | 'F-memory'
-  | 'F-planner'     // Phase 4 — pipeline orchestration
+  // | 'F-planner'  // dissolved Sprint 12 Shot 3 — functions redistributed to F-plan + F-builder
   | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
   | 'F-artifact'         // Phase 4b — AS v2.2 createArtifact runtime

@@ -87,3 +87,23 @@ export async function requirePermission(
 
   return { userId, projectId, role }
 }
+
+
+// ── enforceSubstrateReadScope (sprint-12-shot-3) ──────────────────────────────
+// Throws PermissionDeniedError if requestedUserId !== callerUserId.
+// Called at threadQuery callsites when the read scope is a userId scope.
+// D7 discrimination: callsites determine scope kind. When scope is a userId
+// (user-scoped read), callers pass callerUserId explicitly. When scope is a
+// projectId (project-scoped read), callers do not call this gate — project
+// scopes are caller-managed per LM v3.2 §3.9 TQ3. Pure comparison, no DB.
+
+export function enforceSubstrateReadScope(
+  callerUserId:   string,
+  requestedUserId: string,
+): void {
+  if (requestedUserId !== callerUserId) {
+    throw new Error(
+      `PermissionDenied: substrate read scope mismatch — caller ${callerUserId} cannot read scope ${requestedUserId}`
+    )
+  }
+}

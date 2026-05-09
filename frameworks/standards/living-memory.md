@@ -8,7 +8,7 @@ placement: frameworks/standards/
 **Kind:** Framework  
 **Level:** L3  
 **Mode:** generative (structured → produced)  
-**Version:** v3.1  
+**Version:** v3.2  
 **Instance of:** `GeneratedFrameworkTemplate` (metaframework-v3-1 §2.2)  
 **Rendered by:** generation-procedure-v1-0 v1.1.6 under metaframework-v3-1 v3.2.7  
 **Authority:** pending L0 confirmation (Sprint 7 close)  
@@ -44,7 +44,7 @@ This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.
 | `kind` | `Framework` (substrate §4 A-10 Kind enum) |
 | `mode` | `generative` (substrate §2 Mode enum; structured → produced) |
 | `level` | `L3` (substrate §5 AuthorityLevel) |
-| `version` | `3.1` (substrate §7 Semver) |
+| `version` | `3.2` (substrate §7 Semver) |
 | `ownershipTemplate` | `Human` (substrate §4 A-11; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (substrate §4 A-11) |
 | `stateTemplate` | `declared` (substrate §9 LifecycleState) |
@@ -70,7 +70,7 @@ genesis = {
   generationProcedureRef: { id: 'generation-procedure', version: '1.1.6' },
   generationCycle: 'Sprint-7-structural-transition',
   confirmedAt: 'pending-L0-confirmation',
-  predecessorVersion: { id: 'living-memory', version: '3.0' },
+  predecessorVersion: { id: 'living-memory', version: '3.1' },
   predecessorDisposition: 'replaced-not-amended'
 }
 ```
@@ -86,7 +86,7 @@ Predecessor note: v3.0 was generated at Sprint 7 Job 2 against the substrate spe
 | MA-I3 | Ownership declared for template (`Human`) + applied (`System-under-L0`) in §1. |
 | MA-I4 | LifecycleState declared for template (`declared`) + applied (`runtime`) in §1. |
 | MA-I5 | Genesis declared §1.1; parent framework + generation procedure named. |
-| MA-I6 | Version declared as `3.1`; semver format per substrate §7. |
+| MA-I6 | Version declared as `3.2`; semver format per substrate §7. |
 | MA-I7 | scopeOut declared in §1; non-empty enumeration of excluded concerns. |
 
 ### §1.3 MA-G13 four-property test
@@ -95,7 +95,7 @@ Predecessor note: v3.0 was generated at Sprint 7 Job 2 against the substrate spe
 |---|---|
 | Own state | One physical substrate store — a sequence of `StateChangeRecord` rows scoped by scope attribute. Transition rules: LMA1 (forward-additive), LMA2 (revocation as sole destructive exception), LMA6 (scope as attribute). |
 | Own I/O | Input atoms: `SubstrateWriteInput`, `ThreadQueryInput` (§2.1). Output atoms: `StateChangeRecord`, `ThreadResult` (§2.2). |
-| Own invariants | 11 structural-transformation axioms LMA1–LMA11 (§3.2). Each binds a state transition; none is a data-integrity invariant only. |
+| Own invariants | 12 structural-transformation axioms LMA1–LMA12 (§3.2). Each binds a state transition; none is a data-integrity invariant only. |
 | Own discipline | P8 procedure steps SW1–SW3 (substrate write, §3.7) and TQ1–TQ3 (thread query, §3.9). Atomic-commit guarantee per LMA4. |
 
 All four properties declared. MA-G13 passes.
@@ -120,6 +120,7 @@ Two distinct input W-ATOMs per MA-S1.
 
 ```
 SubstrateWriteInput = {
+  userId: string,              // v3.2: authentication identity of writer
   content: {
     identities: IdentityRef[],     // referenced identities in this state-change (≥1)
     relations:  Relation[]         // relations connecting them (ordered list; may be empty)
@@ -153,6 +154,7 @@ ThreadQueryInput = {
 ```
 StateChangeRecord = {
   id:       StateChangeId,
+  userId:   string,           // v3.2: carried from SubstrateWriteInput (LMA12)
   content: {
     identities: IdentityRef[],
     relations:  Relation[]
@@ -214,7 +216,7 @@ Inherits metaframework-v3-1's seven-axis decomposition per substrate §1.3 SI-03
 
 ### §3.2 Axioms
 
-**Count: 11 axioms LMA1–LMA11.**
+**Count: 12 axioms LMA1–LMA12.**
 
 | ID | Name | Axis | Invariant |
 |---|---|---|---|
@@ -229,6 +231,7 @@ Inherits metaframework-v3-1's seven-axis decomposition per substrate §1.3 SI-03
 | LMA9 | Thread kinds | Structure | Three and only three primitive operations against the substrate: identity-recurrence (Axis 2, identity-anchored, discontinuous), role-pattern (identity-anchored with role filter), adjacency (position-anchored, window-bounded, different in kind from thread traversals). All other queries compose from these three plus raw axis scan. No fourth primitive operation exists at the substrate level. |
 | LMA10 | Two-axis structure | Structure | Axis 1: the state-change sequence, positions ordered by monotonic integer. Axis 2: identity threads, discontinuous recurrence across positions. These two axes are the complete structural description of the substrate. No third axis exists at the substrate level. |
 | LMA11 | Modality re-derivation | Structure | Relation modality is stored as recorded metadata. Consumers re-derive its operational significance from context at read time. The stored value is informational, not binding. |
+| LMA12 | User ownership | Structure | Every SubstrateWriteInput carries exactly one userId. Every committed StateChangeRecord carries that userId unchanged. The substrate enforces presence — every write must supply userId. The substrate does not enforce access — who may write to which userId scope is a perimeter responsibility (parallel to LMA6 scope discipline). Reads may filter by userId. userId is a first-class field, not a ScopeRef value. |
 
 ### §3.3 Primitive instance counts
 
@@ -237,7 +240,7 @@ Inherits metaframework-v3-1's seven-axis decomposition per substrate §1.3 SI-03
 | P1 Axis | 0 | axes inherited from metaframework-v3-1 §3.1; LM v3.1 declares no own axes |
 | P2 Sub-axis | 0 | no sub-axes declared |
 | P3 Leaf | 0 | no leaves declared |
-| P4 Axiom | 11 | LMA1–LMA11 declared §3.2 |
+| P4 Axiom | 12 | LMA1–LMA12 declared §3.2 |
 | P5 Gate | 0 | all 85 framework-tier gates inherited from metaframework-v3-1 §4.1; LM v3.1 declares no new gates |
 | P6 Handoff rule | 1 | HR-LM1: perimeter/intake → LM write surface (see §6.2) |
 | P7 Judgment input | 2 | J-lm-scope-as-attribute, J-lm-thread-completeness (see §7) |
@@ -286,9 +289,9 @@ Three P8 steps. Atomic commit per LMA4.
 
 | id | order | stage | kind | input | output | derivation / gates |
 |---|---|---|---|---|---|---|
-| SW1 | 1 | 2 | mechanical | `SubstrateWriteInput` | validated input | Validate shape: identities non-empty; each Relation has all four components; identitiesWithRoles has ≥1 entry per relation. Assign position (monotonic integer, next in sequence). Stamp time as write-time timestamp. |
+| SW1 | 1 | 2 | mechanical | `SubstrateWriteInput` | validated input | Validate shape: identities non-empty; each Relation has all four components; identitiesWithRoles has ≥1 entry per relation; userId present and non-empty string (reject with `SW1_USERID_MISSING` if absent). Assign position (monotonic integer, next in sequence). Stamp time as write-time timestamp. |
 | SW2 | 2 | 3 | gate-execution | validated input | gate results | `gates = [LMA1, LMA3, LMA10, LMA11]` — forward-additive append (LMA1), relation structure (LMA3), two-axis coherence (LMA10), modality stored as recorded metadata not as constraint (LMA11). |
-| SW3 | 3 | 5 | mechanical | gate-passed input | persisted `StateChangeRecord` | Detect RevokeRef: if any top-level relation's type is RevokeRef, delete the target StateChangeRecord identified by that relation's identities-with-roles (LMA2). Then commit the inbound state-change atomically — content + metadata in one transaction (LMA4 guarantee). Scope filtering is a read concern; this step writes to the single physical store unconditionally. |
+| SW3 | 3 | 5 | mechanical | gate-passed input | persisted `StateChangeRecord` | Detect RevokeRef: if any top-level relation's type is RevokeRef, delete the target StateChangeRecord identified by that relation's identities-with-roles (LMA2). Then commit the inbound state-change atomically — content + metadata + userId in one transaction (LMA4 + LMA12 guarantee). userId from validated input carries through unchanged. Scope filtering is a read concern; this step writes to the single physical store unconditionally. |
 
 ### §3.9 Thread query procedure (TQ1–TQ3)
 
@@ -321,12 +324,14 @@ Three P8 steps. Read-only — no mutation.
 | identity → positions | identity_recurrence, role_pattern queries |
 | (identity, role) → positions | role_pattern query optimization |
 | scope → positions | scope-filtered queries (optional optimization; correct without it via scan) |
+| userId → positions | user-scoped queries (required for multi-user isolation; not optional optimization) |
 
 ### §3.12 Vocabulary
 
 | Term | Declared | Definition |
 |---|---|---|
 | `IdentityRef` | §2.1 | A reference string naming an identity. Normalized form: lowercase hyphenated. Identities exist by reference (LMA5). Verbs, nouns, concepts — all are IdentityRefs. |
+| `userId` | §2.1 | Authentication identity string. First-class field on every SubstrateWriteInput and StateChangeRecord. Orthogonal to ScopeRef — userId identifies the writer; scope identifies the project context. Both coexist on the same record (LMA12). |
 | `ScopeRef` | §2.1 | Open-vocabulary scope identifier. Examples: 'global', userId, teamId, projectId. New scope kinds are new ScopeRef values — no infrastructure change needed (LMA6). |
 | `SourceRef` | §2.1 | Origin channel + scope attribute. channel enum is extensible. scope is open vocabulary. |
 | `PositionRef` | §2.1 | Monotonic integer; Axis 1 coordinate. Auto-assigned at SW3. Enables adjacency queries (LMA9). |
@@ -366,7 +371,7 @@ All eight pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7:
 | Gate | Result |
 |---|---|
 | PG3 | PASS — §3.1 positive-empty via inheritance |
-| G-St1 | PASS — LMA1–LMA11, 11 unique IDs |
+| G-St1 | PASS — LMA1–LMA12, 12 unique IDs |
 | G-St2 | PASS — axis column in §3.2, each LMA names exactly one |
 | G-St3 | PASS — all LMAs declarative invariants |
 | G-St4 | PASS — SW: stages 2,3,5 non-decreasing; TQ: stages 2,3,5 non-decreasing |
@@ -374,13 +379,13 @@ All eight pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7:
 | G-St6 | PASS — §3.12 vocabulary declared |
 | G-St7 | PASS — no circular structural dependency |
 | G-St8 | PASS — all counts ≥ 0 |
-| G-St9 | PASS — 11 axioms |
+| G-St9 | PASS — 12 axioms |
 | G-St10 | PASS — SW: orders 1,2,3 no gaps; TQ: orders 1,2 no gaps |
 | G-St11 | PASS — all 6 P8 steps have kind-specific field: SW1/TQ1 mechanical → derivation; SW2/TQ2 gate-execution → gates; SW3/TQ3 mechanical → derivation |
 | G-St12 | PASS — `state-change` declared §1 + §3.12 |
 | G-St13 | PASS — §3.12 cross-references declaration sites |
 | G-St14 | PASS — §3.4 relational cell declared |
-| G-St15 | PASS — 11 unique IDs, no duplicates |
+| G-St15 | PASS — 12 unique IDs, no duplicates |
 | G-St16 | PASS — SW2 `gates = [LMA1, LMA3, LMA10, LMA11]`; TQ2 `gates = [LMA9]`; axiom/invariant refs per generation-procedure per-row note S3–S10 ("tested axiom or invariant refs") |
 
 **E4 — Validity-axis gates (PG4, G-V1–G-V11): PASS**
@@ -413,7 +418,7 @@ J-lm-scope-as-attribute and J-lm-thread-completeness declared §7. Both have mec
 
 **E8 — Universal + meta-tier gates (G-G13, G-U1–G-U5, G-M1–G-M4): PASS**
 
-G-G13: §1.3 four-property test passes. G-U1: §5.3 state transition declared. G-U2: LMA1–LMA11 are structural-transformation invariants. G-U3: §1.3 hidden-sibling check passes. G-U4: §1 scopeOut non-empty. G-U5: §1.1 genesis all fields present. G-M1: 11 axioms; LMA1/LMA3/LMA10/LMA11 in SW2 gates; LMA9 in TQ2 gates; LMA2/LMA4/LMA5/LMA6/LMA7/LMA8 covered by inherited MF framework-tier gates or structurally verified in procedure derivations; no axiom gate-orphaned. G-M2: zero new gates. G-M3: two J-inputs, distinct concerns. G-M4: one HR, no duplication.
+G-G13: §1.3 four-property test passes. G-U1: §5.3 state transition declared. G-U2: LMA1–LMA12 are structural-transformation invariants. G-U3: §1.3 hidden-sibling check passes. G-U4: §1 scopeOut non-empty. G-U5: §1.1 genesis all fields present. G-M1: 12 axioms; LMA1/LMA3/LMA10/LMA11 in SW2 gates; LMA9 in TQ2 gates; LMA2/LMA4/LMA5/LMA6/LMA7/LMA8 covered by inherited MF framework-tier gates or structurally verified in procedure derivations; LMA12 covered by inherited framework-tier gates (parallel to LMA2/LMA4–LMA8); no axiom gate-orphaned. G-M2: zero new gates. G-M3: two J-inputs, distinct concerns. G-M4: one HR, no duplication.
 
 **Overall: all E1–E8 PASS. Template advances to S11.**
 
@@ -456,7 +461,7 @@ Carrier = `self`. LM emits its own artifact — the StateChangeRecord — via th
 HR-LM1 = {
   direction: 'inbound',
   from:      'Perimeter/intake',
-  to:        'Living Memory v3.1',
+  to:        'Living Memory v3.2',
   contract: {
     input:     SubstrateWriteInput,
     guarantee: 'LM will execute SW1–SW3 atomically per LMA4.
@@ -528,7 +533,8 @@ Both J-inputs deprecated when the framework is deprecated (§5.4). No judgment i
 |---|---|---|---|
 | 3.0 | Sprint 7 Job 2 | First generation under substrate spec v3. Replaced LM v2.1 entirely. | L0 pending |
 | 3.1 | Sprint 7 close | Full mechanical derivation against final substrate spec. Dissolved: IdentityRecord, canonical-Ref pointer, surface forms at substrate level (LMA12 dissolved, LMA4 trimmed → LMA5); MutationInput; authority validation in procedure (SW1 dissolved); two-instance scoping model replaced by single store with scope as attribute (LMA6); revoke as separate operation (now in-band via RevokeRef in SW3). Restructured: procedures now SW1–SW3 + TQ1–TQ3; axiom count 14 → 11; P8 count 7 → 6. Added: §3.10 required operations table, §3.11 indices, RevokeRef declaration (§3.6), SourceRef with scope attribute. Closed: F-LM-001 (MutationInput dissolved), F-LM-002 (referentCitations declared), F-LM-003 (LMA IDs confirmed correct for runtime procedure), F-LM-004 (G-L11 vacuous-pass basis corrected). | L0 pending |
+| 3.2 | Sprint 12 / Phase 4 | Additive amendment per L0-directive (path-to-beta-spec §8 multi-user realization). Added: LMA12 (user ownership axiom); userId field on SubstrateWriteInput + StateChangeRecord; userId presence validation in SW1 (SW1_USERID_MISSING error); userId atomic commit note in SW3 (LMA4 + LMA12); userId index in §3.11 (required, not optional); vocabulary entry §3.12. Axiom count 11 → 12. Minor version bump per §5.1. | L0 pending |
 
 ---
 
-*End of living-memory.md v3.1 — Sprint 7 close.*
+*End of living-memory.md v3.2 — Sprint 12 Phase 4.*

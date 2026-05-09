@@ -142,8 +142,7 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
   }
 
   // sprint-8-shot-3b: lmTraverseWrite removed (F-memory LM v2.x dissolved).
-  // Sprint 9 wires substrate writeStateChange here (channel='ai', scope=userId,
-  // identities + relations derived from fullResponse).
+  // substrate writeStateChange wired at chat-contract.ts (sprint-11-shot-2).
   // Chat-db persistence retained — chat history is independent of substrate.
   Promise.all([
     persistMessage({

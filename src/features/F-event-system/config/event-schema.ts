@@ -13,7 +13,7 @@ import { AI_EVENTS }          from '@/features/F-ai-adapter/config/ai-events'
 import { CHAT_EVENTS }        from '@/features/F-chat/config/chat-events'
 import { SUBSTRATE_EVENTS }   from '@/features/F-memory/contract/substrate-contract'
 import { PROJECT_EVENTS }     from '@/features/F-project/types/project-events'
-import { PLANNER_EVENTS }     from '@/features/F-planner/types/planner-events'
+import { PLANNER_EVENTS }     from '@/features/F-builder/config/builder-events'
 import { OUTPUT_EVENTS }      from '@/features/F-output/types/output-events'
 
 export const EVENTS = {

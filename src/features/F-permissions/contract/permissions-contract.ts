@@ -58,3 +58,6 @@ export function withPermission(action: Action, projectIdParam = 'projectId') {
 
 // ─── Client hook ──────────────────────────────────────────────────────────────
 export { usePermissions } from './permissions-hook'
+
+// ── enforceSubstrateReadScope (sprint-12-shot-3) ──────────────────────────────
+export { enforceSubstrateReadScope } from '../app/permissions-workflow'

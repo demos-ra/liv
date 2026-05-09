@@ -204,6 +204,7 @@ export function DashboardUI({
   programs,
   activeProgramId,
   setActiveProgram,
+  userId,
   projects,
   projectActions,
   dashboardSection,
@@ -290,7 +291,11 @@ export function DashboardUI({
                 const ProgramComponent = activeProgram.component
                 return (
                   <Suspense fallback={<ProgramLoadingFallback />}>
-                    <ProgramComponent />
+                    <ProgramComponent
+                      programId={activeProgram.programId}
+                      userId={userId}
+                      projectId={program?.projectId ?? ''}
+                    />
                   </Suspense>
                 )
               })()}

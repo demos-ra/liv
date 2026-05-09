@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -25,7 +25,7 @@
 //   R5  @/core/types/primitives
 // validated:  pending
 
-// Living Memory v3.1 — substrate Postgres CRUD.
+// Living Memory v3.2 — substrate Postgres CRUD.
 // R4: I/O only. Zero domain logic.
 // A4: all I/O isolated at R4.
 // A2: imports R0 types and R5 db client only. No upward imports.
@@ -69,6 +69,7 @@ function rowToRecord(row: StateChangeRow): StateChangeRecord {
 
   return {
     id:       row.id as StateChangeId,                 // brand: external origin
+    userId:   row.user_id as string,                   // brand: external origin (v3.2 LMA12)
     content: { identities, relations },
     metadata: {
       time:     Number(row.time_ms),
@@ -127,14 +128,15 @@ export async function commitStateChange(
 
       await client.query(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
-           (id, position, time_ms, source_channel, source_scope, identities, relations)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+           (id, position, time_ms, source_channel, source_scope, user_id, identities, relations)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
         [
           id,
           position,
           String(validated.time),
           validated.source.channel,
           validated.source.scope,
+          validated.userId,
           JSON.stringify(validated.identities),
           JSON.stringify(validated.relations),
         ],
@@ -144,6 +146,7 @@ export async function commitStateChange(
 
       const record: StateChangeRecord = {
         id,
+        userId:  validated.userId,
         content: {
           identities: validated.identities,
           relations:  validated.relations,
@@ -222,7 +225,7 @@ export async function readByPosition(
   try {
     const result = await db.query<StateChangeRow>(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
-              identities, relations
+              user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position = $1`,
       [position],
@@ -257,7 +260,7 @@ export async function iterateAxisRows(
   try {
     const result = await db.query<StateChangeRow>(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
-              identities, relations
+              user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position ${op} $1
         ORDER BY position ${order}
@@ -300,7 +303,7 @@ export async function readIdentityRecurrence(
 
     const result = await db.query<StateChangeRow>(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
-              identities, relations
+              user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE identities @> $1::jsonb${scopeClause}
         ORDER BY position ASC${limitClause}`,
@@ -367,7 +370,7 @@ export async function readAdjacency(
 
     const result = await db.query<StateChangeRow>(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
-              identities, relations
+              user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}
         ORDER BY position ASC`,

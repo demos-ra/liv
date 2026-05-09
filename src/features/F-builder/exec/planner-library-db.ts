@@ -1,11 +1,12 @@
 // @liv-standard v1.3
-// [F-planner/exec/planner-library-db.ts]
+// [F-builder/exec/planner-library-db.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    step4d-corrective
-// slice:      F-planner
+// slice:      F-builder
+// amended:    sprint-12-shot-3 (moved from F-planner/exec — dissolution)
 // layer:      R4
 // wires-in:
 //   W-ATOM  FlowLibraryEntry     ../types/planner-library-types
@@ -40,8 +41,8 @@
 import { createHash } from 'crypto'
 import { db }  from '@/core/db/client'
 import type { FlowId, AtomDecl, WireEntry } from '@/core/constants/liv-standard.types'
-import type { FlowLibraryEntry, LibraryInsertPayload } from '../types/planner-library-types'
-import type { PlannerResult } from '../types/planner-types'
+import type { FlowLibraryEntry, LibraryInsertPayload } from '@/features/F-plan/types/planner-library-types'
+import type { PlannerResult } from '@/features/F-plan/types/pipeline-types'
 
 // ── Row type — typed R4 boundary (A3) ─────────────────────────────────────────
 type FlowLibraryRow = {

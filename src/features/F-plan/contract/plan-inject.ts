@@ -188,4 +188,11 @@ export function createPlanGraph(): IPlanGraph {
   }
 }
 
+// ── createPlannerDb — pipeline IPlannerDb factory (sprint-12-shot-3) ──────────
+// F-plan R3 needs access to IPlannerDb for isPipelineActive and getBuildsForAdmin.
+// Delegates to F-builder/exec/builder-inject (the authoritative pipeline DB factory).
+// A5: cross-slice import from R4 is acceptable here at R3 (inject layer).
+
+export { createBuilderDb as createPlannerDb } from '@/features/F-builder/exec/builder-inject'
+
 // ─── End of plan-inject.ts ───────────────────────────────────────────────────
