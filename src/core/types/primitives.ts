@@ -109,7 +109,7 @@ export type FSlice =
   | 'F-executor'      // Step 3 — Docker code execution
   | 'F-design-system'
   | 'F-event-system'
-  | 'F-la-config'
+  // | 'F-la-config'  // dissolved Sprint 13 Shot 3 — collapsed into F-verify
   | 'F-identity'
   | 'F-permissions'
   | 'F-git-connector'

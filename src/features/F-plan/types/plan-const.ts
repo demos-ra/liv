@@ -27,7 +27,7 @@
 //
 // F-plan R0 — instance values (binding, constants, decision-D row seeds).
 // A1: F-plan owns these instance values for the user-objective domain. This
-//     is NOT the LIV-Standard build-pipeline binding (that lives in F-la-config).
+//     is NOT the LIV-Standard build-pipeline binding (that lives in F-plan/contract/liv-standard-binding.ts).
 // A6: every magic number used by R1+ originates here. R1 imports; never inlines.
 //
 // Decision rows seeded:

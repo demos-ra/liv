@@ -13,7 +13,7 @@
 // validated:  pending
 //
 // F-multi-instance wire contract — Phase 4b landing.
-// STANDALONE: wires into F-artifact (at S3) + F-la-config DomainBinding (at S2);
+// STANDALONE: wires into F-artifact (at S3) + F-plan DomainBinding (at S2; moved sprint-13-shot-3);
 // no wire into codec-orchestrate.ts.
 
 // ─── W-ATOM (R0 ↔ consumer R0) ──────────────────────────────────────────────
@@ -77,12 +77,12 @@
 // @wire
 // type:    W-INJECT
 // id:      W-INJECT-domain-binding
-// callee:  F-la-config/R3 LIVStandardDomainBinding
+// callee:  F-plan/R3 LIVStandardDomainBinding
 // caller:  F-multi-instance/R2 mi-execute (S1 binding capture; IA2)
 // purpose: provide DomainBinding instance for LIV-Standard-domain plans
 // version: 1
 // status:  active
-// active:  Phase 5 — DomainBinding flows verbatim via plan.binding (PA9). Authoring program (F-planner R2 emitPlanForContract) captures LIV_STANDARD_DOMAIN_BINDING from F-la-config R3 at emission time; M-I S1 reads it back via planAnchorNodeId one-hop.
+// active:  Phase 5 — DomainBinding flows verbatim via plan.binding (PA9). Authoring program (F-planner R2 emitPlanForContract) captures LIV_STANDARD_DOMAIN_BINDING from F-plan R3 at emission time (moved sprint-13-shot-3); M-I S1 reads it back via planAnchorNodeId one-hop.
 
 // ─── W-HOOK (R3 entry point) ─────────────────────────────────────────────────
 

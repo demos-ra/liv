@@ -1,0 +1,92 @@
+{
+  "version": "2.1.0",
+  "format": {
+    "pattern": "F-[a-z][a-z0-9-]*",
+    "description": "Kebab-case, starts with lowercase letter"
+  },
+  "core_infrastructure": {
+    "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
+    "modules": [
+      "src/core/db/client.ts        \u2014 Postgres pool singleton",
+      "src/core/api/trpc-setup.ts   \u2014 tRPC init",
+      "src/core/api/trpc-client.ts  \u2014 tRPC React client",
+      "src/core/api/router.ts       \u2014 App router assembly",
+      "src/core/types/primitives.ts \u2014 Shared types and ID generation",
+      "src/core/types/state-registry.ts \u2014 Namespace registry map"
+    ],
+    "absorbed_from": [
+      "F-types",
+      "F-state-registry",
+      "F-integration"
+    ]
+  },
+  "completeness": {
+    "required_layers": [
+      "domain",
+      "contract",
+      "exec"
+    ],
+    "optional_layers": [
+      "config",
+      "app"
+    ],
+    "exceptions": {
+      "F-design-system": "Pure token/component library. No app/ or exec/ \u2014 no server ops, no DB, no events.",
+      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events \u2014 no exec/ needed. Orchestrates F-intake, F-plan, F-output hooks. providers.tsx lives here.",
+      "F-intake": "Client-only intake form. No server ops beyond calling F-plan/F-project contracts.",
+      "F-output": "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/.",
+      "F-builder": "pipeline execution shell; owns runPipeline + emitPlanForContract post-F-planner dissolution (sprint-12-shot-3)"
+    },
+    "description": "A complete feature slice requires domain logic, contract boundary, and execution/I/O."
+  },
+  "declared_slices": [
+    "F-admin",
+    "F-ai-adapter",
+    "F-artifact",
+    "F-builder",
+    "F-chat",
+    "F-dashboard",
+    "F-design-system",
+    "F-discover",
+    "F-event-system",
+    "F-executor",
+    "F-identity",
+    "F-intake",
+    "F-memory",
+    "F-multi-instance",
+    "F-output",
+    "F-permissions",
+    "F-plan",
+    "F-project",
+    "F-router",
+    "F-user-profile",
+    "F-verify"
+  ],
+  "reserved_slices": [
+    "F-workspace",
+    "F-session",
+    "F-git-connector",
+    "F-terminal-bridge",
+    "F-topography",
+    "F-constitution",
+    "F-notifications",
+    "F-commit-log",
+    "F-editor",
+    "F-health-panel",
+    "F-execution-panel"
+  ],
+  "_reserved_notes": {
+    "F-workspace": "Phase 2 \u2014 IDE surface (editor, terminal, topography). Not yet built. Declared in FSlice for type completeness only.",
+    "_aspirational_retraction_note": "Sprint Placement Framework Shot 4 retraction: 10 names moved from declared_slices to reserved_slices because they have no on-disk presence under src/features/. They retain FSlice type membership and STATE_NAMESPACES entries (load-bearing for event-bus routing and core/types/state-registry.ts) \u2014 a JSON-vs-TS structural drift logged as F-FORWARD-11 for forward-LIV-Standard cycle. Do NOT remove these names from FSlice or STATE_NAMESPACES without the forward sprint's structural ratification.",
+    "F-session": "Reserved \u2014 session events absorbed by F-identity (per identity/config/auth-events.ts \u00a7A1 single-owner). FSlice + STATE_NAMESPACES entries retained for future re-extraction; no on-disk slice.",
+    "F-git-connector": "Reserved \u2014 referenced in user-profile/event-bus mappings; will be re-introduced when GitHub-connector slice is built (per user-profile-config.ts comment).",
+    "F-terminal-bridge": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-topography": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-constitution": "Reserved \u2014 referenced in event-bus mapping; not yet built.",
+    "F-notifications": "Reserved \u2014 referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-commit-log": "Reserved \u2014 referenced in event-bus + F-output consumer comments; not yet built.",
+    "F-editor": "Reserved \u2014 Phase 2 IDE surface (component of F-workspace). Not yet built.",
+    "F-health-panel": "Reserved \u2014 la-results-db/la-runner stub consumers per la-config comments; not yet built.",
+    "F-execution-panel": "Reserved \u2014 la-results-db/la-runner stub consumers per la-config comments; not yet built."
+  }
+}

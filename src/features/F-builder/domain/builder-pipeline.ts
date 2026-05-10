@@ -47,7 +47,7 @@
 //   R1  @/features/F-planner/domain/planner-logic  (R1 pure functions — cross-slice exception, Sprint B)
 //   R3  @/features/F-event-system/contract/event-bus
 //   R3  @/features/F-artifact/contract/artifact-contract
-//   R3  @/features/F-la-config/contract/liv-standard-binding
+//   R3  @/features/F-plan/contract/liv-standard-binding
 //   R3  @/features/F-multi-instance/contract/mi-contract
 //   R3  @/features/F-artifact/contract/artifact-graph-port
 //   R3  @/features/F-planner/contract/planner-adapter-port  (Sprint B — dissolve with F-planner R1)

@@ -11,7 +11,7 @@
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-FN    validateSession()      →  src/middleware.ts (unitary perimeter site per Manual §I.4 + Perimeter Standard v1.0 PA-I; sole consumer post Sprint 6 Shot 3)
-//   W-FN    getPerimeterSession()  →  F-chat/R3, F-la-config/R3, F-project/R3,
+//   W-FN    getPerimeterSession()  →  F-chat/R3, F-verify/R3, F-project/R3,
 //                                     F-permissions/R3, F-user-profile/R3,
 //                                     F-planner/R3, F-output/R3
 //                                     (perimeter consultation surface per PS v1.0 §6.9; replaces distributed validateSession pattern per F-005 closure)

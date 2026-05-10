@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-12-micro
+// @liv-standard v1.5.1 amended sprint-11-shot-5 sprint-11-shot-6 sprint-12-micro sprint-13-shot-2
 // [F-builder/R3]
 // Built with LIV · livai.dev
 
@@ -66,10 +66,13 @@ export async function executeBuild(directive: BuildDirective): Promise<void> {
 
 export type { BuildDirective, BuildEmission, BuildStatus } from '../config/builder-types'
 
-// ─── R4 pass-throughs (F-S12-K) ──────────────────────────────────────────────
+// ─── R4 pass-throughs (F-S12-K, sprint-13-shot-2) ────────────────────────────
 // F-plan/R3 consumes these. Declared here so R4 is never imported cross-slice.
+// sprint-13-shot-2: createBuilderDb added — F-plan/plan-inject was importing
+// it directly from R4 (exec/builder-inject), an A2 violation. Now surfaced here.
 
 export { createBuilderExecutor }        from '../exec/builder-inject'
+export { createBuilderDb }              from '../exec/builder-inject'
 export { dbCountActiveBuildsForUser }   from '../exec/planner-db'
 
 // ─── End ──────────────────────────────────────────────────────────────────────

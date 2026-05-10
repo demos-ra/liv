@@ -20,7 +20,7 @@
 //   W-FN    processMessage()       ←  (formerly F-codec/R3 codec-contract; F-codec dissolved Sprint 8 Shot 3a — wire presently inactive pending Sprint 9 reauthor)
 //   W-ATOM  CodecPipelineResult    ←  (formerly F-codec/R0 codec-routing-types; F-codec dissolved Sprint 8 Shot 3a — type presently unused pending Sprint 9 reauthor)
 //   W-FN    isPipelineActive()     ←  F-plan/R3 (plan-contract) — sprint-12-shot-4 (F-S12-D closed)
-//   W-FN    useNamespace()         ←  F-la-config/R3 (registry-hook)
+//   W-FN    useNamespace()         ←  F-verify/R3 (registry-hook)
 //   W-ATOM  Surface, InputContainer, SendIcon, Spinner ← F-design-system/R3 (primitives)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────

@@ -31,7 +31,7 @@
 // Port wiring at deploy (post-4b):
 //   ports.plan.resolvePlan         →  F-memory R3 (one-hop read)
 //   ports.adapter.invokeRole       →  F-ai-adapter R3 streamAIResponse (via per-role wrapper)
-//   ports.adapter.resolveValidateContract  →  F-la-config R3 (LIV-Standard contract registry)
+//   ports.adapter.resolveValidateContract  →  F-plan R3 (LIV-Standard contract registry; moved sprint-13-shot-3)
 //   ports.cognitive.classifyRunReport →  F-ai-adapter R3 llm-classify-io (post-beta integration; F-codec dissolved Sprint 8 Shot 3a)
 //   ports.graph                    →  F-memory R3 primitives for F-artifact (shared impl)
 

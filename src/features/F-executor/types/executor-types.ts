@@ -1,4 +1,4 @@
-// @liv-standard v1.3
+// @liv-standard v1.3 amended sprint-13-shot-2
 // [F-executor/types/executor-types.ts]
 // Built with LIV · livai.dev
 
@@ -9,11 +9,11 @@
 // layer:      R0
 // wires-in:   none
 // wires-out:
-//   W-ATOM  ExecutionFile    →  F-executor/R4, F-executor/R3, F-planner/R2
-//   W-ATOM  ExecutionJob     →  F-executor/R1, F-executor/R4, F-executor/R3, F-planner/R2
-//   W-ATOM  TestSummary      →  F-executor/R1, F-executor/R3, F-planner/R2
-//   W-ATOM  ExecutionResult  →  F-executor/R1, F-executor/R4, F-executor/R3, F-planner/R2
-//   W-ATOM  ExecutorResult   →  F-executor/R3, F-planner/R2
+//   W-ATOM  ExecutionFile    →  F-executor/R4, F-executor/R3, F-builder/R2
+//   W-ATOM  ExecutionJob     →  F-executor/R1, F-executor/R4, F-executor/R3, F-builder/R2
+//   W-ATOM  TestSummary      →  F-executor/R1, F-executor/R3, F-builder/R2
+//   W-ATOM  ExecutionResult  →  F-executor/R1, F-executor/R4, F-executor/R3, F-builder/R2
+//   W-ATOM  ExecutorResult   →  F-executor/R3, F-builder/R2
 //   W-ATOM  EXECUTOR_CONST   →  F-executor/R4
 // deps:       none
 // validated:  2026-03-13
@@ -21,7 +21,7 @@
 // Step 3 (A6):
 //   All F-executor atoms declared here at R0. ExecutionFile uses plain typed
 //   fields — no cross-slice type import needed (A3). ExecutionResult is the
-//   typed output boundary consumed by F-planner via IExecutor interface.
+//   typed output boundary consumed by F-builder via IExecutor interface.
 //   Axiom cite: A6 — declare at R0 of owner.
 
 // ── Input atoms ───────────────────────────────────────────────────────────────

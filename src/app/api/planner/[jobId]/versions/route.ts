@@ -1,17 +1,18 @@
-// @liv-standard v1.3
-// [src/app/api/planner/[jobId]/versions/route.ts]
+// @liv-standard v1.5.1 amended sprint-13-shot-2
+// [F-plan/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
+// standard:   LIV-Standard v1.5.1
 // amended:    step5e-corrective
-// slice:      F-planner
+//             sprint-13-shot-2 (header: slice F-planner → F-plan; standard v1.3 → v1.5.1; wires-in corrected)
+// slice:      F-plan
 // layer:      R3
 // wires-in:
-//   W-FN  handleGetVersionHistory  @/features/F-planner/contract/planner-contract
+//   W-FN  handleGetVersionHistory  @/features/F-plan/contract/plan-contract
 // wires-out:  none  (Next.js route handler — external surface only)
 // deps:
-//   R3  @/features/F-planner/contract/planner-contract
+//   R3  @/features/F-plan/contract/plan-contract
 //   R5  next/server
 // validated:  pending
 //

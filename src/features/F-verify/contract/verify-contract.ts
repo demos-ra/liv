@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-4a sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2
+// @liv-standard v1.5.1 amended sprint-11-shot-4a sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-13-shot-3
 // [F-verify/R3]
 // Built with LIV · livai.dev
 //
@@ -19,6 +19,9 @@
 //   W-FN     createArtifactGraphPort       ←  F-artifact/R3 artifact-graph-port
 //   W-ATOM   VerificationExecuteInput, VerificationEmissionResult  ←  F-verify/R0
 //   W-FN     threadQuery                   ←  F-memory/contract/substrate-contract  (sprint-11-shot-4)
+//   [absorbed sprint-13-shot-3 from F-la-config]
+//   W-FN     la-validator (internal)        ←  F-verify/R4 la-validator (CLI only)
+//   W-FN     useNamespace, StateRegistryProvider ← F-verify/R3 registry-hook (→ consumers)
 //   W-FN     writeStateChange              ←  F-memory/contract/substrate-contract  (sprint-11-shot-4)
 //   W-ATOM   SubstrateWriteInput, ThreadQueryInput, IdentityRef, ScopeRef, RoleRef ← core/types/substrate.types
 // wires-out:

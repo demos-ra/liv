@@ -4,7 +4,7 @@
 // [core/api/routes.ts]
 // R5 — route map documentation only. Zero imports. Zero logic.
 // All handlers live in their owning slice R3 contract.
-// POST_laRun moved to F-la-config/contract/la-contract.ts (R3).
+// POST_laRun was in F-la-config/contract/la-contract.ts (dissolved sprint-13-shot-3).
 //
 // ─── Route map ────────────────────────────────────────────────────────────────
 //
@@ -49,4 +49,4 @@
 // GET    /api/git/:projectId/status  → F-git-connector: git-contract.ts
 // POST   /api/git/:projectId/connect → F-git-connector: git-contract.ts
 //
-// POST   /api/la/:projectId/run      → F-la-config: la-contract.ts (POST_laRun)
+// POST   /api/la/:projectId/run      → dissolved (F-la-config collapse sprint-13-shot-3)

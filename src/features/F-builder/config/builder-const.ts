@@ -10,13 +10,13 @@
 // wires-in:
 //   W-ATOM  RateLimitConfig  core/R1 (rate-limiter)
 // wires-out:
-//   W-ATOM  PLANNER_CONST      →  F-builder/R2 builder-pipeline, F-la-config/R3 (via shim)
+//   W-ATOM  PLANNER_CONST      →  F-builder/R2 builder-pipeline, F-plan/R3 liv-standard-binding (moved sprint-13-shot-3)
 //   W-ATOM  PLANNER_RATE_LIMIT →  F-plan/R3 plan-contract (rate limit surface)
 // deps:
 //   R1  @/core/domain/rate-limiter
 // validated:  pending
 // note: Authoritative home post F-planner dissolution. F-planner/types/planner-const.ts
-//   is a re-export shim pointing here until F-la-config is updated (Sprint B3).
+//   is a re-export shim pointing here (F-la-config dissolved sprint-13-shot-3).
 //
 // A6: R0 declares, never imports. Stage strings duplicated here intentionally —
 // the canonical type is PipelineStage in planner-types.ts. R0 may not import R0.

@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useNamespace } from '@/features/F-la-config/contract/registry-hook'
+import { useNamespace } from '@/features/F-verify/contract/registry-hook'
 import { USER_PROFILE_NAMESPACE, UserProfile } from '../config/user-profile-config'
 import { getDisplayHandle } from '../domain/user-profile-logic'
 

@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-13-shot-2
 // [F-plan/R3]
 // Built with LIV · livai.dev
 //
@@ -190,9 +190,10 @@ export function createPlanGraph(): IPlanGraph {
 
 // ── createPlannerDb — pipeline IPlannerDb factory (sprint-12-shot-3) ──────────
 // F-plan R3 needs access to IPlannerDb for isPipelineActive and getBuildsForAdmin.
-// Delegates to F-builder/exec/builder-inject (the authoritative pipeline DB factory).
-// A5: cross-slice import from R4 is acceptable here at R3 (inject layer).
+// sprint-13-shot-2: A2 fix. Was: '@/features/F-builder/exec/builder-inject' (R4 cross-slice).
+// Now: '@/features/F-builder/contract/builder-contract' (R3 surface — createBuilderDb
+// re-exported there as of sprint-13-shot-2). R3→R3 cross-slice is permitted (A2).
 
-export { createBuilderDb as createPlannerDb } from '@/features/F-builder/exec/builder-inject'
+export { createBuilderDb as createPlannerDb } from '@/features/F-builder/contract/builder-contract'
 
 // ─── End of plan-inject.ts ───────────────────────────────────────────────────

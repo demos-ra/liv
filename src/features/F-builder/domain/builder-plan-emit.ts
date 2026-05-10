@@ -34,7 +34,7 @@
 //   W-ATOM  RoleClassId                   ← core/R5 plan-standard.types
 //   W-ATOM  TypedAtomRef                  ← core/R5 plan-standard.types
 //   W-ATOM  TierClass                     ← core/R5 plan-standard.types
-//   W-ATOM  LIV_STANDARD_DOMAIN_BINDING   ← F-la-config/R3 liv-standard-binding
+//   W-ATOM  LIV_STANDARD_DOMAIN_BINDING   ← F-plan/R3 liv-standard-binding
 //   W-HOOK  createArtifact                ← F-artifact/R3 artifact-contract
 //   W-ATOM  ArtifactGraphPort             ← F-artifact/R3 artifact-contract
 //   W-ATOM  PLANNER_CONST                 ← F-planner/R0 planner-const
@@ -46,7 +46,7 @@
 //   R5 @/core/types/artifact-standard.types
 //   R0 @/core/constants/liv-standard.types
 //   R3 @/features/F-artifact/contract/artifact-contract
-//   R3 @/features/F-la-config/contract/liv-standard-binding
+//   R3 @/features/F-plan/contract/liv-standard-binding
 //   R0 @/features/F-builder/config/builder-const
 // validated:  pending
 //
@@ -64,7 +64,7 @@
 //
 //   Axiom cite:
 //     A5 — cross-slice calls via R3 contract only (F-artifact/R3 createArtifact,
-//          F-la-config/R3 binding).
+//          F-plan/R3 binding).
 //     PA1 (Plan) — at-least-one-declaration: enforced by IN-MAIN presence.
 //     PA2b (Plan) — declaration dependsOn closure is acyclic: checked on
 //          contract.wireMap before composition; failure returns PlanValidityError.
@@ -108,7 +108,7 @@ import type {
 import type { ArtifactGraphPort } from '@/features/F-artifact/contract/artifact-contract'
 
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
-import { LIV_STANDARD_DOMAIN_BINDING } from '@/features/F-la-config/contract/liv-standard-binding'
+import { LIV_STANDARD_DOMAIN_BINDING } from '@/features/F-plan/contract/liv-standard-binding'
 import { PLANNER_CONST } from '@/features/F-builder/config/builder-const'
 import { generateId } from '@/core/types/primitives'
 

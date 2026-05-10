@@ -1,17 +1,17 @@
-// @liv-standard v1.3
-// [F-planner/R3]
+// @liv-standard v1.5.1 amended sprint-13-shot-2
+// [F-plan/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    none
-// slice:      F-planner
+// standard:   LIV-Standard v1.5.1
+// amended:    sprint-13-shot-2 (header: slice F-planner → F-plan; standard v1.3 → v1.5.1; wires-in corrected)
+// slice:      F-plan
 // layer:      R3
 // wires-in:
-//   W-ATOM  handleStartPipeline  @/features/F-planner/contract/planner-contract
+//   W-ATOM  handleStartPipeline  @/features/F-plan/contract/plan-contract
 // wires-out:  none  (Next.js route handler — external surface only)
 // deps:
-//   R3  @/features/F-planner/contract/planner-contract
+//   R3  @/features/F-plan/contract/plan-contract
 // validated:  2026-03-12
 
 import { NextRequest } from 'next/server'

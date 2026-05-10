@@ -1,10 +1,10 @@
-// @liv-standard v1.3
+// @liv-standard v1.3 amended sprint-13-shot-2
 // [F-executor/contract/executor-contract.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    sprint-13-shot-2 (manifest: F-planner consumer refs updated to F-builder — dissolution)
 // slice:      F-executor
 // layer:      R3
 // wires-in:
@@ -13,7 +13,7 @@
 //   W-ATOM  ExecutorResult   ../types/executor-types
 //   W-FN    ioRunExecution   ../app/executor-io
 // wires-out:
-//   W-FN  runExecution  →  F-planner/R3 (planner-inject.ts via W-INJECT bridge)
+//   W-FN  runExecution  →  F-builder/R3 (builder-contract, via IExecutor W-INJECT bridge)
 // deps:
 //   R0  ../types/executor-types
 //   R4  ../app/executor-io      (A2-w-inject-bridge — see below)
@@ -21,13 +21,13 @@
 //
 // Step 3 (A5):
 //   This is the ONLY file in F-executor that any other slice may import.
-//   F-planner reaches F-executor exclusively through runExecution() here.
+//   F-builder reaches F-executor exclusively through runExecution() here.
 //   No other slice imports F-executor internals (types/, domain/, app/).
-//   The W-INJECT bridge in F-planner/contract/planner-inject.ts wraps
+//   The W-INJECT bridge in F-builder/contract/builder-contract.ts wraps
 //   runExecution() into an IExecutor interface shape — F-executor never
-//   depends on F-planner.
+//   depends on F-builder.
 //
-// A2-w-inject-bridge amendment (mirrors F-planner planner-inject.ts):
+// A2-w-inject-bridge amendment (mirrors F-builder builder-contract.ts):
 //   R3 contract files may import R4 solely to expose the I/O function at
 //   the contract surface. No R4 type crosses the boundary. Pattern is
 //   identical to the established codebase convention.

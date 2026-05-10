@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -10,6 +10,7 @@
 //             sprint-11-shot-6a (S11-C1: Decision-D terminology aligned — side= → source.channel=)
 //             sprint-11-shot-6b (source.scope corrected: userId → projectId at all writeStateChange callsites)
 //             sprint-12-shot-4 (F-S12-D closed: stale F-planner refs removed; CS v1.0 alignment declared)
+//             sprint-13-shot-1 (dispatch wire: routeResult.ok branch dispatches to cycle program contract entries)
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -28,7 +29,14 @@
 //   W-ATOM  RouterMessage        F-router/config/router-types
 //   W-ATOM  RouterSessionContext F-router/config/router-types
 //   W-ATOM  ROUTER_ERROR_CODES   F-router/config/router-types
-// wires-out:  none  (route handler — external surface)
+//   W-FN    executePlan          F-plan/contract/plan-contract         (sprint-13-shot-1 dispatch)
+//   W-FN    executeResearchFromInput   F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
+//   W-FN    executeVerificationFromInput F-verify/contract/verify-contract    (sprint-13-shot-1 dispatch)
+// wires-out:
+//   W-FN    executePlan              F-plan/contract/plan-contract          (sprint-13-shot-1 dispatch)
+//   W-FN    executeResearchFromInput F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
+//   W-FN    executeVerificationFromInput F-verify/contract/verify-contract  (sprint-13-shot-1 dispatch)
+//   (F-builder dispatch deferred — typed rejection only, no entry call)
 // deps:
 //   R0  ../config/chat-config
 //   R0  @/features/F-ai-adapter/config/ai-adapter-config
@@ -39,6 +47,8 @@
 //   R3  @/features/F-plan/contract/plan-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R3  @/features/F-router/contract/router-contract
+//   R3  @/features/F-discover/contract/discover-contract  (sprint-13-shot-1)
+//   R3  @/features/F-verify/contract/verify-contract      (sprint-13-shot-1)
 //   R5  core/types/primitives
 //   R5  next/server
 // validated:  pending
@@ -89,6 +99,19 @@
 //   (F-009 implementation — substrate-write callers, thread-query callers,
 //   F-router registration). Perimeter-gate (session auth) is the active gate
 //   for Sprint 11; role-based requirePermission is deferred per F-009.
+//
+// sprint-13-shot-1 (dispatch wire):
+//   routeResult.ok branch replaced: instead of log-only fallthrough, dispatches
+//   to matched cycle program via dispatchToProgram(). Each arm calls the program's
+//   contract entry function, awaits the result, and returns a typed SSE Response.
+//   Decision-D:
+//     D1 — SSE chunk shape: { result: T } then { done: true } — matches AI chat path.
+//     D2 — defaultClassification(): primitive='anchor', confidence=1.0,
+//           classificationNodeId=generateId('cls'). Smoke invocation per brief.
+//     D3 — F-builder rejection: { chunk: '...' } conversational message + { done: true }.
+//   F-builder dispatch deferred (no jobId available from bare chat message); typed
+//   rejection returned — not a fallthrough to LLM.
+//   Unhandled destination slices log a warning and fall through to LLM (default arm).
 
 import { NextRequest, NextResponse }             from 'next/server'
 import { sendMessage, getMessages }              from '../app/chat-workflow'
@@ -101,6 +124,7 @@ import { isPipelineActive }                      from '@/features/F-plan/contrac
 import { writeStateChange, threadQuery }         from '@/features/F-memory/contract/substrate-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
+import type { Semver, NodeId }                   from '@/core/types/primitives'
 import type {
   SubstrateWriteInput,
   ThreadQueryInput,
@@ -113,6 +137,238 @@ import type {
   RouterMessage,
   RouterSessionContext,
 }                                                from '@/features/F-router/contract/router-contract'
+
+// ── Cycle program imports — sprint-13-shot-1 ─────────────────────────────────
+import { executePlan }                           from '@/features/F-plan/contract/plan-contract'
+import { executeResearchFromInput }              from '@/features/F-discover/contract/discover-contract'
+import { executeVerificationFromInput }          from '@/features/F-verify/contract/verify-contract'
+import type { ResearchExecuteInput }             from '@/features/F-discover/contract/discover-contract'
+import type { VerificationExecuteInput }         from '@/features/F-verify/contract/verify-contract'
+import type { Destination }                      from '@/features/F-router/config/router-types'
+// Sub-types for smoke input construction — imported from core/R5 per A2
+// (F-chat R3 → core R5 is permitted; R0 re-exports these from the same source)
+import type {
+  ResearchInput,
+  ResearchBinding,
+  ResearchTypedAtomSchema,
+  KnowledgeContext,
+  ResearchQuestionInput,
+  AuthoringProgramRef as ResearchAuthoringProgramRef,
+  DecompositionPolicyRef,
+}                                                from '@/core/types/research-standard.types'
+import type {
+  VerificationInput,
+  VerificationBinding,
+  VerificationTypedAtomSchema,
+  AuthoringProgramRef as VerifyAuthoringProgramRef,
+}                                                from '@/core/types/verification-standard.types'
+
+// ── Cycle program dispatch — sprint-13-shot-1 ─────────────────────────────────
+// dispatchToProgram: maps Destination.slice to the matched cycle program's
+// contract entry. Returns Response | null.
+// null = unhandled destination slice — caller falls through to default LLM path.
+// Chat Standard CA5 compliance: only reached when routeResult.ok is true.
+//
+// Decision-D:
+//   D1 — SSE chunk shape: { result: T } then { done: true }. Matches AI chat
+//        path stream shape for client compatibility.
+//   D2 — defaultClassification(): primitive='anchor', confidence=1.0,
+//        classificationNodeId=generateId('cls') as NodeId. Smoke invocation
+//        per brief; full AS-calibrated classification is Sprint B work.
+//   D3 — F-builder rejection: conversational SSE message + { done: true }.
+//        Not a fallthrough — typed rejection from dispatch layer.
+//   D4 — Smoke binding version strings: '1.0.0' cast as Semver. The isSemver
+//        runtime check validates /^\d+\.\d+\.\d+/ regex — '1.0.0' passes.
+//        Cast is safe; no `as any` used.
+//   D5 — QuestionId / NodeId / ArtifactRef (= NodeId) are branded strings.
+//        generateId() returns string; cast via `as QuestionId` / `as NodeId`.
+//        Same pattern used throughout existing contracts (e.g. plan-contract.ts).
+
+type DispatchContext = {
+  content:   string
+  userId:    string
+  projectId: string
+  turnId:    string
+  modelId:   string
+  encoder:   TextEncoder
+}
+
+// D1 — SSE stream wrapping typed program result.
+function programResultStream(result: unknown, encoder: TextEncoder): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (data: unknown) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+      send({ result })
+      send({ done: true })
+      controller.close()
+    },
+  })
+  return new Response(stream, {
+    headers: {
+      'Content-Type':  'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection:      'keep-alive',
+    },
+  })
+}
+
+// D3 — F-builder typed rejection.
+function builderNoJobResponse(encoder: TextEncoder): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (data: unknown) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+      send({
+        chunk: 'Building requires an active plan. Use F-plan first — describe what you want to build, then confirm to emit a plan artifact. F-builder can proceed once a plan artifact exists.',
+      })
+      send({ done: true })
+      controller.close()
+    },
+  })
+  return new Response(stream, {
+    headers: {
+      'Content-Type':  'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection:      'keep-alive',
+    },
+  })
+}
+
+// D2 — Smoke classification. Sprint B will replace with real CS calibration.
+function defaultClassification() {
+  return {
+    classificationNodeId: generateId('cls') as NodeId,
+    primitive:            'anchor'  as const,
+    confidence:           1.0,
+  }
+}
+
+async function dispatchToProgram(
+  destination: Destination,
+  ctx:         DispatchContext,
+): Promise<Response | null> {
+  const { content, userId, projectId, turnId, modelId, encoder } = ctx
+
+  switch (destination.slice) {
+
+    // ── F-plan ──────────────────────────────────────────────────────────────
+    case 'F-plan': {
+      const result = await executePlan(content, userId, projectId, turnId, modelId)
+      return programResultStream(result, encoder)
+    }
+
+    // ── F-discover ──────────────────────────────────────────────────────────
+    // Smoke ResearchInput: minimal shape satisfying gateRS1.
+    // All checked fields: authoringProgram (programId: string, programVersion: Semver),
+    // userId: string, turnId: string, binding (domainId: string, domainVersion: Semver,
+    // investigationMethods: [], questionSchema: { shapeRef: string },
+    // knowledgeSchema: { shapeRef: string }, sourceCriteria: [], failsafes: {}),
+    // question (questionId: string, questionText: string ≥1 char, decompositionPolicy: string),
+    // priorKnowledge (artifactRefs: [], scopeBoundary: null).
+    case 'F-discover': {
+      const smokeResearchSchema: ResearchTypedAtomSchema = { shapeRef: 'smoke-v1' }
+      const smokeBinding: ResearchBinding = {
+        domainId:             'smoke',
+        domainVersion:        '1.0.0' as Semver,
+        investigationMethods: [],
+        questionSchema:       smokeResearchSchema,
+        knowledgeSchema:      smokeResearchSchema,
+        sourceCriteria:       [],
+        failsafes:            {},
+      }
+      const smokeAuthoringProgram: ResearchAuthoringProgramRef = {
+        programId:      'F-discover',
+        programVersion: '1.0.0' as Semver,
+      }
+      const smokeQuestion: ResearchQuestionInput = {
+        questionId:          generateId('q') as unknown as ResearchQuestionInput['questionId'],
+        questionText:        content,
+        decompositionPolicy: 'none' as DecompositionPolicyRef,
+      }
+      const smokePriorKnowledge: KnowledgeContext = {
+        artifactRefs:  [],
+        scopeBoundary: null,
+      }
+      const smokeResearchInput: ResearchInput = {
+        authoringProgram: smokeAuthoringProgram,
+        userId,
+        turnId,
+        binding:          smokeBinding,
+        question:         smokeQuestion,
+        priorKnowledge:   smokePriorKnowledge,
+      }
+      const input: ResearchExecuteInput = {
+        researchInput:  smokeResearchInput,
+        projectId,
+        classification: defaultClassification(),
+      }
+      const result = await executeResearchFromInput(input)
+      return programResultStream(result, encoder)
+    }
+
+    // ── F-verify ────────────────────────────────────────────────────────────
+    // Smoke VerificationInput: minimal shape satisfying gateVS1.
+    // All checked fields: authoringProgram (programId: string, programVersion: Semver),
+    // userId: string, turnId: string, binding (domainId: string, domainVersion: Semver,
+    // predicateSet: [], evidenceSchema: { shapeRef: string }, failsafes: {}),
+    // target (artifactRef: string (NodeId), artifactKind: string),
+    // evidence: null (typed unknown — null satisfies unknown),
+    // preverifyInputs: null (same).
+    case 'F-verify': {
+      const smokeVerifySchema: VerificationTypedAtomSchema = { shapeRef: 'smoke-v1' }
+      const smokeVerifyBinding: VerificationBinding = {
+        domainId:       'smoke',
+        domainVersion:  '1.0.0' as Semver,
+        predicateSet:   [],
+        evidenceSchema: smokeVerifySchema,
+        failsafes:      {},
+      }
+      const smokeVerifyAuthoringProgram: VerifyAuthoringProgramRef = {
+        programId:      'F-verify',
+        programVersion: '1.0.0' as Semver,
+      }
+      const smokeVerifyInput: VerificationInput = {
+        authoringProgram: smokeVerifyAuthoringProgram,
+        userId,
+        turnId,
+        binding:          smokeVerifyBinding,
+        target: {
+          artifactRef:  generateId('art') as NodeId,
+          artifactKind: 'smoke',
+        },
+        evidence:         null,
+        preverifyInputs:  null,
+      }
+      const input: VerificationExecuteInput = {
+        verificationInput: smokeVerifyInput,
+        projectId,
+        classification:    defaultClassification(),
+      }
+      const result = await executeVerificationFromInput(input)
+      return programResultStream(result, encoder)
+    }
+
+    // ── F-builder ───────────────────────────────────────────────────────────
+    // executeBuild requires a jobId from a prior F-plan artifact.
+    // No jobId available from a bare chat message. Typed rejection — D3.
+    case 'F-builder': {
+      return builderNoJobResponse(encoder)
+    }
+
+    // ── Default ─────────────────────────────────────────────────────────────
+    // Unhandled destination slice: log warn, return null → caller falls through to LLM.
+    default: {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'chat.dispatch_unhandled',
+        slice:  destination.slice,
+        turnId,
+      }))
+      return null
+    }
+  }
+}
 
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
 let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
@@ -247,10 +503,10 @@ export async function POST_message(
     console.error('[chat] thread query failed', err instanceof Error ? err.message : err)
   }
 
-  // ── F-router dispatch — sprint-11-shot-2 ──────────────────────────────────
+  // ── F-router dispatch — sprint-11-shot-2 / sprint-13-shot-1 ─────────────────
   // Consult F-router before falling through to default LLM path.
   // Chat Standard CA5: REGISTRY_EMPTY and NO_MATCH both treated as no-match → fallthrough.
-  // Matched destination dispatch wired at Shot 3; until then fall through always.
+  // sprint-13-shot-1: matched destination dispatches to cycle program via dispatchToProgram().
   const routerMessage: RouterMessage = {
     text: content as string,
     kind: 'user-turn',
@@ -263,17 +519,17 @@ export async function POST_message(
   const routeResult = route(routerMessage, routerContext)
 
   if (routeResult.ok) {
-    // Matched destination — Shot 3 will dispatch to slice.
-    // Until destinations are registered, registry is empty and this branch is unreachable.
-    // When reached: log only. Fall through to default LLM path until Shot 3 wires dispatch.
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'chat.route_matched_pending_dispatch',
-      slice:     routeResult.data.slice,
-      programId: routeResult.data.programId,
+    // Matched destination — sprint-13-shot-1: dispatch to cycle program.
+    const dispatched = await dispatchToProgram(routeResult.data, {
+      content,
+      userId:    session.userId,
+      projectId,
       turnId,
-    }))
-    // Fall through — dispatch placeholder until Shot 3.
+      modelId,
+      encoder,
+    })
+    // null means unhandled destination slice — fall through to LLM.
+    if (dispatched !== null) return dispatched
   } else {
     // REGISTRY_EMPTY or NO_MATCH → expected fallthrough per CA5.
     const isExpected =

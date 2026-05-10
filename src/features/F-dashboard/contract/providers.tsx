@@ -23,7 +23,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { httpBatchLink } from '@trpc/client'
 import superjson from 'superjson'
 import { trpc } from '@/core/api/trpc-client'
-import { StateRegistryProvider } from '@/features/F-la-config/contract/registry-hook'
+import { StateRegistryProvider } from '@/features/F-verify/contract/registry-hook'
 import { AuthProvider }          from '@/features/F-identity/contract/auth-hooks'
 import { ProgramRegistryProvider } from './dashboard-registry'
 

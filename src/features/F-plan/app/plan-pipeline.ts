@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-12-shot-3 sprint-13-shot-2
 // [F-plan/app/plan-pipeline.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-12-shot-3 (NEW — moved from F-planner/workflow/planner-workflow — dissolution)
+//             sprint-13-shot-2 (R1 import relocated: F-planner/domain/planner-logic → F-plan/domain/plan-logic)
 // slice:      F-plan
 // layer:      R2
 // wires-in:
@@ -32,7 +33,7 @@
 //   R0  @/features/F-builder/config/builder-events
 //   R0  @/features/F-builder/config/builder-const
 //   R2  @/features/F-builder/domain/builder-pipeline  (type imports only — IPlannerDb, IAiAdapter, IExecutor)
-//   R1  @/features/F-planner/domain/planner-logic     (R1 pure functions — Sprint B relocation)
+//   R1  ../domain/plan-logic                                              (sprint-13-shot-2: relocated from F-planner)
 //   R3  @/features/F-event-system/contract/event-bus
 //   R5  @/core/constants/liv-api
 // validated:  pending
@@ -89,7 +90,7 @@ import {
   assessFileCompliance,
   buildReadSnapshot,
   deriveScopingConstraints,
-} from '@/features/F-planner/domain/planner-logic'
+} from '../domain/plan-logic'
 
 // ── readProjectState (D5: moved to F-plan alongside handleInMainTurn) ─────────
 

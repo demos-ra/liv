@@ -2,8 +2,8 @@
 // [core/types/state-registry.ts]
 // Built with LIV · livai.dev
 // R5 — pure namespace declaration. Zero dependencies.
-// Enforcement logic lives in F-la-config/domain/state-enforce.ts (R1).
-// React hook lives in F-la-config/contract/registry-hook.tsx (R3).
+// Enforcement logic lives in F-verify/domain/state-enforce.ts (R1).
+// React hook lives in F-verify/contract/registry-hook.tsx (R3).
 
 import type { FSlice } from './primitives'
 
@@ -17,7 +17,7 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-executor':        'executor',      // Step 3
   'F-design-system':   'designSystem',
   'F-event-system':    'eventSystem',
-  'F-la-config':       'laConfig',
+  // 'F-la-config': dissolved Sprint 13 Shot 3 (collapsed into F-verify)
   'F-identity':        'identity',
   'F-permissions':     'permissions',
   'F-git-connector':   'gitConnector',

@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useNamespace } from '@/features/F-la-config/contract/registry-hook'
+import { useNamespace } from '@/features/F-verify/contract/registry-hook'
 import { PERMISSIONS_NAMESPACE, Role, Action } from '../config/permissions-config'
 import { can } from '../domain/permissions-logic'
 

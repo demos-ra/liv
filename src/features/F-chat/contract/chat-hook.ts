@@ -12,14 +12,14 @@
 //   W-ATOM  ChatThread      ../config/chat-config
 //   W-ATOM  ChatError       ../config/chat-config
 //   W-ATOM  ChatErrorCode   ../config/chat-config
-//   W-HOOK  useNamespace    @/features/F-la-config/contract/registry-hook
+//   W-HOOK  useNamespace    @/features/F-verify/contract/registry-hook
 // wires-out:
 //   W-HOOK  useChatStream        →  F-chat/R3 (chat-ui.tsx)
 //   W-HOOK  useChat              →  F-chat/R3 (chat-ui.tsx)
 //   W-HOOK  useViewportKeyboard  →  F-chat/R3 (chat-ui.tsx)
 // deps:
 //   R0  ../config/chat-config
-//   R3  @/features/F-la-config/contract/registry-hook
+//   R3  @/features/F-verify/contract/registry-hook
 //   R5  react
 // validated:  pending
 //
@@ -42,7 +42,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useNamespace } from '@/features/F-la-config/contract/registry-hook'
+import { useNamespace } from '@/features/F-verify/contract/registry-hook'
 import { CHAT_NAMESPACE, ChatThread } from '../config/chat-config'
 import type { ChatError, ChatErrorCode } from '../config/chat-config'
 

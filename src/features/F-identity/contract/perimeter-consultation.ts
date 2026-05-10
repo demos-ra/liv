@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-13-shot-2
 // @perimeter-standard v1.0
 // [F-identity/R3]
 // Built with LIV · livai.dev
@@ -13,7 +13,7 @@
 //   W-ATOM    PERIMETER_HEADER_USER_ID        @/core/constants/perimeter-headers
 //   W-ATOM    PERIMETER_HEADER_SESSION_ID     @/core/constants/perimeter-headers
 // wires-out:
-//   W-FN      getPerimeterSession             → all distributed R3 contracts (F-chat, F-la-config, F-output, F-permissions, F-planner, F-project, F-user-profile)
+//   W-FN      getPerimeterSession             → all distributed R3 contracts (F-chat, F-verify, F-output, F-permissions, F-plan, F-project, F-user-profile)
 // validated:  pending
 //
 // Perimeter consultation surface — Sprint 6 Shot 3 wire-in.

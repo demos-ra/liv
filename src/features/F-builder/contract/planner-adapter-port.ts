@@ -1,31 +1,32 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended phase-5 sprint-13-shot-2
 // [F-builder/contract/planner-adapter-port.ts]
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    phase-5
+//             sprint-13-shot-2 (manifest: F-planner refs corrected to F-builder; contractRef strings updated)
 // slice:      F-builder
 // layer:      R3
 // wires-in:
 //   W-ATOM  DeclId, TypedAtom                    ← F-multi-instance/R3 mi-contract
 //   W-ATOM  AIAdapterPort                        ← F-multi-instance/R3 mi-contract
-//   W-ATOM  IAiAdapter                           ← F-planner/R2 planner-workflow
+//   W-ATOM  IAiAdapter                           ← F-builder/R2 builder-pipeline
 //   W-ATOM  InstanceId                           ← core/R0 liv-standard.types
 //   W-FN    validateHandoff                      ← core/R5 liv-api
-//   W-ATOM  MODEL_TIER_MAP, MODEL_TIER constants ← F-planner/R0 planner-const
+//   W-ATOM  MODEL_TIER_MAP, MODEL_TIER constants ← F-builder/R0 builder-const
 // wires-out:
-//   W-FN    createAdapterPort                    → F-planner/R2 planner-workflow (per-call construction)
+//   W-FN    createAdapterPort                    → F-builder/R2 builder-pipeline (per-call construction)
 // deps:
 //   R3 @/features/F-multi-instance/contract/mi-contract
-//   R2 @/features/F-planner/workflow/planner-workflow
+//   R2 @/features/F-builder/domain/builder-pipeline
 //   R0 @/core/constants/liv-standard.types
 //   R5 @/core/constants/liv-api
-//   R0 ../types/planner-const
+//   R0 ../config/builder-const
 // validated:  pending
 //
 // Phase 5 — Build #3 adapter port.
 //
-//   Wraps F-planner's existing IAiAdapter (streamCompletion) into M-I's
+//   Wraps F-builder's existing IAiAdapter (streamCompletion) into M-I's
 //   AIAdapterPort (invokeRole) so real LLM calls flow through executeRun.
 //
 //   invokeRole semantics:
@@ -35,7 +36,7 @@
 //     - returns TypedAtom { kind, value, schemaRef } with the raw LLM text as value
 //
 //   resolveValidateContract:
-//     Returns a validator keyed by contractRef. For 'F-planner.validateHandoff'
+//     Returns a validator keyed by contractRef. For 'F-builder.validateHandoff'
 //     we adapt M-I's {declId, output: TypedAtom} shape to validateHandoff's
 //     {from, to, output: {files, report?, errorLog?}} shape. Phase 5 treats
 //     TypedAtom.value as the output.report string; IN-BUILD files aren't
@@ -45,7 +46,7 @@
 //
 // A5: R3 → R3 wiring is permitted. No R4 imports here.
 // A7: if these wrappers are retired, M-I's ports can bind directly to real
-//     F-ai-adapter R3 and F-la-config R3 — this file is deletable.
+//     F-ai-adapter R3 and F-plan R3 — this file is deletable (F-la-config dissolved sprint-13-shot-3).
 
 import type { AIAdapterPort } from '@/features/F-multi-instance/contract/mi-contract'
 import type { DeclId } from '@/core/types/plan-standard.types'
@@ -81,14 +82,14 @@ function modelForTier(tier: TierClass): string {
 // ─── AIAdapterPort builder ───────────────────────────────────────────────────
 
 /**
- * Build an AIAdapterPort backed by F-planner's existing IAiAdapter.
+ * Build an AIAdapterPort backed by F-builder's existing IAiAdapter.
  *
  * invokeRole: wraps streamCompletion. One round-trip call per instance. The
  *   LLM's concatenated text output is returned as TypedAtom.value; schemaRef
  *   matches the binding's InstanceOutput atom declaration.
  *
  * resolveValidateContract: returns a boolean-returning validator for the
- *   contractRef 'F-planner.validateHandoff'. Other refs return a permissive
+ *   contractRef 'F-builder.validateHandoff'. Other refs return a permissive
  *   always-true validator (Phase 5 conservative default — Build #4 audit will
  *   flag any unexpected refs for review).
  */
@@ -143,7 +144,7 @@ export function createAdapterPort(ai: IAiAdapter, userId: string): AIAdapterPort
     },
 
     resolveValidateContract: (contractRef: string) => {
-      if (contractRef === 'F-planner.validateHandoff') {
+      if (contractRef === 'F-builder.validateHandoff') {
         return (args: { declId: DeclId; output: TypedAtom }): boolean => {
           // Adapt M-I shape to validateHandoff signature.
           // declId string == RoleClassId == InstanceId (validated by the binding).

@@ -1,4 +1,4 @@
-// @liv-standard v1.3
+// @liv-standard v1.3 amended sprint-13-shot-2
 // [F-executor/R0]
 // Built with LIV · livai.dev
 
@@ -10,7 +10,7 @@
 //   (none — F-executor has zero cross-slice imports)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
-//   W-FN    runExecution()         →  F-planner/R3 (planner-inject)
+//   W-FN    runExecution()         →  F-builder/R3 (builder-contract, via IExecutor W-INJECT)
 //   W-ATOM  ExecutionJob           →  re-exported via F-executor/R3 (executor-contract)
 //   W-ATOM  ExecutionResult        →  re-exported via F-executor/R3 (executor-contract)
 //   W-ATOM  ExecutorResult         →  re-exported via F-executor/R3 (executor-contract)

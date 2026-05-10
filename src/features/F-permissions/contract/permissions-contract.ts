@@ -3,13 +3,13 @@
 // Built with LIV · livai.dev
 // R3 — permission contract surface for all other slices.
 // Import from here only. Never import from F-permissions/app directly.
-// A5: requirePermission exposed here so F-la-config and any future
+// A5: requirePermission exposed here; F-la-config dissolved sprint-13-shot-3.
 //     slice never cross into F-permissions/app/permissions-workflow.
 // Axiom cite: A5 — cross-slice calls via contract only.
 //
 // Step 1 — D6 fix:
 //   requirePermission re-exported from this R3 surface.
-//   F-la-config/contract/la-contract.ts updated to import from here.
+//   F-verify absorbs la-contract; requirePermission stays canonical here (sprint-13-shot-3).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Action } from '../config/permissions-config'

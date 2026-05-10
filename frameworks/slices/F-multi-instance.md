@@ -66,7 +66,7 @@ build DispatchPlan       assemble RunReportContent             return MIEmission
 - LLM streaming → F-ai-adapter
 - Graph primitives → F-memory
 - Cognitive classification → F-ai-adapter (post Sprint 8 Shot 3a salvage; F-codec dissolved)
-- DomainBinding instance content → domain standards (F-la-config for LIV-Standard)
+- DomainBinding instance content → domain standards (F-plan/contract/liv-standard-binding for LIV-Standard; moved sprint-13-shot-3)
 
 ## Public Contract (R3)
 
@@ -130,7 +130,7 @@ and future M-I consumers each thread their own runTurnId.
 ## Integration Rules (Phase 4b)
 
 - F-multi-instance is STANDALONE in 4b — no wire into codec-orchestrate.
-- Imports F-artifact at S3 (createArtifact) + F-la-config DomainBinding at port wiring.
+- Imports F-artifact at S3 (createArtifact) + F-plan DomainBinding at port wiring (moved sprint-13-shot-3).
 - F-ai-adapter injected via AIAdapterPort (W-INJECT), NOT in MIInput schema.
 - Embedding / retry loop / cascade detection deferred post-4b (ports accept the
   witnesses; engine feeds defaults at beta).
