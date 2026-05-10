@@ -1,6 +1,10 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1
 // [F-identity/R2]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-13b-shot-1
+//   createAuthDeps: third param `eventBus: IEventBus` added (injected by R3 callers).
+//   noopEventBus stub removed — A2 compliance: R2 no longer self-wires the event bus.
+//   Real adapter declared at R3 (trpc-context.ts, middleware.ts); wraps emitEvent from F-event-system/contract.
 // @manifest-delta sprint-b1-shot-1
 //   validateAndRefreshSession return type extended:
 //     before: AuthResult<{ user: AuthUser; session: SessionPayload }>
@@ -415,12 +419,14 @@ export async function destroySessionForUser(userId: string, sessionId: string, a
 }
 
 // ─── Deps Factory (R3 calls this — never imports exec/ directly) ──────────────
+// eventBus is injected by R3 caller (trpc-context.ts, middleware.ts).
+// R2 never imports from F-event-system directly (A2).
 
-export function createAuthDeps(ipAddress: string, authDb: IAuthDb): AuthWorkflowDeps {
+export function createAuthDeps(ipAddress: string, authDb: IAuthDb, eventBus: IEventBus): AuthWorkflowDeps {
   return {
     db:             authDb,
     email:          IS_DEV ? devEmailServiceStub : createProductionEmailService(),
-    eventBus:       noopEventBus,
+    eventBus,
     baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
     checkRateLimit: async (_type, _value, _action) => ({
       allowed: true,
@@ -447,7 +453,6 @@ const devEmailServiceStub: IEmailService = {
   },
 }
 
-const noopEventBus: IEventBus = { async emit(_event: { type: string; payload: Record<string, unknown>; eventKind?: string }) {} }
 
 function createProductionEmailService(): IEmailService {
   const apiKey      = process.env.EMAIL_API_KEY

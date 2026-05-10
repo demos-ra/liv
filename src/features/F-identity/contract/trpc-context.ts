@@ -1,6 +1,10 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1
 // [F-identity/R3]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-13b-shot-1
+//   emitEvent imported from F-event-system/contract (R3→R3, same layer — A2 compliant).
+//   realEventBus adapter declared inline: implements IEventBus, wraps emitEvent, drops eventKind.
+//   createAuthDeps call updated to pass realEventBus as third arg.
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-b1-shot-1 (setSessionCookie + clearSessionCookie hoisted before try block;
@@ -15,6 +19,7 @@
 //   W-ATOM    SessionPayload            ../config/auth-types
 //   W-ATOM    SESSION_COOKIE_NAME       ../config/auth-types
 //   W-FN      createAuthDb              ../exec/auth-db
+//   W-FN      emitEvent                 @/features/F-event-system/contract/event-bus
 //   W-FN      db                        @/core/db/client
 //   W-FN      taggedDb                  @/core/db/client
 //   W-ATOM    FetchCreateContextFnOptions  @trpc/server/adapters/fetch
@@ -36,6 +41,7 @@ import type { AuthUser, SessionPayload } from '../config/auth-types'
 import { SESSION_COOKIE_NAME } from '../config/auth-types'
 import { createAuthDb } from '../exec/auth-db'
 import { db, taggedDb } from '@/core/db/client'
+import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 
 const SESSION_COOKIE = SESSION_COOKIE_NAME
 const IS_PROD        = process.env.NODE_ENV === 'production'
@@ -83,7 +89,12 @@ export async function createContext(
     'unknown'
 
   const authDb   = createAuthDb(taggedDb(db))
-  const authDeps = createAuthDeps(ipAddress, authDb)
+  const realEventBus = {
+    async emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void> {
+      await emitEvent({ type: event.type, payload: event.payload })
+    },
+  }
+  const authDeps = createAuthDeps(ipAddress, authDb, realEventBus)
 
   let session: SessionPayload | null = null
   let user: AuthUser | null = null

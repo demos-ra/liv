@@ -1,7 +1,11 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1
 // @perimeter-standard v1.0
 // [perimeter site — unitary per PA-I]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-13b-shot-1
+//   emitEvent imported from F-event-system/contract (R3-level caller — A2 compliant).
+//   realEventBus adapter declared inline: implements IEventBus, wraps emitEvent, drops eventKind.
+//   createAuthDeps call updated to pass realEventBus as third arg.
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-b1-shot-1 (boundary stamp: crossingId, crossedAt, resolvedChannel; session cookie refresh)
@@ -13,6 +17,7 @@
 //   W-FN      validateAndRefreshSession     @/features/F-identity/app/auth-workflow
 //   W-FN      createAuthDeps               @/features/F-identity/app/auth-workflow
 //   W-FN      createAuthDb                 @/features/F-identity/exec/auth-db  (F-5 fix: declared)
+//   W-FN      emitEvent                    @/features/F-event-system/contract/event-bus
 //   W-FN      writeStateChange              @/features/F-memory/contract/substrate-contract
 //   W-FN      generateId                    @/core/types/primitives
 //   W-ATOM    PERIMETER_HEADER_USER_ID      @/core/constants/perimeter-headers
@@ -67,6 +72,7 @@ import { writeStateChange } from '@/features/F-memory/contract/substrate-contrac
 import { generateId } from '@/core/types/primitives'
 import { db, taggedDb } from '@/core/db/client'
 import { createAuthDb } from '@/features/F-identity/exec/auth-db'
+import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import {
   PERIMETER_HEADER_USER_ID,
   PERIMETER_HEADER_SESSION_ID,
@@ -175,6 +181,11 @@ function resolveDisposition(pathname: string, method: string): DispositionKind {
   return 'reference'
 }
 
+// ─── Runtime ──────────────────────────────────────────────────────────────────
+// F-identity L4 decision: explicit Node.js runtime. Matches VPS + pm2 + Node.js deployment.
+// Collapses Edge Runtime crypto warnings across build as natural consequence.
+export const runtime = 'nodejs'
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
@@ -201,7 +212,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   // We need validateAndRefreshSession here to detect refresh for cookie re-set.
   // This is the unitary site — one call per crossing, here only.
   const authDb   = createAuthDb(taggedDb(db))
-  const authDeps = createAuthDeps('middleware', authDb)
+  const realEventBus = {
+    async emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void> {
+      await emitEvent({ type: event.type, payload: event.payload })
+    },
+  }
+  const authDeps = createAuthDeps('middleware', authDb, realEventBus)
 
   const sessionResult = await validateAndRefreshSession(rawToken, authDeps)
 
