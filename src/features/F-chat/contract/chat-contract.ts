@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -11,6 +11,7 @@
 //             sprint-11-shot-6b (source.scope corrected: userId → projectId at all writeStateChange callsites)
 //             sprint-12-shot-4 (F-S12-D closed: stale F-planner refs removed; CS v1.0 alignment declared)
 //             sprint-13-shot-1 (dispatch wire: routeResult.ok branch dispatches to cycle program contract entries)
+//             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -26,6 +27,7 @@
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
 //   W-ATOM  ThreadQueryInput     core/types/substrate.types
 //   W-ATOM  ThreadResult         core/types/substrate.types
+//   W-ATOM  ChannelKind          core/types/perimeter-standard.types  (sprint-b1-shot-1: Decision-D-CHANNEL mapping)
 //   W-ATOM  RouterMessage        F-router/config/router-types
 //   W-ATOM  RouterSessionContext F-router/config/router-types
 //   W-ATOM  ROUTER_ERROR_CODES   F-router/config/router-types
@@ -125,6 +127,7 @@ import { writeStateChange, threadQuery }         from '@/features/F-memory/contr
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
+import type { ChannelKind }                      from '@/core/types/perimeter-standard.types'
 import type {
   SubstrateWriteInput,
   ThreadQueryInput,
@@ -132,6 +135,7 @@ import type {
   IdentityRef,
   ScopeRef,
   RoleRef,
+  SourceChannel,
 }                                                from '@/core/types/substrate.types'
 import type {
   RouterMessage,
@@ -370,6 +374,30 @@ async function dispatchToProgram(
   }
 }
 
+// ── Decision-D-CHANNEL: ChannelKind → SourceChannel mapping ──────────────────
+// ChannelKind (perimeter-standard.types) is the PS-level channel classification.
+// SourceChannel (substrate.types) is the substrate write enum.
+// These are distinct vocabularies at different abstraction layers.
+// sprint-b1-shot-1: explicit map; mirrors toSourceChannel() in src/middleware.ts.
+function channelKindToSourceChannel(channel: ChannelKind): SourceChannel {
+  switch (channel) {
+    case 'wearer-message':
+    case 'wearer-query':
+      return 'wearer'
+    case 'ai-reply':
+      return 'ai'
+    case 'system-trigger':
+    case 'scheduled-trigger':
+      return 'cron'
+    case 'integration-event':
+      return 'integration-event'
+    case 'internal-derivation':
+      return 'internal-derivation'
+    default:
+      return 'wearer'
+  }
+}
+
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
 let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
 function getChatLimiter() {
@@ -445,7 +473,11 @@ export async function POST_message(
     },
     metadata: {
       time:   arrivedAt,
-      source: { channel: 'wearer', scope: projectId as ScopeRef },
+      // Decision-D-CHANNEL (sprint-b1-shot-1): ChannelKind (PS-level) ≠ SourceChannel (substrate-level).
+      // session.resolvedChannel is ChannelKind ('wearer-message'); SubstrateWriteInput.source.channel
+      // expects SourceChannel. Explicit map: 'wearer-message' → 'wearer'. Not a silent coerce.
+      // Mapping mirrors src/middleware.ts toSourceChannel(). AI write remains 'ai' — correct, unaffected.
+      source: { channel: channelKindToSourceChannel(session.resolvedChannel), scope: projectId as ScopeRef },
     },
   }
 

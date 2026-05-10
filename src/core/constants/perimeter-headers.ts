@@ -1,15 +1,19 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2
 // [core/R5]
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended:  none
+// amended:  sprint-b1-shot-1 (PERIMETER_HEADER_CHANNEL + PERIMETER_HEADER_CROSSED_AT added)
+//           sprint-b1-shot-2 (PERIMETER_HEADER_DISPOSITION added)
 // slice:    core
 // layer:    R5
 // wires-in: none
 // wires-out:
-//   W-ATOM PERIMETER_HEADER_USER_ID     → root middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
-//   W-ATOM PERIMETER_HEADER_SESSION_ID  → root middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_USER_ID     → src/middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_SESSION_ID  → src/middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_CHANNEL     → src/middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_CROSSED_AT  → src/middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
+//   W-ATOM PERIMETER_HEADER_DISPOSITION → src/middleware.ts (perimeter site setter), F-identity perimeter-consultation (reader)
 // deps: none
 // validated: pending
 
@@ -36,3 +40,6 @@
 
 export const PERIMETER_HEADER_USER_ID    = 'x-perimeter-user-id'
 export const PERIMETER_HEADER_SESSION_ID = 'x-perimeter-session-id'
+export const PERIMETER_HEADER_CHANNEL    = 'x-perimeter-channel'
+export const PERIMETER_HEADER_CROSSED_AT = 'x-perimeter-crossed-at'
+export const PERIMETER_HEADER_DISPOSITION = 'x-perimeter-disposition'

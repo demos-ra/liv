@@ -1,6 +1,13 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1 amended sprint-b1-shot-1
 // [F-identity/R2]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-b1-shot-1
+//   validateAndRefreshSession return type extended:
+//     before: AuthResult<{ user: AuthUser; session: SessionPayload }>
+//     after:  AuthResult<{ user: AuthUser; session: SessionPayload; sessionRefreshed: boolean; newToken?: string }>
+//   sessionRefreshed: true when deps.db.refreshSession fires; false otherwise.
+//   newToken: rawSessionToken (same token, new DB expiry) when sessionRefreshed; absent otherwise.
+//   Callers (trpc-context.ts, middleware.ts) check sessionRefreshed to re-set the session cookie.
 /**
  * F-identity / R2 / auth-workflow.ts
  * [F-identity/R2/C3] Auth orchestration — wires R1 logic + R4 I/O, emits events
@@ -311,7 +318,7 @@ export async function signOut(
 export async function validateAndRefreshSession(
   rawSessionToken: string,
   deps: AuthWorkflowDeps
-): Promise<AuthResult<{ user: AuthUser; session: SessionPayload }>> {
+): Promise<AuthResult<{ user: AuthUser; session: SessionPayload; sessionRefreshed: boolean; newToken?: string }>> {
   try {
     // R4: Look up session by token hash
     const sessionResult = await deps.db.findSession(rawSessionToken);
@@ -354,11 +361,15 @@ export async function validateAndRefreshSession(
       });
 
       log('info', 'auth.token.refreshed', { userId: user.id, sessionId: session.id });
+
+      const sessionPayload = buildSessionPayload(session, user.email);
+      // Same token — session row has new expiry in DB; no new token string issued.
+      return { success: true, data: { user, session: sessionPayload, sessionRefreshed: true, newToken: rawSessionToken } };
     }
 
     const sessionPayload = buildSessionPayload(session, user.email);
 
-    return { success: true, data: { user, session: sessionPayload } };
+    return { success: true, data: { user, session: sessionPayload, sessionRefreshed: false } };
 
   } catch (err) {
     const error = AuthErrors.unknown(err);

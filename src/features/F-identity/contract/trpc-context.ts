@@ -1,6 +1,28 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.1 amended sprint-b1-shot-1
 // [F-identity/R3]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.5.1
+// amended:    sprint-b1-shot-1 (setSessionCookie + clearSessionCookie hoisted before try block;
+//                               setSessionCookie called on validateAndRefreshSession refresh signal)
+// slice:      F-identity
+// layer:      R3
+// wires-in:
+//   W-FN      validateAndRefreshSession  ../app/auth-workflow
+//   W-FN      createAuthDeps            ../app/auth-workflow
+//   W-ATOM    AuthWorkflowDeps          ../app/auth-workflow
+//   W-ATOM    AuthUser                  ../config/auth-types
+//   W-ATOM    SessionPayload            ../config/auth-types
+//   W-ATOM    SESSION_COOKIE_NAME       ../config/auth-types
+//   W-FN      createAuthDb              ../exec/auth-db
+//   W-FN      db                        @/core/db/client
+//   W-FN      taggedDb                  @/core/db/client
+//   W-ATOM    FetchCreateContextFnOptions  @trpc/server/adapters/fetch
+//   W-FN      cookies                   next/headers
+// wires-out:
+//   W-ATOM    TRPCContext               → trpc-setup (context factory consumer)
+//   W-FN      createContext             → trpc-setup
+// validated:  pending
 // R3 — tRPC context factory. Wires auth workflow deps for every request.
 // A2: R3 owns IAuthDb factory instantiation. R2 depends on interface only.
 // A4: Cookie written to resHeaders (Set-Cookie) — cookies().set() does not
@@ -66,21 +88,8 @@ export async function createContext(
   let session: SessionPayload | null = null
   let user: AuthUser | null = null
 
-  try {
-    const cookieStore = await cookies()
-    const rawToken = cookieStore.get(SESSION_COOKIE)?.value
-    if (rawToken) {
-      const result = await validateAndRefreshSession(rawToken, authDeps)
-      if (result.success) {
-        session = result.data.session
-        user    = result.data.user
-      }
-    }
-  } catch {
-    // Non-blocking — unauthenticated context
-  }
-
   // ── Cookie writers — write directly to resHeaders (A4) ───────────────────
+  // Defined before try block: called inside try on session refresh (sprint-b1-shot-1).
   const setSessionCookie = (token: string) => {
     resHeaders.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE, token, {
       maxAge:   MAX_AGE,
@@ -99,6 +108,25 @@ export async function createContext(
       sameSite: 'lax',
       path:     '/',
     }))
+  }
+
+  try {
+    const cookieStore = await cookies()
+    const rawToken = cookieStore.get(SESSION_COOKIE)?.value
+    if (rawToken) {
+      const result = await validateAndRefreshSession(rawToken, authDeps)
+      if (result.success) {
+        session = result.data.session
+        user    = result.data.user
+        // Part A — sprint-b1-shot-1: re-set cookie when DB expiry was refreshed.
+        // Same token string; new Max-Age re-anchors browser expiry to match DB.
+        if (result.data.sessionRefreshed && result.data.newToken) {
+          setSessionCookie(result.data.newToken)
+        }
+      }
+    }
+  } catch {
+    // Non-blocking — unauthenticated context
   }
 
   return { authDeps, ipAddress, session, user, setSessionCookie, clearSessionCookie, resHeaders }
