@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2
+// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1
 // @perimeter-standard v1.0
 // [F-identity/R3]
 // Built with LIV · livai.dev
@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-b1-shot-1 (PerimeterSession extended: resolvedChannel + crossedAt; new header reads)
 //             sprint-b1-shot-2 (PerimeterSession extended: resolvedDisposition; PERIMETER_HEADER_DISPOSITION read)
+//             sprint-13c-shot-1 (dispatchCrossing added: dispatch-direction BoundaryCrossingRecord → substrate)
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -20,9 +21,21 @@
 //   W-ATOM    DISPOSITION_KIND_ENUM           @/core/constants/perimeter-standard  (F-1 fix: guarded narrowing)
 //   W-ATOM    ChannelKind                     @/core/types/perimeter-standard.types
 //   W-ATOM    DispositionKind                 @/core/types/perimeter-standard.types
+//   W-FN      writeStateChange                @/features/F-memory/contract/substrate-contract  (sprint-13c-shot-1)
+//   W-FN      generateId                      @/core/types/primitives                          (sprint-13c-shot-1)
+//   W-ATOM    SubstrateWriteInput             @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    IdentityRef                     @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    ScopeRef                        @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    SourceChannel                   @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    RoleRef                         @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    BoundaryDispatchRequest         @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
+//   W-ATOM    CrossingId                      @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
+//   W-ATOM    EpochMs                         @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
+//   W-ATOM    CorrelationRefBrand             @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
 // wires-out:
 //   W-FN      getPerimeterSession             → all distributed R3 contracts (F-chat, F-verify, F-output, F-permissions, F-plan, F-project, F-user-profile)
 //   W-ATOM    PerimeterSession                → all distributed R3 contracts
+//   W-FN      dispatchCrossing                → F-chat/contract/chat-contract (sprint-13c-shot-1)
 // validated:  pending
 //
 // Perimeter consultation surface — Sprint 6 Shot 3 wire-in.
@@ -62,6 +75,39 @@ import {
 } from '@/core/constants/perimeter-headers'
 import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
+import type {
+  BoundaryDispatchRequest,
+  CrossingId,
+  EpochMs,
+  CorrelationRefBrand,
+} from '@/core/types/perimeter-standard.types'
+import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
+import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
+import { generateId } from '@/core/types/primitives'
+
+// ─── ChannelKind → SourceChannel mapping (dispatch direction) ─────────────────
+// Mirrors toSourceChannel() in src/middleware.ts (intake direction).
+// Declared locally — perimeter-consultation is R3; importing from middleware
+// would be a module boundary violation (middleware is not a slice).
+
+function toSourceChannel(channel: ChannelKind): SourceChannel {
+  switch (channel) {
+    case 'wearer-message':
+    case 'wearer-query':
+      return 'wearer'
+    case 'ai-reply':
+      return 'ai'
+    case 'system-trigger':
+    case 'scheduled-trigger':
+      return 'cron'
+    case 'integration-event':
+      return 'integration-event'
+    case 'internal-derivation':
+      return 'internal-derivation'
+    default:
+      return 'wearer'
+  }
+}
 
 // ─── Guarded narrowing helpers (F-1 fix) ─────────────────────────────────────
 // Header values arrive as string | null. Casting directly to ChannelKind /
@@ -143,4 +189,70 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
     crossedAt,
     resolvedDisposition,
   }
+}
+
+// ─── Dispatch crossing (sprint-13c-shot-1) ────────────────────────────────────
+// dispatchCrossing: produces a BoundaryCrossingRecord (direction='dispatch') and
+// writes it to substrate via HR-PS-LM1. Called fire-and-forget by F-chat at every
+// outbound emission site. Returns void — callers do not await.
+//
+// Layer discipline: R3→R3 for writeStateChange (F-memory/contract). R3→R5 for
+// generateId (core/types/primitives). Types from R5 — all A2 compliant.
+//
+// scopeContext from request: used as substrate write scope. The LIV_INSTANCE_PERIMETER_SITE_REF
+// constant ('src/middleware.ts') is the unitary site identity per PA-I — shared across
+// intake and dispatch directions for audit-trail coherence.
+
+const LIV_INSTANCE_PERIMETER_SITE_REF = 'src/middleware.ts'
+const PERIMETER_FRAMEWORK_VERSION = '1.0.0'
+
+export function dispatchCrossing(request: BoundaryDispatchRequest): void {
+  const crossingId: CrossingId = generateId('cx') as CrossingId
+  const crossedAt: EpochMs     = Date.now() as EpochMs
+
+  // correlationRef: self-correlated if null (Sprint B2 will wire MI correlation).
+  // Cast matches intake pattern: crossingId as unknown as CorrelationRefBrand.
+  const correlationRef: CorrelationRefBrand =
+    request.correlationRef ?? (crossingId as unknown as CorrelationRefBrand)
+
+  // SubstrateWriteInput — parallel to intake crossing write in middleware.ts.
+  // Identities: crossingId, dispatchId, resolvedDisposition, channelTarget, source.programId.
+  // Relation type: 'boundary-crossing-dispatch' — distinct from intake 'boundary-crossing'
+  // for audit-trail separation per direction.
+  const crossingWrite: SubstrateWriteInput = {
+    userId: request.source.programId,
+    content: {
+      identities: [
+        crossingId                        as unknown as IdentityRef,
+        request.dispatchId                as unknown as IdentityRef,
+        request.dispositionClaim          as IdentityRef,
+        request.channelTarget             as IdentityRef,
+        request.source.programId          as IdentityRef,
+      ],
+      relations: [
+        {
+          type:                'boundary-crossing-dispatch' as IdentityRef,
+          modality:            'declarative',
+          identitiesWithRoles: [
+            { identity: crossingId       as unknown as IdentityRef, role: 'crossing'    as RoleRef },
+            { identity: request.source.programId as IdentityRef,    role: 'agent'       as RoleRef },
+            { identity: request.dispositionClaim as IdentityRef,    role: 'disposition' as RoleRef },
+          ],
+          negation: false,
+        },
+      ],
+    },
+    metadata: {
+      time:   crossedAt,
+      source: {
+        channel: toSourceChannel(request.channelTarget),
+        scope:   request.scopeContext as ScopeRef,
+      },
+    },
+  }
+
+  writeStateChange(crossingWrite).catch((err: unknown) => {
+    console.error('[perimeter] dispatch crossing substrate write failed',
+      err instanceof Error ? err.message : err)
+  })
 }

@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -12,6 +12,7 @@
 //             sprint-12-shot-4 (F-S12-D closed: stale F-planner refs removed; CS v1.0 alignment declared)
 //             sprint-13-shot-1 (dispatch wire: routeResult.ok branch dispatches to cycle program contract entries)
 //             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
+//             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
 // slice:      F-chat
 // layer:      R3
 // wires-in:
@@ -34,6 +35,9 @@
 //   W-FN    executePlan          F-plan/contract/plan-contract         (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput   F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
 //   W-FN    executeVerificationFromInput F-verify/contract/verify-contract    (sprint-13-shot-1 dispatch)
+//   W-FN    dispatchCrossing             F-identity/contract/perimeter-consultation  (sprint-13c-shot-1)
+//   W-ATOM  DispatchId                   core/types/perimeter-standard.types          (sprint-13c-shot-1)
+//   W-ATOM  EpochMs                      core/types/perimeter-standard.types          (sprint-13c-shot-1)
 // wires-out:
 //   W-FN    executePlan              F-plan/contract/plan-contract          (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
@@ -117,7 +121,8 @@
 
 import { NextRequest, NextResponse }             from 'next/server'
 import { sendMessage, getMessages }              from '../app/chat-workflow'
-import { getPerimeterSession }                   from '@/features/F-identity/contract/perimeter-consultation'
+import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/contract/perimeter-consultation'
+import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
@@ -198,13 +203,27 @@ type DispatchContext = {
 }
 
 // D1 — SSE stream wrapping typed program result.
-function programResultStream(result: unknown, encoder: TextEncoder): Response {
+function programResultStream(result: unknown, encoder: TextEncoder, dispatchCtx: { projectId: string }): Response {
   const stream = new ReadableStream({
     start(controller) {
       const send = (data: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
       send({ result })
       send({ done: true })
+      // Dispatch crossing — reference disposition (rendering accumulated content to wearer).
+      // dispatchCrossing is fire-and-forget internally (returns void; substrate write is .catch'd inside).
+      dispatchCrossing({
+        dispatchId:       generateId('dx') as DispatchId,
+        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+        payload:          result,
+        channelTarget:    'wearer-message',
+        dispositionClaim: 'reference',
+        scopeContext:     dispatchCtx.projectId,
+        authorityContext: { level: 'L0', actor: 'wearer', source: null },
+        correlationRef:   null,
+        reversibility:    'n/a',
+        requestedAt:      Date.now() as EpochMs,
+      })
       controller.close()
     },
   })
@@ -218,7 +237,7 @@ function programResultStream(result: unknown, encoder: TextEncoder): Response {
 }
 
 // D3 — F-builder typed rejection.
-function builderNoJobResponse(encoder: TextEncoder): Response {
+function builderNoJobResponse(encoder: TextEncoder, dispatchCtx: { projectId: string }): Response {
   const stream = new ReadableStream({
     start(controller) {
       const send = (data: unknown) =>
@@ -227,6 +246,19 @@ function builderNoJobResponse(encoder: TextEncoder): Response {
         chunk: 'Building requires an active plan. Use F-plan first — describe what you want to build, then confirm to emit a plan artifact. F-builder can proceed once a plan artifact exists.',
       })
       send({ done: true })
+      // Dispatch crossing — act disposition (rejection produces effect on wearer request).
+      dispatchCrossing({
+        dispatchId:       generateId('dx') as DispatchId,
+        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+        payload:          { rejection: 'builder-no-job' },
+        channelTarget:    'wearer-message',
+        dispositionClaim: 'act',
+        scopeContext:     dispatchCtx.projectId,
+        authorityContext: { level: 'L0', actor: 'wearer', source: null },
+        correlationRef:   null,
+        reversibility:    'irreversible',
+        requestedAt:      Date.now() as EpochMs,
+      })
       controller.close()
     },
   })
@@ -259,7 +291,7 @@ async function dispatchToProgram(
     // ── F-plan ──────────────────────────────────────────────────────────────
     case 'F-plan': {
       const result = await executePlan(content, userId, projectId, turnId, modelId)
-      return programResultStream(result, encoder)
+      return programResultStream(result, encoder, { projectId: ctx.projectId })
     }
 
     // ── F-discover ──────────────────────────────────────────────────────────
@@ -308,7 +340,7 @@ async function dispatchToProgram(
         classification: defaultClassification(),
       }
       const result = await executeResearchFromInput(input)
-      return programResultStream(result, encoder)
+      return programResultStream(result, encoder, { projectId: ctx.projectId })
     }
 
     // ── F-verify ────────────────────────────────────────────────────────────
@@ -350,14 +382,14 @@ async function dispatchToProgram(
         classification:    defaultClassification(),
       }
       const result = await executeVerificationFromInput(input)
-      return programResultStream(result, encoder)
+      return programResultStream(result, encoder, { projectId: ctx.projectId })
     }
 
     // ── F-builder ───────────────────────────────────────────────────────────
     // executeBuild requires a jobId from a prior F-plan artifact.
     // No jobId available from a bare chat message. Typed rejection — D3.
     case 'F-builder': {
-      return builderNoJobResponse(encoder)
+      return builderNoJobResponse(encoder, { projectId: ctx.projectId })
     }
 
     // ── Default ─────────────────────────────────────────────────────────────
@@ -415,11 +447,39 @@ export async function POST_message(
 ): Promise<Response> {
   // Sprint 6 Shot 3: perimeter validates at unitary site; R3 reads via getPerimeterSession.
   const session = getPerimeterSession(req)
-  if (!session) return new Response('Unauthenticated', { status: 401 })
+  if (!session) {
+    // Dispatch crossing — act disposition (auth rejection produces effect on wearer request).
+    dispatchCrossing({
+      dispatchId:       generateId('dx') as DispatchId,
+      source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+      payload:          { rejection: 'unauthenticated' },
+      channelTarget:    'wearer-message',
+      dispositionClaim: 'act',
+      scopeContext:     params.projectId,
+      authorityContext: { level: 'L0', actor: 'wearer', source: null },
+      correlationRef:   null,
+      reversibility:    'irreversible',
+      requestedAt:      Date.now() as EpochMs,
+    })
+    return new Response('Unauthenticated', { status: 401 })
+  }
 
   // ── Rate limit ──────────────────────────────────────────────────────────────
   const limit = getChatLimiter().check(session.userId, CHAT_RATE_LIMIT)
   if (!limit.allowed) {
+    // Dispatch crossing — act disposition (rate-limit rejection produces effect on wearer request).
+    dispatchCrossing({
+      dispatchId:       generateId('dx') as DispatchId,
+      source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+      payload:          { rejection: 'rate-limited' },
+      channelTarget:    'wearer-message',
+      dispositionClaim: 'act',
+      scopeContext:     params.projectId,
+      authorityContext: { level: 'L0', actor: 'wearer', source: null },
+      correlationRef:   null,
+      reversibility:    'irreversible',
+      requestedAt:      Date.now() as EpochMs,
+    })
     return new Response(
       JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please wait.' } }),
       {
@@ -495,6 +555,19 @@ export async function POST_message(
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
         send({ chunk: 'A build is currently in progress. Track it in the dashboard.' })
         send({ done: true })
+        // Dispatch crossing — reference disposition (pipeline status rendered to wearer; sprint-13c-shot-1).
+        dispatchCrossing({
+          dispatchId:       generateId('dx') as DispatchId,
+          source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+          payload:          { pipelineStatus: 'running' },
+          channelTarget:    'wearer-message',
+          dispositionClaim: 'reference',
+          scopeContext:     projectId,
+          authorityContext: { level: 'L0', actor: 'wearer', source: null },
+          correlationRef:   null,
+          reversibility:    'n/a',
+          requestedAt:      Date.now() as EpochMs,
+        })
         controller.close()
       },
     })
@@ -639,6 +712,22 @@ export async function POST_message(
           err instanceof Error ? err.message : err,
           streamErr ? { partial: true } : {}
         )
+      })
+
+      // Dispatch crossing — reference disposition (LLM response rendered to wearer).
+      // Sprint-13c-shot-1: dispatch direction, memory loop complete.
+      // dispatchCrossing is fire-and-forget internally (returns void).
+      dispatchCrossing({
+        dispatchId:       generateId('dx') as DispatchId,
+        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+        payload:          { responseLength: fullResponse.length },
+        channelTarget:    'wearer-message',
+        dispositionClaim: 'reference',
+        scopeContext:     projectId,
+        authorityContext: { level: 'L0', actor: 'wearer', source: null },
+        correlationRef:   null,
+        reversibility:    'n/a',
+        requestedAt:      Date.now() as EpochMs,
       })
 
       controller.close()
