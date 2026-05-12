@@ -1,6 +1,22 @@
 // @liv-standard v1.3
 // [F-event-system/R3]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-event-system
+// category:   Tool
+// layer:      R3
+// wires-in:
+//   W-FN    emit, subscribe, unsubscribe  F-event-system/R2 (event-dispatch)
+//   W-FN    db                            core/db/client
+// wires-out:
+//   W-FN    emitEvent         →  all slices (cross-slice event emission surface)
+//   W-FN    subscribeToEvent  →  F-event-system/R2 (event-subscriptions)
+// deps:
+//   R2  ../app/event-dispatch
+//   R5  @/core/db/client
+// validated:  pending
 // [F-event-system/contract/event-bus.ts]
 // R3 — event bus public interface for all slices.
 // Slices import from here, never from app/event-dispatch directly.

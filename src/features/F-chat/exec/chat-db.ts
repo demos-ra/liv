@@ -1,6 +1,28 @@
 // @liv-standard v1.3
 // [F-chat/R4]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-chat
+// category:   Modality
+// layer:      R4
+// wires-in:
+//   W-FN    db                core/db/client
+//   W-ATOM  ChatMessage       F-chat/R0 (chat-config)
+//   W-ATOM  ChatThread        F-chat/R0 (chat-config)
+//   W-FN    parseCursor       F-chat/R1 (chat-logic)
+//   W-FN    buildCursor       F-chat/R1 (chat-logic)
+// wires-out:
+//   W-FN    persistMessage    →  F-chat/R2 (chat-workflow)
+//   W-FN    updateMessage     →  F-chat/R2 (chat-workflow)
+//   W-FN    getMessageById    →  F-chat/R2 (chat-workflow)
+//   W-FN    getMessages       →  F-chat/R2 (chat-workflow)
+// deps:
+//   R0  ../config/chat-config
+//   R1  ../domain/chat-logic
+//   R5  @/core/db/client
+// validated:  pending
 // [F-chat/R4/C2] Chat database I/O
 // R4: execution layer, depends R0 only
 

@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.4
 // amended:    phase-b-item4, phase-ab-blast-radius
 // slice:      F-admin
+// category:   Modality
 // layer:      R4
 // wires-in:
 //   W-ATOM  AdminBuild            ../types/admin-types

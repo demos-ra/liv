@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    A2-event-bus-r3
 // slice:      F-output
+// category:   Modality
 // layer:      R2
 // wires-in:
 //   W-ATOM    OutputFile             ../types/output-types

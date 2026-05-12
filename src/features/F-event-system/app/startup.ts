@@ -10,6 +10,7 @@
 //             sprint-11-shot-6a (S11-A1 fix: import moved from F-router/R4 to F-router/R3 — A2 compliance)
 //             b1-final-shot-3 (hydrateArtifactStore removed — art_* dissolved; substrate is the store)
 // slice:      F-event-system
+// category:   Tool
 // layer:      R2
 // wires-in:
 //   W-FN    db, closeDb              core/db/client

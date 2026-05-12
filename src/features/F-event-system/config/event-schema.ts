@@ -1,6 +1,35 @@
 // @liv-standard v1.3
 // [F-event-system/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    sprint-8-shot-3 (MEMORY_EVENTS → SUBSTRATE_EVENTS; F-memory engine dissolved)
+// slice:      F-event-system
+// category:   Tool
+// layer:      R0
+// wires-in:
+//   W-ATOM  IDENTITY_EVENTS     F-identity/R0 (auth-events)
+//   W-ATOM  SESSION_EVENTS      F-identity/R0 (auth-events)
+//   W-ATOM  PERMISSIONS_EVENTS  F-permissions/R0 (permissions-events)
+//   W-ATOM  AI_EVENTS           F-ai-adapter/R0 (ai-events)
+//   W-ATOM  CHAT_EVENTS         F-chat/R0 (chat-events)
+//   W-ATOM  SUBSTRATE_EVENTS    F-memory/contract/substrate-contract
+//   W-ATOM  PROJECT_EVENTS      F-project/R0 (project-events)
+//   W-ATOM  PLANNER_EVENTS      F-builder/R0 (builder-events)
+//   W-ATOM  OUTPUT_EVENTS       F-output/R0 (output-events)
+// wires-out:
+//   W-ATOM  EVENTS              →  F-event-system/R2 (event-subscriptions, event-dispatch)
+//   W-ATOM  ALL_EVENT_NAMES     →  F-event-system/R1 (bus)
+// deps:
+//   R0  @/features/F-identity/config/auth-events
+//   R0  @/features/F-permissions/config/permissions-events
+//   R0  @/features/F-ai-adapter/config/ai-events
+//   R0  @/features/F-chat/config/chat-events
+//   R0  @/features/F-project/types/project-events
+//   R0  @/features/F-builder/config/builder-events
+//   R0  @/features/F-output/types/output-events
+//   R3  @/features/F-memory/contract/substrate-contract
+// validated:  pending
 // R0 — re-export barrel only. Zero declarations. Zero owned event strings.
 // A5: each slice declares its own events. This file re-exports only.
 // sprint-8-shot-3: MEMORY_EVENTS → SUBSTRATE_EVENTS (legacy F-memory engine dissolved; F-memory is now substrate-only per LM v3.1).

@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    none
 // slice:      F-output
+// category:   Modality
 // layer:      R0
 // wires-in:   none
 // wires-out:  (this file IS the wire contract registry)

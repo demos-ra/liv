@@ -1,6 +1,16 @@
 // @liv-standard v1.3
 // [F-event-system/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-event-system
+// category:   Tool
+// layer:      R0
+// wires-in:   none (R0 — boundary declaration only; wire sources documented inline below)
+// wires-out:  none (R0 — boundary declaration only)
+// deps:       none
+// validated:  pending
 
 // Boundary declaration for F-event-system.
 // A3: only atoms cross slice boundaries.

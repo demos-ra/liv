@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    step5b-phaseA
 // slice:      F-admin
+// category:   Modality
 // layer:      R0
 // wires-in:   none (R0 — pure declarations)
 // wires-out:

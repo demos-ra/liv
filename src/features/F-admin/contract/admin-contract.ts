@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.4
 // amended:    none
 // slice:      F-admin
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-FN  dbGetUserEmail  ←  F-admin/R4 (exec/admin-db)

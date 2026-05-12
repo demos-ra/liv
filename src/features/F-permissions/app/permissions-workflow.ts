@@ -1,6 +1,29 @@
 // @liv-standard v1.3
 // [F-permissions/R2]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-permissions
+// category:   Tool
+// layer:      R2
+// wires-in:
+//   W-ATOM  Role, Action, ROLES, PERMISSIONS_NAMESPACE  F-permissions/R0 (permissions-config)
+//   W-FN    can, assertPermission, PermissionContext     F-permissions/R1 (permissions-logic)
+//   W-FN    getMemberRole, setMemberRole                 F-permissions/R4 (permissions-db)
+//   W-FN    emitEvent                                    F-event-system/R3 (event-bus)
+//   W-ATOM  EVENTS                                       F-event-system/R0 (event-schema)
+// wires-out:
+//   W-FN    assignDefaultRole  →  F-permissions/R3 (permissions-contract)
+//   W-FN    setMemberRole      →  F-permissions/R3 (permissions-contract)
+//   W-FN    resolveAndCheck    →  F-permissions/R3 (permissions-contract)
+// deps:
+//   R0  ../config/permissions-config
+//   R1  ../domain/permissions-logic
+//   R4  ../exec/permissions-db
+//   R3  @/features/F-event-system/contract/event-bus
+//   R0  @/features/F-event-system/config/event-schema
+// validated:  pending
 // [F-permissions/R2/C3] Permission resolution workflow
 // commit: add assignDefaultRole + setMemberRole for event-subscriptions
 //

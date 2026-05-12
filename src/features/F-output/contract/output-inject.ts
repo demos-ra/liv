@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    A2-w-inject-bridge
 // slice:      F-output
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-INJECT  IOutputDb  ../workflow/output-workflow  (R2 interface — type import only)

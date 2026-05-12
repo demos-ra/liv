@@ -1,6 +1,21 @@
 // @liv-standard v1.5.1 amended sprint-11-shot-1 sprint-12-shot-3
 // [F-permissions/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.5.1
+// amended:    sprint-11-shot-1, sprint-12-shot-3
+// slice:      F-permissions
+// category:   Tool
+// layer:      R0
+// wires-in:   none (R0 — pure declarations)
+// wires-out:
+//   W-ATOM  ROLES               →  F-permissions/R1 (permissions-logic), F-permissions/R2 (permissions-workflow)
+//   W-ATOM  ACTIONS             →  F-permissions/R1 (permissions-logic)
+//   W-ATOM  Action              →  F-permissions/R3 (permissions-contract), F-permissions/R1
+//   W-ATOM  PERMISSION_MATRIX   →  F-permissions/R1 (permissions-logic)
+//   W-ATOM  PERMISSIONS_NAMESPACE →  F-permissions/R2 (permissions-workflow), F-permissions/R3 (permissions-hook)
+// deps:      none
+// validated: pending
 // [F-permissions/R0/C2] Permission configuration — roles, actions, resources
 // R0: pure config, zero dependencies
 // wires-out: ROLES, ACTIONS, Action, PERMISSION_MATRIX, PERMISSIONS_NAMESPACE

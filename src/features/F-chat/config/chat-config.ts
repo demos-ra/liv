@@ -5,6 +5,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    w2-item-12, w2-item-13b
 // slice:      F-chat
+// category:   Modality
 // layer:      R0
 // wires-in:
 //   W-ATOM  RateLimitConfig  core/R1 (rate-limiter)

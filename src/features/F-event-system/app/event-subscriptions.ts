@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    D5a, phase-b-item2, phase-5.1-r1, phase-5-audit
 // slice:      F-event-system
+// category:   Tool
 // layer:      R2
 // wires-in:
 //   W-HOOK  subscribeToEvent       F-event-system/R3 (event-bus)

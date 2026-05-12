@@ -1,6 +1,24 @@
 // @liv-standard v1.3
 // [F-event-system/R2]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-event-system
+// category:   Tool
+// layer:      R2
+// wires-in:
+//   W-FN    validateEvent, buildImmediateEvent, buildScheduledEvent, buildDelayedEvent, buildReactiveEvent  F-event-system/R1 (bus)
+//   W-FN    insertEvent, fetchPendingEvents, fetchReactiveEvents, markProcessing, markCompleted, markFailed  F-event-system/R4 (queue)
+// wires-out:
+//   W-FN    subscribe         →  F-event-system/R3 (event-bus)
+//   W-FN    unsubscribe       →  F-event-system/R3 (event-bus)
+//   W-FN    emit              →  F-event-system/R3 (event-bus)
+//   W-FN    dispatchPending   →  F-event-system/R2 (startup)
+// deps:
+//   R1  ../domain/bus
+//   R4  ../exec/queue
+// validated:  pending
 // [F-event-system/R2/C2] Event dispatch orchestration
 // R2: depends on R0, R1, R4.
 // Coordinates: R1 validates, R4 persists, R2 orchestrates dispatch.

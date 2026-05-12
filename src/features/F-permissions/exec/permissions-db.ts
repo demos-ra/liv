@@ -1,6 +1,21 @@
 // @liv-standard v1.3
 // [F-permissions/R4]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-permissions
+// category:   Tool
+// layer:      R4
+// wires-in:
+//   W-FN    db    core/db/client
+//   W-ATOM  Role  F-permissions/R0 (permissions-config)
+// wires-out:
+//   W-FN    getMemberRole, setMemberRole, removeMember, getProjectMembers  →  F-permissions/R2 (permissions-workflow)
+// deps:
+//   R0  ../config/permissions-config
+//   R5  @/core/db/client
+// validated:  pending
 // [F-permissions/R4/C2] Permissions database I/O
 // R4: execution layer, depends R0 only
 

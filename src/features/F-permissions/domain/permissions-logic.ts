@@ -1,6 +1,22 @@
 // @liv-standard v1.3
 // [F-permissions/R1]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-permissions
+// category:   Tool
+// layer:      R1
+// wires-in:
+//   W-ATOM  Role, Action, PERMISSION_MATRIX  F-permissions/R0 (permissions-config)
+// wires-out:
+//   W-FN    can, canAll, canAny, assertPermission, isOwner  →  F-permissions/R2 (permissions-workflow)
+//   W-FN    can                                              →  F-permissions/R3 (permissions-hook)
+//   W-ATOM  PermissionContext                                →  F-permissions/R2
+//   W-ATOM  PermissionDeniedError                           →  F-permissions/R2
+// deps:
+//   R0  ../config/permissions-config
+// validated:  pending
 // [F-permissions/R1/C2] Permission domain logic
 // R1: pure functions, no I/O, depends R0 only
 

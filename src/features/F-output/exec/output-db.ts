@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    step4b2-phase-b
 // slice:      F-output
+// category:   Modality
 // layer:      R4
 // wires-in:
 //   W-ATOM  OutputFile    ../types/output-types

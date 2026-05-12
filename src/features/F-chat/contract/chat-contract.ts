@@ -14,6 +14,7 @@
 //             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
 //             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
 // slice:      F-chat
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-FN    getPerimeterSession  F-identity/contract/perimeter-consultation

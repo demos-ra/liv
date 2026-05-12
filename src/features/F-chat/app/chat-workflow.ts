@@ -5,6 +5,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed)
 // slice:      F-chat
+// category:   Modality
 // layer:      R2
 // wires-in:
 //   W-ATOM    LIV_ANCHOR       F-chat/R0

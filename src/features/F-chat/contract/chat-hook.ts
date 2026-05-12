@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    w2-item-13b, phase-5.2, phase-5.3
 // slice:      F-chat
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM  CHAT_NAMESPACE  ../config/chat-config

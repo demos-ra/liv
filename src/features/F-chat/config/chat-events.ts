@@ -1,6 +1,17 @@
 // @liv-standard v1.3
 // [F-chat/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-chat
+// category:   Modality
+// layer:      R0
+// wires-in:   none (R0 — pure declarations)
+// wires-out:
+//   W-ATOM  CHAT_EVENTS  →  F-event-system/R0 (event-schema re-export)
+// deps:      none
+// validated: pending
 // [F-chat/R0/C3] Event declarations — owned by this slice
 // R0: zero dependencies. Declares only. Never imports from F-event-system.
 // F-event-system/config/event-schema.ts re-exports these. Do not import from there.

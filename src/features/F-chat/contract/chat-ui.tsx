@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    phase2-account-extraction, phase5-focus, w2-item-13b, phase-5.3
 // slice:      F-chat
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM  InputContainer  @/features/F-design-system/contract/primitives

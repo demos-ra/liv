@@ -1,6 +1,19 @@
 // @liv-standard v1.3
 // [F-admin/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-admin
+// category:   Modality
+// layer:      R0
+// wires-in:
+//   W-FN    useRegisterProgram()   ←  F-dashboard/R3 (dashboard-registry)
+// wires-out:
+//   W-ATOM  AdminBuild             →  (internal — route surface only)
+//   W-FN    dbGetUserEmail()       →  re-exported via F-admin/R3 (admin-contract)
+// deps:      none
+// validated: pending
 
 // Boundary declaration for F-admin.
 // A3: only atoms cross slice boundaries.

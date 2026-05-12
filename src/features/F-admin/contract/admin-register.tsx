@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    step5b-phaseD, phase-5.4
 // slice:      F-admin
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-HOOK  useRegisterProgram  @/features/F-dashboard/contract/dashboard-registry

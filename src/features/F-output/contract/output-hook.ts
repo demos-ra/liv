@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    none
 // slice:      F-output
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM  OutputFile       ../types/output-types

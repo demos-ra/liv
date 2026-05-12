@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-8-shot-3a (F-codec dissolved; Global Graph admin tab removed)
 // slice:      F-admin
+// category:   Modality
 // layer:      R3
 // wires-in:   none
 // wires-out:  none (rendered by page.tsx via AdminRegister)

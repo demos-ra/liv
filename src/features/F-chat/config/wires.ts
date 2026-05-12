@@ -1,6 +1,16 @@
 // @liv-standard v1.4
 // [F-chat/R0]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.4
+// amended:    none
+// slice:      F-chat
+// category:   Modality
+// layer:      R0
+// wires-in:   none (R0 — pure declarations; wire sources documented inline below)
+// wires-out:  none (R0 — boundary declaration only)
+// deps:       none
+// validated:  pending
 
 // Boundary declaration for F-chat.
 // A3: only atoms cross slice boundaries.

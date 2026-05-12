@@ -1,6 +1,20 @@
 // @liv-standard v1.3
 // [F-event-system/R4]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-event-system
+// category:   Tool
+// layer:      R4
+// wires-in:
+//   W-ATOM  LivEvent, EventId, EventStatus  core/R0 (primitives)
+// wires-out:
+//   W-FN    insertEvent, fetchPendingEvents, fetchReactiveEvents, markProcessing, markCompleted, markFailed  →  F-event-system/R2 (event-dispatch)
+//   W-ATOM  DbClient  →  F-event-system/R2 (event-dispatch)
+// deps:
+//   R0  @/core/types/primitives
+// validated:  pending
 // [F-event-system/R4/C2] Event queue — Postgres persistence
 // R4: depends on R0 only.
 // All database operations for the event queue.

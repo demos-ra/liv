@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.4
 // amended:    phase-b-item2
 // slice:      F-output
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM    OutputJobId             ../types/output-types

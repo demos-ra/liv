@@ -5,6 +5,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    none
 // slice:      F-chat
+// category:   Modality
 // layer:      R1
 // wires-in:
 //   W-ATOM  CHAT_CONFIG   F-chat/R0

@@ -1,6 +1,27 @@
 // @liv-standard v1.3
 // [F-permissions/contract/permissions-contract.ts]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-permissions
+// category:   Tool
+// layer:      R3
+// wires-in:
+//   W-FN    requirePermission, assignDefaultRole, setMemberRole  F-permissions/R2 (permissions-workflow)
+//   W-FN    getPerimeterSession                                   F-identity/R3 (perimeter-consultation)
+//   W-ATOM  Action                                                F-permissions/R0 (permissions-config)
+// wires-out:
+//   W-FN    requirePermission   →  all slices (permission gate)
+//   W-FN    assignDefaultRole   →  F-event-system/R2 (event-subscriptions)
+//   W-FN    setMemberRole       →  F-event-system/R2 (event-subscriptions)
+//   W-FN    withPermission      →  route handlers
+//   W-FN    usePermissions      →  client components (re-export from permissions-hook)
+// deps:
+//   R0  ../config/permissions-config
+//   R2  ../app/permissions-workflow
+//   R3  @/features/F-identity/contract/perimeter-consultation
+// validated:  pending
 // R3 — permission contract surface for all other slices.
 // Import from here only. Never import from F-permissions/app directly.
 // A5: requirePermission exposed here; F-la-config dissolved sprint-13-shot-3.

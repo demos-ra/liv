@@ -1,6 +1,19 @@
 // @liv-standard v1.3
 // [F-event-system/R1]
 // Built with LIV · livai.dev
+// @manifest
+// standard:   LIV-Standard v1.3
+// amended:    none
+// slice:      F-event-system
+// category:   Tool
+// layer:      R1
+// wires-in:
+//   W-ATOM  ALL_EVENT_NAMES  F-event-system/R0 (event-schema)
+// wires-out:
+//   W-FN    validateEvent, buildImmediateEvent, buildScheduledEvent, buildDelayedEvent, buildReactiveEvent, isReadyToDispatch  →  F-event-system/R2 (event-dispatch)
+// deps:
+//   R0  ../config/event-schema
+// validated:  pending
 // [F-event-system/R1/C2] Event bus domain logic
 // R1: depends on R0 only.
 // Pure functions. No I/O. No database calls. No side effects.
