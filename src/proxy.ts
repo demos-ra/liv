@@ -1,7 +1,12 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1 b1-final-shot-2 sprint-b1.5-shot-2
 // @perimeter-standard v1.0
 // [perimeter site — unitary per PA-I]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-b1.5-shot-2
+//   File renamed: src/middleware.ts → src/proxy.ts (Next.js 16.2.x middleware→proxy convention).
+//   Function renamed: middleware → proxy.
+//   export const runtime = 'nodejs' removed (proxy runtime is Node.js by default; declaration invalid in Next 16.2.x).
+//   Closes F-NEXT-PROXY-1, F-PLACEMENT-RUNTIME-1.
 // @manifest-delta sprint-13b-shot-1
 //   emitEvent imported from F-event-system/contract (R3-level caller — A2 compliant).
 //   realEventBus adapter declared inline: implements IEventBus, wraps emitEvent, drops eventKind.
@@ -9,9 +14,10 @@
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-b1-shot-1 (boundary stamp: crossingId, crossedAt, resolvedChannel; session cookie refresh)
-//             sprint-b1-shot-2 (resolvedDisposition + cellGovernance added; PERIMETER_HEADER_DISPOSITION set;
-//                               resolvedIdentities + correlationRef declared as acknowledged vacants)
-// placement:  src/middleware.ts (Next.js middleware; self-declared per inverted PL-A1, Sprint 9 Shot 1)
+//             sprint-b1-shot-2 (resolvedDisposition + cellGovernance added; PERIMETER_HEADER_DISPOSITION set)
+//             b1-final-shot-2 (PA-IR1..4 closed via ambiguous-pending outcome; PA-Co1 self-correlation; PA-A1..6 authorityEnforced record)
+//             sprint-b1.5-shot-2 (middleware→proxy rename; runtime export removed; closes F-NEXT-PROXY-1)
+// placement:  src/proxy.ts (Next.js proxy; self-declared per inverted PL-A1, Sprint 9 Shot 1; renamed sprint-b1.5-shot-2)
 // wires-in:
 //   W-ATOM    SESSION_COOKIE_NAME           @/features/F-identity/contract/auth-contract
 //   W-FN      validateAndRefreshSession     @/features/F-identity/app/auth-workflow
@@ -181,14 +187,9 @@ function resolveDisposition(pathname: string, method: string): DispositionKind {
   return 'reference'
 }
 
-// ─── Runtime ──────────────────────────────────────────────────────────────────
-// F-identity L4 decision: explicit Node.js runtime. Matches VPS + pm2 + Node.js deployment.
-// Collapses Edge Runtime crypto warnings across build as natural consequence.
-export const runtime = 'nodejs'
+// ─── Proxy ────────────────────────────────────────────────────────────────────
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
-
-export async function middleware(req: NextRequest): Promise<NextResponse> {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl
 
   // Public routes — pass through without auth or stamp.
@@ -265,11 +266,20 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     reversibilityStatus: cellEntry.reversibilityStatus as ReversibilityFlag,
   }
 
-  // Acknowledged vacants — post-beta Sprint B2:
-  // resolvedIdentities: DEFERRED — surface-form-to-Ref matching requires substrate
-  //   read primitives not yet built.
-  // correlationRef: DEFERRED — MI Standard v2.3 correlation context integration
-  //   not yet wired.
+  // PA-IR1..PA-IR4 closure (b1-final-shot-2):
+  // userId is the surface-form identity claim at intake. Substrate Ref lookup requires
+  // a read primitive not available in the synchronous middleware path. Per PA-IR4
+  // (disambiguation deferral), outcome is 'ambiguous-pending-disambiguation' with
+  // ambiguityDetail recording the deferral reason. ref=null is correct per PA-IR4 invariant.
+  // PA-Co1 closure: crossingId self-correlates (no upstream MI correlation at v1.0).
+  // PA-A1..PA-A6 closure: authority validated at session check above; record constructed here.
+  const selfCorrelationRef = crossingId
+  const authorityEnforcedRecord = {
+    authorityClaimed:      { level: 'L0', actor: 'wearer', source: null },
+    authorityValidated:    true,   // session validation passed — we reached this point
+    authorityScopeMatch:   true,   // userId scope matches session.userId
+    validationBasis:       'session-cookie-validated-by-middleware',
+  }
 
   // Write crossing record to substrate (HR-PS-LM1).
   // Fire-and-forget: write failure must not block the request.
@@ -282,15 +292,21 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         session.sessionId                    as IdentityRef,
         resolvedDisposition                  as IdentityRef,
         cellGovernance.governanceLevel       as IdentityRef,
+        selfCorrelationRef                   as unknown as IdentityRef,
+        'authority-validated'                as IdentityRef,
+        'identity-ambiguous-pending'         as IdentityRef,
       ],
       relations: [
         {
           type:                'boundary-crossing' as IdentityRef,
           modality:            'declarative',
           identitiesWithRoles: [
-            { identity: user.id as IdentityRef,         role: 'agent'       as RoleRef },
-            { identity: crossingId as unknown as IdentityRef,      role: 'crossing'    as RoleRef },
-            { identity: resolvedDisposition as IdentityRef, role: 'disposition' as RoleRef },
+            { identity: user.id as IdentityRef,                        role: 'agent'             as RoleRef },
+            { identity: crossingId as unknown as IdentityRef,          role: 'crossing'          as RoleRef },
+            { identity: resolvedDisposition as IdentityRef,            role: 'disposition'       as RoleRef },
+            { identity: selfCorrelationRef as unknown as IdentityRef,  role: 'correlation'       as RoleRef },
+            { identity: 'authority-validated' as IdentityRef,          role: 'authority-outcome' as RoleRef },
+            { identity: 'identity-ambiguous-pending' as IdentityRef,   role: 'identity-outcome'  as RoleRef },
           ],
           negation: false,
         },

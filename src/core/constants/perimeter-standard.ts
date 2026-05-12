@@ -309,10 +309,10 @@ export const PERIMETER_CARRIER_REF = {
 // LIV_INSTANCE_PERIMETER_SITE_REF: the identifier of the one perimeter site
 // per LIV instance per Manual §I.4 unitarity.
 //
-// Value: 'middleware.ts' — self-declared by middleware.ts per inverted PL-A1 (Sprint 9 Shot 1).
+// Value: 'proxy.ts' — renamed from middleware.ts, sprint-b1.5-shot-2 (Next.js 16.2.x proxy convention).
 // Registry lookup replaced with static literal; PLACEMENT_REGISTRY dissolved.
 
-export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'middleware.ts'
+export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'proxy.ts'
 
 // ─── Default PerimeterBinding (§6.2; G-PS-Cn3 vacuous-pass target at v1.0) ──
 // Default permitted-authority bindings for the seven named channels. Sprint 6
@@ -365,7 +365,7 @@ export const DEFAULT_PERIMETER_BINDING = {
     maxIndexSize:  null,    // unbounded at v1.0; Sprint 9 wire-in may bound
   },
 
-  unitarySiteRef: 'middleware.ts',  // inverted PL-A1: static literal (Sprint 9 Shot 1)
+  unitarySiteRef: 'proxy.ts',  // inverted PL-A1: static literal (Sprint 9 Shot 1; renamed sprint-b1.5-shot-2)
 }
 
 // ─── End of perimeter-standard.ts ───────────────────────────────────────────

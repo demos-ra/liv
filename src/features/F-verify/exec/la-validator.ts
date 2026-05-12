@@ -182,7 +182,7 @@ check('Placement Standard: self-declared kind+placement matches filesystem (inve
   }
 
   const ROOT_FILES = [
-    path.join(ROOT, 'middleware.ts'),
+    path.join(ROOT, 'proxy.ts'),
     path.join(ROOT, '.gitignore'),
     path.join(ROOT, 'README.md'),
     path.join(ROOT, 'eslint.config.mjs'),

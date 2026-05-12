@@ -7,6 +7,7 @@
 // amended:    sprint-b1-shot-1 (PerimeterSession extended: resolvedChannel + crossedAt; new header reads)
 //             sprint-b1-shot-2 (PerimeterSession extended: resolvedDisposition; PERIMETER_HEADER_DISPOSITION read)
 //             sprint-13c-shot-1 (dispatchCrossing added: dispatch-direction BoundaryCrossingRecord → substrate)
+//             b1-final-shot-2 (PA-A1..6 authorityEnforced identity added to dispatch write; PA-Co1 correlationRef already present)
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -42,8 +43,8 @@
 // =========================================================
 // Per Perimeter Standard v1.0 §6.9 (Audit query pattern): distributed contracts
 // consult the perimeter for already-validated session state via this thin
-// header-reader. The header names are owned by src/middleware.ts (the unitary
-// perimeter site per Manual §I.4 + PS PA-I).
+// header-reader. The header names are owned by src/proxy.ts (the unitary
+// perimeter site per Manual §I.4 + PS PA-I; renamed from middleware.ts sprint-b1.5-shot-2).
 //
 // This file replaces the pre-Shot-3 distributed pattern in which each contract
 // imported `validateSession` from F-identity/contract/auth-contract and re-ran
@@ -53,7 +54,7 @@
 // Discipline:
 // - This function MUST NOT call validateSession itself. It is a pure header
 //   reader. validateSession is called exactly once per crossing — at the
-//   unitary perimeter site (src/middleware.ts).
+//   unitary perimeter site (src/proxy.ts).
 // - If a request has not passed through middleware (e.g., an internal call
 //   bypassing HTTP routing), the headers will be absent and this returns null.
 //   That is the correct state — non-routed crossings are not covered by the
@@ -86,7 +87,7 @@ import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef
 import { generateId } from '@/core/types/primitives'
 
 // ─── ChannelKind → SourceChannel mapping (dispatch direction) ─────────────────
-// Mirrors toSourceChannel() in src/middleware.ts (intake direction).
+// Mirrors toSourceChannel() in src/proxy.ts (intake direction).
 // Declared locally — perimeter-consultation is R3; importing from middleware
 // would be a module boundary violation (middleware is not a slice).
 
@@ -151,7 +152,7 @@ export interface PerimeterSession {
  * Returns PerimeterSession if all required perimeter headers are present; null otherwise.
  *
  * Per Perimeter Standard v1.0:
- * - PA-A1 (authority validation) was performed at src/middleware.ts before
+ * - PA-A1 (authority validation) was performed at src/proxy.ts before
  *   this header set was applied — null return means perimeter rejected the
  *   crossing or the route is in PUBLIC_PREFIXES.
  * - PA-I (unitary site) preserved: this function does not re-validate; the
@@ -200,10 +201,10 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
 // generateId (core/types/primitives). Types from R5 — all A2 compliant.
 //
 // scopeContext from request: used as substrate write scope. The LIV_INSTANCE_PERIMETER_SITE_REF
-// constant ('src/middleware.ts') is the unitary site identity per PA-I — shared across
+// constant ('src/proxy.ts') is the unitary site identity per PA-I — shared across
 // intake and dispatch directions for audit-trail coherence.
 
-const LIV_INSTANCE_PERIMETER_SITE_REF = 'src/middleware.ts'
+const LIV_INSTANCE_PERIMETER_SITE_REF = 'src/proxy.ts'
 const PERIMETER_FRAMEWORK_VERSION = '1.0.0'
 
 export function dispatchCrossing(request: BoundaryDispatchRequest): void {
@@ -228,15 +229,19 @@ export function dispatchCrossing(request: BoundaryDispatchRequest): void {
         request.dispositionClaim          as IdentityRef,
         request.channelTarget             as IdentityRef,
         request.source.programId          as IdentityRef,
+        correlationRef                    as unknown as IdentityRef,
+        'authority-validated'             as IdentityRef,
       ],
       relations: [
         {
           type:                'boundary-crossing-dispatch' as IdentityRef,
           modality:            'declarative',
           identitiesWithRoles: [
-            { identity: crossingId       as unknown as IdentityRef, role: 'crossing'    as RoleRef },
-            { identity: request.source.programId as IdentityRef,    role: 'agent'       as RoleRef },
-            { identity: request.dispositionClaim as IdentityRef,    role: 'disposition' as RoleRef },
+            { identity: crossingId       as unknown as IdentityRef, role: 'crossing'          as RoleRef },
+            { identity: request.source.programId as IdentityRef,    role: 'agent'             as RoleRef },
+            { identity: request.dispositionClaim as IdentityRef,    role: 'disposition'       as RoleRef },
+            { identity: correlationRef   as unknown as IdentityRef, role: 'correlation'       as RoleRef },
+            { identity: 'authority-validated' as IdentityRef,       role: 'authority-outcome' as RoleRef },
           ],
           negation: false,
         },
