@@ -1,5 +1,0 @@
-#!/bin/bash
-# pre-commit — LIV Living Architecture
-# Validation runs in commit-msg hook where message is available.
-# This hook exits 0 to allow commit-msg hook to do the work.
-exit 0
