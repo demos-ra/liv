@@ -105,8 +105,6 @@ import type {
   TierClass,
   DomainBinding,
 } from '@/core/types/plan-standard.types'
-import type { ArtifactGraphPort } from '@/features/F-artifact/contract/artifact-contract'
-
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
 import { LIV_STANDARD_DOMAIN_BINDING } from '@/features/F-plan/contract/liv-standard-binding'
 import { PLANNER_CONST } from '@/features/F-builder/config/builder-const'
@@ -343,9 +341,9 @@ function planEmissionRejected(message: string, cause?: unknown): PlanValidityErr
 export async function emitPlanForContract(
   contract: IfContract,
   deps: {
-    graph: ArtifactGraphPort
     userId: UserId
     turnId: string
+    projectId: string
     /** Cognitive classification for A4 writes; supplied by caller (codec result). */
     classificationNodeId: NodeId
     primitive:            CognitivePrimitive
@@ -412,6 +410,7 @@ export async function emitPlanForContract(
     },
     turnId:               deps.turnId,
     userId:               deps.userId,
+    projectId:            deps.projectId,
     payload,
     classificationNodeId: deps.classificationNodeId,
     primitive:            deps.primitive,
@@ -419,7 +418,7 @@ export async function emitPlanForContract(
     dependsOn:            deps.priorPlanAnchorNodeId ? [deps.priorPlanAnchorNodeId] : undefined,
   }
 
-  const emissionResult = await createArtifact(createInput, deps.graph)
+  const emissionResult = await createArtifact(createInput)
   if (!emissionResult.ok) {
     return {
       ok: false,

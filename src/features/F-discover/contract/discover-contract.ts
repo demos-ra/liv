@@ -75,9 +75,8 @@ import type {
 } from '../config/f-discover-types'
 // sprint-8-shot-3a: F-codec dissolved.
 import { executeResearch } from '../app/execute-research'
-import type { DiscoverServiceContainer, ArtifactGraphPort } from '../app/execute-research'
+import type { DiscoverServiceContainer } from '../app/execute-research'
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
-import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import type { EpochMs } from '../config/f-discover-types'
 import { threadQuery, writeStateChange }    from '@/features/F-memory/contract/substrate-contract'
 import type {
@@ -92,13 +91,10 @@ import type {
 
 function defaultServices(): DiscoverServiceContainer {
   return {
-    createArtifact: async (input: CreateArtifactInput, port: ArtifactGraphPort) => {
-      const result = await createArtifact(
-        input as unknown as Parameters<typeof createArtifact>[0],
-        port  as unknown as Parameters<typeof createArtifact>[1],
-      )
+    createArtifact: async (input: CreateArtifactInput) => {
+      const result = await createArtifact(input)
       if (result.ok) {
-        return { ok: true, data: result.data as unknown as ArtifactEmission }
+        return { ok: true, data: result.data }
       }
       return {
         ok: false,
@@ -109,7 +105,6 @@ function defaultServices(): DiscoverServiceContainer {
         },
       }
     },
-    createArtifactGraphPort: () => createArtifactGraphPort() as unknown as ArtifactGraphPort,
     epochNow: () => Date.now() as unknown as EpochMs,
   }
 }

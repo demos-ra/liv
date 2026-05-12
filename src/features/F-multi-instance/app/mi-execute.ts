@@ -86,7 +86,6 @@ import { evaluateAllMIGates, type MIGateContext } from '../domain/mi-gates'
 import { runInstance, type AIAdapterPort } from './mi-instance'
 import {
   createArtifact,
-  type ArtifactGraphPort,
   type CreateArtifactInput,
 } from '@/features/F-artifact/contract/artifact-contract'
 import { generateId } from '@/core/types/primitives'
@@ -131,11 +130,11 @@ export type CognitiveClassificationPort = {
  * Aggregate of all R4 ports required by executeRun. Caller constructs and
  * passes as a single param; simpler than four separate optional injections.
  */
+// b1-final-shot-3: graph field removed — port dissolved, substrate is the store.
 export type MultiInstancePorts = {
-  plan:     PlanResolutionPort
-  adapter:  AIAdapterPort
+  plan:      PlanResolutionPort
+  adapter:   AIAdapterPort
   cognitive: CognitiveClassificationPort
-  graph:    ArtifactGraphPort
 }
 
 // ─── Error helpers ───────────────────────────────────────────────────────────
@@ -364,6 +363,7 @@ async function runS3(
       },
       turnId:               input.runTurnId,
       userId:               input.userId,
+      projectId:            input.projectId,
       payload: {
         domain:         'multi-instance',
         domainVersion:  MI_VERSION,
@@ -376,7 +376,7 @@ async function runS3(
       dependsOn:            [input.planAnchorNodeId],
     }
 
-    const emission = await createArtifact(artifactInput, ports.graph)
+    const emission = await createArtifact(artifactInput)
     if (!emission.ok) {
       return {
         ok: false,

@@ -75,18 +75,14 @@ import { runResearchGates, gateRS1 } from '../domain/run-research-gates'
  *
  * Mirror of F-verify's VerifyServiceContainer:
  *   - createArtifact: AS v2.2 R3 entry (createArtifact from F-artifact/R3)
- *   - createArtifactGraphPort: factory for ArtifactGraphPort (F-memory R3)
+ *   - createArtifact: AS v2.2 R3 entry (single-arg — port dissolved b1-final-shot-3)
  *   - epochNow: time source
  *   - mintResearchId: optional override (default: generateId('rs'))
  */
-export type ArtifactGraphPort = unknown   // type-erased at R2; concrete shape from F-artifact/R3
-
 export type DiscoverServiceContainer = {
   createArtifact: (
     input: CreateArtifactInput,
-    port:  ArtifactGraphPort,
   ) => Promise<{ ok: true; data: ArtifactEmission } | { ok: false; error: { code: string; message: string; context?: Record<string, unknown> } }>
-  createArtifactGraphPort: () => ArtifactGraphPort
   epochNow: () => EpochMs
   mintResearchId?: () => ReturnType<typeof defaultMintResearchId>
 }
@@ -118,7 +114,7 @@ export async function executeResearch(
   executeInput: ResearchExecuteInput,
   services:     DiscoverServiceContainer,
 ): Promise<ResearchEmissionResult> {
-  const { researchInput, classification } = executeInput
+  const { researchInput, classification, projectId } = executeInput
 
   // Step 1 — HR-RS1 receive: G-RS1 input-shape gate.
   // Pre-compose short-circuit per spec §6.8 errorContract RESEARCH_INPUT_INVALID.
@@ -180,6 +176,7 @@ export async function executeResearch(
     },
     turnId:               researchInput.turnId,
     userId:               researchInput.userId,
+    projectId,
     payload,
     classificationNodeId: classification.classificationNodeId,
     primitive:            classification.primitive as CognitivePrimitive,
@@ -187,8 +184,7 @@ export async function executeResearch(
     dependsOn,
   }
 
-  const port = services.createArtifactGraphPort()
-  const emit = await services.createArtifact(createInput, port)
+  const emit = await services.createArtifact(createInput)
   if (!emit.ok) {
     const validityError: ResearchValidityError = {
       code:    'RESEARCH_EMISSION_REJECTED',

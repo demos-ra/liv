@@ -77,12 +77,10 @@ import {
 //   Sprint 9 wires substrate thread-query (identity-recurrence) at the
 //   plan-composer graphContext input boundary.
 
-import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import {
   createArtifact,
 } from '@/features/F-artifact/contract/artifact-contract'
 import type {
-  ArtifactGraphPort,
   CreateArtifactInput,
   CreateArtifactResult,
 } from '@/features/F-artifact/contract/artifact-contract'
@@ -137,22 +135,13 @@ export interface IPlanDb {
 }
 
 // ─── IPlanGraph ──────────────────────────────────────────────────────────────
-// Bundles the F-artifact reads R2 needs into a single port.
-//
-// sprint-8-shot-3b: F-memory dissolved. Previously bundled F-memory + F-artifact
-// reads; now F-artifact only. The `present()` field (LM v2.x getPresentState)
-// was removed — its only call site (plan-draft.ts:136) was already a dead read
-// (`void presentState`). Sprint 9 reauthors plan-composer graphContext input
-// against substrate thread-query.
+// b1-final-shot-3: createArtifactGraphPort removed — port dissolved.
+// createArtifact is now single-arg.
 
 export interface IPlanGraph {
-  /** F-artifact R3: build the graph port createArtifact needs to write nodes. */
-  createArtifactGraphPort: () => ArtifactGraphPort
-
-  /** F-artifact R3: emit an artifact via AS pipeline. */
+  /** F-artifact R3: emit an artifact via AS pipeline. Substrate is the store. */
   createArtifact: (
     input: CreateArtifactInput,
-    port:  ArtifactGraphPort,
   ) => Promise<CreateArtifactResult>
 }
 
@@ -160,11 +149,6 @@ export interface IPlanGraph {
 // CONCRETE FACTORIES — wired at R3 plan-contract.ts
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Build a concrete IPlanDb instance from F-plan/R4 db functions.
- * Mirrors F-planner createPlannerDb pattern: surface-rename for R2 ergonomics
- * (insert vs dbInsertPlanDraft, etc.) while keeping R4 names verbose.
- */
 export function createPlanDb(): IPlanDb {
   return {
     insert:            (state)                                                => dbInsertPlanDraft(state),
@@ -177,14 +161,9 @@ export function createPlanDb(): IPlanDb {
   }
 }
 
-/**
- * Build a concrete IPlanGraph instance from F-artifact contracts.
- * Each method is a thin pass-through to the underlying R3 surface.
- */
 export function createPlanGraph(): IPlanGraph {
   return {
-    createArtifactGraphPort: ()              => createArtifactGraphPort(),
-    createArtifact:          (input, port)   => createArtifact(input, port),
+    createArtifact: (input) => createArtifact(input),
   }
 }
 

@@ -78,9 +78,8 @@ import type {
 } from '../config/f-verify-types'
 // sprint-8-shot-3a: F-codec dissolved.
 import { executeVerification } from '../app/execute-verification'
-import type { VerifyServiceContainer, ArtifactGraphPort } from '../app/execute-verification'
+import type { VerifyServiceContainer } from '../app/execute-verification'
 import { createArtifact } from '@/features/F-artifact/contract/artifact-contract'
-import { createArtifactGraphPort } from '@/features/F-artifact/contract/artifact-graph-port'
 import type { EpochMs } from '../config/f-verify-types'
 import { threadQuery, writeStateChange }    from '@/features/F-memory/contract/substrate-contract'
 import type {
@@ -95,13 +94,10 @@ import type {
 
 function defaultServices(): VerifyServiceContainer {
   return {
-    createArtifact: async (input: CreateArtifactInput, port: ArtifactGraphPort) => {
-      const result = await createArtifact(
-        input as unknown as Parameters<typeof createArtifact>[0],
-        port  as unknown as Parameters<typeof createArtifact>[1],
-      )
+    createArtifact: async (input: CreateArtifactInput) => {
+      const result = await createArtifact(input)
       if (result.ok) {
-        return { ok: true, data: result.data as unknown as ArtifactEmission }
+        return { ok: true, data: result.data }
       }
       return {
         ok: false,
@@ -112,7 +108,6 @@ function defaultServices(): VerifyServiceContainer {
         },
       }
     },
-    createArtifactGraphPort: () => createArtifactGraphPort() as unknown as ArtifactGraphPort,
     epochNow: () => Date.now() as unknown as EpochMs,
   }
 }

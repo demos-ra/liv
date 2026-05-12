@@ -242,9 +242,7 @@ export async function confirmAndEmit(
   // emissions.
   const dependsOn: NodeId[] = []
 
-  // AS v2.3: CreateArtifactInput carries projectId per ArA4c chain key.
-  // Cast through unknown keeps source tolerant of v2.2 (current tar) and
-  // v2.3 (post-overlay) — projectId lands as excess property at v2.2.
+  // projectId required on CreateArtifactInput (b1-final-shot-3 type closure — no cast).
   const createInput: CreateArtifactInput = {
     framework: {
       id:      PLAN_STANDARD_ID,
@@ -258,11 +256,11 @@ export async function confirmAndEmit(
     primitive:            composerInput.classification.primitive,
     confidence:           composerInput.classification.confidence,
     dependsOn,
-  } as unknown as CreateArtifactInput
+  }
 
-  // AS emission. Lane is at 'emitting'; graph write is the durable step.
-  const port = graph.createArtifactGraphPort()
-  const emitResult = await graph.createArtifact(createInput, port)
+  // AS emission. Lane is at 'emitting'; write is the durable step.
+  // b1-final-shot-3: port arg removed — createArtifact is single-arg.
+  const emitResult = await graph.createArtifact(createInput)
   if (!emitResult.ok) {
     // Graph write failed. Lane stays at 'emitting' (NOT rolled back to
     // 'draft') — F005 audit point: the user's confirm intent was captured;

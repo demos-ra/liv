@@ -5,6 +5,16 @@
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    4b-f-artifact-slice
+//             sprint-b1-shot-1 (dual-write: createArtifact writes substrate record)
+//             sprint-b1-shot-3 (scope corrected: input.turnId → input.projectId)
+//             sprint-b1-shot-3b (projectId threaded from MIInput)
+//             b1-final-shot-3 (S3 rewrite: substrate is the store; port dissolved;
+//                              art_* tables dropped; ArtifactGraphPort removed;
+//                              createArtifact signature: port param removed;
+//                              G-Ar8 formally removed from AS v2.2 gate set —
+//                              emissionId is a UUID minted per call; structural
+//                              collision is impossible; gate carried no real predicate.
+//                              Amendment: AS v2.2 operates on 7 gates G-Ar1..G-Ar7.)
 // slice:      F-artifact
 // layer:      R2
 // wires-in:
@@ -15,42 +25,17 @@
 //           ArtifactGateResult, CognitivePrimitive          ←  F-artifact/R0
 //   W-INJECT deriveAllEdges                                 ←  F-artifact/R1 artifact-edges
 //   W-INJECT evaluateAllGates                               ←  F-artifact/R1 artifact-gates
-//   W-INJECT ArtifactGraphPort (R4 node/edge primitives)    ←  F-artifact/R2 (port interface)
+//   W-FN    writeStateChange     F-memory/contract/substrate-contract
+//   W-FN    threadQuery          F-memory/contract/substrate-contract  (prior anchor lookup)
+//   W-ATOM  SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef  core/types/substrate.types
 // wires-out:  consumed by F-artifact/R3 artifact-contract
 // deps:
 //   R0  ../types/artifact-types
 //   R1  ../domain/artifact-edges
 //   R1  ../domain/artifact-gates
+//   R3  @/features/F-memory/contract/substrate-contract
+//   R5  @/core/types/substrate.types
 // validated:  pending
-//
-// F-artifact R2 — createArtifact S1→S2→S3 orchestration.
-//
-// Procedure per artifact-standard.md §3.7:
-//
-//   S1 (stage 2, mechanical):
-//     - Generate emissionId (UUID v4)
-//     - Capture timestamp
-//     - Resolve anchor NodeId via port.createAnchorNode({framework, turnId, emissionId})
-//     - Resolve companion NodeId via port.createCompanionNode(payload, emissionId)
-//     - Derive contentNodeIds via port.materializeContent(payload.content, emissionId)
-//     - Look up modeNodeId (primitive → mode-node) via port.lookupModeNode(primitive)
-//     - Look up priorAnchorNodeId via port.lookupPriorAnchor({framework, domain, schemaRef, ...})
-//     - Derive ArA4 edges via R1 deriveAllEdges
-//
-//   S2 (stage 3, gate-execution):
-//     - Assemble candidate ArtifactEmission
-//     - Evaluate G-Ar1..G-Ar8 via R1 evaluateAllGates
-//     - On any fail → return ArtifactError code ARTIFACT_GATE_FAILED with gateId + evidence
-//
-//   S3 (stage 5, mechanical):
-//     - Register emission in port.registerEmission(emission) — backs G-Ar8 uniqueness
-//     - Persist ArA4 edges via port.persistEdges(emission.edges)
-//     - Return Result.ok(emission)
-//
-// Slice boundary note: F-memory primitives for node/edge creation land in a
-// later phase. Until then, F-artifact defines the port interface locally
-// (ArtifactGraphPort below) and callers may supply a stub impl. This keeps
-// F-artifact standalone per brief's "4b standalone" requirement.
 
 import type {
   NodeId,
@@ -65,203 +50,124 @@ import type {
 import { deriveAllEdges } from '../domain/artifact-edges'
 import { evaluateAllGates } from '../domain/artifact-gates'
 import { generateId } from '@/core/types/primitives'
+import { writeStateChange, threadQuery } from '@/features/F-memory/contract/substrate-contract'
+import type { SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef } from '@/core/types/substrate.types'
 
-// ─── Port interface (R4 runtime dependency surface) ──────────────────────────
+// ─── Content identity prefix ──────────────────────────────────────────────────
+// Payload content is serialized to JSON and stored as an IdentityRef with this
+// prefix. threadQuery identity-recurrence on emissionId returns the record;
+// the content identity is extracted by prefix match and JSON-parsed.
+// This is the substrate-native payload persistence path.
+const CONTENT_PREFIX = 'artifact-content:'
 
-/**
- * R4 runtime dependency surface consumed by F-artifact R2.
- * Caller injects a concrete implementation (F-memory-backed at deploy,
- * in-memory stub for tests/beta).
- *
- * A5: R4 dependencies enter at slice boundary, never module globals.
- */
-export type ArtifactGraphPort = {
-  /** Mint anchor node. Returns the NodeId to be stamped as artifactAnchorNodeId. */
-  createAnchorNode: (args: {
-    framework: { id: string; version: string }
-    turnId:    string
-    emissionId: string
-  }) => Promise<NodeId>
+export function encodePayloadContent(content: unknown): IdentityRef {
+  return `${CONTENT_PREFIX}${JSON.stringify(content)}` as IdentityRef
+}
 
-  /** Mint companion data node. Returns the NodeId carrying the payload verbatim. */
-  createCompanionNode: (args: {
-    emissionId: string
-    payload:    unknown
-  }) => Promise<NodeId>
-
-  /** Materialize content nodes from payload.content. Returns length >= 1 per ArA3. */
-  materializeContent: (args: {
-    emissionId:   string
-    contentValue: unknown
-  }) => Promise<NodeId[]>
-
-  /** Lookup mode-node for a primitive (for ArA4b categorical edge). */
-  lookupModeNode: (primitive: string) => Promise<NodeId>
-
-  /** Lookup prior anchor (for ArA4c version edge). null when none exists. */
-  lookupPriorAnchor: (args: {
-    framework: { id: string; version: string }
-    domain:    string
-    schemaRef: string
-    turnId:    string
-  }) => Promise<NodeId | null>
-
-  /** Register emission; G-Ar8 uses isEmissionIdCollision against this registry. */
-  registerEmission: (emission: ArtifactEmission) => Promise<void>
-
-  /** G-Ar8 collision predicate. Called during S2 gate evaluation. */
-  isEmissionIdCollision: (emissionId: string) => boolean
-
-  /** Persist the ArA4 edges. S3 ordering: after registerEmission. */
-  persistEdges: (edges: ArtifactEdge[]) => Promise<void>
+export function decodePayloadContent(identity: IdentityRef): unknown {
+  const str = identity as string
+  if (!str.startsWith(CONTENT_PREFIX)) return null
+  try { return JSON.parse(str.slice(CONTENT_PREFIX.length)) } catch { return null }
 }
 
 // ─── Error helpers ───────────────────────────────────────────────────────────
 
-function gateFailError(
-  gateId:    string,
-  evidence:  string,
-): ArtifactError {
-  return {
-    code:    'ARTIFACT_GATE_FAILED',
-    message: `Gate ${gateId} failed: ${evidence}`,
-    context: { gateId, evidence },
-  }
+function gateFailError(gateId: string, evidence: string): ArtifactError {
+  return { code: 'ARTIFACT_GATE_FAILED', message: `Gate ${gateId} failed: ${evidence}`, context: { gateId, evidence } }
 }
-
 function inputInvalidError(evidence: string): ArtifactError {
-  return {
-    code:    'ARTIFACT_INPUT_INVALID',
-    message: `Input invalid: ${evidence}`,
-    context: { evidence },
-  }
+  return { code: 'ARTIFACT_INPUT_INVALID', message: `Input invalid: ${evidence}`, context: { evidence } }
 }
-
 function compositionFailedError(evidence: string): ArtifactError {
-  return {
-    code:    'ARTIFACT_COMPOSITION_FAILED',
-    message: `Composition failed: ${evidence}`,
-    context: { evidence },
-  }
+  return { code: 'ARTIFACT_COMPOSITION_FAILED', message: `Composition failed: ${evidence}`, context: { evidence } }
 }
-
 function emissionRejectedError(evidence: string): ArtifactError {
-  return {
-    code:    'ARTIFACT_EMISSION_REJECTED',
-    message: `Emission rejected: ${evidence}`,
-    context: { evidence },
-  }
+  return { code: 'ARTIFACT_EMISSION_REJECTED', message: `Emission rejected: ${evidence}`, context: { evidence } }
 }
 
 // ─── S1: resolve ─────────────────────────────────────────────────────────────
 
 type S1Resolved = {
-  emissionId:           string
-  timestamp:            string
-  anchorNodeId:         NodeId
-  companionDataNodeId:  NodeId
-  contentNodeIds:       NodeId[]
-  modeNodeId:           NodeId
-  priorAnchorNodeId:    NodeId | null
-  edges:                ArtifactEdge[]
+  emissionId:          string
+  timestamp:           string
+  anchorNodeId:        NodeId
+  companionDataNodeId: NodeId
+  contentNodeIds:      NodeId[]
+  modeNodeId:          NodeId
+  priorAnchorNodeId:   NodeId | null
+  edges:               ArtifactEdge[]
 }
 
 async function runS1(
   input: CreateArtifactInput,
-  port:  ArtifactGraphPort,
 ): Promise<{ ok: true; data: S1Resolved } | { ok: false; error: ArtifactError }> {
-  // Input schema check (light — the type system handles most of this)
-  if (!input.framework?.id || !input.framework?.version) {
+  if (!input.framework?.id || !input.framework?.version)
     return { ok: false, error: inputInvalidError('framework.id/version missing') }
-  }
-  if (!input.payload?.domain || !input.payload?.domainVersion || !input.payload?.schemaRef) {
+  if (!input.payload?.domain || !input.payload?.domainVersion || !input.payload?.schemaRef)
     return { ok: false, error: inputInvalidError('payload.domain/domainVersion/schemaRef missing') }
-  }
-  if (input.confidence < 0 || input.confidence > 1) {
+  if (input.confidence < 0 || input.confidence > 1)
     return { ok: false, error: inputInvalidError(`confidence=${input.confidence} out of [0,1]`) }
-  }
 
   const emissionId = generateId('emission')
   const timestamp  = new Date().toISOString()
 
   try {
-    const anchorNodeId = await port.createAnchorNode({
-      framework:  { id: input.framework.id, version: String(input.framework.version) },
-      turnId:     input.turnId,
-      emissionId,
-    })
+    // b1-final-shot-3: port dissolved. NodeIds minted via generateId.
+    // Substrate record IS the durable store for these identifiers.
+    const anchorNodeId:        NodeId   = generateId('anchor')    as NodeId
+    const companionDataNodeId: NodeId   = generateId('companion')  as NodeId
+    const contentNodeIds:      NodeId[] = [generateId('content')  as NodeId]
+    const modeNodeId:          NodeId   = generateId(`mode-${String(input.primitive)}`) as NodeId
 
-    const companionDataNodeId = await port.createCompanionNode({
-      emissionId,
-      payload: input.payload,
-    })
-
-    const contentNodeIds = await port.materializeContent({
-      emissionId,
-      contentValue: input.payload.content,
-    })
-    if (contentNodeIds.length < 1) {
-      return { ok: false, error: compositionFailedError('materializeContent produced 0 nodes; ArA3 requires >= 1') }
-    }
-
-    const modeNodeId = await port.lookupModeNode(input.primitive)
-
-    const priorAnchorNodeId = await port.lookupPriorAnchor({
-      framework: { id: input.framework.id, version: String(input.framework.version) },
-      domain:    input.payload.domain,
-      schemaRef: input.payload.schemaRef,
-      turnId:    input.turnId,
-    })
+    // Prior anchor lookup via substrate threadQuery on the chain key identity.
+    // Chain key includes projectId so chain is per-project (consistent with scope filter).
+    // No limit — fetch all records ordered ASC, take last = latest emission for this chain.
+    const priorAnchorKey = `prior-anchor:${input.framework.id}:${input.userId}:${input.projectId}:${input.payload.domain}:${input.payload.schemaRef}` as IdentityRef
+    let priorAnchorNodeId: NodeId | null = null
+    try {
+      const threadResult = await threadQuery({
+        threadKind: 'identity-recurrence',
+        anchor:     priorAnchorKey,
+        scope:      input.projectId as ScopeRef,
+      })
+      if (threadResult.ok && threadResult.data.records.length > 0) {
+        const last = threadResult.data.records[threadResult.data.records.length - 1]
+        // Anchor identity stored with 'anchor' role in the artifact-emitted relation
+        const anchorEntry = last.content.relations
+          .find(r => r.type === ('artifact-emitted' as IdentityRef))
+          ?.identitiesWithRoles
+          .find(iwr => (iwr.role as string) === 'anchor')
+        if (anchorEntry) priorAnchorNodeId = anchorEntry.identity as unknown as NodeId
+      }
+    } catch { /* no prior — first emission for this chain key */ }
 
     const edges = deriveAllEdges({
       anchorNodeId,
       classificationNodeId: input.classificationNodeId,
       modeNodeId,
       priorAnchorNodeId,
-      dependsOn:           input.dependsOn ?? [],
+      dependsOn:            input.dependsOn ?? [],
     })
 
-    return {
-      ok: true,
-      data: {
-        emissionId,
-        timestamp,
-        anchorNodeId,
-        companionDataNodeId,
-        contentNodeIds,
-        modeNodeId,
-        priorAnchorNodeId,
-        edges,
-      },
-    }
+    return { ok: true, data: { emissionId, timestamp, anchorNodeId, companionDataNodeId, contentNodeIds, modeNodeId, priorAnchorNodeId, edges } }
   } catch (err) {
-    return {
-      ok: false,
-      error: compositionFailedError(
-        err instanceof Error ? err.message : String(err),
-      ),
-    }
+    return { ok: false, error: compositionFailedError(err instanceof Error ? err.message : String(err)) }
   }
 }
 
 // ─── S2: assemble + gate ─────────────────────────────────────────────────────
 
-function assembleEmission(
-  input:      CreateArtifactInput,
-  resolved:   S1Resolved,
-): ArtifactEmission {
+function assembleEmission(input: CreateArtifactInput, resolved: S1Resolved): ArtifactEmission {
   const a4: ArtifactWriteA4 = {
     classificationNodeId: input.classificationNodeId,
     primitive:            input.primitive,
     confidence:           input.confidence,
   }
-
   const a7: ArtifactWriteA7 = {
     artifactAnchorNodeId: resolved.anchorNodeId,
     companionDataNodeId:  resolved.companionDataNodeId,
     contentNodeIds:       resolved.contentNodeIds,
   }
-
   return {
     emissionId: resolved.emissionId,
     framework:  input.framework,
@@ -274,23 +180,98 @@ function assembleEmission(
   }
 }
 
-// ─── S3: emit ────────────────────────────────────────────────────────────────
+// G-Ar8 REMOVED (b1-final-shot-3): emissionId is a UUID minted per call via
+// generateId — structural collision is impossible. Gate carried no real
+// predicate and is formally removed from AS v2.2. evaluateAllGates receives
+// a constant-false stub only as an adapter shim until the gate array is
+// updated in a future AS minor version.
+function isEmissionIdCollisionNeverTrue(_emissionId: string): boolean { return false }
+
+// ─── S3: write to substrate ──────────────────────────────────────────────────
+// b1-final-shot-3: substrate is the single store.
+//
+// Substrate write encodes:
+//   identities:
+//     - emissionId             (recovery key)
+//     - anchorNodeId           (anchor identity)
+//     - companionDataNodeId    (companion identity)
+//     - framework.id           (framework identity)
+//     - userId                 (author identity)
+//     - projectId              (scope identity)
+//     - payload.domain         (domain identity)
+//     - payload.schemaRef      (schema identity)
+//     - prior-anchor chain key (for priorAnchorNodeId lookup on next emission)
+//     - artifact-content:{JSON}  (FULL serialized payload.content — recovery path)
+//
+//   relations:
+//     - artifact-emitted: subject=emissionId, framework=framework.id,
+//                         anchor=anchorNodeId, author=userId
+//     - artifact-payload: emission=emissionId, domain=payload.domain,
+//                         schema=payload.schemaRef
+//
+// Recovery (threadQuery identity-recurrence on anchorNodeId):
+//   1. Query returns the state_change record for this emission.
+//   2. Find identity starting with CONTENT_PREFIX → JSON.parse → payload.content
+//   3. Full ArtifactPayload reconstructed from domain/schemaRef identities + content.
 
 async function runS3(
   emission: ArtifactEmission,
-  port:     ArtifactGraphPort,
+  input:    CreateArtifactInput,
 ): Promise<{ ok: true } | { ok: false; error: ArtifactError }> {
+  const projectId     = input.projectId
+  const priorAnchorKey = `prior-anchor:${input.framework.id}:${input.userId}:${input.projectId}:${input.payload.domain}:${input.payload.schemaRef}` as IdentityRef
+  const contentIdentity = encodePayloadContent(input.payload.content)
+
+  const write: SubstrateWriteInput = {
+    userId: input.userId,
+    content: {
+      identities: [
+        emission.emissionId                                     as IdentityRef,
+        emission.writes.a7.artifactAnchorNodeId                 as unknown as IdentityRef,
+        emission.writes.a7.companionDataNodeId                  as unknown as IdentityRef,
+        input.framework.id                                      as IdentityRef,
+        input.userId                                            as IdentityRef,
+        projectId                                               as IdentityRef,
+        input.payload.domain                                    as IdentityRef,
+        input.payload.schemaRef                                 as IdentityRef,
+        priorAnchorKey,
+        contentIdentity,                                        // full payload.content serialized
+      ],
+      relations: [
+        {
+          type:                'artifact-emitted' as IdentityRef,
+          modality:            'declarative',
+          identitiesWithRoles: [
+            { identity: emission.emissionId                                 as IdentityRef, role: 'subject'   as RoleRef },
+            { identity: input.framework.id                                  as IdentityRef, role: 'framework' as RoleRef },
+            { identity: emission.writes.a7.artifactAnchorNodeId as unknown  as IdentityRef, role: 'anchor'    as RoleRef },
+            { identity: input.userId                                        as IdentityRef, role: 'author'    as RoleRef },
+          ],
+          negation: false,
+        },
+        {
+          type:                'artifact-payload' as IdentityRef,
+          modality:            'declarative',
+          identitiesWithRoles: [
+            { identity: emission.emissionId     as IdentityRef, role: 'emission' as RoleRef },
+            { identity: input.payload.domain    as IdentityRef, role: 'domain'   as RoleRef },
+            { identity: input.payload.schemaRef as IdentityRef, role: 'schema'   as RoleRef },
+          ],
+          negation: false,
+        },
+      ],
+    },
+    metadata: {
+      time:   Date.now(),
+      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+    },
+  }
+
   try {
-    await port.registerEmission(emission)
-    await port.persistEdges(emission.edges)
+    await writeStateChange(write)
     return { ok: true }
   } catch (err) {
-    return {
-      ok: false,
-      error: emissionRejectedError(
-        err instanceof Error ? err.message : String(err),
-      ),
-    }
+    return { ok: false, error: emissionRejectedError(err instanceof Error ? err.message : String(err)) }
   }
 }
 
@@ -299,40 +280,25 @@ async function runS3(
 /**
  * createArtifact — F-artifact R2 orchestration entry.
  *
- * Contract per artifact-standard.md §3.7:
- *   S1 → S2 → S3 strictly sequential
- *   Any S1/S2/S3 failure short-circuits with typed ArtifactError
- *   ArA1–ArA8 all pass iff return is Result.ok
- *   HR-MI3 compliant: M-I calls this directly with a RunReportContent payload
+ * b1-final-shot-3: `port` parameter removed. Substrate is the store.
+ * S1 mints NodeIds via generateId. S3 writes full payload to substrate.
+ * G-Ar8 formally removed — UUID emissionId collision is structurally impossible.
  */
 export async function createArtifact(
   input: CreateArtifactInput,
-  port:  ArtifactGraphPort,
 ): Promise<CreateArtifactResult> {
-  // S1
-  const s1 = await runS1(input, port)
+  const s1 = await runS1(input)
   if (!s1.ok) return s1
 
-  // S2 assemble
   const emission = assembleEmission(input, s1.data)
 
-  // S2 gates
-  const batch = evaluateAllGates(
-    emission,
-    input,
-    /* mutationAttempted */ false, // S2 is mechanical; no mutation in this path
-    port.isEmissionIdCollision,
-  )
+  const batch = evaluateAllGates(emission, input, false, isEmissionIdCollisionNeverTrue)
   if (!batch.allPassed) {
     const first = batch.firstFail!
-    return {
-      ok: false,
-      error: gateFailError(first.gateId, first.evidence ?? 'no evidence'),
-    }
+    return { ok: false, error: gateFailError(first.gateId, first.evidence ?? 'no evidence') }
   }
 
-  // S3
-  const s3 = await runS3(emission, port)
+  const s3 = await runS3(emission, input)
   if (!s3.ok) return s3
 
   return { ok: true, data: emission }

@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.1 amended sprint-12-shot-3 sprint-13-shot-2 sprint-b1-shot-3b b1-final-shot-3
 // [F-builder/domain/builder-pipeline.ts]
 // Built with LIV · livai.dev
 
@@ -46,15 +46,16 @@
 //   R0  @/features/F-admin/types/admin-types
 //   R1  @/features/F-planner/domain/planner-logic  (R1 pure functions — cross-slice exception, Sprint B)
 //   R3  @/features/F-event-system/contract/event-bus
-//   R3  @/features/F-artifact/contract/artifact-contract
+//   R3  @/features/F-artifact/contract/artifact-contract  (decodePayloadContent re-exported — b1-final-shot-3)
+//   R3  @/features/F-memory/contract/substrate-contract  (threadQuery — b1-final-shot-3)
 //   R3  @/features/F-plan/contract/liv-standard-binding
 //   R3  @/features/F-multi-instance/contract/mi-contract
-//   R3  @/features/F-artifact/contract/artifact-graph-port
-//   R3  @/features/F-planner/contract/planner-adapter-port  (Sprint B — dissolve with F-planner R1)
+//   R3  ./planner-adapter-port  (same-slice R3; Sprint B — dissolve with F-planner R1)
 //   R5  @/core/constants/liv-api
 //   R5  @/core/types/primitives
 //   R5  @/core/types/plan-standard.types
 //   R5  @/core/types/artifact-standard.types
+//   R5  @/core/types/substrate.types               (IdentityRef, ThreadQueryInput)
 //   R0  @/core/constants/liv-standard.types
 // validated:  pending
 //
@@ -111,7 +112,9 @@ import { emitPlanForContract } from './builder-plan-emit'
 import { executeRun, type MultiInstancePorts } from '@/features/F-multi-instance/contract/mi-contract'
 import type { RunReportContent } from '@/features/F-multi-instance/contract/mi-contract'
 import type { Semver, NodeId, CognitivePrimitive } from '@/core/types/primitives'
-import { createArtifactGraphPort, createPlanResolutionPort } from '@/features/F-artifact/contract/artifact-graph-port'
+import { threadQuery } from '@/features/F-memory/contract/substrate-contract'
+import type { ThreadQueryInput, IdentityRef } from '@/core/types/substrate.types'
+import { decodePayloadContent } from '@/features/F-artifact/contract/artifact-contract'
 import { createAdapterPort } from '../contract/planner-adapter-port'
 
 // ── Local shape — ModelPreferences subset for IPlannerDb return type ──────────
@@ -236,8 +239,6 @@ export async function runPipeline(
 
     await deps.db.setPipelineStatus(jobId, 'running')
 
-    const graph     = createArtifactGraphPort()
-    const plan      = createPlanResolutionPort()
     const cognitive = {
       classifyRunReport: async (_args: {
         runReport: RunReportContent
@@ -255,6 +256,35 @@ export async function runPipeline(
     }
     const adapter   = createAdapterPort(deps.ai, job.userId)
 
+    // b1-final-shot-3: PlanResolutionPort backed by substrate threadQuery.
+    // Artifact payload written by createArtifact S3 includes artifact-content:{JSON}
+    // identity. Recovery: threadQuery identity-recurrence on anchorNodeId →
+    // find content identity → decodePayloadContent → validate → return.
+    const plan: import('@/features/F-multi-instance/contract/mi-contract').PlanResolutionPort = {
+      resolvePlan: async (planAnchorNodeId: NodeId): Promise<import('@/core/types/plan-standard.types').PlanArtifactContent | null> => {
+        try {
+          const result = await threadQuery({
+            threadKind: 'identity-recurrence',
+            anchor:     planAnchorNodeId as unknown as IdentityRef,
+            limit:      1,
+          } as ThreadQueryInput)
+          if (!result.ok || result.data.records.length === 0) return null
+          const record = result.data.records[result.data.records.length - 1]
+          const contentIdentity = record.content.identities.find(
+            (id) => (id as string).startsWith('artifact-content:')
+          )
+          if (!contentIdentity) return null
+          const decoded = decodePayloadContent(contentIdentity)
+          if (!decoded || typeof decoded !== 'object') return null
+          const content = decoded as Partial<import('@/core/types/plan-standard.types').PlanArtifactContent>
+          if (!('planId' in content) || !('binding' in content) || !('shape' in content)) return null
+          return content as import('@/core/types/plan-standard.types').PlanArtifactContent
+        } catch {
+          return null
+        }
+      },
+    }
+
     const planVersion = (`1.${job.reentryCount}.0`) as Semver
 
     const priorAnchorResult = await deps.db.getPriorPlanAnchor(jobId)
@@ -267,9 +297,9 @@ export async function runPipeline(
     }
 
     const planResult = await emitPlanForContract(contract, {
-      graph,
       userId:                job.userId,
       turnId:                jobId as string,
+      projectId:             job.projectId,
       classificationNodeId:  planCodec.classificationNodeId,
       primitive:             planCodec.primitive,
       confidence:            planCodec.confidence,
@@ -299,7 +329,6 @@ export async function runPipeline(
       plan,
       adapter,
       cognitive,
-      graph,
     }
 
     const miResult = await executeRun(
@@ -307,6 +336,7 @@ export async function runPipeline(
         planAnchorNodeId,
         userId:    job.userId,
         runTurnId: jobId as string,
+        projectId: job.projectId,
       },
       ports,
     )

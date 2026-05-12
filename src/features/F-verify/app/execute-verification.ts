@@ -76,18 +76,14 @@ import { runVerificationGates, gateVS1 } from '../domain/run-verification-gates'
  *
  * Mirror of F-plan's plan-inject ServiceContainer:
  *   - createArtifact: AS v2.2 R3 entry (createArtifact from F-artifact/R3)
- *   - createArtifactGraphPort: factory for ArtifactGraphPort (F-memory R3)
+ *   - createArtifact: AS v2.2 R3 entry (single-arg — port dissolved b1-final-shot-3)
  *   - epochNow: time source
  *   - mintVerificationId: optional override (default: generateId('verif'))
  */
-export type ArtifactGraphPort = unknown   // type-erased at R2; concrete shape from F-artifact/R3
-
 export type VerifyServiceContainer = {
   createArtifact: (
     input: CreateArtifactInput,
-    port:  ArtifactGraphPort,
   ) => Promise<{ ok: true; data: ArtifactEmission } | { ok: false; error: { code: string; message: string; context?: Record<string, unknown> } }>
-  createArtifactGraphPort: () => ArtifactGraphPort
   epochNow: () => EpochMs
   mintVerificationId?: () => ReturnType<typeof defaultMintVerificationId>
 }
@@ -115,7 +111,7 @@ export async function executeVerification(
   executeInput: VerificationExecuteInput,
   services:     VerifyServiceContainer,
 ): Promise<VerificationEmissionResult> {
-  const { verificationInput, classification } = executeInput
+  const { verificationInput, classification, projectId } = executeInput
 
   // Step 1 — HR-VS1 receive: G-VS1 input-shape gate.
   // Pre-compose short-circuit per spec §6.8 errorContract VERIFICATION_INPUT_INVALID.
@@ -176,6 +172,7 @@ export async function executeVerification(
     },
     turnId:               verificationInput.turnId,
     userId:               verificationInput.userId,
+    projectId,
     payload,
     classificationNodeId: classification.classificationNodeId,
     primitive:            classification.primitive as CognitivePrimitive,
@@ -183,8 +180,7 @@ export async function executeVerification(
     dependsOn,
   }
 
-  const port = services.createArtifactGraphPort()
-  const emit = await services.createArtifact(createInput, port)
+  const emit = await services.createArtifact(createInput)
   if (!emit.ok) {
     const validityError: VerificationValidityError = {
       code:    'VERIFICATION_EMISSION_REJECTED',

@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: none
+// amended: sprint-b1-shot-3 (projectId added to MIInput — substrate write scope for F-artifact dual-write)
 // slice: core
 // layer: R5
 // wires-in:
@@ -281,6 +281,7 @@ export type MIInput = {
   planAnchorNodeId: NodeId
   userId:           UserId
   runTurnId:        string
+  projectId:        string    // substrate write scope — added sprint-b1-shot-3
 }
 
 // ─── Error + return channel ──────────────────────────────────────────────────
