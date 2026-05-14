@@ -8,13 +8,13 @@ placement: frameworks/standards/
 **Kind:** Framework  
 **Level:** L3  
 **Mode:** generative (structured → produced)  
-**Version:** v3.2  
+**Version:** v3.3  
 **Instance of:** `GeneratedFrameworkTemplate` (metaframework-v3-1 §2.2)  
-**Rendered by:** generation-procedure-v1-0 v1.1.6 under metaframework-v3-1 v3.2.7  
-**Authority:** pending L0 confirmation (Sprint 7 close)  
+**Rendered by:** generation-procedure-v1-0 v1.1.7 under metaframework-v3-1 v3.3.1  
+**Authority:** L0 confirmed (Sprint B1 Shot 3 — MA-St17 / MA-I8 / MA-V10 part B amendment apparatus applied)  
 **Replaces:** living-memory.md (v2.1, v3.0) + living-memory-standard.md (vestige)  
 **Findings closed:** F-MFA-LM-001, F-MFA-LM-002, F-MFA-LM-003, F11, G1, T-LM-VESTIGE, T-MF-CYCLE3  
-**referentCitations:** [] (zero citations; vacuous pass per MA-V11)
+**referentCitations:** [] (zero citations at v3.3; partial-drift declared per MA-V11 vacuous-pass discipline — see §1 + §3.13 below)
 
 This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.2 output schema. Generated from the final substrate spec — not an overlay, not an amendment to any prior LM version. v3.1 supersedes v3.0: structural derivation against the final substrate spec removed auxiliary storage, dissolved authority validation from procedure, collapsed scoping to a single physical store with scope as attribute.
 
@@ -44,7 +44,7 @@ This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.
 | `kind` | `Framework` (substrate §4 A-10 Kind enum) |
 | `mode` | `generative` (substrate §2 Mode enum; structured → produced) |
 | `level` | `L3` (substrate §5 AuthorityLevel) |
-| `version` | `3.2` (substrate §7 Semver) |
+| `version` | `3.3` (substrate §7 Semver) |
 | `ownershipTemplate` | `Human` (substrate §4 A-11; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (substrate §4 A-11) |
 | `stateTemplate` | `declared` (substrate §9 LifecycleState) |
@@ -55,9 +55,9 @@ This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.
 | `consumes` | `SubstrateWriteInput`, `ThreadQueryInput` at R3 surface |
 | `produces` | `StateChangeRecord` (persisted), `ThreadResult` (read) |
 | `consumedBy` | Perimeter/intake (write surface — assembles and submits SubstrateWriteInput); F-chat (thread query for context injection); F-plan, F-verify, F-discover (thread query for program context); F-router (thread query for routing context); dashboard (substrate stats) |
-| `adjacentFrameworks` | Artifact Standard v2.2, Plan Standard v2.2, Verification Standard v1.0, Research Standard v1.0, Multi-Instance Standard v2.3, LIV-Standard v1.5.1 |
 | `scopeOut` | classification of input (perimeter/F-router); artifact emission mechanics (Artifact Standard); plan authoring (Plan Standard); multi-instance dispatch (Multi-Instance Standard); chat session management (F-chat); event bus wiring; DB connection management (core/db/client); authority enforcement (perimeter gate); scope access control (perimeter gate); surface-form-to-Ref matching (perimeter) |
-| `referentCitations` | [] |
+| `governsRuntimeCode` | `true` (per MA-I8, added Sprint B1 Shot 2 v3.3.0). Basis: LM governs F-memory runtime code across R0..R4 — R0 substrate writer (SW1–SW3 implementations), R3 read surface (thread query workflow + adjacency + raw axis scan), R4 DB exec (state_change row writer + indexed reads), R2 thread-query workflow composition. The axiom set (LMA1–LMA12), procedure set (SW1–SW3, TQ1–TQ3), and required-operations/indices closures govern source paths under `src/features/F-memory/` and `src/app/api/memory/`. Declaration of source-governing intent is now mechanical per MA-I8; jurisdictionClaim per axis declared at §3.13 below. |
+| `referentCitations` | `[]` (zero citations at v3.3 — partial-drift declared per MA-V11 vacuous-pass discipline. Basis prose: `"Sprint B2 source-cleanup will author ReferentCitations covering jurisdictionClaim per MA-V10 part B amendment trigger. At v3.3 the standards-tier declarations are tightened (MA-I8 governsRuntimeCode true, MA-St17 basis declarations populated at §3.13, jurisdictionClaim declared per source-governing axis at §3.13); the runtime-side citation set is the next sprint's surface. Vacuous-pass at this version is honest declared drift, not silent gap."`) |
 
 ### §1.1 GenesisDeclaration
 
@@ -86,8 +86,9 @@ Predecessor note: v3.0 was generated at Sprint 7 Job 2 against the substrate spe
 | MA-I3 | Ownership declared for template (`Human`) + applied (`System-under-L0`) in §1. |
 | MA-I4 | LifecycleState declared for template (`declared`) + applied (`runtime`) in §1. |
 | MA-I5 | Genesis declared §1.1; parent framework + generation procedure named. |
-| MA-I6 | Version declared as `3.2`; semver format per substrate §7. |
+| MA-I6 | Version declared as `3.3`; semver format per substrate §7. |
 | MA-I7 | scopeOut declared in §1; non-empty enumeration of excluded concerns. |
+| MA-I8 | `governsRuntimeCode = true` declared §1 with basis prose per Sprint B1 Shot 2 v3.3.0 amendment (boolean type-check class per substrate §6.3). |
 
 ### §1.3 MA-G13 four-property test
 
@@ -342,15 +343,160 @@ Three P8 steps. Read-only — no mutation.
 | `Geometry` | §3.8 | Emergent: temporal arcs, cluster membership, co-occurrence patterns — what the substrate exposes when threads are walked and relations read. Not stored (LMA8). |
 | `state-change` | §1 | The framework primitive: one atomic commit (SubstrateWriteInput → StateChangeRecord). |
 
+### §3.13 AxisBasis declarations (Sprint B1 Shot 3 v3.3 amendment, additive per MA-S7 recursive scope)
+
+Per MA-St17 (metaframework v3.3.1 §3.2.1): every LM declaration in the enumerated kind set (axes, sub-axes, handoff rules, lifecycle events, judgment inputs, closure rules, typed shapes, procedure steps, coupling enums) that crosses boundary 2 (MFv3 → standards) and is not already grounded by another declared mechanism (P1–P8 instance grounding by PR1; axiom grounding by own derivation; gate grounding by `tests` binding) declares a basis conforming to substrate §4 A-22 AxisBasis. Every basis below traces by natural derivation. No force-fit. Where a kind has no instances at LM, the row is omitted (the MA-St17 quantifier ranges over declared instances only).
+
+Manual citations pin `manualVersion: '13.0'`. Substantive content cited (substrate-write mechanics, Boundary→Store flow, scope-as-attribute, identity-by-reference, single-store accumulation, three-loop framing) is stable; Manual v13.1's coming Part IV revision does not invalidate these references.
+
+#### §3.13.1 Axes basis
+
+LM v3.3 declares **0 own P1 Axis instances** (inherits MFv3 seven-axis decomposition per substrate §1.3 SI-03 permitted-multi-execution). Per MA-St17 exclusion semantics, declarations not made at this framework cross no boundary 2 from this framework; no basis required at LM. Inherited axes are grounded by MFv3 §3.1.1 FrameworkConcernSpace.
+
+#### §3.13.2 Sub-axes basis
+
+LM v3.3 declares **0 own P2 Sub-axis instances**. Per LMA structure: each LMA1–LMA12 binds to the Structure axis at the axiom-condition level per §3.3 P3 leaf count = 0 (leaves not enumerated separately at LM; axioms are the leaf grain). No sub-axis structure declared. No basis required.
+
+#### §3.13.3 Handoff rules basis
+
+| ID | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| **HR-LM1** | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary + Store'`, `manualVersion: '13.0'`, `ratification: {level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com'}` | HR-LM1 is the receive-side contract for `SubstrateWriteInput` from the unitary Boundary. The Manual Part II Boundary subsection declares "Every typed signal carries four properties stamped at the Boundary and preserved by Store" — HR-LM1 is the mechanical realization of "preserved by Store" at LM's intake surface. The contract's `guarantee` field ("LM will execute SW1–SW3 atomically per LMA4. Authority enforcement and scope access control are perimeter responsibilities — LM writes whatever arrives through the perimeter gate") traces directly to Manual Part II Boundary "Authority enforcement" + "Scope access enforcement" subsections (perimeter responsibility) and Part II Store ("Store does not initiate. It is acted upon. Mediator writes to it... Store's work is to maintain faithful accumulation"). L0-ratified at LM v3.0 first generation; carried forward unchanged across v3.1, v3.2, v3.3. |
+
+#### §3.13.4 Lifecycle events basis
+
+| Event (locus) | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `version transition` (§5.1) | `substrate-atom-ref` | `atomId: 'A-16'` (AmendmentProvenance) + `atomId: 'A-21'` (StateOrdering — lifecycle states index into A-21 positions) | Version transitions are AmendmentProvenance instances per substrate §4 A-16; transitions occur between LifecycleState positions declared at substrate §9 (LifecycleState enum), which in turn index five-state ordering at A-21 per MFv3 v3.3.0-shot1 amendment. Strongest grounding. |
+| `amendment procedure` (§5.2) | `substrate-atom-ref` | `atomId: 'A-16'` (AmendmentProvenance) | The procedure (propose → audit → L0 confirm → propagate) is the structural pattern that materializes AmendmentProvenance per substrate §4 A-16 declaration. Substrate-tier grounding. |
+| `state transition: declared → runtime` (§5.3) | `substrate-atom-ref` | `atomId: 'LifecycleState'` (substrate §9) | The transition is a movement between two LifecycleState enum values declared at substrate §9. Strongest grounding. |
+| `state transition: runtime → deprecated` (§5.3) | `substrate-atom-ref` | `atomId: 'LifecycleState'` (substrate §9) | Same basis as above; both endpoints are LifecycleState enum values. |
+| `deprecation procedure` (§5.4) | `substrate-atom-ref` | `atomId: 'LifecycleState'` (substrate §9) + `atomId: 'A-16'` (AmendmentProvenance — successor framework ratification is itself an AmendmentProvenance event) | Deprecation prerequisites (successor framework generated and L0-confirmed, migration path declared, L0 deprecation ruling) compose a state transition into `deprecated` (substrate §9 LifecycleState) gated by an L0-ratified AmendmentProvenance (A-16). Substrate-tier grounding. |
+
+#### §3.13.5 Judgment inputs basis
+
+| ID | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| **J-lm-scope-as-attribute** | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — System-L0 (Scope paragraph)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com'}` | The Manual states verbatim: "The substrate is single-store. Scope is an attribute on every persisted state. Per-wearer and shared content live in the same store, distinguished by the scope attribute. Scope access enforcement is a Boundary responsibility, not a substrate responsibility. New scope kinds are new attribute values — no structural change required." J-lm-scope-as-attribute's four mechanical criteria are the criteria that test this Manual commitment at LM. LMA6 is the axiom realization of the same commitment. L0-ratified at LM v3.0 first generation. |
+| **J-lm-thread-completeness** | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Store + Part I — Substrate'`, `manualVersion: '13.0'`, `ratification: {level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com'}` | The Manual Part II Store declares Store as "the program that governs the substrate's operational mechanics — write, accumulate, read"; Part I Substrate declares "Internal operations — typed-to-typed work within typed jurisdiction. Reading what has accumulated..." The three thread-query primitives (identity-recurrence, role-pattern, adjacency) + raw axis scan compose the complete substrate-read surface — the "read" arm of Store's operational mechanics. J-lm-thread-completeness's five mechanical criteria test that the four operations cover the complete read surface; LMA8 (geometry-as-emergence) and LMA9 (three thread kinds) are the axiom realizations. L0-ratified at LM v3.0 first generation. |
+
+#### §3.13.6 Closure rules basis
+
+| Closure (locus) | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `RevokeRef closure` (§3.6 — single system-reserved Ref, no stored registry) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Wearer-L0 (Wearer-bypass cases — Revocation)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Manual declares: "Revocation — the wearer exercises unconditional authority over substrate content directly. No program mediates revocation. The wearer's revocation arrival is typed at the Boundary, recognized under Wearer-L0 authority, and applied to the substrate." `RevokeRef` is the single in-band convention realizing this bypass at LM. Closure is at exactly one reserved identity because the bypass set is finite per Manual enumeration (Revocation + identity-curation-by-utterance + L0-confirmations; only revocation requires a reserved identity-form, the other two are ordinary content writes). L0-ratified at LM v3.0. |
+| `Relation four-component closure` (§3.5, LMA3 — type/modality/identities-with-roles/negation) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (typed signal mechanics)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The Relation shape is the typed signal's internal grammar — what makes accumulation faithful per Manual Root claim "durable structure that subsequent moments read against — faithfully reconstructible, without rewriting, without lossy summarization, without forced interpretation." The four peer components emerge from natural-language minimum representation (subject-verb-object + assertion-mode + negation); ratified as LM v3.0 atom shape. LMA3 is the axiom realization. L0-ratified at LM v3.0. |
+| `Three thread kinds closure` (§3.9, LMA9 — identity-recurrence / role-pattern / adjacency) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store + Part I — Substrate (Internal operations)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The Manual declares Internal operations as "typed-to-typed work within typed jurisdiction" with Store governing "write, accumulate, read." Three primitive read operations + raw axis scan close the read surface per J-lm-thread-completeness mechanical-criteria 5. LMA9 is the axiom realization. L0-ratified at LM v3.0. |
+| `Two-axis closure` (§3.2 LMA10 — Axis 1 state-change sequence + Axis 2 identity threads) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate + Part II — Store'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The two-axis structure is the substrate's minimal sufficient geometry per Manual Root claim faithful-accumulation commitment. Position-ordering (Axis 1) is what makes "time of crossing" preservable; identity-thread recurrence (Axis 2) is what makes substrate-identity emergent geometry possible per Manual Part I Substrate "Internal operations" + Part II Store "faithful accumulation." LMA10 is the axiom realization. L0-ratified at LM v3.0. |
+| `Required-operations closure` (§3.10 — six declared operations) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store ("write, accumulate, read")'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The six operations (write_state_change, read_state_change, iterate_axis, identity_recurrence, role_pattern, adjacency) compose the substrate operational mechanics Manual Part II Store declares. Closure is bounded by what J-lm-thread-completeness ratifies plus the write primitive plus direct read/iterate (which are read-side primitives below thread-query). L0-ratified at LM v3.0. |
+| `Required-indices closure` (§3.11 — five declared indices) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store (faithful accumulation under activity)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The five indices (position, identity→positions, (identity,role)→positions, scope→positions, userId→positions) are the minimum sufficient set for the §3.10 operations to execute deterministically. userId index ratified as required (not optional) per LMA12 v3.2 amendment; remaining four ratified at LM v3.0. L0-ratified per amendment cycle. |
+| `Vocabulary closure` (§3.12 — declared terms) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I + Part II + this framework's declaration sites'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Vocabulary is the closed set of framework-local atoms declared at LM (IdentityRef, userId, ScopeRef, SourceRef, PositionRef, RoleRef, StateChangeId, RevokeRef, Anchor, Geometry, state-change). New terms enter additively via amendment per MA-L1 + MA-S7. L0-ratified per declared term at the version it was added (v3.0 baseline + v3.2 userId addition). |
+
+#### §3.13.7 Typed shapes basis
+
+| Shape | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `SubstrateWriteInput` (§2.1) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — input atom shape) | Input shape conforms to substrate §4 A-01 WAtom under MA-S1 (input-is-W-ATOM). Field shapes ground out at substrate atoms or LM-local atoms (the latter grounded per their own rows below). |
+| `ThreadQueryInput` (§2.1) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — input atom shape) | Same basis as SubstrateWriteInput per MA-S1. |
+| `StateChangeRecord` (§2.2) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — output atom shape) | Output shape conforms to substrate §4 A-01 WAtom under MA-S2 (output-is-W-ATOM). |
+| `ThreadResult` (§2.2) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — output atom shape) | Same basis as StateChangeRecord per MA-S2. |
+| `Relation` (§3.5) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (typed signal mechanics)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local synthesis — the typed-signal internal grammar per Manual Root claim faithful-structure commitment. See §3.13.6 Relation four-component closure for full derivation. |
+| `IdentityRef` (§3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (Substrate identity-by-reference) + Part II — Boundary (Surface-form-to-reference matching)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local atom realizing the Manual's identity-by-reference commitment. Identities exist by reference only; cluster geometry emerges at read time (Manual Part II Boundary subsection scopes cluster pre-resolution out to Boundary). LMA5 is the axiom realization. L0-ratified at LM v3.0. |
+| `ScopeRef` (§3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — System-L0 (Scope paragraph)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Open-vocabulary scope identifier realizing Manual's scope-as-attribute commitment. LMA6 is the axiom realization. L0-ratified at LM v3.0. |
+| `SourceRef` (§2.1, §3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Boundary (Source authority + Channel classification)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local atom carrying origin channel + scope. Both components are Boundary-stamped per Manual Part II Boundary "Signal properties stamped here" — LM is the receive-side custodian. L0-ratified at LM v3.0. |
+| `PositionRef` (§3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Boundary (Time of crossing)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Monotonic integer coordinate on Axis 1. Manual states: "Time of crossing — when it entered typed jurisdiction. The temporal anchor for all accumulation. Stamped at the Boundary, preserved by Store, never modified after stamping." PositionRef is the Axis-1 mechanical realization (auto-assigned at SW3, monotonic per LMA1). L0-ratified at LM v3.0. |
+| `RoleRef` (§3.5, §3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (typed signal mechanics)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local atom for role within Relation.identitiesWithRoles per LMA3. Open-vocabulary per Manual root-claim faithful-structure commitment (forced interpretation forbidden ⇒ role labels are content, not infrastructure). L0-ratified at LM v3.0. |
+| `RevokeRef` (§3.6, §3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Wearer-L0 (Wearer-bypass — Revocation)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | System-reserved single IdentityRef realizing Manual's wearer-bypass revocation mechanism. See §3.13.6 RevokeRef closure for full basis. L0-ratified at LM v3.0. |
+| `Anchor` (§3.7, §3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (Internal operations — Reading what has accumulated)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local derived (never stored) atom — emergent from thread traversal per LMA7. The Manual states cluster-identity-as-emergence at Part I Substrate Internal operations + Part II Store faithful accumulation; Anchor is the high-recurrence + high-relational-diversity subset of this emergence. L0-ratified at LM v3.0. |
+| `Geometry` (§3.8, §3.12) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (Internal operations)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | LM-local emergent (never stored) atom — temporal arcs, cluster membership, co-occurrence patterns produced by reading threads and relations. LMA8 is the axiom realization. L0-ratified at LM v3.0. |
+| `StateChangeId` (§2.2) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — typed-shape identifier sub-component) | Unique identifier branded type for committed StateChangeRecord; standard typed-shape brand pattern at substrate WAtom tier. |
+
+#### §3.13.8 Procedure steps basis
+
+| Step | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| **SW1** (substrate write step 1 — input validation) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Boundary (Authority enforcement + Signal properties stamped here) + Part II — Store ("write, accumulate, read")'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | SW1 (validate shape; assign position; stamp time) realizes Manual Part II Store's write-side intake. Position-assignment and write-time stamping fulfill Manual Part II Boundary "Time of crossing — Stamped at the Boundary, preserved by Store" commitment at LM's receive side. userId-presence validation per LMA12 v3.2 ratified separately at that amendment. L0-ratified at LM v3.0 baseline + v3.2 userId amendment. |
+| **SW2** (substrate write step 2 — gate execution) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store (faithful accumulation under that activity)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Gate execution against LMA1/LMA3/LMA10/LMA11 realizes the structural conformance check Store applies to incoming SubstrateWriteInput before commit. The four-gate set is the minimum sufficient: forward-additive (LMA1) + relation structure (LMA3) + two-axis coherence (LMA10) + modality-stored-not-binding (LMA11). L0-ratified at LM v3.0. |
+| **SW3** (substrate write step 3 — atomic commit + revoke detection) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Wearer-L0 (Wearer-bypass — Revocation) + Part II — Store ("write, accumulate, read")'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Atomic commit realizes Store's faithful-accumulation responsibility; RevokeRef detection at this step realizes Manual's wearer-bypass revocation under Wearer-L0 authority applied to the substrate. userId-carry-through ratified per LMA12 v3.2. L0-ratified at LM v3.0 baseline + v3.2 userId amendment. |
+| **TQ1** (thread query step 1 — query validation) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store (read) + Part I — Substrate (Internal operations — Reading what has accumulated)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | TQ1 (validate threadKind ∈ three primitives; per-kind input shape check) is the receive-side typing of the read-surface query Manual declares at Part II Store + Part I Substrate Internal operations. L0-ratified at LM v3.0. |
+| **TQ2** (thread query step 2 — gate execution) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part I — Substrate (Internal operations)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Gate execution against LMA9 (thread-kind closure) realizes the structural conformance check for read primitives. The single-gate set is minimum sufficient because thread-kind enum-membership is the only constraint at this step. L0-ratified at LM v3.0. |
+| **TQ3** (thread query step 3 — substrate execution) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Store (read) + Part I — Substrate (Internal operations)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The per-kind substrate-scan execution realizes Manual Part II Store's read-side mechanics. Geometry-emergence at caller (LMA8 commitment) realizes Manual Part I Internal operations + Part II Store faithful-accumulation pattern (substrate exposes geometry; caller composes). L0-ratified at LM v3.0. |
+
+#### §3.13.9 Coupling enums basis
+
+| Coupling declaration | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `carrier = 'self'` (§6.1) | `substrate-atom-ref` | `atomId: 'Carrier'` (substrate §9 declared enum: `'self' \| 'named' \| 'none'`) | Carrier value enum-member per substrate §9; LM-specific binding to `self` because LM emits its own artifact (StateChangeRecord) via SW3, no enclosing carrier framework. Strongest grounding. |
+| Custody table entries (§6.3 — Substrate store + living-memory.md file) | `substrate-atom-ref` | `atomId: 'A-04'` (CustodyRow) | Custody rows conform to substrate §4 A-04 CustodyRow shape per MA-C2. Strongest grounding. |
+
+#### §3.13.10 MA-V10 part B jurisdiction coverage declaration
+
+Per MA-V10 part B (metaframework v3.3.1 §3.2.1): when `governsRuntimeCode = true`, every source-governing axis with declared `jurisdictionClaim` must have ReferentCitations covering its claim, OR declare partial-drift per MA-V11 vacuous-pass with explicit basis prose.
+
+LM inherits the seven MFv3 axes. LM's source-governing intent is concentrated at the **Structure axis** (LMA1–LMA12 govern write semantics, read semantics, and substrate shape) and the **Schema axis** (SubstrateWriteInput / StateChangeRecord / ThreadQueryInput / ThreadResult govern the typed input/output shapes that runtime code must produce and consume). The remaining inherited axes (Identity, Validity, Lifecycle, Coupling, Judgment) are declarative-tier concerns; no jurisdictionClaim is declared on these (vacuous per MA-V10 part B applicability='n/a' clause).
+
+| Axis | `jurisdictionClaim` | RC coverage at v3.3 | Partial-drift declaration |
+|---|---|---|---|
+| **Structure** | `['src/features/F-memory/exec/**', 'src/features/F-memory/app/**', 'src/features/F-memory/domain/**', 'src/features/F-memory/contract/**', 'src/app/api/memory/**']` (LMA1–LMA12 govern these paths — substrate writer, thread query workflow, DB exec, read surface, route handlers consuming substrate-write/thread-query surfaces) | zero ReferentCitations declared | `applicability: 'n/a'`, `basis: "Sprint B2 source-cleanup will author ReferentCitations covering jurisdictionClaim per MA-V10 part B amendment trigger. At v3.3 the declared rule set is tightened (MA-I8 governsRuntimeCode true, axiom invariants unchanged); the runtime-side citation set materializes in Sprint B2 when the source-paths above are walked and per-axiom citations attached. Vacuous-pass at this version is honest declared drift, not silent gap. G-V10 part B re-fires on Sprint B2 close per MFv3 v3.3.1 §3.2.1 MA-V10 part B amendment-trigger clause."` |
+| **Schema** | `['src/features/F-memory/domain/**', 'src/features/F-memory/contract/**', 'src/app/api/memory/state/**', 'src/app/api/memory/action/**']` (the I/O shapes SubstrateWriteInput / StateChangeRecord / ThreadQueryInput / ThreadResult govern these source surfaces) | zero ReferentCitations declared | Same basis as Structure axis above; partial-drift declared per MA-V11. Sprint B2 closes drift. |
+| Identity | not declared (declarative-tier — Identity content at LM is the framework's own header, not source-tier) | n/a per MA-V10 part B applicability clause | not applicable |
+| Validity | not declared (declarative-tier — gate suite is declarative governance, gate execution is framework-audit concern, not LM source) | n/a per MA-V10 part B applicability clause | not applicable |
+| Lifecycle | not declared (declarative-tier — version-history and amendment-trigger declarations are not source-governing) | n/a per MA-V10 part B applicability clause | not applicable |
+| Coupling | not declared (declarative-tier — HR contracts are declared at standards tier; HR-LM1 enforcement is perimeter / F-identity concern, not LM source) | n/a per MA-V10 part B applicability clause | not applicable |
+| Judgment | not declared (declarative-tier — J-inputs are audit-time judgment shapes, not source-governing) | n/a per MA-V10 part B applicability clause | not applicable |
+
+**Discipline:** every axis position declared explicitly. No silent gap. Partial-drift declared mechanically per MA-V11. G-V10 part B at this version produces `applicability='n/a'` with declared basis on each of Structure and Schema; on Sprint B2 close, basis is replaced by full RC coverage.
+
+#### §3.13.11 AmendmentProvenance (Sprint B1 Shot 3)
+
+```
+amendmentProvenance = {
+  amendmentId:          'living-memory-v3-3-sprint-b1-shot-3',
+  predecessorVersion:   '3.2',
+  successorVersion:     '3.3',
+  cycleId:              'sprint-b1-shot-3',
+  timestamp:            '2026-05-13',
+  authorityClaim:       { level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com' },
+  scope: [
+    'Δ-A: added §1 governsRuntimeCode = true per MA-I8 with basis prose',
+    'Δ-B: declared AxisBasis on every MA-St17 enumerated-kind declaration at §3.13.3–§3.13.9',
+    'Δ-C: declared jurisdictionClaim on Structure + Schema axes per MA-V10 part B with partial-drift basis at §3.13.10',
+    'Δ-D: AmendmentProvenance + §8 change log entry + §4.1 self-audit results updated'
+  ],
+  discipline: 'additive per MA-L1 + MA-S7 recursive ≼ — zero axiom invariant predicates changed; zero gate predicates changed; zero schema shapes changed; zero handoff rule contracts changed; primitive instance counts unchanged. Apparatus declarations added.'
+}
+```
+
+#### §3.13.12 AmendmentProvenance (Sprint B1 Shot 5 cleanup)
+
+```
+amendmentProvenance = {
+  amendmentId:          'living-memory-v3-3-sprint-b1-shot-5',
+  predecessorVersion:   '3.3 (post Sprint B1 Shot 3)',
+  successorVersion:     '3.3 (post Sprint B1 Shot 5 cleanup)',
+  cycleId:              'sprint-b1-shot-5',
+  timestamp:            '2026-05-13',
+  authorityClaim:       { level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com' },
+  scope: [
+    'F-B1-Audit-1 closure: §1 Identity table version field 3.2 → 3.3 (stale post-amendment value corrected to post-Shot-3 sprint version)',
+    'F-B1-Audit-2 closure: §6.2 HR-LM1 `to:` field `Living Memory v3.2` → `Living Memory v3.3` (carrier-version reference brought in line with own framework version)',
+    'F-B1-Audit-4 closure: §1 Identity table `adjacentFrameworks` row removed entirely (residue eliminated at standards tier; aligns with MFv3 v3.3.1 §2.1 MetaframeworkInput residue cleanup — the input field no longer exists at apparatus tier, so generated standards do not carry the field; the row in §1 Identity was carried forward by template-copy convention, not by GeneratedFrameworkTemplate output schema declaration)',
+    'F-B1-Audit-5 closure: §3.13.11 AmendmentProvenance scope row 4 stray `§4.5` reference removed (LM has no §4.5 — Validity section runs §4.1 through §4.4; stray reference was authoring residue from a template that included a §4.5 lifecycle row not applicable here)',
+    'Δ: §3.13.12 AmendmentProvenance row (this block) + §8 change log entry added; no other content changes'
+  ],
+  discipline: 'cleanup-only — zero new basis declarations, zero new RCs, zero new axioms / axes / sub-axes / gates / HRs / primitives / typed shapes / lifecycle events / judgment inputs / closure rules / procedure steps / coupling enums; zero version bumps at LM (stays v3.3); self-audit results unchanged (G-I8 / G-St17 / G-V10 part B outcomes preserved); F-B1-Audit-4 closes by structural dissolution at standards tier alongside MFv3 v3.3.1 apparatus-tier residue removal.'
+}
+```
+
 ---
 
 ## §4 Validity
 
 ### §4.1 Gate execution (E1–E8)
 
-**E1 — Identity-axis gates (PG1, G-I1–G-I7): PASS**
+**E1 — Identity-axis gates (PG1, G-I1–G-I8): PASS**
 
-All eight pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7: mode, kind, ownership, lifecycle, genesis, version, scopeOut all declared in §1.
+All nine pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7: mode, kind, ownership, lifecycle, genesis, version, scopeOut all declared in §1. **G-I8 (Sprint B1 Shot 3 v3.3 added):** `governsRuntimeCode = true` declared in §1 Identity table with basis prose; field present, boolean-typed per substrate §6.3 type-check class. PASS.
 
 **E2 — Schema-axis gates (PG2, G-S1–G-S8): PASS**
 
@@ -366,7 +512,7 @@ All eight pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7:
 | G-S7 | PASS — Relation nesting (LMA3) declared; no ambiguous discriminated unions |
 | G-S8 | PASS (vacuous) — `referentCitations: []`; zero citations; MA-V11 vacuous-pass applies |
 
-**E3 — Structure-axis gates (PG3, G-St1–G-St16): PASS**
+**E3 — Structure-axis gates (PG3, G-St1–G-St17): PASS**
 
 | Gate | Result |
 |---|---|
@@ -387,10 +533,11 @@ All eight pass. PG1: §3.3 declares all P1–P8 with basis strings. G-I1–G-I7:
 | G-St14 | PASS — §3.4 relational cell declared |
 | G-St15 | PASS — 12 unique IDs, no duplicates |
 | G-St16 | PASS — SW2 `gates = [LMA1, LMA3, LMA10, LMA11]`; TQ2 `gates = [LMA9]`; axiom/invariant refs per generation-procedure per-row note S3–S10 ("tested axiom or invariant refs") |
+| G-St17 | PASS (Sprint B1 Shot 3 v3.3) — every MA-St17 enumerated-kind declaration carries `basis` per §3.13 subsections: 1 handoff rule (HR-LM1) + 5 lifecycle events (§5.1 version transition, §5.2 amendment procedure, §5.3 declared→runtime, §5.3 runtime→deprecated, §5.4 deprecation procedure) + 2 judgment inputs + 7 closure rules + 14 typed shapes + 6 procedure steps + 2 coupling enums = 37 declarations, each declares basis with `basis.kind ∈ {substrate-atom-ref, substrate-amendment-ref, l0-ratified-ref}`, reference resolution succeeds per substrate §6.3 classes. Axes count = 0 (inherited), sub-axes count = 0 (none declared) — vacuously satisfied. Axioms, leaves, gates excluded per MA-St17 kind-set exclusions. |
 
-**E4 — Validity-axis gates (PG4, G-V1–G-V11): PASS**
+**E4 — Validity-axis gates (PG4, G-V1–G-V11): PASS (with partial-drift declared on G-V10 part B per MA-V11)**
 
-PG4: zero new gates declared; inherited 85 framework-tier gates. G-V1–G-V9: inherited, pass. G-V10: no implementation referents exist yet (Sprint 8 future); applicability=n/a per MA-V11. G-V11: vacuous pass (zero citations; `referentSnapshotRef = null` permitted).
+PG4: zero new gates declared; inherited 87 framework-tier gates (MFv3 v3.3.1). G-V1–G-V9: inherited, pass. G-V10 part A: vacuous-pass — zero ReferentCitations at v3.3, applicability='n/a' per MA-V11. **G-V10 part B (Sprint B1 Shot 2 added; first evaluated against amended LM v3.3):** `governsRuntimeCode = true` triggers jurisdiction-coverage check. Structure + Schema axes carry declared `jurisdictionClaim` per §3.13.10. Zero ReferentCitations cover the claimed source paths at this version; partial-drift declared per MA-V11 vacuous-pass with explicit basis prose at §3.13.10 ("Sprint B2 source-cleanup will author ReferentCitations covering jurisdictionClaim per MA-V10 part B amendment trigger"). PASS-with-partial-drift-declared. G-V11: vacuous pass (zero citations; `referentSnapshotRef = null` permitted).
 
 **E5 — Lifecycle-axis gates (PG5, G-L1–G-L11): PASS**
 
@@ -461,7 +608,7 @@ Carrier = `self`. LM emits its own artifact — the StateChangeRecord — via th
 HR-LM1 = {
   direction: 'inbound',
   from:      'Perimeter/intake',
-  to:        'Living Memory v3.2',
+  to:        'Living Memory v3.3',
   contract: {
     input:     SubstrateWriteInput,
     guarantee: 'LM will execute SW1–SW3 atomically per LMA4.
@@ -534,7 +681,9 @@ Both J-inputs deprecated when the framework is deprecated (§5.4). No judgment i
 | 3.0 | Sprint 7 Job 2 | First generation under substrate spec v3. Replaced LM v2.1 entirely. | L0 pending |
 | 3.1 | Sprint 7 close | Full mechanical derivation against final substrate spec. Dissolved: IdentityRecord, canonical-Ref pointer, surface forms at substrate level (LMA12 dissolved, LMA4 trimmed → LMA5); MutationInput; authority validation in procedure (SW1 dissolved); two-instance scoping model replaced by single store with scope as attribute (LMA6); revoke as separate operation (now in-band via RevokeRef in SW3). Restructured: procedures now SW1–SW3 + TQ1–TQ3; axiom count 14 → 11; P8 count 7 → 6. Added: §3.10 required operations table, §3.11 indices, RevokeRef declaration (§3.6), SourceRef with scope attribute. Closed: F-LM-001 (MutationInput dissolved), F-LM-002 (referentCitations declared), F-LM-003 (LMA IDs confirmed correct for runtime procedure), F-LM-004 (G-L11 vacuous-pass basis corrected). | L0 pending |
 | 3.2 | Sprint 12 / Phase 4 | Additive amendment per L0-directive (path-to-beta-spec §8 multi-user realization). Added: LMA12 (user ownership axiom); userId field on SubstrateWriteInput + StateChangeRecord; userId presence validation in SW1 (SW1_USERID_MISSING error); userId atomic commit note in SW3 (LMA4 + LMA12); userId index in §3.11 (required, not optional); vocabulary entry §3.12. Axiom count 11 → 12. Minor version bump per §5.1. | L0 pending |
+| 3.3 | Sprint B1 Shot 3 (2026-05-13) | MA-St17 / MA-I8 / MA-V10 part B amendment apparatus applied per MFv3 v3.3.0 Shot 2. **Δ-A:** §1 Identity table extended with `governsRuntimeCode: true` row + basis prose (LM governs F-memory R0..R4 runtime code); §1.2 Identity-axiom-satisfaction table extended with MA-I8 row. **Δ-B:** §3.13 AxisBasis declarations subsection added (additive per MA-S7 recursive ≼) holding basis declarations for every MA-St17 enumerated-kind declaration at LM — §3.13.3 handoff rules (1: HR-LM1 → l0-ratified-ref to Manual Part II Boundary+Store), §3.13.4 lifecycle events (5: substrate-atom-ref to A-16/A-21/LifecycleState), §3.13.5 judgment inputs (2: J-lm-scope-as-attribute + J-lm-thread-completeness → l0-ratified-ref to Manual loci), §3.13.6 closure rules (7: l0-ratified-ref per closure to Manual loci), §3.13.7 typed shapes (14: mix of substrate-atom-ref to A-01 WAtom + l0-ratified-ref to Manual loci), §3.13.8 procedure steps (6: SW1–SW3 + TQ1–TQ3 → l0-ratified-ref to Manual Part II Store + Part I Substrate loci), §3.13.9 coupling enums (2: substrate-atom-ref to Carrier + A-04 CustodyRow). Total: 37 basis declarations added. **Δ-C:** §3.13.10 MA-V10 part B jurisdiction coverage table declared — Structure axis jurisdictionClaim over `src/features/F-memory/**` + `src/app/api/memory/**` paths; Schema axis jurisdictionClaim over domain + contract + route paths; remaining axes declared n/a per applicability clause. Zero ReferentCitations at v3.3; partial-drift declared per MA-V11 vacuous-pass with explicit basis prose targeting Sprint B2 close. **Δ-D:** AmendmentProvenance recorded at §3.13.11; §4.1 E1 updated to G-I1–G-I8 (PASS); §4.3 E3 updated to G-St1–G-St17 with explicit G-St17 declaration count (PASS); §4.4 E4 updated to G-V10 part B PASS-with-partial-drift-declared; this change log entry added. Version transition v3.2 → v3.3 per MA-L1 additive-only. Manual citations pin `manualVersion: '13.0'`. Zero axiom invariant predicates changed; zero gate predicates changed; zero schema shapes changed; zero handoff rule contracts changed; primitive instance counts unchanged. Apparatus declarations added. | L0 (Sprint B1 Shot 3) |
+| 3.3 (Shot 5 cleanup) | Sprint B1 Shot 5 (2026-05-13) | Sprint B1 close audit findings closed. **F-B1-Audit-1:** §1 Identity table version field 3.2 → 3.3 (post-amendment value brought in line with own framework version). **F-B1-Audit-2:** §6.2 HR-LM1 `to:` field `Living Memory v3.2` → `Living Memory v3.3` (carrier-version reference corrected). **F-B1-Audit-4:** §1 Identity table `adjacentFrameworks` row removed entirely — residue eliminated at standards tier alongside MFv3 v3.3.0 → v3.3.1 §2.1 MetaframeworkInput residue cleanup; the input field carried zero downstream consumers at apparatus tier (no axiom referenced it, no gate tested it, no output field populated from it, no consumer in framework-audit / registry / amendment-propagation); the §1 Identity row was carried forward by template-copy convention, not by GeneratedFrameworkTemplate output schema declaration. **F-B1-Audit-5:** §3.13.11 AmendmentProvenance scope row 4 stray `§4.5` reference removed (LM has no §4.5 — Validity section runs §4.1 through §4.4). **Δ:** §3.13.12 AmendmentProvenance row added recording Shot 5 cleanup with L0 authorityClaim; this §8 row added. No content changes outside the enumerated edits. No version bump (LM stays v3.3 — additions are corrective patches to existing v3.3 content). Self-audit results unchanged — G-I8 / G-St17 / G-V10 part B outcomes preserved. F-B1-Audit-4 closes by structural dissolution: removal at apparatus + standards tiers eliminates both the symptom (asymmetric carriage across sibling standards) and the cause (non-load-bearing input field). | L0 (Sprint B1 Shot 5) |
 
 ---
 
-*End of living-memory.md v3.2 — Sprint 12 Phase 4.*
+*End of living-memory.md v3.3 — Sprint B1 Shot 5 cleanup.*

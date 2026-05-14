@@ -1,11 +1,13 @@
-# perimeter-standard-v1-0-1
+# perimeter-standard-v1-1
 
 **Kind:** Framework
 **Level:** L3
 **Mode:** structural (known → structured)
+**Version:** v1.1
 **Instance of:** `GeneratedFrameworkTemplate` (metaframework-v3-1 §2.2)
-**Rendered by:** generation-procedure-v1-0 v1.1.6 under metaframework-v3-1 v3.2.7
-**Cross-framework input:** Living Memory v3.1 (carrier; perimeter writes typed signal as `SubstrateWriteInput` consumed at HR-LM1 receive-side), Multi-Instance Standard v2.3 (correlation reference upstream), Artifact Standard v2.2 (downstream — program emissions cross perimeter as dispatches)
+**Rendered by:** generation-procedure-v1-0 v1.1.7 under metaframework-v3-1 v3.3.1
+**Authority:** L0 confirmed (Sprint B1 Shot 3 — MA-St17 / MA-I8 / MA-V10 part B amendment apparatus applied)
+**Cross-framework input:** Living Memory v3.3 (carrier; perimeter writes typed signal as `SubstrateWriteInput` consumed at HR-LM1 receive-side — version bump from v3.1 reference at v1.0.1 to v3.3 at this amendment per Sprint B1 Shot 3 LM cascade), Multi-Instance Standard v2.3 (correlation reference upstream), Artifact Standard v2.2 (downstream — program emissions cross perimeter as dispatches)
 
 This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.2 output schema. Every section heading below populates the corresponding GeneratedFrameworkTemplate top-level field (identity, schema, structure, validity, lifecycle, coupling, judgment, plus change log, self-audit, and provenance per v3-1-spec §4.4 file-specific placement).
 
@@ -25,20 +27,20 @@ Perimeter Standard fills the **perimeter governing-framework slot** declared at 
 | `kind` | `Framework` (per substrate §4 A-10 `Kind` enum; consumed by reference; string-typed) |
 | `mode` | `structural` (per substrate §2 Mode enum; `known → structured`) |
 | `level` | `L3` (per substrate §5 AuthorityLevel; consumed by reference) |
-| `version` | `1.0.1` (per substrate §7 Semver) |
+| `version` | `1.1` (per substrate §7 Semver; v1.0.1 → v1.1 per MA-L1 additive at Sprint B1 Shot 3) |
 | `ownershipTemplate` | `Human` (per substrate §4 A-11 Ownership enum; consumed by reference; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (per substrate §4 A-11 Ownership enum) |
 | `stateTemplate` | `declared` (per substrate §9 LifecycleState; consumed by reference) |
 | `stateApplied` | `declared` (initial; transitions to `applied` on first emission via §5.3 post-L0-confirmation) |
 | `genesis` | see §1.1 GenesisDeclaration below |
-| `carrier` | `named` → `living-memory` v3.1 (per substrate §9 Carrier enum; applied §6.1; perimeter writes typed signal via `SubstrateWriteInput` consumed at LM HR-LM1 receive-side; structurally distinct from VS/RS/Plan AS-carriered pattern because perimeter does not emit artifacts about its work — it emits the typed signal itself) |
+| `carrier` | `named` → `living-memory` v3.3 (per substrate §9 Carrier enum; applied §6.1; perimeter writes typed signal via `SubstrateWriteInput` consumed at LM HR-LM1 receive-side; structurally distinct from VS/RS/Plan AS-carriered pattern because perimeter does not emit artifacts about its work — it emits the typed signal itself) |
 | `primitive` | `boundary-crossing` (framework-local atomic unit; defined §3.9 Vocabulary) |
 | `consumes` | untyped arrival surface (boundary inbound), typed dispatch request (program-emitted boundary outbound), `PerimeterBinding` instance, channel registry, identity resolution registry |
 | `produces` | typed `BoundaryCrossingRecord` (intake direction → ready for LM `SubstrateWriteInput`; dispatch direction → governed dispatch with audit trail) |
-| `consumedBy` | Living Memory v3.1 (intake-direction state-changes via HR-PS-LM1), program-direction consumers (programs receiving typed arrivals), audit consumers, observability replay |
-| `adjacentFrameworks` | Living Memory v3.1 (carrier — receive-side at HR-LM1), Multi-Instance Standard v2.3 (correlation upstream), Artifact Standard v2.2 (downstream emission validation; program emissions cross perimeter as dispatches), domain L3 frameworks (consumers — every program operating across boundary honors PS contract), framework-audit v1.3.6 (distinct concern; see scopeOut) |
-| `referentCitations` | `[]` (empty array per MF v3.2.7 §2.2 `GeneratedFrameworkTemplate.schema.referentCitations: ReferentCitation[]` slot; default for frameworks declaring zero spec↔referent citations per substrate §10.1 S4 + MA-V11 vacuous-pass clause. **Precedent: Verification Standard v1.0 §1 Identity, Research Standard v1.0 §1 Identity, dissolved Cognitive Standard v1.2.2 §1 Identity** establish the pattern for new L3 frameworks at first ratification with zero code referents. At this version the field is empty: G-V10 evaluates `applicability='n/a'` with basis 'zero ReferentCitation declarations at this version; promotion scheduled at first src-side wire cycle (Sprint 9 wire-in cycle) when implementation surfaces consume the axioms — at this delivery PS declares the structural rule set; first runtime referent emerges at Sprint 9 substrate-write callers + thread-query callers per F-009 implementation' — vacuous-pass per MA-V11. G-S8 / G-L11 likewise vacuous-pass.) |
-| `scopeOut` | `['substrate atom shape (owned by Living Memory v3.1; PS does not declare what state-changes look like once they land — only what conditions must be met before submission)', 'cross-cutting redeclaration (owned by Manual SPEC-v11.0 §IV — PS declares boundary-side enforcement rules; does not redeclare source-authority or act-vs-reference as cross-cutting concerns)', 'program-domain rules (owned by each program L3 framework — PS declares the boundary contract programs must honor at their dispatch, not the program internals)', 'authority semantics (owned by Manual §I.6 + §II.8 — PS declares enforcement rules at the boundary; does not redeclare what authority means)', 'F-chat governing framework (separate domain — F-chat operates at perimeter-baseline + perimeter framework; F-chat may surface its own governing framework in a later sprint per Manual III.8 row)', 'aggregate-signal-read mechanics (owned by LM v3.2 / post-beta per Manual III.4 bootstrap-mode acknowledgment annotation — PS consumes signals as they arrive, does not declare aggregation primitives)', 'runtime execution of boundary typing (owned by L4 program — F-identity slice middleware; PS declares the rule set, F-identity executes)', 'F-009 implementation wire-in (owned by Sprint 9 — substrate-write callers, thread-query callers, F-router registration, wearer-authority program; PS declares the orphan rule + substrate-write rule, Sprint 9 wires programs to honor them)', 'graph physics (owned by Living Memory)', 'B-direction symmetric re-derivation at B3 (post-beta)']` |
+| `consumedBy` | Living Memory v3.3 (intake-direction state-changes via HR-PS-LM1), program-direction consumers (programs receiving typed arrivals), audit consumers, observability replay |
+| `scopeOut` | `['substrate atom shape (owned by Living Memory v3.3; PS does not declare what state-changes look like once they land — only what conditions must be met before submission)', 'cross-cutting redeclaration (owned by Manual v13.0 — PS declares boundary-side enforcement rules; does not redeclare source-authority or act-vs-reference as cross-cutting concerns)', 'program-domain rules (owned by each program L3 framework — PS declares the boundary contract programs must honor at their dispatch, not the program internals)', 'authority semantics (owned by Manual Part I Wearer-L0 + System-L0 — PS declares enforcement rules at the boundary; does not redeclare what authority means)', 'F-chat governing framework (separate domain — F-chat operates at perimeter-baseline + perimeter framework; F-chat may surface its own governing framework in a later sprint)', 'aggregate-signal-read mechanics (owned by LM v3.3 / post-beta — PS consumes signals as they arrive, does not declare aggregation primitives)', 'runtime execution of boundary typing (owned by L4 program — F-identity slice middleware; PS declares the rule set, F-identity executes)', 'F-009 implementation wire-in (owned by Sprint 9 — substrate-write callers, thread-query callers, F-router registration, wearer-authority program; PS declares the orphan rule + substrate-write rule, Sprint 9 wires programs to honor them)', 'graph physics (owned by Living Memory)', 'B-direction symmetric re-derivation at B3 (post-beta)']` |
+| `governsRuntimeCode` | `true` (per MA-I8, added Sprint B1 Shot 2 v3.3.0). Basis: PS governs F-identity slice runtime code at the unitary perimeter site (`src/proxy.ts` per current source — PS v1.0.1 prose referenced `src/middleware.ts`; the actual unitary site is `src/proxy.ts` and slice resources under `src/features/F-identity/**` host the supporting wires per R0..R4 layering). The axiom set (PA1..PA-I), gate set (G-PS1..G-PS-I), four-cell governance map, channel-authority bindings, and orphan-rule paired-write contract govern source paths under the unitary site + slice. Declaration of source-governing intent is now mechanical per MA-I8; jurisdictionClaim per axis declared at §3.13 below. |
+| `referentCitations` | `[]` (zero citations at v1.1 — partial-drift carried forward from v1.0.1 with explicit declaration per MA-V11 vacuous-pass. Basis prose: `"Sprint B2 source-cleanup will author ReferentCitations covering jurisdictionClaim per MA-V10 part B amendment trigger. At v1.1 the standards-tier declarations are tightened (MA-I8 governsRuntimeCode true, MA-St17 basis declarations populated at §3.13, jurisdictionClaim declared per source-governing axis at §3.13); the runtime-side citation set materializes in Sprint B2 alongside LM cascade. Vacuous-pass at this version is honest declared drift, not silent gap. G-V10/G-S8/G-L11 vacuous-pass at part A; G-V10 part B applicability='n/a' with declared basis per §3.13.11."`) |
 
 ### §1.1 GenesisDeclaration
 
@@ -70,6 +72,7 @@ Per metaframework §3.2 Identity-axis axioms MA-I1..MA-I7:
 | MA-I5 | Genesis declared §1.1; parent framework + generation procedure named per substrate A-14. |
 | MA-I6 | Authority source classified per Phase 1.2 J-authority-source-classification: L0 authority for template ownership; system-under-L0 for applied. |
 | MA-I7 | Identity declarations are mutually consistent (Mode + Kind + Level alignment: structural-mode + Framework-kind + L3 is a valid triple per substrate §2.4 + §1.5 canonical kind registry; precedent: Plan Standard v2.2 declares same triple). |
+| MA-I8 | `governsRuntimeCode = true` declared §1 with basis prose per Sprint B1 Shot 2 v3.3.0 amendment (boolean type-check class per substrate §6.3). |
 
 ### §1.3 MA-G13 four-property test (framework classification)
 
@@ -133,7 +136,7 @@ BoundaryDispatchRequest = {
 
 ### §2.2 Output — `BoundaryCrossingRecord`
 
-Per MA-S2 (output is W-ATOM). PS carrier = `named` → `living-memory` v3.1: PS's `BoundaryCrossingRecord` rides as `SubstrateWriteInput` consumed at LM HR-LM1 (receive-side declared at LM §6.2; PS send-side declared at §6.2 below).
+Per MA-S2 (output is W-ATOM). PS carrier = `named` → `living-memory` v3.3: PS's `BoundaryCrossingRecord` rides as `SubstrateWriteInput` consumed at LM HR-LM1 (receive-side declared at LM §6.2; PS send-side declared at §6.2 below).
 
 ```
 BoundaryCrossingRecord = {
@@ -182,7 +185,7 @@ BoundaryCrossingRecord = {
 | `Result<T, E>` | primitives.ts |
 | `AppError` | primitives.ts |
 
-### §2.5 Consumed types (from living-memory v3.1, by reference)
+### §2.5 Consumed types (from living-memory v3.3, by reference)
 
 | Type | Home | Consumed at |
 |---|---|---|
@@ -509,25 +512,210 @@ Framework-local terms declared at point of use per PR1 (substrate §10.2). Subst
 | `ResolutionOutcomeKind` | §2.7 + types.ts | enum `'bound-to-existing-Ref' \| 'new-Ref-created' \| 'ambiguous-pending-disambiguation'` |
 | `ReversibilityFlag` | §2.7 + types.ts | enum `'reversible' \| 'irreversible' \| 'n/a'` |
 
+### §3.13 AxisBasis declarations (Sprint B1 Shot 3 v1.1 amendment, additive per MA-S7 recursive scope)
+
+Per MA-St17 (metaframework v3.3.1 §3.2.1): every PS declaration in the enumerated kind set (axes, sub-axes, handoff rules, lifecycle events, judgment inputs, closure rules, typed shapes, procedure steps, coupling enums) that crosses boundary 2 (MFv3 → standards) and is not already grounded by another declared mechanism (P1–P8 instance grounding by PR1; axiom grounding by own derivation; gate grounding by `tests` binding; leaves are P3 instances grounded by PR1) declares a basis conforming to substrate §4 A-22 AxisBasis. Every basis below traces by natural derivation. No force-fit. Where a kind has no instances (P8 = 0 per §3.7), the row is omitted (the MA-St17 quantifier ranges over declared instances only).
+
+Manual citations pin `manualVersion: '13.0'`. Manual v13.0 reorganizes the prior §I/§II/§IV numeric structure into named Parts (Substrate, Memory Loop, Domain Loop, Governance Loop); citations below map by content (Part + subsection name) per direction. Substantive content cited (unitary Boundary, four-cell governance, channel-authority binding, surface-form resolution, correlation as Boundary-internal concern, directional-symmetry through intake/dispatch flow, substrate authority unconditional, system-L0 governance) is stable; Manual v13.1's coming Part IV revision does not invalidate these references.
+
+#### §3.13.1 Axes basis
+
+Six P1 Axis instances declared at §3.3 (Direction, Arrival Typing, Authority Enforcement, Channel Classification, Identity Resolution, Correlation). All ground via `l0-ratified-ref` to Manual v13.0 substantive content; ratification carried by `{level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com'}` per §6.6 Provenance contract.
+
+| Axis | Basis kind | `manualLocus` (`manualVersion: '13.0'`) | Basis prose |
+|---|---|---|---|
+| **Direction** | `l0-ratified-ref` | `'LIV Manual Part II — Memory Loop, Boundary + The loop'` | The Manual Part II Boundary subsection declares "Every signal entering typed jurisdiction crosses here. Every signal leaving crosses here" — the binary intake/dispatch structure is the Manual's directional commitment. Part II "The loop" enumerates the flow as "Modality → Boundary types it → Mediator → Store... Mediator carries the response → Boundary untypes it → Modality emits it to the wearer" — both directions traversing the Boundary symmetrically. PA1 (`record.direction ∈ {'intake', 'dispatch'}`) is the mechanical realization of this binary; PA2 (directional symmetry closure) is the structural commitment that every concern governed for intake has correspondent for dispatch or scope-out justification — realizing the Manual's "Every signal entering... Every signal leaving" symmetry. |
+| **Arrival Typing** | `l0-ratified-ref` | `'LIV Manual Part II — Memory Loop, Boundary (Act or reference table)'` | The Manual Part II Boundary subsection contains the four-cell table verbatim: `Reference/Intake = Lightweight; Reference/Dispatch = Lightweight; Act/Intake = Confirmation, audit, reversibility; Act/Dispatch = Strongest`. The axis maps `(direction × disposition) → governanceLevel` per this table. PA-T1 (disposition enum membership), PA-T2 (cell-governance computation), PA-T3 (reference-no-mutation gate), PA-T4 (act-dispatch reversibility flag) realize the four-cell governance at the BCR level. |
+| **Authority Enforcement** | `l0-ratified-ref` | `'LIV Manual Part I — Wearer-L0 (Substrate authority unconditional) + System-L0 + Part II — Memory Loop, Boundary (Authority enforcement subsection)'` | Manual Part II Boundary declares: "Authority enforcement. Boundary enforces authority at the crossing. Scope access is checked here. System-L0 and Wearer-L0 confirmations are recognized here. No unauthorized signal reaches Store." Part I Wearer-L0 declares substrate authority unconditional for wearer scope; Part I System-L0 declares structural-shape authority. PA-A1 (validation), PA-A2 (wearer-scope rule), PA-A3 (system-scope rule), PA-A4 (orphan rule per F-009 paired-write), PA-A5 (dispatch validation per Manual directional flow), PA-A6 (unitary enforcement per Part II Boundary "One Boundary per LIV instance") realize the per-channel authority mechanics + substrate-write authority binding declared in the Manual. |
+| **Channel Classification** | `l0-ratified-ref` | `'LIV Manual Part II — Memory Loop, Boundary (Source authority + Channel classification subsections)'` | Manual Part II Boundary declares: "Source authority — who sent it: Wearer-L0, System-L0, AI response, scheduled trigger, integration event, internal derivation. Each channel has different authority semantics; per-channel governance is enforced at the Boundary." And under "Boundary mechanics": "Channel classification — assigning source authority per channel." PA-Cn1 (declaration non-empty), PA-Cn2 (enum-membership; open-vocabulary per Manual's enumeration), PA-Cn3 (channel-authority binding), PA-Cn4 (channel preservation through HR-PS-LM1 to LM SourceRef) realize the per-channel authority semantics declared in the Manual. |
+| **Identity Resolution** | `l0-ratified-ref` | `'LIV Manual Part II — Memory Loop, Boundary (Surface-form-to-reference matching) + Part I — Wearer-L0 (Identity curation through utterance — bypass case)'` | Manual Part II Boundary declares under "Boundary mechanics": "Surface-form-to-reference matching — resolving wearer-stated identifiers to substrate identity references at intake." Part I Wearer-L0 declares the bypass case: "Identity curation through utterance — when the wearer says 'X means Y,' the resulting state-change writes the disambiguation as ordinary content. No domain program mediates this." PA-IR1 (resolution attempt), PA-IR2 (outcome enum with three values), PA-IR3 (geometric respect — no cluster pre-resolution at perimeter; clusters are read-time emergent per LM commitment), PA-IR4 (disambiguation deferral — no heuristic guess; wearer-side disambiguation per the bypass case) realize the resolution mechanics. |
+| **Correlation** | `l0-ratified-ref` | `'LIV Manual Part II — Memory Loop, Boundary (Boundary mechanics — Correlation)'` | **Memory #17 closure.** Manual Part II Boundary declares verbatim under "Boundary mechanics. The Boundary owns the following as program-internal concerns, not cross-loop concerns: Correlation — linking arrivals from one originating interaction." This is the substantive Manual commitment that grounds the Correlation axis. PA-Co1 (correlation declaration with self-reference for un-correlated crossings), PA-Co2 (correlation membership index), PA-Co3 (perimeter-only — not cross-cutting to programs) realize the Manual's "program-internal concern, not cross-loop concern" framing. The prior epistemic flag (axis lifted from prior Manual §IV.2 perimeter-mechanic placement at PS derivation, with substrate-atom-missing concern) is now closed: the Manual's named-Part Boundary subsection at v13.0 is the natural-derivation source. |
+
+PA-I (Identity-tier unitarity assertion, §1.4 + §3.6) is an axiom; excluded from MA-St17 quantifier per axiom-own-derivation. Its derivation traces to Manual Part II Boundary: "One Boundary per LIV instance — unitary by structural necessity. A distributed boundary cannot be checked; a unitary boundary can." Documented at §1.4 already.
+
+#### §3.13.2 Sub-axes basis
+
+Per §3.4 enumeration: 24 sub-axis rows declared (3 Direction + 4 Arrival Typing + 6 Authority Enforcement + 4 Channel Classification + 4 Identity Resolution + 3 Correlation). The §3.2 P2 count of 13 is a pre-existing v1.0.1 count-discrepancy carried forward at this amendment per additive-only discipline; this v1.1 amendment surfaces the count gap as a finding (forward sprint resolves; not in this shot's amendment scope) and declares basis per enumerated row.
+
+Each sub-axis grounds via `l0-ratified-ref` to the same Manual locus as its parent axis (per §3.13.1 above); sub-axis basis prose is the parent axis's basis prose specialized to the sub-axis's particular structural decomposition. The discriminating note per sub-axis is the structural-decomposition rationale.
+
+| Sub-axis (id) | Parent axis | Basis specialization |
+|---|---|---|
+| `Direction/inward` | Direction | Intake-side of binary direction enum; ground = Manual Part II Boundary intake-flow. |
+| `Direction/outward` | Direction | Dispatch-side of binary direction enum; ground = Manual Part II Boundary dispatch-flow. |
+| `Direction/symmetry` | Direction | The closure rule binding intake to dispatch (or to declared scope-out); ground = Manual Part II "Every signal entering... Every signal leaving" symmetric flow. |
+| `Arrival Typing/disposition` | Arrival Typing | The 'act' \| 'reference' enum; ground = Manual Part II Boundary "Act or reference" property declaration. |
+| `Arrival Typing/cell-governance` | Arrival Typing | The four-cell mapping; ground = Manual Part II Boundary four-cell table verbatim. |
+| `Arrival Typing/mutation-gate` | Arrival Typing | Reference dispositions produce no substrate mutation; ground = Manual Part II Boundary table where reference-direction cells are "Lightweight... no confirmation required" (no mutation implied) versus act cells which mutate. |
+| `Arrival Typing/reversibility` | Arrival Typing | Act-dispatch carries reversibility flag; ground = Manual Part II Boundary table act-dispatch cell = "Strongest — world-effect external to LIV requires confirmation, audit, reversibility where possible." |
+| `Authority Enforcement/intake-validation` | Authority Enforcement | Per-arrival authority validation; ground = Manual Part II Boundary "Authority enforcement. Boundary enforces authority at the crossing." |
+| `Authority Enforcement/wearer-scope` | Authority Enforcement | Wearer-scope substrate writes require Wearer-L0; ground = Manual Part I Wearer-L0 "Substrate authority unconditional." |
+| `Authority Enforcement/system-scope` | Authority Enforcement | System-scope writes require System-L0; ground = Manual Part I System-L0 "declarative authority over the structural shape of LIV." |
+| `Authority Enforcement/orphan-rule` | Authority Enforcement | Paired-write contract for program emissions; ground = F-009 governance closure (paired records substrate + artifact-store) is the operational realization of Manual Part II Boundary "Boundary acts on every crossing... transforms" — every emission must complete both sides honestly. |
+| `Authority Enforcement/dispatch-validation` | Authority Enforcement | Act-dispatch confirming authority; ground = Manual Part II Boundary directional flow + four-cell act-dispatch governance. |
+| `Authority Enforcement/unitary-site` | Authority Enforcement (cross-axis to PA-I) | Authority enforcement at the one Boundary site; ground = Manual Part II Boundary "One Boundary per LIV instance — unitary by structural necessity." |
+| `Channel Classification/declaration` | Channel Classification | Every arrival assigned ChannelKind; ground = Manual Part II Boundary "Source authority — who sent it" stamped at Boundary. |
+| `Channel Classification/enumeration` | Channel Classification | Channel enum admits Manual's seven named channels plus open-vocabulary extension; ground = Manual Part II Boundary enumeration ("Wearer-L0, System-L0, AI response, scheduled trigger, integration event, internal derivation"). |
+| `Channel Classification/authority-binding` | Channel Classification (cross-axis to Authority Enforcement) | Per-channel authority set; ground = Manual Part II Boundary "Each channel has different authority semantics; per-channel governance is enforced at the Boundary." |
+| `Channel Classification/preservation` | Channel Classification (cross-axis to carrier handoff) | Channel value carried through to LM SourceRef.channel; ground = Manual Part II Boundary "Every typed signal carries four properties stamped at the Boundary and preserved by Store." Channel is one of the four. |
+| `Identity Resolution/attempt` | Identity Resolution | Every arrival with surface-form identifiers triggers resolution; ground = Manual Part II Boundary "Surface-form-to-reference matching — resolving wearer-stated identifiers to substrate identity references at intake." |
+| `Identity Resolution/outcome-enum` | Identity Resolution | Three-value resolution outcome; ground = the Manual's commitment to wearer-side identity curation (Part I Wearer-L0 bypass case "Identity curation through utterance") forces three outcomes: existing-match (bind-to-existing-Ref), new (new-Ref-created), and unresolvable-without-wearer-input (ambiguous-pending-disambiguation). |
+| `Identity Resolution/geometric-respect` | Identity Resolution | Negative invariant: no cluster pre-resolution at perimeter; ground = LM commitment (identity-by-reference; cluster geometry read-time emergent — LMA5, LMA8) which the perimeter must respect by not pre-computing cluster membership. Manual Part II Boundary's surface-form-to-reference matching is single-identity resolution, not cluster resolution; cluster geometry is Part II Store / Internal-operations territory. |
+| `Identity Resolution/disambiguation-deferral` | Identity Resolution | Negative invariant: no heuristic Ref assignment; ground = Manual Part I Wearer-L0 "Identity curation through utterance — when the wearer says 'X means Y'... No domain program mediates this." Perimeter heuristic guess would violate the wearer's exclusive authority over identity curation. |
+| `Correlation/declaration` | Correlation | Every crossing carries CorrelationRef; ground = Manual Part II Boundary "Correlation — linking arrivals from one originating interaction." Every crossing has at minimum a self-correlation (its own crossingId) for un-linked arrivals. |
+| `Correlation/membership` | Correlation | Correlation-index query at HR-PS3; ground = "linking arrivals from one originating interaction" requires a per-crossing-set membership query mechanism. |
+| `Correlation/perimeter-only` | Correlation | Negative invariant: no cross-cutting promotion to program payloads; ground = Manual Part II Boundary's framing of Correlation as a "program-internal concern, not cross-loop concern" — perimeter-internal, not propagated. |
+
+#### §3.13.3 Axioms basis
+
+Axioms grounded by own derivation per MA-St17 exclusion clause. No A-22 basis required at the axiom kind. Subsection reserved for parity with sibling-standard declarations where the subsection documents axiom-axis binding rationale.
+
+#### §3.13.4 Handoff rules basis
+
+| ID | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| **HR-PS1** | `substrate-atom-ref` | `atomId: 'A-03'` (HandoffContract) | HR-PS1 (program/route → PS intake claim receipt) conforms to substrate §4 A-03 HandoffContract shape. Direction (inbound), carrier applicability, captureShape per substrate §8.2 amended P6. Substrate-tier grounding. |
+| **HR-PS2** | `substrate-atom-ref` | `atomId: 'A-03'` (HandoffContract) | HR-PS2 (program/route → PS dispatch request submission) conforms to substrate §4 A-03 HandoffContract shape. Same shape basis as HR-PS1; carrier applicability ['self', 'named']; captureShape declared §6.3. Substrate-tier grounding. |
+| **HR-PS3** | `substrate-atom-ref` | `atomId: 'A-03'` (HandoffContract) | HR-PS3 (PS → consumer return path) conforms to substrate §4 A-03 HandoffContract shape. Carrier applicability ['named'] per PS's own carrier = named. Substrate-tier grounding. |
+| **HR-PS-LM1** | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary + Store (Boundary types it → Mediator carries it → Store accumulates it)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com'}` | HR-PS-LM1 (PS → LM intake substrate-write emission) is the mechanical realization of the Manual's Memory Loop flow at the Boundary→Store transit. The Manual Part II "The loop" declares: "Wearer signal arrives at a Modality channel → Modality presents it to the Boundary → Boundary types it → Mediator carries it → Store accumulates it." HR-PS-LM1 captures the Boundary→Store transit at the typed-signal level for intake direction. Send-side matches LM HR-LM1 receive-side contract. L0-ratified at PS v1.0; carried forward unchanged at v1.0.1, v1.1 (carrier version bumped to LM v3.3 per Sprint B1 Shot 3 sweep — handoff contract shape unchanged). |
+| **HR-PS4** | `substrate-atom-ref` | `atomId: 'A-03'` (HandoffContract) | HR-PS4 (PS → observability/replay/audit/downstream BCR readers) conforms to substrate §4 A-03 HandoffContract shape with `diagnosticSignificance = false` → captureShape n/a per substrate §8.2 P6 amended discipline. Substrate-tier grounding. |
+
+#### §3.13.5 Lifecycle events basis
+
+| Event (locus) | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `version transition` (§5.1) | `substrate-atom-ref` | `atomId: 'A-16'` (AmendmentProvenance) + `atomId: 'A-21'` (StateOrdering — lifecycle states index into A-21 positions) | Version transitions are AmendmentProvenance instances per substrate §4 A-16; transitions occur between LifecycleState positions declared at substrate §9, which in turn index five-state ordering at A-21 per MFv3 v3.3.0-shot1 amendment. Strongest grounding. |
+| `amendment trigger` (§5.2) | `substrate-atom-ref` | `atomId: 'A-16'` (AmendmentProvenance) | Gap-driven or L0-directed amendments materialize as AmendmentProvenance instances per substrate §4 A-16. Substrate-tier grounding. |
+| `confirmation gate` (§5.3) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part IV — Governance Loop, Derivation (System-L0 confirmation is required at every generation regardless of path)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Manual declares "System-L0 confirms every derivation before a standard takes effect" + "System-L0 confirmation is required at every generation regardless of path." PS's confirmation gate at each version transition + first-run logging is the realization of this commitment at the standards-tier. L0-ratified at PS v1.0. |
+| `escalation state` (§5.4) | `substrate-atom-ref` | `atomId: 'LifecycleState'` (substrate §9) | Escalation state is a position in the framework lifecycle; declared with status/gap/requiredMode fields per Work Protocol Layer 0 escalation discipline. Grounds in substrate §9 LifecycleState enum (extensible via amendment per MA-L1). Substrate-tier grounding. |
+| `judgment deprecations` (§5.5) | `substrate-atom-ref` | `atomId: 'A-16'` (AmendmentProvenance — judgment deprecation is an amendment event) + `atomId: 'LifecycleState'` (substrate §9 — deprecated state) | Judgment deprecations are amendment events transitioning a J-input into deprecated state. Grounds in substrate atoms A-16 + §9 LifecycleState. Substrate-tier grounding. |
+
+#### §3.13.6 Judgment inputs basis
+
+| ID | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| **J-perimeter-observation** | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Boundary acts on every crossing... transforms) + Part IV — Governance Loop (Substrate accumulates signal across all programs → Derivation reads aggregate signal)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | J-perimeter-observation is the informational/diagnostic shape exposing PS's runtime characteristics (crossings observed, distributed-site detections, orphan count, ambiguous resolutions persisted, channel-enumeration gaps, correlation-index health) to L0 observation. It realizes the Manual's commitment that the governance loop reads aggregate signal (Part IV "Substrate accumulates signal across all programs → Derivation reads aggregate signal → gap identified") at the Boundary's transform point (Part II "Boundary acts on every crossing... transforms"). The J-input does not amend axioms or gates; it surfaces operational signal for L0 review per §5.3 confirmation gate. L0-ratified at PS v1.0. |
+
+#### §3.13.7 Closure rules basis
+
+| Closure (locus) | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `Sub-axis attachment closure` (§3.4 note — "several sub-axes share a leaf because the axiom's mechanical condition is unitary at sub-axis cluster level") | `substrate-atom-ref` | `atomId: 'A-08'` (LeafRef) | The closure rule that sub-axes may share a leaf when axiom condition is unitary at sub-axis cluster level is grounded by substrate §4 A-08 LeafRef + MA-St2 leaf-atomicity per metaframework §3.2. Substrate-tier grounding; same pattern RS §3.4 establishes. |
+| `DirectionKind enum closure` (§2.7 — closed: 'intake' \| 'dispatch') | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Every signal entering... Every signal leaving)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Closed binary enum; ground = the Manual's binary directional structure (entering / leaving). No third value declared because the Manual's directional commitment is binary. L0-ratified at PS v1.0. |
+| `DispositionKind enum closure` (§2.7 — closed: 'act' \| 'reference') | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Act or reference — Acts mutate substrate or act on the world. References read or query without effect)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Closed binary enum; ground = Manual Part II Boundary's "Act or reference" property declaration. L0-ratified at PS v1.0. |
+| `ChannelKind enum closure` (§2.7 — open: seven named + extensible per S3) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Source authority enumeration)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Open-vocabulary enum admitting the Manual's seven named channels + additive extension per substrate S3. Ground = Manual Part II Boundary's enumeration ("Wearer-L0, System-L0, AI response, scheduled trigger, integration event, internal derivation") + Modality plurality commitment (Part II Modality: "Modality programs are plural by construction. One channel per program. New channels enter the system as new Modality programs without restructuring the loop"). New channel kinds enter as new enum values. L0-ratified at PS v1.0. |
+| `ResolutionOutcomeKind enum closure` (§2.7 — closed: three values) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Surface-form-to-reference matching) + Part I — Wearer-L0 (Identity curation through utterance)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Closed three-value enum; ground = the exhaustive resolution disposition per Manual commitments: an arrival surface form either binds to an existing Ref (already curated), creates a new Ref (fresh identity), or surfaces as ambiguous-pending-disambiguation (deferred to wearer per Part I Wearer-L0 identity-curation-through-utterance bypass case). No fourth disposition possible because the Manual's identity authority commitment is exhaustive at these three. L0-ratified at PS v1.0. |
+| `ReversibilityFlag enum closure` (§2.7 — closed: three values) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Act-dispatch — Strongest, world-effect external to LIV requires confirmation, audit, reversibility where possible)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Closed three-value enum (reversible | irreversible | n/a); ground = Manual Part II Boundary act-dispatch cell declares reversibility requirement "where possible" (admitting irreversible as a real case); n/a covers reference dispositions per PA-T4 binding. L0-ratified at PS v1.0. |
+| `MECE closure over axes` (§3.3 — six axes orthogonal + exhaustive per §C.6 derivation) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Authority enforcement + Signal properties + Boundary mechanics subsections collectively)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | The six-axis MECE decomposition over PS's concern space grounds in the Manual's enumeration of Boundary concerns: directional flow (Direction), four-cell act/reference governance (Arrival Typing), authority enforcement (Authority Enforcement), per-channel governance + signal-property stamping (Channel Classification), surface-form-to-reference matching (Identity Resolution), correlation as program-internal concern (Correlation). Each concern is named explicitly in Manual Part II Boundary subsections; none is omitted; none redundantly covers another (per §3.3 orthogonality verification). L0-ratified at PS v1.0. |
+| `Vocabulary closure` (§3.9 — declared terms) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II + Part I + this framework's declaration sites'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | Closed set of PS framework-local atoms declared at §3.9 (boundary-crossing, intake, dispatch, act, reference, cell-governance, unitary site, orphan, paired-write contract, permitted-authority set, correlation index, geometric respect, disambiguation deferral, PerimeterBinding, per-axis Positional enums, enum aliases). New terms enter additively via amendment per MA-L1 + MA-S7. L0-ratified per declared term at the version it was added (v1.0 baseline). |
+
+#### §3.13.8 Typed shapes basis
+
+| Shape | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `BoundaryArrival` (§2.1) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — input atom shape) | Input shape conforms to substrate §4 A-01 WAtom under MA-S1 (input-is-W-ATOM). Field shapes ground out at substrate atoms (AuthorityClaim, ScopeRef) or PS-local atoms (the latter grounded per their own rows below) or LM atoms (the latter grounded by reference per §2.5). |
+| `BoundaryDispatchRequest` (§2.1) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — input atom shape) | Same basis as BoundaryArrival per MA-S1. |
+| `BoundaryCrossingRecord` (§2.2) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — output atom shape) | Output shape conforms to substrate §4 A-01 WAtom under MA-S2 (output-is-W-ATOM). |
+| `ChannelClaim` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Source authority + Channel classification)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom carrying claimed channel kind + surface identifier at intake (subject to PA-Cn1..PA-Cn3 validation). Realizes Manual Part II Boundary's per-channel governance entry point at the arrival side. L0-ratified at PS v1.0. |
+| `IdentityClaim` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Surface-form-to-reference matching)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom carrying surface-form identifier + optional resolution hint at intake (consumed by Identity Resolution axis). Realizes Manual Part II Boundary's surface-form-resolution entry point. L0-ratified at PS v1.0. |
+| `ResolvedIdentity` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Surface-form-to-reference matching) + Part I — Wearer-L0 (Identity curation through utterance)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom carrying per-identity resolution outcome (ref + outcome enum + ambiguity-detail). Realizes the three-disposition outcome per ResolutionOutcomeKind closure (§3.13.7). L0-ratified at PS v1.0. |
+| `CellGovernanceRecord` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Act or reference four-cell table)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom encoding the four-cell governance computation result (cell + governanceLevel + confirmation/audit/reversibility statuses). Direct realization of Manual Part II Boundary four-cell table. L0-ratified at PS v1.0. |
+| `EmissionPairRef` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Boundary acts on every crossing) + F-009 governance closure'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom encoding paired-write contract result (substrateStateChangeId + artifactStoreRecordId). Realizes F-009 governance closure paired-write rule at the BCR record level. L0-ratified at PS v1.0 with F-009 closure. |
+| `AuthorityEnforcementRecord` (§2.7) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Authority enforcement)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local atom encoding the authority-validation result (authorityClaimed + authorityValidated + authorityScopeMatch + validationBasis). Direct realization of Manual Part II Boundary "Authority enforcement" subsection at BCR level. L0-ratified at PS v1.0. |
+| `ArrivalId` (§2.7) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — brand-typed identifier sub-component) | Brand-typed unique identifier; standard typed-shape brand pattern at substrate WAtom tier. |
+| `DispatchId` (§2.7) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — brand-typed identifier sub-component) | Same basis as ArrivalId; brand-typed identifier per WAtom shape pattern. |
+| `CrossingId` (§2.7) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — brand-typed identifier sub-component) | Same basis as ArrivalId; brand-typed identifier per WAtom shape pattern. |
+| `EpochMs` (§2.7) | `substrate-atom-ref` | `atomId: 'A-01'` (WAtom — typed-shape primitive sub-component) | Milliseconds-since-epoch primitive numeric typed-shape; standard WAtom pattern (parallels VS+Plan+RS EpochMs precedent). |
+| `CorrelationRef` (§2.7 — PS-local alias of MI-owned atom) | `l0-ratified-ref` | `manualLocus: 'LIV Manual Part II — Memory Loop, Boundary (Correlation — linking arrivals from one originating interaction)'`, `manualVersion: '13.0'`, `ratification: {level: 'L0'}` | PS-local alias of the MI Standard correlation reference; PS consumes by reference at §2.6 (per A-08 cross-framework atom reference) and declares the perimeter-side correlation-index shape. Manual Part II Boundary names Correlation as Boundary-internal program concern. L0-ratified at PS v1.0. |
+
+#### §3.13.9 Procedure steps basis
+
+**Zero P8 instances** per §3.7 (positive-empty per substrate §8.6 + A-17 — PS Mode = structural; substrate §8.3 binds P8 to generative-only). MA-St17 quantifier ranges over declared instances; zero declared → no basis required per quantifier semantics. Grounding of the empty declaration itself is at substrate §8.6 + A-17 EmptyPrimitiveDeclaration (already declared §3.7).
+
+#### §3.13.10 Coupling enums basis
+
+| Coupling declaration | Basis kind | Reference | Basis prose |
+|---|---|---|---|
+| `carrier = 'named' → 'living-memory' v3.3` (§1, §6.1) | `substrate-atom-ref` | `atomId: 'Carrier'` (substrate §9 declared enum: `'self' \| 'named' \| 'none'`) | Carrier value enum-member per substrate §9; PS-specific binding to `named → living-memory` because PS does not emit artifacts about its work — PS produces typed signal that rides as `SubstrateWriteInput` consumed at LM HR-LM1 receive-side per Manual Part II "Boundary types it → Mediator carries it → Store accumulates it." Version bound to LM v3.3 at this amendment per Sprint B1 Shot 3 LM cascade. Strongest grounding. |
+| Custody table entries (§6.5 — PS-local atoms + cross-framework consumed atoms) | `substrate-atom-ref` | `atomId: 'A-04'` (CustodyRow) | Custody rows conform to substrate §4 A-04 CustodyRow shape per MA-C2. Strongest grounding. |
+
+#### §3.13.11 MA-V10 part B jurisdiction coverage declaration
+
+Per MA-V10 part B (metaframework v3.3.1 §3.2.1): when `governsRuntimeCode = true`, every source-governing axis with declared `jurisdictionClaim` must have ReferentCitations covering its claim, OR declare partial-drift per MA-V11 vacuous-pass with explicit basis prose.
+
+PS's six own axes all govern F-identity slice runtime code at the unitary perimeter site (`src/proxy.ts`) + slice resources under `src/features/F-identity/**`. Note: PS v1.0.1 prose referenced `src/middleware.ts` as the unitary site; the actual current source path is `src/proxy.ts` — this discrepancy is surfaced as a finding in the Sprint B1 Shot 3 delivery report; jurisdictionClaim below declares the actual current path honestly.
+
+| Axis | `jurisdictionClaim` | RC coverage at v1.1 | Partial-drift declaration |
+|---|---|---|---|
+| **Direction** | `['src/proxy.ts', 'src/features/F-identity/contract/perimeter-consultation.ts']` (direction enum populated at BCR construction time inside the unitary site + slice contract layer) | zero ReferentCitations declared | `applicability: 'n/a'`, `basis: "Sprint B2 source-cleanup will author ReferentCitations covering jurisdictionClaim per MA-V10 part B amendment trigger. At v1.1 PA1 + PA2 are declared at standards tier; runtime-side citations binding to direction-assignment + symmetry-closure source lines materialize in Sprint B2. Vacuous-pass at this version is honest declared drift."` |
+| **Arrival Typing** | `['src/proxy.ts', 'src/features/F-identity/contract/perimeter-consultation.ts', 'src/features/F-identity/domain/**']` (disposition + cell-governance + mutation-gate + reversibility computed in the perimeter consultation + domain layer) | zero ReferentCitations declared | Same basis as Direction axis above; partial-drift declared per MA-V11. Sprint B2 closes drift. PA-T1..PA-T4 declared at standards tier; runtime-side citations binding to cell-governance computation source lines + four-cell map lookup deferred. |
+| **Authority Enforcement** | `['src/proxy.ts', 'src/features/F-identity/contract/**', 'src/features/F-identity/exec/execution-check.ts', 'src/features/F-identity/exec/auth-queries.ts', 'src/features/F-identity/app/auth-workflow.ts', 'src/features/F-identity/config/allowlist.ts']` (PA-A1..PA-A6 govern the authority-validation + scope-rule + orphan-rule + dispatch-validation + unitary-enforcement enforcement points across contract, exec, app, and config layers of the F-identity slice) | zero ReferentCitations declared | Same basis pattern as above. Sprint B2 closes drift. Authority Enforcement is the most-jurisdictionally-broad of PS's axes (six axioms across slice layers); RC authoring in Sprint B2 will produce the largest single citation set under MA-V10 part B coverage. |
+| **Channel Classification** | `['src/proxy.ts', 'src/features/F-identity/contract/perimeter-consultation.ts', 'src/features/F-identity/config/oauth-config.ts']` (channel claim at intake + permitted-authority binding at PerimeterBinding source + channel-preservation through HR-PS-LM1) | zero ReferentCitations declared | Same basis pattern as above. Sprint B2 closes drift. PA-Cn1..PA-Cn4 declared at standards tier. |
+| **Identity Resolution** | `['src/proxy.ts', 'src/features/F-identity/domain/auth-validation.ts', 'src/features/F-identity/exec/auth-queries.ts']` (surface-form-to-Ref matching + outcome computation + geometric-respect negative-invariant enforcement + disambiguation-deferral pathway) | zero ReferentCitations declared | Same basis pattern as above. Sprint B2 closes drift. PA-IR1..PA-IR4 declared at standards tier. |
+| **Correlation** | `['src/proxy.ts', 'src/features/F-identity/contract/perimeter-consultation.ts']` (correlationRef assignment at intake + correlation-index lookup at HR-PS3) | zero ReferentCitations declared | Same basis pattern as above. Sprint B2 closes drift. PA-Co1..PA-Co3 declared at standards tier. **Note:** Correlation axis basis closes Memory #17 per §3.13.1 above; partial-drift declaration here covers the source-side citation set, separate concern from the axis-derivation grounding. |
+
+PA-I (Identity-tier unitarity assertion) governs runtime code at the unitary site itself: `jurisdictionClaim: ['src/proxy.ts']`. PA-I is an axiom (excluded from MA-St17 quantifier) but contributes to MA-V10 part B coverage; partial-drift declared with same basis pattern. Sprint B2 closes.
+
+**Discipline:** every source-governing axis declared with explicit jurisdictionClaim against the actual current source path (`src/proxy.ts` + `src/features/F-identity/**`, not the v1.0.1 prose `src/middleware.ts` reference). No silent gap. Partial-drift declared mechanically per MA-V11. G-V10 part B at this version produces `applicability='n/a'` with declared basis on each of the six own axes + PA-I; on Sprint B2 close, basis is replaced by full RC coverage.
+
+#### §3.13.12 AmendmentProvenance (Sprint B1 Shot 3)
+
+```
+amendmentProvenance = {
+  amendmentId:          'perimeter-standard-v1-1-sprint-b1-shot-3',
+  predecessorVersion:   '1.0.1',
+  successorVersion:     '1.1',
+  cycleId:              'sprint-b1-shot-3',
+  timestamp:            '2026-05-13',
+  authorityClaim:       { level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com' },
+  scope: [
+    'Δ-A: added §1 governsRuntimeCode = true per MA-I8 with basis prose; §1.2 Identity-axiom-satisfaction table extended with MA-I8 row; LM carrier version swept v3.1 → v3.3 across §1, §2.5, §6.1, §6.2, §6.3, §6.5, §6.10, §6.11, §8.6 (mechanical cross-version consistency per Sprint B1 Shot 3 LM cascade; historical changelog rows at §5.9 v1.0 and §9 v1.0 preserved verbatim)',
+    'Δ-B: declared AxisBasis on every MA-St17 enumerated-kind declaration at §3.13.1, §3.13.2, §3.13.4–§3.13.10 (6 axes + 24 sub-axes + 5 handoff rules + 5 lifecycle events + 1 judgment input + 8 closure rules + 14 typed shapes + 0 procedure steps + 2 coupling enums = 65 basis declarations)',
+    'Δ-C: declared jurisdictionClaim on all six own axes + PA-I per MA-V10 part B with partial-drift basis at §3.13.11; honest unitary-site path src/proxy.ts (not v1.0.1 prose src/middleware.ts — finding surfaced in delivery report)',
+    'Δ-D: AmendmentProvenance recorded at §3.13.12; §4.8 + §8.1 self-audit results updated (G-I8 PASS at E1, G-St17 PASS at E3 with declaration count, G-V10 part B PASS-with-partial-drift-declared at E4); §9 change log entry added; footer updated'
+  ],
+  discipline: 'additive per MA-L1 + MA-S7 recursive ≼ — zero axiom invariant predicates changed; zero gate predicates changed; zero schema shapes changed; zero handoff rule contracts changed; primitive instance counts unchanged. Apparatus declarations added. Pre-existing v1.0.1 sub-axis count discrepancy (§3.2 says 13, §3.4 enumerates 24) carried forward — not in this shot scope; surfaced as finding for forward sprint resolution.'
+}
+```
+
+#### §3.13.13 AmendmentProvenance (Sprint B1 Shot 5 cleanup)
+
+```
+amendmentProvenance = {
+  amendmentId:          'perimeter-standard-v1-1-sprint-b1-shot-5',
+  predecessorVersion:   '1.1 (post Sprint B1 Shot 3)',
+  successorVersion:     '1.1 (post Sprint B1 Shot 5 cleanup)',
+  cycleId:              'sprint-b1-shot-5',
+  timestamp:            '2026-05-13',
+  authorityClaim:       { level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com' },
+  scope: [
+    'F-B1-Audit-4 closure: §1 Identity table `adjacentFrameworks` row removed entirely (residue eliminated at standards tier alongside MFv3 v3.3.0 → v3.3.1 §2.1 MetaframeworkInput residue cleanup; the input field carried zero downstream consumers at apparatus tier, no axiom referenced it, no gate tested it, no output field populated from it; the §1 Identity row was carried forward by template-copy convention, not by GeneratedFrameworkTemplate output schema declaration). Consequential edit at §6.5 FrameworkRef custody row: perimeter-standard removed from consumers column since the §1 adjacentFrameworks site no longer exists; FrameworkRef remains consumed by all framework-aware atoms via other paths.',
+    'F-B1-Audit-6 closure: §3.13.3 Axioms basis placeholder inserted reserving slot for parity with sibling-standard declarations (LIV-Standard §3.13.3 carries actual axiom-axis basis content; PS axioms grounded by own derivation per MA-St17 exclusion clause — no A-22 basis required at axiom kind, subsection documents that fact for cross-standard parity). Renumbering: §3.13.3 (handoff rules) → §3.13.4, §3.13.4 (lifecycle events) → §3.13.5, §3.13.5 (judgment inputs) → §3.13.6, §3.13.6 (closure rules) → §3.13.7, §3.13.7 (typed shapes) → §3.13.8, §3.13.8 (procedure steps) → §3.13.9, §3.13.9 (coupling enums) → §3.13.10, §3.13.10 (MA-V10 part B jurisdiction coverage) → §3.13.11, §3.13.11 (Shot 3 AmendmentProvenance) → §3.13.12. Intra-file references swept at active spec locations: §1 referentCitations basis prose §3.13.10 → §3.13.11; §3.13.8 ResolvedIdentity row closure ref §3.13.6 → §3.13.7; §3.13.12 (Shot 3 AmendmentProvenance) scope rows: Δ-B span renumbered §3.13.1, §3.13.2, §3.13.4–§3.13.10 (was §3.13.1–§3.13.9; basis declarations now span §3.13.1, §3.13.2 plus §3.13.4 through §3.13.10 skipping the §3.13.3 axioms placeholder); Δ-C basis ref §3.13.10 → §3.13.11; Δ-D AmendmentProvenance self-ref §3.13.11 → §3.13.12. §7 E4 Validity dimension audit prose §3.13.10 → §3.13.11; §8.1 self-audit E4 summary §3.13.10 → §3.13.11. §5.9 v1.1 + §9 v1.1 changelog rows preserved verbatim per historical-narrative discipline (rows describe Shot 3 work at the numbering current at that time; not active spec).',
+    'Δ: §3.13.13 AmendmentProvenance row (this block) + §5.9 + §9 change log entries added; no other content changes'
+  ],
+  discipline: 'cleanup-only — zero new basis declarations, zero new RCs, zero new axioms / axes / sub-axes / gates / HRs / primitives / typed shapes / lifecycle events / judgment inputs / closure rules / procedure steps / coupling enums; zero version bumps at PS (stays v1.1); self-audit results unchanged (G-I8 / G-St17 / G-V10 part B outcomes preserved); F-B1-Audit-4 closes by structural dissolution at standards tier alongside MFv3 v3.3.1 apparatus-tier residue removal; F-B1-Audit-6 closes by sibling-standard-parity declaration with explicit MA-St17 exclusion rationale.'
+}
+```
+
 ---
 
 ## §4 Validity
 
 ### §4.1 Gate count
 
-PS declares **22 own primary gates** (G-PS1, G-PS2, G-PS-T1..G-PS-T4, G-PS-A1..G-PS-A6, G-PS-Cn1..G-PS-Cn4, G-PS-IR1..G-PS-IR4, G-PS-Co1..G-PS-Co3, G-PS-I — 1:1 with PA1, PA2, PA-T1..PA-T4, PA-A1..PA-A6, PA-Cn1..PA-Cn4, PA-IR1..PA-IR4, PA-Co1..PA-Co3, PA-I per G-M1). Plus **85 framework-tier metaframework gates** inherited (per metaframework v3.2.7 §4.1 enumeration: 7 PG + 68 axiom gates including cycle-1 G-S7+G-V11 and cycle-2 G-V10+G-S8+G-L11 + 1 MA-G13 + 5 F-69 universal + 4 meta).
+PS declares **22 own primary gates** (G-PS1, G-PS2, G-PS-T1..G-PS-T4, G-PS-A1..G-PS-A6, G-PS-Cn1..G-PS-Cn4, G-PS-IR1..G-PS-IR4, G-PS-Co1..G-PS-Co3, G-PS-I — 1:1 with PA1, PA2, PA-T1..PA-T4, PA-A1..PA-A6, PA-Cn1..PA-Cn4, PA-IR1..PA-IR4, PA-Co1..PA-Co3, PA-I per G-M1). Plus **87 framework-tier metaframework gates** inherited (per metaframework v3.3.1 §4.1 enumeration: 7 PG + 70 axiom gates including cycle-1 G-S7+G-V11, cycle-2 G-V10+G-S8+G-L11, and Sprint B1 Shot 2 G-St17+G-I8 + 1 MA-G13 + 5 F-69 universal + 4 meta).
 
 | Tier | Count | Source | Executed when PS is audit target |
 |---|---|---|---|
 | Substrate gates (SG1–SG5) | 5 | substrate §11.5 | run once, not per framework |
 | PS-own axiom gates (G-PS*) | 22 | this §4.2 | framework-audit applies PA1..PA-I suite per MA-V1; emission-time on each `BoundaryCrossingRecord` |
 | Metaframework primitive gates (PG1..PG7) | 7 | metaframework §4.1 | inherited; applied by framework-audit at E1..E7 of generation-procedure S3..S9 |
-| Metaframework axiom gates (G-I1..G-J5, G-G13) | 69 | metaframework §4.1 (post-cycle-2 v3.2.7) | inherited; test PS's conformance to MA-I1..MA-J5 + MA-G13 |
+| Metaframework axiom gates (G-I1..G-J5, G-G13) | 71 | metaframework §4.1 (post-Sprint-B1-Shot-2 v3.3.0) | inherited; test PS's conformance to MA-I1..MA-J5 + MA-G13 |
 | Metaframework universal gates (G-U1..G-U5) | 5 | metaframework §4.1 | inherited |
 | Metaframework meta-gates (G-M1..G-M4) | 4 | metaframework §4.1 | inherited |
-| **Total per-audit framework-tier gates** | **22 + 85 = 107** | | |
+| **Total per-audit framework-tier gates** | **22 + 87 = 109** | | |
 
-PS's own 22 gates are executed in addition to the 85 inherited — same pattern as VS v1.0 §4.1 + RS v1.0 §4.1 + Plan v2.2 §4.1 + AS v2.2 §4.1 (framework-own gates supplement, do not replace, the inherited framework-tier suite). PS has more own gates (22) than VS (9) or RS (10) or Plan (12) because PS's six-axis decomposition produces a richer per-axis axiom set: Direction (2), Arrival Typing (4), Authority Enforcement (6), Channel (4), Identity Resolution (4), Correlation (3), plus identity-tier PA-I.
+PS's own 22 gates are executed in addition to the 87 inherited — same pattern as VS v1.0 §4.1 + RS v1.0 §4.1 + Plan v2.2 §4.1 + AS v2.2 §4.1 (framework-own gates supplement, do not replace, the inherited framework-tier suite). PS has more own gates (22) than VS (9) or RS (10) or Plan (12) because PS's six-axis decomposition produces a richer per-axis axiom set: Direction (2), Arrival Typing (4), Authority Enforcement (6), Channel (4), Identity Resolution (4), Correlation (3), plus identity-tier PA-I.
 
 ### §4.2 PS-own axiom gates
 
@@ -568,17 +756,17 @@ Per MA-V1 (every axiom has ≥1 gate) + G-M1 (every axiom has exactly one primar
 
 When framework-audit runs PS against metaframework gate-bundle (per HR3):
 
-- **E1 Identity (PG1 + G-I1..G-I7):** tests PS's §1 Identity conformance to MA-I1..MA-I7.
+- **E1 Identity (PG1 + G-I1..G-I8):** tests PS's §1 Identity conformance to MA-I1..MA-I8 (Sprint B1 Shot 2 added MA-I8/G-I8 — PS declares `governsRuntimeCode: true` per §1; G-I8 PASS at v1.1).
 - **E2 Schema (PG2 + G-S1..G-S8):** tests PS's §2 Schema conformance to MA-S1..MA-S8 (cycle-2 G-S8 ReferentCitation declaration shape conformance — PS declares `referentCitations: []` per §1; G-S8 vacuous-pass).
-- **E3 Structure (PG3 + G-St1..G-St16):** tests PS's §3 Structure conformance to MA-St1..MA-St16.
-- **E4 Validity (PG4 + G-V1..G-V11):** tests PS's §4 Validity conformance to MA-V1..MA-V11 (cycle-2 G-V10 spec↔referent + cycle-1 G-V11 applicability-basis vacuous-pass per zero referentCitations).
+- **E3 Structure (PG3 + G-St1..G-St17):** tests PS's §3 Structure conformance to MA-St1..MA-St17 (Sprint B1 Shot 2 added MA-St17/G-St17 — content-basis predicate over L2 declaration kinds; PS §3.13 declares basis per enumerated-kind declaration; G-St17 PASS at v1.1).
+- **E4 Validity (PG4 + G-V1..G-V11):** tests PS's §4 Validity conformance to MA-V1..MA-V11 (cycle-2 G-V10 spec↔referent + cycle-1 G-V11 applicability-basis vacuous-pass per zero referentCitations at part A; Sprint B1 Shot 2 added MA-V10 part B jurisdiction-coverage — PS §3.13.11 declares jurisdictionClaim on all six own axes + PA-I with partial-drift per MA-V11; G-V10 part B PASS-with-partial-drift-declared at v1.1).
 - **E5 Lifecycle (PG5 + G-L1..G-L11):** tests PS's §5 Lifecycle conformance to MA-L1..MA-L11 (cycle-2 G-L11 audit-run snapshot stamping vacuous-pass per zero referentCitations).
 - **E6 Coupling (PG6 + G-C1..G-C10):** tests PS's §6 Coupling conformance to MA-C1..MA-C10.
 - **E7 Judgment (PG7 + G-J1..G-J5):** tests PS's §7 Judgment conformance to MA-J1..MA-J5.
 - **E8 Universal/Meta (G-U1..G-U5 + G-M1..G-M4 + G-G13):** tests PS's universal-axis cross-checks + meta-gates + MA-G13 four-property classification.
 
 **Disambiguation note on gate execution scope:**
-The 85 inherited gates test PS's **framework declaration conformance** (does PS's §1–§7 structure match metaframework's axioms?). The 22 G-PS* gates test **individual BoundaryCrossingRecord instance conformance** (does a given crossing satisfy PA1..PA-I?). Different scopes, different execution sites — the 85 run at framework-audit time against this file; the 22 run at crossing-time on each `BoundaryCrossingRecord` produced by F-identity slice runtime.
+The 87 inherited gates test PS's **framework declaration conformance** (does PS's §1–§7 structure match metaframework's axioms?). The 22 G-PS* gates test **individual BoundaryCrossingRecord instance conformance** (does a given crossing satisfy PA1..PA-I?). Different scopes, different execution sites — the 87 run at framework-audit time against this file; the 22 run at crossing-time on each `BoundaryCrossingRecord` produced by F-identity slice runtime.
 
 ### §4.4 Dimension–gate mapping (per MA-V5)
 
@@ -594,7 +782,7 @@ Framework-audit X1–X10 dimensions cover PS's validity surfaces:
 | X6 (Operator / human interface) | §6.8 OperatorInterface declaration |
 | X7 (Lifecycle) | E5 bundle |
 | X8 (Genesis) | E1 (MA-I5); §1.1 GenesisDeclaration populated |
-| X9 (Integration point) | E6 coupling gates + HR-PS-LM1 to LM v3.1 (carrier emission) + HR-PS-AS1 to AS v2.2 (program-emission validation) |
+| X9 (Integration point) | E6 coupling gates + HR-PS-LM1 to LM v3.3 (carrier emission) + HR-PS-AS1 to AS v2.2 (program-emission validation) |
 | X10 (Stage-declaration extended predicate) | §3.7 empty-P8 declaration + its basis traversal per substrate §10.2 PR4/PR5 vacuous |
 
 Coverage: every MA-V5 audit dimension has ≥1 consuming gate. Pass.
@@ -604,7 +792,7 @@ Coverage: every MA-V5 audit dimension has ≥1 consuming gate. Pass.
 Per substrate §11.5 + metaframework §4.4:
 
 1. **Tier 1 — Substrate gates** (SG1–SG5): run once, not per framework.
-2. **Tier 2 — Axiom gates** (per framework): 69 inherited (68 MA-axis-bound + G-G13) + 22 PS-own (G-PS*) = 91.
+2. **Tier 2 — Axiom gates** (per framework): 71 inherited (70 MA-axis-bound + G-G13) + 22 PS-own (G-PS*) = 93.
 3. **Tier 3 — Universal gates** (per framework): G-U1–G-U5.
 4. **Tier 4 — Meta-gates** (per framework): G-M1–G-M4.
 
@@ -618,7 +806,7 @@ Per v3-1-spec §3.4, consumed by reference. Unchanged from metaframework.
 
 ### §4.8 Current gate results
 
-**All 107 framework-tier gates (85 inherited + 22 PS-own): state = `not-yet-run` at this delivery.**
+**All 109 framework-tier gates (87 inherited + 22 PS-own): state = `not-yet-run` at this delivery.**
 
 First-run pending framework-audit invocation post-v1.0.1-confirmation (§5.3). Runtime emission of `BoundaryCrossingRecord` instances — and the gate-invocation hook that runs G-PS1..G-PS-I against each — is the **Sprint 9 wire-in scope**. At v1.0.1 the standard declares the rule set; at Sprint 9 the runtime emission machinery wires alongside the substrate-write callers + thread-query callers + F-router registration + wearer-authority program. First-run logging via standard amendment-propagation flow (AP1–AP7) per metaframework §5.X first-run-execution lifecycle event (added cycle-1 v3.2.4 per F-cycle-1-11). PS first-run does not amend the framework — it stamps execution per MA-L1 zero-shape-change discipline.
 
@@ -698,6 +886,8 @@ Per substrate §13.4:
 |---|---|---|---|
 | v1.0 | Structure-Tightening Sprint Shot 2 (2026-05-06) | Initial PS declaration. Six P1 axes (Direction, Arrival Typing, Authority Enforcement, Channel Classification, Identity Resolution, Correlation) + Identity-tier PA-I unitarity assertion. 22 axioms (PA1, PA2, PA-T1..PA-T4, PA-A1..PA-A6, PA-Cn1..PA-Cn4, PA-IR1..PA-IR4, PA-Co1..PA-Co3, PA-I). 22 primary gates 1:1. Carrier `named` → `living-memory` v3.1. HR-PS1..HR-PS4 declared. F-007 closure (PA-T2 cell-governance), F-009 governance closure (PA-A2 + PA-A3 + PA-A4 substrate-write + orphan rules), F-005 framing rule (PA-A6 + PA-I unitary-site). Vacuous-pass per substrate §6.3 + MA-V11: G-V10/G-S8/G-L11 (zero `referentCitations`); G-PS-A4 (empty paired-write registry pre-Sprint-9 wire-in); G-PS-Cn3 (PerimeterBinding default pre-Sprint-9 wire-in). | L0 (pending confirmation) |
 | v1.0.1 | Structure-Tightening Sprint audit-cycle-A close (2026-05-06) | Prose-only realignment per audit Findings A1, B1+C2, B2, B3+C1, side-findings C-α/β/γ/δ. **A1:** stripped transient cycle markers ("Sprint 6 Shot 1/2/3" embedments) from Class A/B/C/G/H sites — axiom prose (PA-A4, PA-A6, PA-I; leaf-PA-A6, leaf-PA-I), gate prose (G-PS-A6, G-PS-Cn3), §1 Own discipline field, Vocabulary `unitary site` entry, §3.1/§3.2/§3.3 axes derivation prose, §3.5 leaf prose, §5.6 failure-mode remediation pattern, §6.5 Custody table CrossingId, §6.11 cross-framework calibration, §8.1 self-audit prose, §10 D4 row. Preserved verbatim at Class D/E/F sites — GenesisDeclaration `generationCycle` field, §6.6 Provenance `cycleId` field, §8.3 last audit event `eventTimestamp`, §10 D-table heading, §9 changelog v1.0 row. **B1+C2:** §4.8 first-run + §8.1 self-audit + middleware.ts header comment block all state BCR-emission scaffold wires at Sprint 9 wire-in alongside substrate-write callers, thread-query callers, F-router registration, wearer-authority program; first runtime crossing emerges at Sprint 9 first-runtime-crossing event, not at Shot 3 src deploy. **B2:** §4.8 promotion path declares `LIV_INSTANCE_PERIMETER_SITE_REF`, `DEFAULT_PERIMETER_BINDING`, `CHANNEL_KIND_ENUM`, `FOUR_CELL_GOVERNANCE_MAP` as declared-but-unconsumed at this version; consumption surfaces wire at Sprint 9. **B3+C1:** §3.6 PA-Cn3 row, §4.8 promotion path, G-PS-Cn3 vacuous-pass basis, §5.9 v1.0 row narrative, audit-guide §Findings table — all state PerimeterBinding instance is supplied at Sprint 9 wire-in. **C-δ:** added G-PS-Cn4 (channel preservation) to §4.8 explicit vacuous-pass enumeration. **C-α/β/γ:** sprint-spec language reconciliation, terminology hygiene, no-action items respectively (resolved at sprint-package level, not in this standard's prose). **Discipline:** prose-only amendment per AxR3 + MA-L1 — zero axiom invariant conditions changed; zero gate predicates changed; zero schema shapes changed; zero handoff rules changed; primitive instance counts unchanged. Mechanical predicates at v1.0 baseline. Shot 3 src tree carries forward unchanged (mechanical predicates of `middleware.ts` body byte-identical to v1.0 delivery; only header comment block realigned). Constants file (`perimeter-standard.ts`) and types file (`perimeter-standard.types.ts`) byte-identical to v1.0. Single bundle deploy per Playbook §1.22. | L0 (pending confirmation) |
+| v1.1 | Sprint B1 Shot 3 (2026-05-13) | MA-St17 / MA-I8 / MA-V10 part B amendment apparatus applied per MFv3 v3.3.0 Shot 2 cascade. **Δ-A:** §1 Identity table extended with `governsRuntimeCode: true` row + basis prose (PS governs F-identity slice runtime code at unitary site `src/proxy.ts` + slice resources under `src/features/F-identity/**`); §1.2 Identity-axiom-satisfaction table extended with MA-I8 row. Cross-version sweep: LM carrier reference v3.1 → v3.3 at §1 carrier/consumedBy/adjacentFrameworks, §2.2 carrier note, §2.5 consumed types table heading, §6.1 carrier justification, §6.2 HR table, §6.3 captureShape, §6.5 custody table, §6.10 atom-flow table, §6.11 carrier relation + boundary note, §8.6 cross-framework consistency. Historical changelog rows (§5.9 v1.0, §9 v1.0) preserved verbatim per L0 discipline. Metaframework version reference v3.2.7 → v3.3.0 at §4.1 + §10 D5. Inherited gate count 85 → 87 at §4.1 + §4.4 + §4.7 + §8.1 + §10 D5 (MFv3 added G-St17 + G-I8 framework-tier gates Sprint B1 Shot 2); total framework-tier 107 → 109. **Δ-B:** §3.13 AxisBasis declarations subsection added (additive per MA-S7 recursive ≼) holding basis declarations for every MA-St17 enumerated-kind declaration at PS — §3.13.1 axes (6: all l0-ratified-ref to Manual v13.0 Part II Boundary loci; **Correlation axis closes Memory #17** via natural-derivation citation to "Boundary mechanics — Correlation" subsection), §3.13.2 sub-axes (24 per §3.4 enumeration; pre-existing §3.2 count of 13 carried forward as finding), §3.13.3 handoff rules (5: mix substrate-atom-ref to A-03 HandoffContract + l0-ratified-ref for HR-PS-LM1 to Manual Part II Memory Loop flow), §3.13.4 lifecycle events (5: mix substrate-atom-ref to A-16/A-21/LifecycleState + l0-ratified-ref for confirmation gate to Manual Part IV Governance Loop), §3.13.5 judgment inputs (1: J-perimeter-observation → l0-ratified-ref to Manual Part II Boundary transform + Part IV aggregate-signal), §3.13.6 closure rules (8: mix substrate-atom-ref to A-08 + l0-ratified-ref to Manual Part II + Part I loci), §3.13.7 typed shapes (14: mix substrate-atom-ref to A-01 WAtom + l0-ratified-ref to Manual loci for PS-local synthesis atoms), §3.13.8 procedure steps (0 declared; quantifier vacuously satisfied), §3.13.9 coupling enums (2: substrate-atom-ref to Carrier + A-04 CustodyRow). Total: 65 basis declarations added. **Δ-C:** §3.13.10 MA-V10 part B jurisdiction coverage table declared — all six own axes + PA-I carry jurisdictionClaim against actual current source paths (`src/proxy.ts` + `src/features/F-identity/**`; v1.0.1 prose `src/middleware.ts` reference reconciled in jurisdictionClaim — surfaced as finding in Sprint B1 Shot 3 delivery report). Zero ReferentCitations at v1.1; partial-drift declared per MA-V11 vacuous-pass with explicit basis prose targeting Sprint B2 close. **Δ-D:** AmendmentProvenance recorded at §3.13.11; §4.4 framework-tier gate-bundle list updated (E1 G-I1..G-I8, E3 G-St1..G-St17, E4 G-V10 part B); §8.1 aggregate self-audit updated (G-I8 PASS, G-St17 PASS with 65-declaration count, G-V10 part B PASS-with-partial-drift-declared); this §5.9 row + §9 row added. Version transition v1.0.1 → v1.1 per MA-L1 additive-only. Manual citations pin `manualVersion: '13.0'` (citations map by Part + named subsection content per v13.0 reorganization away from numeric §I/§II/§IV refs). Zero axiom invariant predicates changed; zero gate predicates changed; zero schema shapes changed; zero handoff rule contracts changed; primitive instance counts unchanged. Apparatus declarations added. | L0 (Sprint B1 Shot 3) |
+| v1.1 (Shot 5 cleanup) | Sprint B1 Shot 5 (2026-05-13) | Sprint B1 close audit findings closed at PS. **F-B1-Audit-4 closure** (residue removal at standards tier): §1 Identity table `adjacentFrameworks` row removed entirely — residue eliminated at standards tier alongside MFv3 v3.3.0 → v3.3.1 §2.1 MetaframeworkInput residue cleanup (the input field carried zero downstream consumers at apparatus tier; no axiom referenced it, no gate tested it, no output field populated from it; the §1 Identity row was carried forward by template-copy convention, not by GeneratedFrameworkTemplate output schema declaration). Consequential edit at §6.5 FrameworkRef custody row: perimeter-standard removed from consumers column since the §1 adjacentFrameworks site no longer exists. **F-B1-Audit-6 closure** (sibling-standard-parity placeholder): §3.13.3 Axioms basis placeholder inserted reserving slot for parity with LIV-Standard's §3.13.3 axiom-axis-binding-rationale subsection — PS axioms grounded by own derivation per MA-St17 exclusion clause; no A-22 basis required at axiom kind; subsection documents that fact explicitly for cross-standard parity. Renumbering: §3.13.3..§3.13.11 each shifted +1 → §3.13.4..§3.13.12 (full map in Shot 5 delivery report). Intra-file pointer references swept at active spec locations: §1 referentCitations basis prose §3.13.10 → §3.13.11; §3.13.8 ResolvedIdentity row closure ref §3.13.6 → §3.13.7; §3.13.12 (Shot 3 AmendmentProvenance) scope rows: Δ-B span renumbered §3.13.1, §3.13.2, §3.13.4–§3.13.10 (basis declarations now span §3.13.1, §3.13.2 plus §3.13.4 through §3.13.10 skipping the §3.13.3 axioms placeholder); Δ-C basis ref §3.13.10 → §3.13.11; Δ-D AmendmentProvenance self-ref §3.13.11 → §3.13.12. §7 E4 Validity dimension audit prose §3.13.10 → §3.13.11; §8.1 self-audit E4 summary §3.13.10 → §3.13.11. **Historical narrative preserved verbatim** at §5.9 v1.1 row + §9 v1.1 row (this row's predecessor and corresponding §9 row): both describe Shot 3 work at the numbering current at Shot 3 close — preserved per the same "Historical changelog rows preserved verbatim per L0 discipline" rule the v1.1 Shot 3 row applied to §5.9 v1.0 and §9 v1.0. **Δ:** §3.13.13 AmendmentProvenance row added recording Shot 5 cleanup with L0 authorityClaim; this §5.9 row added; §9 v1.1 Shot 5 cleanup row added. **No version bump** (PS stays v1.1 — additions are corrective patches to existing v1.1 content per brief discipline). **Self-audit results unchanged** — G-I8 / G-St17 / G-V10 part B outcomes preserved. F-B1-Audit-4 closes by structural dissolution: removal at apparatus + standards tiers eliminates both the symptom (asymmetric carriage across sibling standards) and the cause (non-load-bearing input field). F-B1-Audit-6 closes by explicit sibling-standard-parity declaration with MA-St17 exclusion rationale. | L0 (Sprint B1 Shot 5) |
 
 ---
 
@@ -705,9 +895,9 @@ Per substrate §13.4:
 
 ### §6.1 Carrier
 
-Perimeter Standard carrier = `named` → `living-memory` v3.1. PS declares typed-signal content (`BoundaryCrossingRecord`) plus the LM-shaped substrate-write payload (`SubstrateWriteInput`) for intake-direction crossings; does not emit artifact-shaped carriers. Emission call pattern: F-identity slice middleware (host of unitary perimeter site) constructs `BoundaryCrossingRecord` per crossing, runs G-PS1..G-PS-I evaluation, and for intake-direction crossings invokes LM substrate-write surface with `SubstrateWriteInput` constructed from the crossing's content per HR-PS-LM1. See §6.11 carrier relation.
+Perimeter Standard carrier = `named` → `living-memory` v3.3. PS declares typed-signal content (`BoundaryCrossingRecord`) plus the LM-shaped substrate-write payload (`SubstrateWriteInput`) for intake-direction crossings; does not emit artifact-shaped carriers. Emission call pattern: F-identity slice middleware (host of unitary perimeter site) constructs `BoundaryCrossingRecord` per crossing, runs G-PS1..G-PS-I evaluation, and for intake-direction crossings invokes LM substrate-write surface with `SubstrateWriteInput` constructed from the crossing's content per HR-PS-LM1. See §6.11 carrier relation.
 
-**Cross-framework calibration:** Carrier version bound to Living Memory v3.1. This is structurally distinct from VS/RS/Plan AS-carriered pattern: PS does not produce artifacts about its work — PS produces the typed signal itself, which lands as substrate state-change via LM. Carrier choice ratified at D2.
+**Cross-framework calibration:** Carrier version bound to Living Memory v3.3. This is structurally distinct from VS/RS/Plan AS-carriered pattern: PS does not produce artifacts about its work — PS produces the typed signal itself, which lands as substrate state-change via LM. Carrier choice ratified at D2.
 
 ### §6.2 Handoff rules
 
@@ -718,7 +908,7 @@ Four framework-local HR instances. All PS-owned handoffs have declared `captureS
 | **HR-PS1** | program/route → perimeter-standard (intake claim receipt) | `['self', 'named']` | `true` | declared §6.3 |
 | **HR-PS2** | program/route → perimeter-standard (dispatch request submission) | `['self', 'named']` | `true` | declared §6.3 |
 | **HR-PS3** | perimeter-standard → consumer (correlation-index query, ResolvedIdentity return, dispatch governance return) | `['named']` (PS's own carrier = named) | `true` | declared §6.3 |
-| **HR-PS-LM1** | perimeter-standard → living-memory v3.1 (intake substrate-write emission) | `['named']` (PS's carrier = named, mapped to LM SubstrateWriteInput contract per LM HR-LM1 receive-side) | `true` | declared §6.3 |
+| **HR-PS-LM1** | perimeter-standard → living-memory v3.3 (intake substrate-write emission) | `['named']` (PS's carrier = named, mapped to LM SubstrateWriteInput contract per LM HR-LM1 receive-side) | `true` | declared §6.3 |
 | **HR-PS4** | perimeter-standard → consumer (observability / replay / audit / downstream BoundaryCrossingRecord readers) | `['named']` | `false` | n/a (consumer reads via LM thread query against substrate state-changes; capture via HR-PS-LM1 + LM HR-LM1) |
 
 **Inherited HRs referencing PS:**
@@ -728,7 +918,7 @@ Four framework-local HR instances. All PS-owned handoffs have declared `captureS
 | HR1 | metaframework §6.2 | substrate → PS type consumption; PS consumes substrate types by receive pattern |
 | HR6 | metaframework §6.2 | metaframework → generated L3 frameworks; PS is the generated L3 template output contract |
 | HR5 | metaframework §6.2 | metaframework → registry; registry records PS's framework declaration per provenance contract (see §6.6) |
-| HR-LM1 | living-memory v3.1 §6.2 | perimeter/intake → LM write surface; PS is the named caller honoring HR-LM1 receive-side contract via HR-PS-LM1 |
+| HR-LM1 | living-memory v3.3 §6.2 | perimeter/intake → LM write surface; PS is the named caller honoring HR-LM1 receive-side contract via HR-PS-LM1 |
 
 Per substrate §1.3 SI-03: these HRs are referenced, not redeclared, by PS.
 
@@ -761,7 +951,7 @@ captureShape = {
 }
 ```
 
-**HR-PS-LM1 — PS → Living Memory v3.1 (substrate-write emission for intake-direction crossings):**
+**HR-PS-LM1 — PS → Living Memory v3.3 (substrate-write emission for intake-direction crossings):**
 ```
 captureShape = {
   capturedFields: ['record.crossingId', 'record.arrivalRef', 'substrateWriteInput.identities.length', 'substrateWriteInput.relations.length', 'substrateWriteInput.metadata.source.channel', 'substrateWriteInput.metadata.source.scope', 'substrateWriteInput.scope', 'lmStateChangeRecordId (returned by LM SW3 commit)', 'record.crossedAt'],
@@ -776,7 +966,7 @@ captureShape = {
 
 Per MA-C1..MA-C10 (metaframework §3.2 Coupling axis):
 
-- **MA-C1** (carrier declared per substrate §5): §6.1 declares `carrier = 'named'` with bound framework ref `living-memory` v3.1.
+- **MA-C1** (carrier declared per substrate §5): §6.1 declares `carrier = 'named'` with bound framework ref `living-memory` v3.3.
 - **MA-C2** (custody per atom): §6.5 enumerates every PS-local atom with owner + layer + consumers.
 - **MA-C3** (handoff-invariant symmetry): HR-PS1..HR-PS4 + HR-PS-LM1 send/receive shapes matched by construction; HR-PS-LM1 captureShape contract symmetric with LM HR-LM1 receive-side.
 - **MA-C4** (provenance per output field): §2.2 every `BoundaryCrossingRecord` field has declared provenance trace; §6.5 custody; §6.6 top-level provenance.
@@ -818,15 +1008,15 @@ Every atom consumed or declared, with owner + layer + consumers per substrate SG
 | `AuthorityClaim` | substrate v1-1 | substrate-tier | perimeter-standard (§2.1 + §2.2 authorityClaim/authorityContext/authorityEnforced fields), all authority-bearing frameworks |
 | `ScopeRef` | substrate v1-1 (consumed via LM LMA6) | substrate-tier | perimeter-standard (§2.1 scopeClaim + §2.2 resolvedScope), LM (LMA6) |
 | `Stage` | substrate v1-1 | substrate-tier | perimeter-standard (§3.7 P8 empty-declaration basis), all generative frameworks |
-| `FrameworkRef` | substrate v1-1 | substrate-tier | perimeter-standard (§1 adjacentFrameworks), all framework-aware atoms |
+| `FrameworkRef` | substrate v1-1 | substrate-tier | all framework-aware atoms |
 | `WAtom` | substrate v1-1 | substrate-tier | perimeter-standard (§2 atom declarations), all atom-emitting frameworks |
 | `AxiomRef` | substrate v1-1 | substrate-tier | perimeter-standard (§3.6 axiom IDs), all axiom-bearing frameworks |
 | `Judgment` | substrate v1-1 | substrate-tier | perimeter-standard (§7), all J-input-bearing frameworks |
 | `JudgmentId` | substrate v1-1 | substrate-tier | perimeter-standard (§7.1), all J-input-bearing frameworks |
 | `EmptyPrimitiveDeclaration` | substrate v1-1 (A-17) | substrate-tier | perimeter-standard (§3.7 P8=0 empty-declaration), all frameworks with empty-primitive instances |
-| `SubstrateWriteInput` | living-memory v3.1 | L3 (LM) | perimeter-standard (§2.5 consumed at HR-PS-LM1 emission), LM (own input) |
-| `SourceRef` | living-memory v3.1 | L3 (LM) | perimeter-standard (§2.5 — channel + scope carriers; §6.3 HR-PS-LM1 captureShape; PA-Cn4 preservation target), LM (own metadata) |
-| `IdentityRef` | living-memory v3.1 | L3 (LM) | perimeter-standard (§2.5 — `ResolvedIdentity.ref` resolution target), LM (cluster geometry source) |
+| `SubstrateWriteInput` | living-memory v3.3 | L3 (LM) | perimeter-standard (§2.5 consumed at HR-PS-LM1 emission), LM (own input) |
+| `SourceRef` | living-memory v3.3 | L3 (LM) | perimeter-standard (§2.5 — channel + scope carriers; §6.3 HR-PS-LM1 captureShape; PA-Cn4 preservation target), LM (own metadata) |
+| `IdentityRef` | living-memory v3.3 | L3 (LM) | perimeter-standard (§2.5 — `ResolvedIdentity.ref` resolution target), LM (cluster geometry source) |
 | `CorrelationRef` | multi-instance-standard v2.3 | L3 (MI) | perimeter-standard (§2.6 — §2.1 + §2.2 correlationRef field; PA-Co1 carrier), MI (own correlation declaration) |
 
 ### §6.6 Provenance contract
@@ -874,15 +1064,15 @@ OperatorInterface = {
 | Inbound | F-identity middleware | PS | BoundaryArrival (constructed from raw request) |
 | Inbound | program L4 | PS | BoundaryDispatchRequest |
 | Inbound | MI Standard | PS | CorrelationRef (upstream when crossing originates from a multi-instance interaction) |
-| Outbound | PS | LM v3.1 | SubstrateWriteInput (per HR-PS-LM1 for intake-direction crossings) |
+| Outbound | PS | LM v3.3 | SubstrateWriteInput (per HR-PS-LM1 for intake-direction crossings) |
 | Outbound | PS | program L4 | ResolvedIdentity[] + cellGovernance + correlationRef (per HR-PS3 per-crossing return) |
 | Outbound | PS | audit consumers | BoundaryCrossingRecord (via LM thread query against state-changes; HR-PS4 receipt-only) |
 
 ### §6.11 Carrier relation (H5) and boundary notes
 
-PS's carrier relation to LM v3.1: PS produces `BoundaryCrossingRecord` (full content, including all six axes' resolved fields + cellGovernance + emissionPair + authorityEnforced + unitarySiteRef); only the intake-direction subset is translated to `SubstrateWriteInput` for LM commit (per HR-PS-LM1 captureShape). The full record persists at audit-trail (HR-PS3) for observability and replay; the LM-side persistence captures the substrate effect (state-change content) without duplicating PS's perimeter-side metadata.
+PS's carrier relation to LM v3.3: PS produces `BoundaryCrossingRecord` (full content, including all six axes' resolved fields + cellGovernance + emissionPair + authorityEnforced + unitarySiteRef); only the intake-direction subset is translated to `SubstrateWriteInput` for LM commit (per HR-PS-LM1 captureShape). The full record persists at audit-trail (HR-PS3) for observability and replay; the LM-side persistence captures the substrate effect (state-change content) without duplicating PS's perimeter-side metadata.
 
-**Boundary note:** PS does not assume LM v3.1's specific axiom set — PS consumes only `SubstrateWriteInput` shape and `SourceRef` shape, both of which are stable across LM versions per LM §1 carrier=self + LM §6.1 SW1–SW3 procedure stability. LM v3.2 (post-beta) addition of aggregate-signal-read primitives does not affect PS contract; PS remains version-tolerant by consuming only the intake-write surface.
+**Boundary note:** PS does not assume LM v3.3's specific axiom set — PS consumes only `SubstrateWriteInput` shape and `SourceRef` shape, both of which are stable across LM versions per LM §1 carrier=self + LM §6.1 SW1–SW3 procedure stability. LM v3.3 (post-beta) addition of aggregate-signal-read primitives does not affect PS contract; PS remains version-tolerant by consuming only the intake-write surface.
 
 ---
 
@@ -931,22 +1121,22 @@ J-perimeter-observation is produced by framework-audit invocation against PS-emi
 
 ### §8.1 Gate results
 
-**All 107 framework-tier gates: state = `not-yet-run` at this version.**
+**All 109 framework-tier gates: state = `not-yet-run` at this version.**
 
 Mechanical self-evaluation per §4.8: at this version no `BoundaryCrossingRecord` instances exist; BCR-emission machinery wires at Sprint 9 alongside substrate-write callers, thread-query callers, F-router registration, and wearer-authority program. G-PS1..G-PS-I therefore evaluate against zero instances — vacuous-pass per substrate §6.3 cardinality semantics.
 
-Inherited 85 framework-tier gates evaluated against PS file declarations:
+Inherited 87 framework-tier gates evaluated against PS file declarations:
 
-- **E1 Identity:** §1 declares all required Identity fields per MA-I1..MA-I7; §1.2 axiom-satisfaction table populated; **vacuous-pass for downstream gates pending non-empty referentCitations promotion**.
+- **E1 Identity:** §1 declares all required Identity fields per MA-I1..MA-I8 (MA-I8 added Sprint B1 Shot 2 — `governsRuntimeCode: true` declared §1 with basis prose; field present, boolean-typed per substrate §6.3); §1.2 axiom-satisfaction table populated with MA-I8 row; **G-I8 PASS at v1.1**; **vacuous-pass for downstream gates pending non-empty referentCitations promotion**.
 - **E2 Schema:** §2 declares input + output shapes per MA-S1..MA-S6; §1 referentCitations=[] per MA-V11 vacuous-pass with explicit basis text; G-S8 vacuous-pass.
-- **E3 Structure:** §3 declares 6 P1 axes + 13 P2 sub-axes + 21 P3 leaves + 22 P4 axioms + 22 P5 gates + 4 P6 handoff rules + 1 P7 J-input + 0 P8 (empty-declared with basis); §3.6 AxR1–AxR4 self-checks pass; §3.8 universal-variables table populated.
-- **E4 Validity:** §4 declares 22 own gates per G-M1; §4.2 MA-V2 per-axis gate coverage all-axes-≥1 passes; G-V10 vacuous-pass; G-V11 vacuous-pass.
+- **E3 Structure:** §3 declares 6 P1 axes + 13 P2 sub-axes (count per §3.2; §3.4 enumerates 24 rows — pre-existing v1.0.1 count discrepancy carried forward, surfaced as finding in Sprint B1 Shot 3 delivery report; not in this shot's amendment scope) + 21 P3 leaves + 22 P4 axioms + 22 P5 gates + 4 P6 handoff rules + 1 P7 J-input + 0 P8 (empty-declared with basis); §3.6 AxR1–AxR4 self-checks pass; §3.8 universal-variables table populated. **§3.13 AxisBasis declarations added Sprint B1 Shot 3 v1.1: 65 basis declarations spanning axes (6) + sub-axes (24) + handoff rules (5) + lifecycle events (5) + judgment inputs (1) + closure rules (8) + typed shapes (14) + coupling enums (2). P8 zero instances excluded per quantifier semantics; axioms + gates + leaves excluded per MA-St17 kind-set exclusions. G-St17 PASS at v1.1.**
+- **E4 Validity:** §4 declares 22 own gates per G-M1; §4.2 MA-V2 per-axis gate coverage all-axes-≥1 passes; G-V10 part A vacuous-pass (zero referentCitations); **G-V10 part B added Sprint B1 Shot 2 — PS §3.13.11 declares jurisdictionClaim on six own axes + PA-I per source-paths under `src/proxy.ts` + `src/features/F-identity/**`; zero RCs cover the claim; partial-drift declared per MA-V11 vacuous-pass with explicit basis prose targeting Sprint B2 closure; G-V10 part B PASS-with-partial-drift-declared at v1.1**; G-V11 vacuous-pass.
 - **E5 Lifecycle:** §5 declares version + amendment + confirmation + escalation + judgment-deprecations + failure-modes + scale-bounds + atomicity + version-history; G-L11 vacuous-pass.
 - **E6 Coupling:** §6 declares carrier + 4 HR + custody + provenance; MA-C1..MA-C10 self-checks pass.
 - **E7 Judgment:** §7 declares 1 J-input (J-perimeter-observation); MA-J1..MA-J5 satisfied.
 - **E8 Universal/Meta:** §1.3 MA-G13 four-property table populated; G-U1..G-U5 + G-M1..G-M4 + G-G13 evaluated against PS file structurally.
 
-**Aggregate:** 85 inherited gates pass mechanically against this file at PS-declaration audit; 22 PS-own gates `not-yet-run` (await Sprint 9 first-runtime-crossing event when BCR-emission scaffold wires).
+**Aggregate:** 87 inherited gates pass mechanically against this file at PS-declaration audit; 22 PS-own gates `not-yet-run` (await Sprint 9 first-runtime-crossing event when BCR-emission scaffold wires).
 
 ### §8.2 Dimension audit results
 
@@ -991,7 +1181,7 @@ Per §1.3 MA-G13 four-property table: all four properties (own state, own I/O, o
 
 | Adjacent | Calibration check | Result |
 |---|---|---|
-| Living Memory v3.1 | PS HR-PS-LM1 send-side maps to LM HR-LM1 receive-side; SubstrateWriteInput shape consumed by reference per §2.5 | PASS |
+| Living Memory v3.3 | PS HR-PS-LM1 send-side maps to LM HR-LM1 receive-side; SubstrateWriteInput shape consumed by reference per §2.5 | PASS |
 | Multi-Instance Standard v2.3 | CorrelationRef consumed by reference per §2.6; PA-Co1 honors upstream MI correlation | PASS |
 | Artifact Standard v2.2 | Program emissions cross PS as dispatches; PS dispatch validation interacts with AS v2.2 emission contract at HR-PS2 + dispatch outbound; AS owns emission shape, PS owns boundary contract | PASS (non-overlapping concerns; emissionPair PA-A4 references AS artifact-store record by ID, does not redefine emission semantics) |
 | Metaframework v3.2.7 | Generation procedure v1.1.6 consulted; §1.1 GenesisDeclaration cites; full PS file conforms to GeneratedFrameworkTemplate shape | PASS |
@@ -1004,6 +1194,8 @@ Per §1.3 MA-G13 four-property table: all four properties (own state, own I/O, o
 |---|---|---|
 | v1.0 | Structure-Tightening Sprint Shot 2 (2026-05-06): initial PS declaration filling Manual III.8 perimeter governing-framework slot; six axes (Direction, Arrival Typing, Authority Enforcement, Channel, Identity Resolution, Correlation) + Identity-tier PA-I unitarity; 22 axioms + 22 gates 1:1; carrier `named` → `living-memory` v3.1; F-007 closure (PA-T2 cell-governance), F-009 governance closure (PA-A2 + PA-A3 + PA-A4), F-005 framing rule (PA-A6 + PA-I); vacuous-pass entries documented at §4.8 + §8.3 | L0 (pending confirmation) |
 | v1.0.1 | Structure-Tightening Sprint audit-cycle-A close (2026-05-06): prose-only realignment per audit findings closing audit-cycle-A. **Finding A1 (broad sweep):** stripped 26 transient cycle markers ("Sprint 6 Shot 1/2/3" embedments) from Class A/B/C/G/H illegitimate-class sites — axiom prose (PA-A4, PA-A6, PA-I), leaf prose (leaf-PA-A6, leaf-PA-I), gate prose (G-PS-A6, G-PS-Cn3), §1 framing + Own discipline + Unitarity assertion, §3.1/§3.2/§3.3 axes derivation prose, §3.6 vocabulary references, §3.9 Vocabulary `unitary site`, §5.6 failure-mode remediation pattern, §6.5 Custody table CrossingId, §6.11 cross-framework calibration, §8.1 self-audit, §10 D4 row. Preserved verbatim at 5 Class D/E/F legitimate-class sites: GenesisDeclaration `generationCycle` field (substrate §4 A-14 designed-for-cycle), §6.6 Provenance `cycleId` field (designed-for-cycle), §8.3 last audit event `eventTimestamp` (historical event timestamp), §10 D-table heading (D-records are sprint-cycle artifacts), §9 changelog v1.0 row narrative. **Findings B1+C2 (BCR-emission machinery alignment):** §4.8 + §8.1 prose state BCR-emission scaffold wires at Sprint 9 wire-in alongside substrate-write callers, thread-query callers, F-router registration, wearer-authority program; gate promotion at Sprint 9 first-runtime-crossing event, not Shot 3 deploy. **Finding B2 (constants alignment):** §4.8 promotion path declares `LIV_INSTANCE_PERIMETER_SITE_REF`, `DEFAULT_PERIMETER_BINDING`, `CHANNEL_KIND_ENUM`, `FOUR_CELL_GOVERNANCE_MAP` as declared-but-unconsumed at this version; consumption surfaces wire at Sprint 9. **Findings B3+C1 (PerimeterBinding alignment):** §3.6 PA-Cn3 row, §4.8 promotion path, G-PS-Cn3 vacuous-pass basis, §5.9 v1.0 row narrative, audit-guide §Findings table — all state PerimeterBinding instance is supplied at Sprint 9 wire-in. **Side-finding C-δ:** added G-PS-Cn4 (channel preservation) to §4.8 explicit vacuous-pass enumeration. **Side-findings C-α/β/γ:** sprint-spec language reconciliation, terminology hygiene, no-action items respectively (resolved at sprint-package level, not in this standard's prose). **Version-metadata bumps (V1–V8 from lighter re-audit):** file header v1-0 → v1-0-1; §1 Identity `version` field 1.0 → 1.0.1; §1.1 Genesis `predecessorVersion` null → '1.0'; §1.1 Bootstrap status sentence appends v1.0.1 prose-realignment narrative; §3.5 leaf-PA-I rationale "PS v1.0 declares" → "PS declares"; §3.6 AxR3 self-check narrates v1.0.1 carrying v1.0 axiom set forward with zero invariant-predicate changes; §5.9 v1.0 row B3+C1 alignment + new v1.0.1 row added; this §9 Change log v1.0.1 entry added. **Discipline:** prose-only amendment per AxR3 + MA-L1 — zero axiom invariant conditions changed; zero gate predicates changed; zero schema shapes changed; zero handoff rules changed; primitive instance counts unchanged; mechanical predicates at v1.0 baseline. Shot 3 src tree does not require re-verification (middleware function body byte-identical to v1.0; only header comment block realigned). Single bundle deploy per Playbook §1.22. | L0 (pending confirmation) |
+| v1.1 | Sprint B1 Shot 3 (2026-05-13): MA-St17 / MA-I8 / MA-V10 part B amendment apparatus applied per MFv3 v3.3.0 Shot 2 cascade. Detailed per-Δ scope recorded at §5.9 v1.1 row + §3.13.11 AmendmentProvenance. Summary: §1 governsRuntimeCode=true added per MA-I8 + LM carrier sweep v3.1→v3.3 across live cross-version references (historical changelog rows preserved); §3.13 AxisBasis declarations subsection added (additive per MA-S7) holding 65 basis declarations spanning 9 kind categories — axes (6, all l0-ratified-ref to Manual v13.0 Part II Boundary loci; **Correlation axis closes Memory #17**), sub-axes (24 per §3.4 enumeration), handoff rules (5), lifecycle events (5), judgment inputs (1), closure rules (8), typed shapes (14), procedure steps (0 — vacuous per quantifier), coupling enums (2); §3.13.10 jurisdictionClaim declared on all six own axes + PA-I against actual current source paths (`src/proxy.ts` + `src/features/F-identity/**`; v1.0.1 prose `src/middleware.ts` discrepancy surfaced as finding in delivery report); zero RCs at v1.1 — partial-drift declared per MA-V11 vacuous-pass targeting Sprint B2 closure. AmendmentProvenance at §3.13.11. Self-audit updated: G-I8 PASS at E1, G-St17 PASS at E3 with 65-declaration count, G-V10 part B PASS-with-partial-drift-declared at E4. Inherited framework-tier gate count 85→87, total 107→109. Version transition v1.0.1 → v1.1 per MA-L1 additive-only. Manual citations pin `manualVersion: '13.0'`. Discipline: zero axiom invariant predicates changed; zero gate predicates changed; zero schema shapes changed; zero handoff rule contracts changed; primitive instance counts unchanged. Pre-existing sub-axis count discrepancy (§3.2 says 13, §3.4 enumerates 24) carried forward as finding; not in this shot's amendment scope. | L0 (Sprint B1 Shot 3) |
+| v1.1 (Shot 5 cleanup) | Sprint B1 Shot 5 (2026-05-13): Sprint B1 close audit findings closed at PS. **F-B1-Audit-4** (residue removal at standards tier): §1 Identity `adjacentFrameworks` row removed entirely — residue eliminated alongside MFv3 v3.3.0 → v3.3.1 §2.1 MetaframeworkInput residue cleanup (the input field carried zero downstream consumers). Consequential edit at §6.5 FrameworkRef custody row: perimeter-standard removed from consumers column. **F-B1-Audit-6** (sibling-standard-parity placeholder): §3.13.3 Axioms basis placeholder inserted reserving slot for parity with LIV-Standard's §3.13.3 — PS axioms grounded by own derivation per MA-St17 exclusion clause; no A-22 basis required at axiom kind. Renumbering: §3.13.3..§3.13.11 each shifted +1 → §3.13.4..§3.13.12 (full map in Shot 5 delivery report); intra-file pointer references swept at active spec locations (§1 referentCitations basis prose, §3.13.8 ResolvedIdentity closure ref, §3.13.12 Shot 3 AmendmentProvenance scope rows Δ-B/Δ-C/Δ-D pointers, §7 E4 prose, §8.1 self-audit E4 summary). Historical narrative preserved verbatim at §5.9 v1.1 + §9 v1.1 rows per existing "Historical changelog rows preserved verbatim per L0 discipline" rule. **Δ:** §3.13.13 AmendmentProvenance recorded (this row's predecessor block); §5.9 + §9 v1.1 Shot 5 cleanup rows added. No version bump (PS stays v1.1). Self-audit unchanged. F-B1-Audit-4 closes by structural dissolution at standards tier alongside MFv3 v3.3.1 apparatus-tier residue removal; F-B1-Audit-6 closes by sibling-standard-parity placeholder with explicit MA-St17 exclusion rationale. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot5'} | L0 (Sprint B1 Shot 5) |
 
 ---
 
@@ -1014,11 +1206,11 @@ Per spec §Shot 2 D-records inline in tar manifest. PS-internal D-records:
 | D-record | Site | Decision |
 |---|---|---|
 | **D4** (axiom granularity per axis) | §3.6 | Direction: 2 axioms (PA1, PA2); Arrival Typing: 4 axioms (PA-T1..PA-T4); Authority Enforcement: 6 axioms (PA-A1..PA-A6); Channel: 4 axioms (PA-Cn1..PA-Cn4); Identity Resolution: 4 axioms (PA-IR1..PA-IR4); Correlation: 3 axioms (PA-Co1..PA-Co3); Identity-tier: 1 axiom (PA-I). Total: 22. Aggregate within D1 anticipated band of 18–24. Auditor reviews against MFv3 leaf-table sizing (§3.5 P3 leaves 1:1 with axioms). |
-| **D5** (gate enumeration) | §4.2 | 22 PS-own gates 1:1 with 22 axioms per G-M1. Plus 85 inherited framework-tier gates per metaframework v3.2.7 §4.1. Total framework-tier per audit: 107. |
+| **D5** (gate enumeration) | §4.2 | 22 PS-own gates 1:1 with 22 axioms per G-M1. Plus 87 inherited framework-tier gates per metaframework v3.3.1 §4.1. Total framework-tier per audit: 109. |
 | **D6** (orphan rule formulation for art_* / substrate split) | §3.6 PA-A4 + §3.9 vocabulary `orphan` + `paired-write contract` | Per F-009 ruling: every program emission writes both substrate state-change (wearer-scope when applicable) AND artifact-store record. **What counts as orphan:** an emission with one side missing (`substrateStateChangeId === null XOR artifactStoreRecordId === null`). **When surfaced:** at audit time via PA-A4 gate failure on persisted records. **How revoked:** ordinary LM LMA2 revocation path — wearer-initiated revocation issues a RevokeRef SubstrateWriteInput targeting the orphan's stored side; the missing side requires no revocation (already absent). Sprint 9 wire-in implements paired-write programs against this rule. |
 
 D7 + D8 (Shot 3) recorded in spec-shot-3.tar manifest per spec §Shot 3.
 
 ---
 
-## End of perimeter-standard.md.
+## End of perimeter-standard.md v1.1 — Sprint B1 Shot 5 cleanup.

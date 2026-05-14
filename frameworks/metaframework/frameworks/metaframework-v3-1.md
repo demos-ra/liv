@@ -8,8 +8,8 @@ placement: frameworks/metaframework/frameworks/
 **Kind:** Framework
 **Mode:** generative
 **Level:** L2
-**Version:** v3.2.7
-**Authority:** L0 confirmed (MF-Cycle-2 Spec↔Referent Alignment Closure delivery)
+**Version:** v3.3.1
+**Authority:** L0 confirmed (Sprint B1 Shot 2 — MA-St17, MA-I8, MA-V10 part B, L3 binding apparatus delivery)
 **Consumes:** substrate-v1-1, framework-registry-v1-0
 **Consumed by:** generation-procedure, framework-audit, amendment-propagation, generated L3 frameworks
 **Dependencies:** substrate-v1-1 (by reference, per HR1), framework-registry-v1-0 (by reference, per HR5)
@@ -27,7 +27,7 @@ Metaframework is the L2 framework that produces L3 framework templates. It decla
 | Kind | Framework |
 | Mode | generative (substrate §2 Modes) |
 | Level | L2 |
-| Version | v3.2.4 |
+| Version | v3.3.1 |
 | Ownership (template) | L0 |
 | Ownership (applied) | System (under L0 authority) |
 | State (template) | `declared` |
@@ -67,8 +67,7 @@ MetaframeworkInput = {
   proposedKind: Kind,
   proposedLevel: AuthorityLevel,
 
-  // Coupling inputs
-  adjacentFrameworks: FrameworkRef[],
+  // Coupling input
   carrierPreference: Carrier,
 
   // Activation-flow input (per V5 verification)
@@ -151,6 +150,8 @@ GeneratedFrameworkTemplate = {
 | `ReferentCitation` | substrate §4 A-18 (with inline `ExpectedShape` sub-shape, citation form `A-18.ExpectedShape`) |
 | `ReferentAlignmentState` | substrate §4 A-19 |
 | `ReferentSnapshot` | substrate §4 A-20 |
+| `StateOrdering` | substrate §4 A-21 (consumed via §2.2 Mode position-pair indexing; cascade from substrate v1.7) |
+| `AxisBasis` | substrate §4 A-22 (consumed by MA-St17 predicate over L2 declaration kinds; cascade from substrate v1.8) |
 
 ### §2.4 Metaframework-local atoms (declared at point of use in §3)
 
@@ -190,15 +191,33 @@ Rendered from v3-1-spec §3.1.
 
 **MECE verification** declared as judgment input `J-axis-mece` (see §7.1).
 
+### §3.1.1 FrameworkConcernSpace
+
+*(Added Sprint B1 Shot 1 per brief Δ-2. Declares the closed concern-space over which J-axis-mece C2 exhaustiveness is tested. Closure rule: additive per MA-S7 recursive scope.)*
+
+The seven axes partition the following declared concern-space. Each entry names the axis and the concern it covers. J-axis-mece C2 tests exhaustiveness by checking the seven-axis set against this declared table.
+
+| Axis | Concern covered |
+|---|---|
+| A1 Identity | What a framework is: its name, kind, mode, level, version, ownership, and genesis. |
+| A2 Schema | Typed input/output: the declared shapes crossing framework boundaries. |
+| A3 Structure | Internal decomposition: axes, sub-axes, leaves, axioms, primitives, and vocabulary. |
+| A4 Validity | Gates verifying the framework: the mechanical tests that determine conformance. |
+| A5 Lifecycle | Versioning, amendment, and transition: how a framework changes over time. |
+| A6 Coupling | Cross-framework concerns: carrier semantics, custody, provenance, and handoff contracts. |
+| A7 Judgment | Non-mechanical inputs: declared, criteria-bounded, provenance-tracked human inputs. |
+
+**Closure rule:** the seven entries enumerate the concerns covering frameworks produced by the metaframework at v3.3.0-shot1 baseline. The concern-space is additive per MA-S7 recursive scope; new concerns enter via metaframework amendment when a new framework concern is identified that the seven-axis set does not cover.
+
 ### §3.2 Axioms distributed
 
 **Count: 68 axis-bound + 1 universal = 69 axioms.** Rendered from v3-1-spec §3.2.
 
 | Axis | Count | IDs |
 |---|---|---|
-| Identity | 7 | MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7 |
+| Identity | **8** | MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7, **MA-I8** |
 | Schema | 8 | MA-S1, MA-S2, MA-S3, MA-S4, MA-S5, MA-S6, MA-S7, MA-S8 |
-| Structure | 16 | MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16 |
+| Structure | **17** | MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16, **MA-St17** |
 | Validity | 11 | MA-V1, MA-V2, MA-V3, MA-V4, MA-V5, MA-V6, MA-V7, MA-V8, MA-V9, MA-V10, MA-V11 |
 | Lifecycle | 11 | MA-L1, MA-L2, MA-L3, MA-L4, MA-L5, MA-L6, MA-L7, MA-L8, MA-L9, MA-L10, MA-L11 |
 | Coupling | 10 | MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6, MA-C7, MA-C8, MA-C9, MA-C10 |
@@ -208,6 +227,8 @@ Rendered from v3-1-spec §3.1.
 **Cycle-1 additions (v3.2.4):** MA-S7 (Schema axis, F-cycle-1-2/Q-cycle-1-2) and MA-V11 (Validity axis, F-cycle-1-8). Validity numbered MA-V11 (not MA-V10) per cycle-1 reservation; MA-V10 reserved for cycle-2 referent-shape conformance.
 
 **Cycle-2 additions (v3.2.7):** MA-V10 (Validity axis, spec↔referent Categorical alignment), MA-S8 (Schema axis, ReferentCitation declaration shape conformance), MA-L11 (Lifecycle axis, audit-run snapshot stamping). MA-S7 predicate tightened in-place to recursive `≼` relation governing discriminated-union sub-shapes (cycle-2 introduces the first such sub-shape via A-18.ExpectedShape); cycle-1 atom set re-validated zero-regression.
+
+**Sprint B1 Shot 2 additions (v3.3.0):** MA-St17 (Structure axis, content-basis over L2 declaration kinds), MA-I8 (Identity axis, governsRuntimeCode declaration). MA-V10 amended in-place (part B: jurisdiction-coverage predicate when governsRuntimeCode = true). Total axioms 69 → 71.
 
 #### §3.2.1 Axioms with full text declared in v3-1-spec §3.2
 
@@ -236,14 +257,27 @@ Typed-atom schema amendments at version transitions are field-additive recursive
 
 Tested by G-S7 (framework-audit §4), predicate amended to evaluate the recursive `≼` relation per atom shape. *Testability: mechanical — recursive structural comparison across version transitions per substrate §4 atom enumeration.* AxR conformance: AxR1 binds Schema ✓, AxR2 one mechanical condition ✓ (the recursive `≼` relation is one predicate evaluated structurally; the recursive case is part of the same predicate, not a separate condition), AxR3 additive ✓ (tightening accepts strict superset of prior-passing artifacts when no discriminated-union sub-shapes are present, which is the cycle-1 case; cycle-2 introductions pass the tightened predicate constructively per spec §3.2 re-validation), AxR4 declarative ✓.
 
-**MA-V10 — Spec↔referent Categorical alignment** (added cycle-2 v3.2.7 per MF-Cycle-2 spec↔referent column closure; binds to Validity axis. Slot reserved at cycle-1 v3.2.4.)
-For every ReferentCitation `rc` declared in framework's vocabulary or atom-inventory tables: when applicability='applicable' and executionState='executed', the referent at `rc.path` (resolved per ReferentResolver under the audit's ReferentSnapshot) parses, and its declaration structurally matches `rc.expectedShape` per the kind-specific comparison rules in substrate §4 A-18 ExpectedShape kind enum. *Testability: mechanical when ReferentResolver returns non-null AND parser registered for referentKind. Applicability='n/a' with basis when resolver returns null OR parser unregistered, per substrate §10.1 S4 + MA-V11 vacuous-pass clause.* AxR conformance: AxR1 binds Validity ✓, AxR2 one mechanical condition ✓ (single predicate over (parsed_shape, expected_shape) pair; comparison rules live in atom A-18 ExpectedShape kind enum — atom-internal definition, not predicate reference), AxR3 additive ✓, AxR4 declarative ✓.
-
 **MA-S8 — ReferentCitation declaration shape conformance** (added cycle-2 v3.2.7; binds to Schema axis.)
 Every ReferentCitation declared in any framework's vocabulary or atom-inventory table conforms to substrate §4 A-18 typed shape: required fields populated (citationId, citingFrameworkRef, atomName, referentKind, path, expectedShape); referentKind value is in the declared enum; expectedShape value is one of the four declared ExpectedShape kinds with kind-required fields populated. *Testability: mechanical — type-check + cardinality + enum-membership classes per substrate §6.3.* Distinction from MA-S7: MA-S7 governs typed-atom shape evolution across version transitions (does the atom shape itself stay additive?). MA-S8 governs citation instance conformance to atom shape at any single point in time (does this citation match A-18?). Different concerns; orthogonal. AxR conformance: AxR1 binds Schema ✓, AxR2 single predicate over ReferentCitation shape conformance ✓, AxR3 additive ✓, AxR4 declarative ✓.
 
 **MA-L11 — Audit-run snapshot stamping** (added cycle-2 v3.2.7; binds to Lifecycle axis.)
 Every audit run against a framework declaring ≥1 ReferentCitation produces an AuditRunRecord with `referentSnapshotRef` populated and resolving to a registered ReferentSnapshot (substrate §4 A-20). Frameworks declaring zero ReferentCitations may produce AuditRunRecords with `referentSnapshotRef = null` (vacuously satisfied per substrate §6.3 cardinality semantics, parallel to MA-V11 vacuous-pass discipline). *Testability: mechanical — null-check + reference-resolution classes per substrate §6.3.* AxR conformance: AxR1 binds Lifecycle ✓, AxR2 single condition (snapshot ref populated when citations present) ✓, AxR3 additive ✓, AxR4 declarative ✓.
+
+**MA-St17 — Content-basis over L2 declaration kinds** (added Sprint B1 Shot 2 v3.3.0 per brief Δ-3; binds to Structure axis.)
+Every L2 declaration of a kind in the enumerated set that crosses boundary 2 (MFv3 → standards) and is not already grounded by another declared mechanism must declare a basis conforming to substrate §4 A-22 AxisBasis. Enumerated kind set (closed at this rev; additive per MA-S7 recursive scope): axes, sub-axes, handoff rules, lifecycle events, judgment inputs, closure rules, typed shapes, procedure steps, coupling enums. Each such declaration carries a basis resolving to one of: a substrate atom (A-22 `substrate-atom-ref` arm — `atomId` resolves to substrate §4.2 declaration), a substrate amendment (A-22 `substrate-amendment-ref` arm — `amendmentId` resolves to §16 version history entry), or an L0 ratification (A-22 `l0-ratified-ref` arm — `ratification.level = 'L0'`, `basis` non-empty). "Already grounded by another declared mechanism" means the declaration is an instance of a primitive kind (P1–P8) whose grounding is declared by PR1; axiom grounding is handled by the axiom's own derivation; gate grounding is handled by the gate's `tests` binding. These kinds are excluded from the MA-St17 quantifier. *Testability: mechanical — enumeration of declaration kinds in §3 + reference-resolution per A-22 arm discriminant per substrate §6.3 classes.* AxR conformance: AxR1 binds Structure ✓, AxR2 one predicate (basis-resolution check over enumerated kinds) ✓, AxR3 additive ✓ (kind-set extensible per MA-S7), AxR4 declarative ✓.
+
+**MA-I8 — governsRuntimeCode declaration** (added Sprint B1 Shot 2 v3.3.0 per brief Δ-4; binds to Identity axis.)
+Every framework declares `governsRuntimeCode: boolean` in its Identity section. The field is present and carries a declared value (not inferred). `true` means the framework's axis structure and closure rules are intended to govern source code in the L3 runtime; `false` means the framework governs declarations only. Closure rule: value is declared at generation time and may be amended via declared MA-L2 trigger. *Testability: mechanical — field-presence + boolean-type check per substrate §6.3 type-check class.* AxR conformance: AxR1 binds Identity ✓, AxR2 one condition (presence + type) ✓, AxR3 additive ✓, AxR4 declarative ✓.
+
+**MA-V10 — Spec↔referent alignment (amended Sprint B1 Shot 2; part B added)** (originally added cycle-2 v3.2.7 per MF-Cycle-2 spec↔referent column closure; amended in-place Sprint B1 Shot 2 per brief Δ-4 to add part B jurisdiction-coverage predicate. Part A unchanged.)
+
+*Part A (unchanged from v3.2.7):* For every ReferentCitation `rc` declared in framework's vocabulary or atom-inventory tables: when applicability='applicable' and executionState='executed', the referent at `rc.path` (resolved per ReferentResolver under the audit's ReferentSnapshot) parses, and its declaration structurally matches `rc.expectedShape` per the kind-specific comparison rules in substrate §4 A-18 ExpectedShape kind enum. Applicability='n/a' with basis when resolver returns null OR parser unregistered, per substrate §10.1 S4 + MA-V11 vacuous-pass clause.
+
+*Part B (added Sprint B1 Shot 2):* When `framework.governsRuntimeCode = true` (per MA-I8), every source-governing axis must have jurisdiction coverage: for every axis `ax` in the framework where `ax.jurisdictionClaim` is declared (non-null), the set of ReferentCitations bound to `ax` covers every source path under `ax.jurisdictionClaim` — there is no path `p ∈ ax.jurisdictionClaim` for which zero ReferentCitations bind (i.e., for which `rc.path` would not subsume `p`). "Covers" means every declared source path is bound by at least one citation; gaps in coverage are G-V10 part B failures.
+
+*Amendment trigger:* G-V10 (both parts) re-fires on L2 amendment. When a standard amends, affected ReferentCitations must be re-declared or re-verified; the re-fire requirement is declared here so amendment-propagation routes re-audit at G-V10 on every L2 amendment event that touches a framework with `governsRuntimeCode = true`.
+
+*Testability:* Part A: mechanical when ReferentResolver returns non-null AND parser registered for referentKind. Part B: mechanical — set-coverage check over axis jurisdictionClaim paths vs. bound ReferentCitation path set; applicability='n/a' with basis when `governsRuntimeCode = false` or when no jurisdictionClaim is declared on any axis (vacuous per MA-V11 discipline). AxR conformance: AxR1 binds Validity ✓, AxR2 — note: MA-V10 now states two conjunct conditions (A+B); these are not independent axioms because they both govern the same concern (spec↔referent alignment at different granularities — part A per-citation, part B per-axis-jurisdiction). The conjunction is the single predicate governing spec↔referent alignment completeness. This is consistent with AxR2 applied to compound predicates over the same concern; the distinction from multi-axiom violations (F-phase-1-1-04) is that A+B address the same entity (spec↔referent alignment) at two levels of resolution. AxR3 additive ✓ (part B is a strengthening of an existing axiom; prior-passing zero-citation frameworks remain vacuously passing), AxR4 declarative ✓.
 
 **MA-V11 — Applicability-basis required** (added cycle-1 v3.2.4 per F-cycle-1-8; binds to Validity axis).
 For every produced gate result `gr` with `gr.applicability = 'n/a'`, `gr.basis` is non-null and `length(gr.basis) ≥ 1`. The same invariant applies to every produced dimension result with `applicability = 'n/a'`. Tested by G-V11 (§4): enumerates GateResult and DimensionResult instances across all SelfAuditRecords; verifies invariant. Result class: binary truthValue per substrate §10.1 S4 (passed iff invariant holds across all instances; failed iff any instance violates). When the enumerated set of `applicability = 'n/a'` instances is empty, the universal quantification is vacuously satisfied per substrate §6.3 cardinality semantics — `truthValue = 'passed'` with explicit basis recording the empty enumeration (parallel to G-U4 empty-declaration discipline per A-17). *Testability: mechanical — type-check + cardinality per substrate §6.3.* AxR conformance: AxR1 binds Validity ✓, AxR2 one mechanical condition ✓, AxR3 additive ✓, AxR4 declarative ✓.
@@ -254,10 +288,10 @@ The remaining 60 axioms are declared in v3-1-spec §3.2 by ID and axis binding o
 
 Axioms rendered by ID + axis binding per v3-1-spec §3.2:
 
-- **Identity (A1):** MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7 — each binds to Identity axis per AxR1; each states one mechanical condition directly per AxR2. (MA-I6 is criteria-bounded per J-authority-source-classification declared at framework-audit §7; MA-I7 mechanical.)
+- **Identity (A1):** MA-I1, MA-I2, MA-I3, MA-I4, MA-I5, MA-I6, MA-I7, MA-I8 — each binds to Identity axis per AxR1; each states one mechanical condition directly per AxR2. (MA-I6 is criteria-bounded per J-authority-source-classification declared at framework-audit §7; MA-I7 mechanical; MA-I8 full text declared §3.2.1, Sprint B1 Shot 2 v3.3.0 addition.)
 - **Schema (A2):** MA-S1, MA-S2, MA-S3, MA-S4, MA-S5, MA-S6, MA-S7, MA-S8 — each binds to Schema axis per AxR1. All mechanical. (MA-S7 full text declared §3.2.1; cycle-1 v3.2.4 addition + cycle-2 v3.2.7 predicate tightening to recursive `≼`. MA-S8 full text declared §3.2.1; cycle-2 v3.2.7 addition.)
-- **Structure (A3):** MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16 — each binds to Structure axis per AxR1. (MA-St11 criteria-bounded per J-axis-concern-coverage; MA-St14 criteria-bounded per J-axiom-text-declarative; remaining mechanical.)
-- **Validity (A4):** MA-V1, MA-V2, MA-V3, MA-V4, MA-V6, MA-V7, MA-V8, MA-V9, MA-V10, MA-V11 — each binds to Validity axis per AxR1. (MA-V5 full text declared §3.2.1; MA-V6 mechanical with declared edge-case audit-note caveat; MA-V9 tests gate-rule conformance against GR-1..GR-6 declared at framework-audit §4.6.1; MA-V10 full text declared §3.2.1, cycle-2 v3.2.7 addition; MA-V11 full text declared §3.2.1, cycle-1 v3.2.4 addition.)
+- **Structure (A3):** MA-St1, MA-St2, MA-St3, MA-St4, MA-St5, MA-St6, MA-St7, MA-St8, MA-St9, MA-St10, MA-St11, MA-St12, MA-St13, MA-St14, MA-St15, MA-St16, MA-St17 — each binds to Structure axis per AxR1. (MA-St11 criteria-bounded per J-axis-concern-coverage; MA-St14 criteria-bounded per J-axiom-text-declarative; MA-St17 full text declared §3.2.1, Sprint B1 Shot 2 v3.3.0 addition; remaining mechanical.)
+- **Validity (A4):** MA-V1, MA-V2, MA-V3, MA-V4, MA-V6, MA-V7, MA-V8, MA-V9, MA-V10, MA-V11 — each binds to Validity axis per AxR1. (MA-V5 full text declared §3.2.1; MA-V6 mechanical with declared edge-case audit-note caveat; MA-V9 tests gate-rule conformance against GR-1..GR-6 declared at framework-audit §4.6.1; MA-V10 full text declared §3.2.1, cycle-2 v3.2.7 addition + Sprint B1 Shot 2 v3.3.0 part B amendment; MA-V11 full text declared §3.2.1, cycle-1 v3.2.4 addition.)
 - **Lifecycle (A5):** MA-L1, MA-L2, MA-L3, MA-L4, MA-L5, MA-L8, MA-L9, MA-L10, MA-L11 — each binds to Lifecycle axis per AxR1. (MA-L6, MA-L7 full text declared §3.2.1; MA-L8 criteria-bounded per J-amendment-trigger-context; MA-L9, MA-L10 mechanical; MA-L11 full text declared §3.2.1, cycle-2 v3.2.7 addition.)
 - **Coupling (A6):** MA-C1, MA-C2, MA-C3, MA-C4, MA-C5, MA-C6, MA-C7, MA-C8, MA-C9, MA-C10 — each binds to Coupling axis per AxR1. All mechanical. (MA-C9 tests cross-framework ID coherence; MA-C10 tests substrate-version-pin uniformity across active frameworks.)
 - **Judgment (A7):** MA-J1, MA-J2, MA-J3, MA-J4, MA-J5 — each binds to Judgment axis per AxR1. (MA-J5 tests mechanicalGround field resolution per substrate §6.3.)
@@ -279,9 +313,9 @@ Per substrate §8.
 |---|---|---|
 | P1 Axis | 7 | A1–A7 |
 | P2 Sub-axis | 0 | no sub-axes declared at metaframework level; declare per-axis as MECE requires in derived L3 frameworks |
-| P3 Leaf | 69 | one per axiom (each axiom is a property-atomicity leaf under its bound axis) |
-| P4 Axiom | 69 | MA-I1..MA-I7, MA-S1..MA-S8, MA-St1..MA-St16, MA-V1..MA-V11, MA-L1..MA-L11, MA-C1..MA-C10, MA-J1..MA-J5, MA-G13 |
-| P5 Gate | 90 | see §4 Validity (85 framework-tier + 5 substrate SG1–SG5; baseline §3.4 P5=86 carried a stale value from pre-cycle-1.5 — corrected at cycle-2 to match §4.1 Total of 90 = 87 cycle-1.6 + 3 cycle-2 new gates) |
+| P3 Leaf | **71** | one per axiom (each axiom is a property-atomicity leaf under its bound axis); 69 at v3.2.7 + 2 at v3.3.0 (MA-St17 + MA-I8) |
+| P4 Axiom | **71** | MA-I1..MA-I8, MA-S1..MA-S8, MA-St1..MA-St17, MA-V1..MA-V11, MA-L1..MA-L11, MA-C1..MA-C10, MA-J1..MA-J5, MA-G13 |
+| P5 Gate | **93** | see §4 Validity (87 framework-tier + 6 substrate SG1–SG6; +2 framework-tier from G-St17 + G-I8 at Sprint B1 Shot 2) |
 | P6 Handoff rule | 7 | HR0–HR6 (see §6 Coupling) |
 | P7 Judgment input | 2 | J-axis-mece, J-axiom-dist (see §7 Judgment). 4 additional P7 instances declared at framework-audit §7 per closure item 2: J-authority-source-classification, J-axis-concern-coverage, J-axiom-text-declarative, J-amendment-trigger-context. |
 | P8 Procedure step | delegated | metaframework is generative, but procedure-step instances are declared in `generation-procedure-v1-0` (consumer framework) per v3-1-spec §4.4 file-specific placement |
@@ -311,29 +345,57 @@ Framework-local terms declared inline at point of use (per PR1, substrate §10.2
 | `State` | substrate §9 | LifecycleState enum consumed by reference |
 | `Carrier` | substrate §9 | substrate-declared enum; consumed by reference |
 
+### §3.6 L3 binding apparatus
+
+*(Added Sprint B1 Shot 2 per brief. Declaration of what exists — not new structure. Cross-references resolve to existing substrate atoms and audit machinery. Closure rule: apparatus is closed at this rev; extension via substrate amendment that adds new binding-tier atoms.)*
+
+The L3 binding apparatus is the boundary-3 infrastructure (MFv3 → L3 standards boundary) that audit operates against to verify that L2-declared structure is realized in L3 runtime code. Four components:
+
+| Component | Declared at | Role |
+|---|---|---|
+| `ReferentCitation` (A-18) | substrate §4.2 A-18 | Declares a citation from a framework's typed-shape declaration to a referent at a resolvable runtime path. Carries `referentKind`, `path`, and `expectedShape`. This is the mechanism by which an L2 axis claims coverage of a source code path. |
+| `ReferentAlignmentState` (A-19) | substrate §4.2 A-19 | Truth-value/applicability/executionState record produced per citation per audit run. Captures whether the referent at `path` structurally matches `expectedShape` at the snapshot. |
+| `ReferentSnapshot` (A-20) | substrate §4.2 A-20 | Typed identifier for a point-in-time snapshot of the runtime codebase (git commit, md5-set, or version tag). Decouples snapshot identity from audit-run state. |
+| Parser registry | substrate §4.2 A-18 ReferentResolver interface | Declared at substrate as `ReferentResolver = (citation, snapshotRef) => string \| null`. Each consumer framework declares its own implementation. Framework-audit executes registered parsers at G-V10. |
+
+**Apparatus closure rule:** the four components enumerate the boundary-3 binding infrastructure at v3.3.0 baseline. New binding-tier components enter via substrate amendment that adds a new atom to §4.2 and a new row to this table. No component may be removed without explicit substrate amendment and migration path.
+
+**Relationship to MA-V10:** G-V10 (paired with MA-V10) is the gate that exercises this apparatus. G-V10 part A verifies per-citation alignment; G-V10 part B (added Sprint B1 Shot 2) verifies jurisdiction coverage when `governsRuntimeCode = true`. The apparatus is the machinery; MA-V10 is the axiom; G-V10 is the test.
+
 ---
 
 ## §4 Validity
 
 ### §4.1 Gate count
 
-**90 total gates** per v3-1-spec §3.4 (post-cycle-2: 87 from cycle-1.6 + 3 new at cycle-2 — G-V10, G-S8, G-L11. Substrate gates SG1–SG5 unchanged at 5).
+**93 total gates** at v3.3.0 (91 from Shot 1 + 2 new at Shot 2 — G-St17, G-I8. Substrate gate SG6 added Shot 1 and counted in Shot 1 total of 91).
 
 | Category | Count | ID range |
 |---|---|---|
-| Substrate gates (run once, not per framework) | 5 | SG1, SG2, SG3, SG4, SG5 |
+| Substrate gates (run once, not per framework) | **6** | SG1, SG2, SG3, SG4, SG5, SG6 |
 | Primitive gates (per framework) | 7 | PG1, PG2, PG3, PG4, PG5, PG6, PG7 |
-| Axiom gates (1 per axis-bound axiom) | 68 | G-I1–G-I7, G-S1–G-S8, G-St1–G-St16, G-V1–G-V11, G-L1–G-L11, G-C1–G-C10, G-J1–G-J5 |
+| Axiom gates (1 per axis-bound axiom) | **70** | G-I1–G-I8, G-S1–G-S8, G-St1–G-St17, G-V1–G-V11, G-L1–G-L11, G-C1–G-C10, G-J1–G-J5 |
 | Universal MA-G13 gate | 1 | G-G13 |
 | F-phase-1-1-69 universal gates | 5 | G-U1, G-U2, G-U3, G-U4, G-U5 |
 | Meta-gates | 4 | G-M1, G-M2, G-M3, G-M4 |
-| **Total** | **90** | |
+| **Total** | **93** | |
 
-**Framework-tier gates (run per framework): 85** (post-cycle-2; sum of 7 PG + 68 axiom + 1 MA-G13 + 5 F-phase-1-1-69 + 4 meta. Substrate gates SG1–SG5 excluded per substrate §11.5 tier-1 "run once, not per framework" semantics. Cycle-2 framework-tier addition: 82 → 85, +3 from G-V10/G-S8/G-L11.)
+**Framework-tier gates (run per framework): 87** at v3.3.0 (sum of 7 PG + 70 axiom + 1 MA-G13 + 5 F-phase-1-1-69 + 4 meta. Substrate gates SG1–SG6 excluded per substrate §11.5 tier-1. Shot 2 framework-tier addition: 85 → 87, +2 from G-St17/G-I8.)
 
-**Cycle-1 additions:** G-S7 (paired with MA-S7, F-cycle-1-2/Q-cycle-1-2) + G-V11 (paired with MA-V11, F-cycle-1-8). Predicate bodies declared §4.8.X below (per axis sub-section).
+**Shot 1 additions (v3.3.0-shot1):** SG6 at substrate (Mode-count gate). No framework-tier additions at Shot 1.
 
-**Cycle-2 additions (v3.2.7):** G-V10 (paired with MA-V10), G-S8 (paired with MA-S8), G-L11 (paired with MA-L11). G-S7 predicate amended in-place to evaluate the recursive `≼` relation per substrate §4 atom shape (paired with tightened MA-S7); same single mechanical condition, axis binding (Schema) unchanged, result class (binary truth-value per S4) unchanged. Predicate bodies for G-V10, G-S8, G-L11, G-S7-amended declared at framework-audit §4.
+**Shot 2 additions (v3.3.0):** G-St17 (paired with MA-St17, Δ-3 content-basis) + G-I8 (paired with MA-I8, Δ-4 governsRuntimeCode). MA-V10 amended in-place (part B jurisdiction-coverage predicate); no count change for in-place amendment.
+
+**G-St17 — Content-basis for L2 declaration kinds.**
+*Claim:* every L2 declaration of a kind in MA-St17's enumerated set declares a basis resolving per substrate §4 A-22 AxisBasis.
+*Test (mechanical):* enumerate every declaration in framework §3 Structure belonging to the MA-St17 kind-set (axes, sub-axes, handoff rules, lifecycle events, judgment inputs, closure rules, typed shapes, procedure steps, coupling enums). For each: verify `basis` field present; verify `basis.kind ∈ {'substrate-atom-ref','substrate-amendment-ref','l0-ratified-ref'}`; resolve basis per arm discriminant (reference-resolution + type-check classes per substrate §6.3). Declarations with no basis field fail. Basis with unresolvable reference fails.
+*Amendment trigger:* G-St17 re-fires on substrate amendment. When substrate atoms or amendments change, basis references may become stale; re-verification required at next audit run on every framework that declares a basis of kind `substrate-atom-ref` or `substrate-amendment-ref`.
+*Result class:* binary truthValue per substrate §10.1 S4. Failure logs first failing declaration (axis/kind/path).
+
+**G-I8 — governsRuntimeCode presence.**
+*Claim:* every framework's Identity section carries `governsRuntimeCode: boolean` with a declared value.
+*Test (mechanical):* type-check + field-presence per substrate §6.3 type-check class; verify `typeof governsRuntimeCode === 'boolean'` and field is not null/undefined.
+*Result class:* binary truthValue per substrate §10.1 S4.
 
 ### §4.2 Meta-gates (G-M1–G-M4)
 
@@ -365,8 +427,8 @@ Per v3-1-spec §3.4.
 
 Per substrate §11.5 + v3-1-spec §3.4:
 
-1. **Tier 1 — Substrate gates** (SG1–SG5): run once, not per framework.
-2. **Tier 2 — Axiom gates** (per framework): 68 + G-G13 = 69.
+1. **Tier 1 — Substrate gates** (SG1–SG6): run once, not per framework.
+2. **Tier 2 — Axiom gates** (per framework): 70 + G-G13 = 71.
 3. **Tier 3 — Universal gates** (per framework): G-U1–G-U5.
 4. **Tier 4 — Meta-gates** (per framework, gate-set integrity last): G-M1–G-M4.
 
@@ -384,13 +446,13 @@ Per v3-1-spec §3.4. Unchanged from original spec. Consumed by reference.
 
 ### §4.7 Current gate results
 
-**All 85 framework-tier gates: state = `not-yet-run`** for cycle-2-added gates (G-V10, G-S8, G-L11) and `not-yet-run` for any prior cycle-1-added gates (G-S7-amended, G-V11) that have not yet first-run. (52 from v3.2.1 inherited, 28 added at v3.2.3, 2 added at cycle-1 v3.2.4: G-S7 + G-V11; 3 added at cycle-2 v3.2.7: G-V10 + G-S8 + G-L11. G-S7 predicate amended cycle-2 in-place — no count change for the amendment itself.) First-run pending framework-audit per §8 deferrals; cycle-2-added gates first-run scheduled at first system-wide audit cycle post-cycle-2 ratification per metaframework §5 first-run-execution lifecycle event (added cycle-1 per F-cycle-1-11).
+**All 87 framework-tier gates: state = `not-yet-run`** (85 from v3.2.7 + 2 new at v3.3.0: G-St17 + G-I8). First-run pending framework-audit per §8 deferrals.
 
 Gate IDs enumerated (traceable; canonical set — referenced as `MetaframeworkGateIdSet` per §3.5 vocab + substrate §4 A-15):
 
-`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1, G-I2, G-I3, G-I4, G-I5, G-I6, G-I7, G-S1, G-S2, G-S3, G-S4, G-S5, G-S6, G-S7, G-S8, G-St1, G-St2, G-St3, G-St4, G-St5, G-St6, G-St7, G-St8, G-St9, G-St10, G-St11, G-St12, G-St13, G-St14, G-St15, G-St16, G-V1, G-V2, G-V3, G-V4, G-V5, G-V6, G-V7, G-V8, G-V9, G-V10, G-V11, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-L8, G-L9, G-L10, G-L11, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-C7, G-C8, G-C9, G-C10, G-J1, G-J2, G-J3, G-J4, G-J5, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4.`
+`PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-I1, G-I2, G-I3, G-I4, G-I5, G-I6, G-I7, G-I8, G-S1, G-S2, G-S3, G-S4, G-S5, G-S6, G-S7, G-S8, G-St1, G-St2, G-St3, G-St4, G-St5, G-St6, G-St7, G-St8, G-St9, G-St10, G-St11, G-St12, G-St13, G-St14, G-St15, G-St16, G-St17, G-V1, G-V2, G-V3, G-V4, G-V5, G-V6, G-V7, G-V8, G-V9, G-V10, G-V11, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-L8, G-L9, G-L10, G-L11, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-C7, G-C8, G-C9, G-C10, G-J1, G-J2, G-J3, G-J4, G-J5, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4.`
 
-Total enumerated: 85 (7 PG + 68 axiom + 1 MA-G13 + 5 F-phase-1-1-69 + 4 meta). The 5 substrate gates (SG1–SG5, post-cycle-1.5) excluded per tier-1 "run once, not per framework" semantics (substrate §11.5).
+Total enumerated: 87 (7 PG + 70 axiom + 1 MA-G13 + 5 F-phase-1-1-69 + 4 meta). The 6 substrate gates (SG1–SG6) excluded per tier-1 "run once, not per framework" semantics (substrate §11.5).
 
 ---
 
@@ -441,6 +503,7 @@ Empty at delivery. No MA-L5 events since Phase 1.1 (J-axis-mece + J-axiom-dist b
 | v3.2.3 | Phase v3.2.3 delivery (2026-04-27) | 28 axioms added across 7 axes (per axis: I+2, S+3, St+11, V+4, L+3, C+4, J+1); 28 paired gates added; 4 J-inputs added (declared at framework-audit §7); 1 GR-series rule set added (declared at framework-audit §4.6.1). Counts: axiom 36→64; framework-tier gate 52→80; total all-gates 56→84. P3, P4, P5, P7 row totals updated at §3.4. Single-batched cycle per Phase 6. | L0 |
 | v3.2.4 | MF-Cycle-1 Foundation Closure (2026-04-29) | Cluster D atom dependencies tracked through substrate v1.3 lift: §3.5 vocabulary `MetaframeworkGateIdSet` row updated to substrate §4 A-15 derived consumer (F-cycle-1-14); §6.5 custody table — `MetaframeworkGateIdSet` ownership lifted to substrate §4 A-15, new rows added for OriginProvenance (A-05 in-place rename), AmendmentProvenance (A-16), EmptyPrimitiveDeclaration (A-17). Cluster D axioms: MA-S7 (Schema-axis additive amendment, F-cycle-1-2/Q-cycle-1-2) + G-S7 paired gate; MA-V11 (applicability-basis required, F-cycle-1-8) + G-V11 paired gate. §3.2 axiom count 64→66 (Schema 6→7, Validity 9→10 with V11 numbering); §3.2.1 MA-S7 + MA-V11 full text declared; §3.2.2 Schema + Validity bindings extended; §3.4 P3 64→66, P4 64→66, P5 84→86; §4.1 framework-tier gate 80→82 (total all-gates 84→86); §4.4 tier-2 axiom-gates 64→66; §4.7 + §8.1 enumeration extended with G-S7 + G-V11. Cluster C: §5.X first-run-execution lifecycle event declared (F-cycle-1-11; AmendmentEvent kind `'first-run'`, see §5.X). MF-Cycle-1 Foundation Closure spec rev-2 ratified by L0 2026-04-29 with no preserved MF-amendment-1 carry text (carries close-by-rebuild per Q-cycle-1-1). All amendments additive per MA-L1 + MA-S7. | L0 |
 | v3.2.5 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29) | Substrate v1.3 → v1.4 cascade. Substrate added S6 (identifier naming function) + SG5 (naming-function conformance gate) + §1.5 canonical kind registry. Counts: substrate gate count 4 → 5; total all-gates 86 → 87 (framework-tier 82 unchanged — substrate gates excluded per substrate §11.5 tier-1). MA-S7 single-mechanical-condition tightening (subset-with-type-stability predicate per AxR2). MA-V11 vacuous-pass clause added (empty `applicability='n/a'` set vacuously satisfied per substrate §6.3 cardinality semantics). Identifier sweep applied: every multi-locus identifier in canonical S6 form (declarations and citations alike). All amendments additive per MA-L1 + MA-S7. | L0 |
+| v3.3.1 | Sprint B1 Shot 5 (2026-05-13) | §2.1 MetaframeworkInput: removed `adjacentFrameworks: FrameworkRef[]` field — non-load-bearing residue declared at v3.0 with zero downstream consumers (no axiom, gate, or output field populates from it). generation-procedure §2.1 input-field enumeration swept in lockstep. Patch-level removes-residue per S3; no axioms / gates / HRs / primitives amended. Full rationale at §9 v3.3.1 row. | L0 |
 
 ### §5.7 Failure modes, scale bounds, atomicity declarations
 
@@ -619,7 +682,7 @@ J-axis-mece:
   input: { axes: [Identity, Schema, Structure, Validity, Lifecycle, Coupling, Judgment] }
   criteria:
     C1: Each pair of axes is orthogonal (mechanical: pairwise concern-comparison, no two axes cover same concern).
-    C2: Seven-axis set is collectively exhaustive over framework concerns (mechanical: enumeration check against declared concern-space).
+    C2: Seven-axis set is collectively exhaustive over framework concerns (mechanical: enumeration check against §3.1.1 FrameworkConcernSpace — amended Sprint B1 Shot 1 to replace prior implicit reference).
     C3: No axis exceeds its declared concern boundary (mechanical: content-attribution check).
   provenance:
     instanceId: manager-phase-3
@@ -667,10 +730,10 @@ Both J-inputs trace to L0 confirmation at Phase 1.1 (re-open) + ratified at Phas
 
 ### §8.1 Gate results
 
-**All 85 framework-tier gates: state = `not-yet-run`** for cycle-2-added gates (G-V10 + G-S8 + G-L11) and any prior cycle-1-added gates (G-S7 amended + G-V11) that have not yet first-run. First-run pending framework-audit per Phase 9d §8 deferrals; cycle-2-added gates first-run scheduled at first system-wide audit cycle post-cycle-2 ratification per §5.X first-run-execution lifecycle event.
+**All 87 framework-tier gates: state = `not-yet-run`** (85 from v3.2.7 + 2 new at v3.3.0: G-St17 + G-I8). First-run pending framework-audit per §8 deferrals.
 
 Gate ID enumeration (traceable; matches §4.7):
-`PG1–PG7, G-I1–G-I7, G-S1–G-S8, G-St1–G-St16, G-V1–G-V11, G-L1–G-L11, G-C1–G-C10, G-J1–G-J5, G-G13, G-U1–G-U5, G-M1–G-M4`.
+`PG1–PG7, G-I1–G-I8, G-S1–G-S8, G-St1–G-St17, G-V1–G-V11, G-L1–G-L11, G-C1–G-C10, G-J1–G-J5, G-G13, G-U1–G-U5, G-M1–G-M4`.
 
 ### §8.2 Dimension audit results
 
@@ -706,6 +769,9 @@ Per G-U1 (self-application): metaframework's gate suite runs against metaframewo
 | v3.2.5 | MF-Cycle-1.5 Identifier Discipline Closure (2026-04-29; row added at cycle-1.6 — closes cycle-1.5 §9 self-amendment gap) | Substrate v1.3 → v1.4 cascade. Substrate added S6 (identifier naming function) + SG5 (naming-function conformance gate) + §1.5 canonical kind registry. Counts: substrate gate count 4 → 5; total all-gates 86 → 87 (framework-tier 82 unchanged — substrate gates excluded per substrate §11.5 tier-1). §4.1 substrate-gate row count 4 → 5 (deferred at cycle-1.5 delivery; closed by cycle-1.6 cascade). MA-S7 single-mechanical-condition tightening (subset-with-type-stability predicate per AxR2). MA-V11 vacuous-pass clause added (empty `applicability='n/a'` set vacuously satisfied per substrate §6.3 cardinality semantics). Identifier sweep applied: every multi-locus identifier in canonical S6 form (declarations and citations alike). All amendments additive per MA-L1 + MA-S7. | L0 |
 | v3.2.6 | MF-Cycle-1.6 Identifier Discipline Corrective (2026-04-29) | Substrate v1.4 → v1.5 cascade. §4.1 substrate-gate count corrected 4 → 5 (cycle-1.5 omission); §4.1 Total 86 → 87. §4.7 unchanged (framework-tier 82). No axiom / gate / HR / primitive amendments — corrective-cycle scope. Identifier-sweep companion: 8 metaframework body sites swept per substrate §1.5 amended (Phase 1.1 references reclassified — atom shape A-NN bare, finding F-phase-1-1-A-NN kept, resolution R-phase-1-1-resolution-NN). All amendments additive per MA-L1 + MA-S7 (terminology disambiguation, no shape changes). | L0 |
 | v3.2.7 | MF-Cycle-2 Spec↔Referent Alignment Closure (2026-04-30) | Substrate v1.5 → v1.6 cascade (3 new atoms A-18 ReferentCitation + A-19 ReferentAlignmentState + A-20 ReferentSnapshot). §3.2.1 MA-S7 predicate tightened in-place to recursive `≼` relation (governs discriminated-union sub-shapes; cycle-2 introduces the first such sub-shape via A-18.ExpectedShape). §3.2.1 MA-V10 + MA-S8 + MA-L11 full text declared (3 new axioms; MA-V10 Validity spec↔referent Categorical alignment, MA-S8 Schema ReferentCitation declaration shape conformance, MA-L11 Lifecycle audit-run snapshot stamping). §3.2 axiom counts: Schema 7→8, Validity 10→11, Lifecycle 10→11; total 66→69. §3.2.2 Schema + Validity + Lifecycle bindings extended. §2.2 GeneratedFrameworkTemplate `schema:` block extended with `referentCitations: ReferentCitation[]` field (canonical declaration site per cycle-2 spec §7 row 4 + L0 ratification on extend-`schema:` placement). §2.3 consumed-types table: A-18, A-19, A-20 rows added. §3.5 vocabulary MetaframeworkGateIdSet count 82→85. §4.1 framework-tier gate count 82→85 (G-V10 + G-S8 + G-L11 paired gates added; G-S7 predicate amended in-place to evaluate recursive `≼`, no count change for the amendment); total all-gates 87→90; substrate gates SG1–SG5 unchanged at 5. §4.4 tier-2 count 65+G-G13=66 → 68+G-G13=69. §4.7 + §8.1 enumeration extended. All amendments additive per MA-L1 + MA-S7 (recursive scope per §3.2.1 amendment); MA-S7 tightening verified zero-regression on cycle-1 atom set (A-01..A-17 carry zero discriminated-union sub-shapes; recursive `≼` reduces to prior subset-with-type-stability predicate). | L0 |
+| v3.3.0-shot1 | Sprint B1 Shot 1 — FrameworkConcernSpace + StateOrdering (2026-05-13) | Δ-2 per brief. §3.1.1 FrameworkConcernSpace added: declares seven-entry concern-space table (one entry per axis: Identity→what-a-framework-is, Schema→typed-I/O, Structure→internal-decomposition, Validity→conformance-gates, Lifecycle→versioning-amendment-transition, Coupling→cross-framework-concerns, Judgment→non-mechanical-inputs); closure rule additive per MA-S7 recursive scope. §7.1 J-axis-mece C2 criterion amended in-place: replaces prior implicit reference to "declared concern-space" with explicit reference to §3.1.1 FrameworkConcernSpace (concern: exhaustiveness test now has a declared target). Substrate v1.6 → v1.7 cascade: A-21 StateOrdering (closed five-state tuple) + SG6 (Mode-count gate) declared at substrate; §2.3 consumed-types table receives A-21 row; §4.1 substrate gate count 5 → 6; total all-gates 90 → 91. No axiom adds, no gate adds at framework-tier (SG6 is substrate-tier). §3.4 P5 count: 90 → 91 (substrate gate SG6 added; framework-tier 85 unchanged). All amendments additive per MA-L1. | L0 |
+| v3.3.0 | Sprint B1 Shot 2 — MA-St17, MA-I8, MA-V10 part B, L3 binding apparatus (2026-05-13) | Substrate v1.7 → v1.8 cascade: A-22 AxisBasis (three-arm discriminated union: substrate-atom-ref \| substrate-amendment-ref \| l0-ratified-ref) added at substrate §4.2; §2.3 ModeSignature amended in-place (StateOrderingIndex type alias + typed position fields). Four MFv3 amendments: (1) MA-St17 (Structure axis, Δ-3) + G-St17 paired gate — content-basis predicate over L2 declaration kinds; G-St17 re-fires on substrate amendment. (2) MA-I8 (Identity axis, Δ-4) + G-I8 paired gate — every framework declares governsRuntimeCode: boolean. (3) MA-V10 amended in-place (part B added): jurisdiction-coverage predicate when governsRuntimeCode = true; G-V10 re-fires on L2 amendment. (4) §3.6 L3 binding apparatus section: declares four components (A-18, A-19, A-20, parser-registry/ReferentResolver) as boundary-3 infrastructure; closure rule additive via substrate amendment; relationship to MA-V10/G-V10 declared. §3.2 axiom counts: Identity 7→8, Structure 16→17; total 69→71. §3.2.2 Identity + Structure binding lines extended. §3.4 P3 69→71, P4 69→71, P5 91→93 (SG6 from Shot 1 counted in total). §4.1 framework-tier gate count 85→87; total all-gates 91→93; SG6 in tier-1 (6 substrate gates). §4.4 tier-2 axiom-gates 69→71. §4.7 + §8.1 enumeration extended. §2.3 consumed-types: A-22 row added. All amendments additive per MA-L1 + MA-S7. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot2'} | L0 |
+| v3.3.1 | Sprint B1 Shot 5 (2026-05-13) | §2.1 MetaframeworkInput: removed `adjacentFrameworks: FrameworkRef[]` field. Field declared at v3.0 as "Coupling input" but no axiom, gate, or output field consumes it; S2 derivation populates coupling output from `carrierPreference` + structural inputs only. Removal is residue cleanup per natural-derivation discipline (no consumer, no requirement, no downstream binding). generation-procedure §2.1 input-field enumeration swept in lockstep. Patch-level; additive per MA-L1 in the deletion-of-unused sense (S3 removes-residue clause). No axioms / gates / HRs / primitives amended. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot5'} | L0 |
 
 ---
 

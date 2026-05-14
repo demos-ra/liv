@@ -6,8 +6,8 @@ placement: frameworks/metaframework/frameworks/
 # substrate-v1-1
 
 **Kind:** non-framework (universal declarations)
-**Version:** v1.6
-**Authority:** L0 confirmed (MF-Cycle-2 Spec↔Referent Alignment Closure delivery)
+**Version:** v1.8.1
+**Authority:** L0 confirmed (Sprint B1 Shot 6 — Governance Text Closure delivery)
 **Consumed by:** metaframework-v3-1, framework-registry-v1-0, generation-procedure-v1-0, framework-audit-v1-2, amendment-propagation-v1-0, all generated L3 frameworks
 **Dependencies:** none (upstream of all frameworks)
 **Versioning discipline:** additive only (per S3)
@@ -141,22 +141,33 @@ Four Modes exist. No others permitted under v1.0.
 
 ### §2.2 Mode enumeration
 
-| Mode | Signature | Description |
-|---|---|---|
-| `epistemic` | unknown → known | Discovery, identification, investigation. Produces knowledge where none existed. |
-| `structural` | known → structured | Organization, decomposition, classification. Produces ordered representation of known content. |
-| `generative` | structured → produced | Production, construction, synthesis. Produces artifacts from structured inputs. |
-| `verificative` | produced → verified | Validation, audit, conformance checking. Produces validity judgments on produced artifacts. |
+Mode signatures reference A-21 StateOrdering by position pair `[inputPosition, outputPosition]` (Sprint B1 Shot 1; replaces prior free-string signatures).
+
+| Mode | A-21 position pair | Signature | Description |
+|---|---|---|---|
+| `epistemic` | [0, 1] | unknown → known | Discovery, identification, investigation. Produces knowledge where none existed. |
+| `structural` | [1, 2] | known → structured | Organization, decomposition, classification. Produces ordered representation of known content. |
+| `generative` | [2, 3] | structured → produced | Production, construction, synthesis. Produces artifacts from structured inputs. |
+| `verificative` | [3, 4] | produced → verified | Validation, audit, conformance checking. Produces validity judgments on produced artifacts. |
 
 ### §2.3 Shape
+
+*(ModeSignature amended Sprint B1 Shot 2 per brief — type-level binding to A-21 positions; replaces prior free-string `inputKind`/`outputKind` fields. Information-preserving relative to Shot 1 §2.2 position-pair column. Closes precision residue from Shot 1.)*
 
 ```
 Mode = 'epistemic' | 'structural' | 'generative' | 'verificative'
 
+StateOrderingIndex = 0 | 1 | 2 | 3 | 4
+// Each value is a valid index into A-21 StateOrdering tuple.
+// 0=unknown, 1=known, 2=structured, 3=produced, 4=verified.
+// Declared here as a type alias; canonical tuple declared at substrate §4 A-21.
+
 ModeSignature = {
-  inputKind: string,   // what kind of content this Mode consumes
-  outputKind: string   // what kind of content this Mode produces
+  inputPosition: StateOrderingIndex,    // index into A-21 for input state
+  outputPosition: StateOrderingIndex    // index into A-21 for output state
 }
+// Cross-reference: A-21 StateOrdering (substrate §4); §2.2 Mode enumeration carries
+// the [inputPosition, outputPosition] pair per Mode per Sprint B1 Shot 1.
 ```
 
 ### §2.4 Mode binding
@@ -208,7 +219,7 @@ Frameworks decompose axes using Universal Variables. An axis expressed across al
 
 Atoms are typed shapes referenced by any framework's schema. Declared once at substrate. Consumed by reference. Never redeclared.
 
-Nine atoms exist in v1.0. Five additional atoms added in v1.2 (A-10..A-14 per R-phase-1-2-0015 type-promotion resolution). Three additional atoms added in v1.3 (cycle-1: A-15 GateIdSet per F-cycle-1-14, A-16 AmendmentProvenance per F-cycle-1-12, A-17 EmptyPrimitiveDeclaration per F-cycle-1-7) plus A-05 in-place rename (`ProvenanceRow` → `OriginProvenance` per F-cycle-1-12; semantic clarification only). v1.4 (cycle-1.5): A-17 `primitiveKind` field genericized to `PrimitiveKindRef` reference type — shape-preserving per MA-S7 (no atom add, no atom remove). Three additional atoms added in v1.6 (cycle-2: A-18 ReferentCitation, A-19 ReferentAlignmentState, A-20 ReferentSnapshot per spec↔referent alignment closure; A-18 carries inline `ExpectedShape` discriminated-union sub-shape per A-17/PrimitiveKindRef sub-shape precedent). Total: 20 atoms at v1.6. New atoms added additively per S3.
+Nine atoms exist in v1.0. Five additional atoms added in v1.2 (A-10..A-14 per R-phase-1-2-0015 type-promotion resolution). Three additional atoms added in v1.3 (cycle-1: A-15 GateIdSet per F-cycle-1-14, A-16 AmendmentProvenance per F-cycle-1-12, A-17 EmptyPrimitiveDeclaration per F-cycle-1-7) plus A-05 in-place rename (`ProvenanceRow` → `OriginProvenance` per F-cycle-1-12; semantic clarification only). v1.4 (cycle-1.5): A-17 `primitiveKind` field genericized to `PrimitiveKindRef` reference type — shape-preserving per MA-S7 (no atom add, no atom remove). Three additional atoms added in v1.6 (cycle-2: A-18 ReferentCitation, A-19 ReferentAlignmentState, A-20 ReferentSnapshot per spec↔referent alignment closure; A-18 carries inline `ExpectedShape` discriminated-union sub-shape per A-17/PrimitiveKindRef sub-shape precedent). One additional atom added in v1.7 (Sprint B1 Shot 1: A-21 StateOrdering per brief Δ-1). One additional atom added in v1.8 (Sprint B1 Shot 2: A-22 AxisBasis per brief Δ-3). Total: 22 atoms at v1.8. New atoms added additively per S3.
 
 ### §4.2 Atom enumeration
 
@@ -439,6 +450,46 @@ ReferentSnapshot = {
 
 Custody: substrate. Consumed by framework-audit (audit runs stamp snapshot ref); consumed by A-19 ReferentAlignmentState (each alignment evaluation tied to a snapshot).
 
+**A-21 — StateOrdering** (new Sprint B1 Shot 1 per brief Δ-1; declares the closed five-state ordering that all Mode signatures index into by position. Closure rule: additive per S3.)
+```
+StateOrdering = readonly ['unknown', 'known', 'structured', 'produced', 'verified']
+// Closed tuple. Length = 5. Positions: 0=unknown, 1=known, 2=structured, 3=produced, 4=verified.
+// Closure invariant: no state may be inserted, removed, or reordered (additive rule S3 applies to
+// the atom declaration itself — new atoms may be added to substrate — but the tuple content is
+// declared closed at declaration time and may only be extended via explicit substrate amendment).
+// Mode signatures reference by position pair: [inputPosition, outputPosition].
+// Position pairs for the four Modes:
+//   epistemic:    [0, 1]  (unknown → known)
+//   structural:   [1, 2]  (known   → structured)
+//   generative:   [2, 3]  (structured → produced)
+//   verificative: [3, 4]  (produced → verified)
+```
+Custody: substrate. Consumed by substrate §2.2 (Mode signatures index into A-21 by position); consumed by SG6 (§11.1; Mode count = StateOrdering length - 1).
+
+**A-22 — AxisBasis** (new Sprint B1 Shot 2 per brief Δ-3; declares the three-arm discriminated union for grounding L2 declaration kinds that cross boundary 2. Closure rule: additive per S3 — new arms enter via substrate amendment.)
+```
+AxisBasis =
+  | { kind: 'substrate-atom-ref';
+      atomId: string;               // bare A-NN identifier resolving to substrate §4.2 declaration
+    }
+  | { kind: 'substrate-amendment-ref';
+      amendmentId: string;          // amendment identifier (version + locus) recorded in §16 version history
+      fieldPath: string;            // which amended field provides the grounding
+    }
+  | { kind: 'l0-ratified-ref';
+      ratification: AuthorityClaim; // level must = 'L0'
+      manualLocus: string;          // recorded origin (e.g. 'LIV Manual §I', 'Sprint-B1-brief')
+      manualVersion: Semver;        // version of the origin document at time of ratification
+      basis: string;                // prose basis — length ≥ 1
+    }
+```
+**Arm semantics:**
+- `substrate-atom-ref`: declaration traces directly to a typed atom at substrate §4.2. Strongest grounding; mechanical resolution (reference-resolution class per §6.3).
+- `substrate-amendment-ref`: declaration traces to a specific substrate amendment recorded in §16. Grounding is the act of the amendment itself (the amendment is the authority). Mechanical resolution via §16 amendment log.
+- `l0-ratified-ref`: declaration traces to L0 ratification of a manual or brief locus. Weakest grounding permitted; requires non-null `basis` prose; `ratification.level = 'L0'` enforced.
+
+Custody: substrate. Consumed by metaframework §3 Structure (MA-St17 quantifies over declarations that must carry A-22 basis); consumed by framework-audit (G-St17 executor).
+
 ### §4.3 Atom usage
 
 Every atom referenced by any framework is consumed by reference through the atom's ID. Redeclaration violates S1 and triggers SG2/SG3 failure.
@@ -457,10 +508,12 @@ Authority levels declare who can confirm what. Four levels exist. L-hierarchy is
 
 | Level | Identity | Scope |
 |---|---|---|
-| **L0** | Root declarative authority (human founder). | Confirms all structural decisions. Source of L1 instructions. |
-| **L1** | Declared instruction from L0 codified as protocol. | Work Protocol, meta-framework generation protocol. Universal within declared scope. |
-| **L2** | Metaframework-tier content. | The metaframework, substrate, adjacent L2 frameworks. Governs framework production and validation. |
-| **L3** | Framework-tier content. | Domain-specific frameworks produced by or conforming to L2. |
+| **L0 — Intent** | Root declarative authority (Wearer-L0 + System-L0; see §5.1). All declarations originate here. | Confirms all structural decisions. L0 ratifies amendments at every downstream tier. |
+| **L1 — Metaframework** | L0 automating L0 work. MFv3, substrate, generation-procedure, framework-audit, amendment-propagation, framework-registry. | L0 declares the apparatus; L1 mechanically executes it to produce L2. |
+| **L2 — Standards** | MF output. Domain-specific frameworks (LM, PS, LIV-Standard, Plan, Verify, Research, Builder, Render, Chat, Multi-Instance, Placement, Design, Artifact). | Each generated by L1, ratified at L0, governs L3. |
+| **L3 — Programs** | Governed by L2 standards. | Executes inside the standards' jurisdiction. Programs do not occupy a governance-chain authority position; they are what governance applies to. |
+
+The chain terminates at L3 because authority terminates where confirmation terminates. L0 confirms. L1 mechanically executes L0's apparatus. L2 is what L1 produces (ratified back at L0). L3 is what L2 governs — programs do not themselves confirm, they execute under standards. Prior framings carrying "protocol" as a separate L1 slot or "L4 = Programs" as a governance tier are superseded by this enumeration. Source code reflects this chain at the `AuthorityLevel` typed union.
 
 ### §5.3 Shape
 
@@ -842,6 +895,11 @@ For every declared element in any consumer framework or in substrate, the canoni
 
 Mechanical: per substrate §6.3 enum-membership + reference-resolution classes. Test enumerates every identifier instance in every file, verifies kind-prefix is registered at §1.5, verifies form (bare for single-locus kinds, locus-qualified for multi-locus kinds). Failure logs first-failing instance (file + line + ID). Result: binary truthValue per §10.1 S4.
 
+**SG6 — Mode count = StateOrdering length − 1** (added v1.7, Sprint B1 Shot 1; paired with A-21).
+The declared Mode count equals `StateOrdering.length − 1`. At v1.7 baseline: StateOrdering has 5 positions (A-21); Mode count = 4 (§2.2). Invariant: if a future substrate amendment adds a position to A-21, exactly one new Mode must be declared in §2.2 in the same amendment, and conversely. Prevents Mode-count / StateOrdering-length skew.
+
+Mechanical: enumerate §2.1 Mode declarations; enumerate A-21 StateOrdering tuple length; verify `mode_count = tuple_length − 1`. Binary truthValue per §10.1 S4. Failure logs declared mode count and tuple length.
+
 ### §11.2 PG-series
 
 **PG1.** Every framework declares ≥1 P1 instance.
@@ -873,7 +931,7 @@ Mechanical (four-property presence scan per sub-element).
 
 ### §11.5 Gate execution order at substrate
 
-1. SG1 → SG2 → SG3 → SG4 → SG5 (substrate integrity, including naming-function conformance).
+1. SG1 → SG2 → SG3 → SG4 → SG5 → SG6 (substrate integrity, including naming-function conformance and Mode-count / StateOrdering-length invariant).
 2. PG1–PG7 (primitive integrity, per framework).
 3. G-U4, G-G13 (executed by framework-audit).
 
@@ -921,6 +979,8 @@ Declared consumers per substrate element. Enforces SG3.
 | §4 Atom A-18 ReferentCitation | all frameworks declaring referent citations in vocabulary/atom-inventory tables; framework-audit (G-V10 + G-S8 executors); metaframework (GeneratedFrameworkTemplate `referentCitations` field at §2.2) |
 | §4 Atom A-19 ReferentAlignmentState | framework-audit (G-V10 producer; AuditRunRecord.referentAlignmentStatesRef + SelfAuditRecord.referentAlignmentStates consumer) |
 | §4 Atom A-20 ReferentSnapshot | framework-audit (AuditRequest.referentSnapshotRef + AuditRunRecord.referentSnapshotRef + G-L11 executor); A-19 ReferentAlignmentState (snapshotRef field) |
+| §4 Atom A-21 StateOrdering | substrate §2.2 (Mode signature position-pair indexing); substrate §11.1 SG6 (Mode-count gate executor) |
+| §4 Atom A-22 AxisBasis | metaframework §3 Structure (MA-St17 axis-and-declaration-kind grounding predicate); framework-audit (G-St17 executor) |
 | §5 Authority levels | all frameworks (universal via Identity axis) |
 | §6 Judgment shape | generation-procedure (primary), any framework with judgment inputs |
 | §6.3 Mechanical-criterion ground | framework-audit (executor) |
@@ -1115,8 +1175,9 @@ Non-framework file. Self-audit at declaration time:
 | SG1 (element declaration completeness) | ✓ — all elements in §1–§14 declared with ID and shape |
 | SG2 (no framework references) | ✓ — §12 consumer registry entries are declared consumer references, not framework dependencies |
 | SG3 (consumer registry completeness) | ✓ — every element in §1–§14 has ≥1 row in §12 |
-| SG4 (additive versioning) | ✓ — v1.6 transition from v1.5 is additive per S3 + MA-S7 (recursive). Three new atoms (A-18 ReferentCitation, A-19 ReferentAlignmentState, A-20 ReferentSnapshot); §1.5 locus-ID table adds `cycle-2`; §1.5 F-row Loci extended with `cycle-2`. No removal. A-18 introduces the first canonical discriminated-union sub-shape (`ExpectedShape`); MA-S7 tightening at metaframework v3.2.7 §3.2.1 governs this case (cycle-2 baseline atom; vacuously satisfies recursive predicate). Cycle-1 atom set (A-01..A-17) re-validated zero-regression against tightened predicate. |
-| SG5 (naming-function conformance) | ✓ — every identifier instance in §1–§16 conforms to S6: single-locus kinds (substrate atoms `A-NN` including new A-18..A-20, rules `S1..S6`, items `SI-01..SI-04`, primitive rules `PR1..PR5`, primitives `P1..P8`, substrate gates `SG1..SG5`) carry bare canonical form; multi-locus kinds carry locus-qualified canonical form. Sub-shape citation form `A-18.ExpectedShape` per A-17/PrimitiveKindRef precedent (parent-atom-qualified). Cycle-2 SG5 first-run scheduled at Turn 5 of cycle-2 delivery. |
+| SG4 (additive versioning) | ✓ — v1.8 transition from v1.7 is additive per S3. One new atom (A-22 AxisBasis); §2.3 ModeSignature amended in-place: fields renamed (`inputKind`→`inputPosition`, `outputKind`→`outputPosition`) **and** retyped from `string` to `StateOrderingIndex` (a union literal type alias declared inline). The change is additive under MA-S7 recursive `≼`: the new field types are strictly narrower than the prior `string` type, which means every prior-valid ModeSignature value satisfying the prior `string` fields satisfies the new union-literal fields when the string value was already one of `'0'...'4'`; in practice ModeSignature instances were never materialised with free-string values (the position semantics were always implicit per §2.2 Shot 1), so zero-instance breakage. The change is an in-place type-level binding of pre-existing position semantics. `StateOrderingIndex` type alias cross-references A-21. No field removal. |
+| SG5 (naming-function conformance) | ✓ — every identifier instance in §1–§16 conforms to S6: single-locus kinds (substrate atoms `A-NN` including new A-22, substrate gates `SG1..SG6`) carry bare canonical form; multi-locus kinds carry locus-qualified canonical form. |
+| SG6 (Mode count = StateOrdering length − 1) | ✓ — A-21 StateOrdering.length = 5; §2.2 Mode count = 4; 4 = 5 − 1. Invariant satisfied. |
 
 Ongoing verification occurs at framework-audit execution per consumer invocation.
 
@@ -1161,6 +1222,9 @@ Ongoing verification occurs at framework-audit execution per consumer invocation
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v1.6 | MF-Cycle-2 Spec↔Referent Alignment Closure (2026-04-30) | Three new atoms added to §4.2: A-18 ReferentCitation (with inline `ExpectedShape` discriminated-union sub-shape per A-17/PrimitiveKindRef sub-shape precedent + inline ReferentResolver interface declaration), A-19 ReferentAlignmentState (truthValue/applicability/executionState split per cycle-1 F-cycle-1-3 + F-cycle-1-8 discipline; basis required when applicability='n/a' per MA-V11), A-20 ReferentSnapshot (typed atom decoupling snapshot identity from audit-run state per cycle-1 G5). §1.5 locus-ID table: `cycle-2` row added (required by S6 + SG5 for first cycle-2 finding identifier emission). §1.5 F-row Loci extended with `cycle-2`. §4.1 atom count 17 → 20. §12 consumer registry: A-18, A-19, A-20 rows added. ExpectedShape sub-shape declared inline within A-18 body (citation form `A-18.ExpectedShape`, parent-atom-qualified per A-17/PrimitiveKindRef precedent). All amendments additive per S3 + MA-S7 (recursive scope per metaframework v3.2.7 §3.2.1 amendment). A-18 introduces the first canonical discriminated-union sub-shape; cycle-2 baseline (no prior version) — vacuously satisfies recursive predicate. Cycle-1 atom set (A-01..A-17) re-validated zero-regression against tightened predicate. | L0 |
+| v1.7 | Sprint B1 Shot 1 — StateOrdering atom + SG6 gate (2026-05-13) | Δ-1 per brief. A-21 StateOrdering added to §4.2: closed five-state tuple `['unknown','known','structured','produced','verified']` (length 5); closure rule declared (additive rule S3 governs atom declaration itself; tuple content closed at declaration time, extensible only via explicit substrate amendment). §2.2 Mode enumeration amended: A-21 position-pair column added to Mode table; each Mode signature now indexes into A-21 by `[inputPosition, outputPosition]` pair (replaces prior free-string signatures; information-preserving). SG6 added to §11.1: Mode count = StateOrdering length − 1; paired with A-21; mechanical. §11.5 gate execution order extended (SG1→…→SG5→SG6). §12 consumer registry: A-21 row added (consumers: substrate §2.2 + SG6). §15 self-audit: SG6 row added (pass: 4 = 5 − 1). §4.1 atom count 20 → 21. Substrate gate count 5 → 6. Total all-gates: 90 → 91. All amendments additive per S3. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot1'} | L0 |
+| v1.8 | Sprint B1 Shot 2 — AxisBasis atom + ModeSignature type-level binding (2026-05-13) | A-22 AxisBasis added to §4.2: three-arm discriminated union (`substrate-atom-ref` \| `substrate-amendment-ref` \| `l0-ratified-ref`); `l0-ratified-ref` arm carries `ratification: AuthorityClaim`, `manualLocus: string`, `manualVersion: Semver`, `basis: string`; closure rule additive per S3. §2.3 ModeSignature amended in-place: `inputKind: string` + `outputKind: string` → `inputPosition: StateOrderingIndex` + `outputPosition: StateOrderingIndex`; `StateOrderingIndex = 0 \| 1 \| 2 \| 3 \| 4` type alias declared inline; cross-reference to A-21 added. Amendment is information-preserving (type-level binding of pre-existing position semantics from Shot 1 §2.2). §12 consumer registry: A-22 row added. §15 self-audit: SG4 row updated (v1.8). §4.1 atom count 21 → 22. No new substrate gates (SG count unchanged at 6). All amendments additive per S3. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot2'} | L0 |
+| v1.8.1 | Sprint B1 Shot 6 — Governance Text Closure (2026-05-13) | §5.2 amended: authority levels reconciled to ratified chain. L0 = Intent, L1 = Metaframework (L0 automating L0 work), L2 = Standards, L3 = Programs. Prior L1 "protocol/L0 instructions codified" slot collapsed into L0 (under MF = L0 automating L0 work, protocol-shaped declarations are L0 intent expressed; the automated form is L1). Prior implicit L4 framings (Manual-side) do not appear in substrate at v1.8; no removal required at substrate. Labels stable (L0/L1/L2/L3 numerics retained); role names attached. §5.2 closing paragraph added superseding prior framings and citing source-code `AuthorityLevel` typed union as reflection of chain. Patch-level; governance text amendment per MA-L1. No atoms, no schema, no rules, no gates amended. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot6'} | L0 |
 
 ---
 
