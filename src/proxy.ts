@@ -204,7 +204,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (!rawToken) {
     // No session — redirect to auth.
     const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/auth'
+    loginUrl.pathname = '/auth/login'
     return NextResponse.redirect(loginUrl)
   }
 
@@ -225,7 +225,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (!sessionResult.success) {
     // Invalid or expired session — redirect to auth.
     const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/auth'
+    loginUrl.pathname = '/auth/login'
     const response = NextResponse.redirect(loginUrl)
     // Clear stale cookie.
     response.headers.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE_NAME, '', {
