@@ -9,7 +9,7 @@
 // layer:      R3
 // wires-in:
 //   W-HOOK  useRegisterProgram     F-surface/contract/surface-registry
-//   W-ATOM  ProgramRenderIntent    F-dashboard/types/dashboard-types
+//   W-ATOM  ProgramRenderIntent    F-surface/types/surface-types
 //   W-FN    threadQuery            F-memory/contract/substrate-contract
 //   W-ATOM  StateChangeRecord      core/types/substrate.types
 // wires-out:
@@ -31,7 +31,7 @@ import React, { useEffect, useState } from 'react'
 import { useRegisterProgram }          from '@/features/F-surface/contract/surface-registry'
 import { threadQuery }                 from '@/features/F-memory/contract/substrate-contract'
 import type { StateChangeRecord, IdentityRef, ScopeRef } from '@/core/types/substrate.types'
-import type { ProgramProps }           from '@/features/F-dashboard/types/dashboard-types'
+import type { ProgramProps }           from '@/features/F-surface/types/surface-types'
 
 export function VerifyFace({ programId, userId, projectId }: ProgramProps) {
   const [records, setRecords]   = useState<StateChangeRecord[]>([])

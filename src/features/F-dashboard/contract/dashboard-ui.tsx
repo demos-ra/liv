@@ -10,7 +10,7 @@
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook       ../types/dashboard-types
-//   W-ATOM  ProgramRenderIntent ../types/dashboard-types
+//   W-ATOM  ProgramRenderIntent @/features/F-surface/types/surface-types
 //   W-ATOM  Surface             @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot           @/features/F-design-system/contract/primitives
 //   W-ATOM  Spinner             @/features/F-design-system/contract/primitives
@@ -69,7 +69,8 @@
 
 import React, { Suspense } from 'react'
 import { Surface, StatusDot, Spinner } from '@/features/F-design-system/contract/primitives'
-import type { WorkspaceHook, ProgramRenderIntent } from '../types/dashboard-types'
+import type { WorkspaceHook } from '../types/dashboard-types'
+import type { ProgramRenderIntent } from '@/features/F-surface/types/surface-types'
 
 // ── ProgramLoadingFallback (internal) ────────────────────────────────────────
 // Spinner centered in dash-min-h container. Shown while lazy program chunk loads.

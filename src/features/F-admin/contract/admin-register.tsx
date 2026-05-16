@@ -47,7 +47,7 @@ const AdminDashboard = dynamic(
   { ssr: false }
 )
 
-import type { ProgramProps } from '@/features/F-dashboard/types/dashboard-types'
+import type { ProgramProps } from '@/features/F-surface/types/surface-types'
 
 export function AdminRegister() {
   useRegisterProgram({
