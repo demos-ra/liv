@@ -1,4 +1,4 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.2
 // [F-dashboard/contract/providers.tsx]
 // Built with LIV · livai.dev
 // Root React context providers — tRPC, QueryClient, StateRegistry, Auth,
@@ -6,6 +6,7 @@
 // A4: credentials: include ensures session cookie sent on all tRPC requests.
 //
 // Step 4: restamped. Moved from F-workspace/contract/providers.tsx → F-dashboard/contract/.
+// sprint-b2-unified-close (ProgramRegistryProvider source changed: F-dashboard/contract/dashboard-registry → F-surface/contract/surface-registry per registry concern extraction).
 // No functional change. Axiom cite: A1 — F-dashboard owns the provider tree.
 //
 // step5d-phase1 (A1):
@@ -25,7 +26,7 @@ import superjson from 'superjson'
 import { trpc } from '@/core/api/trpc-client'
 import { StateRegistryProvider } from '@/features/F-verify/contract/registry-hook'
 import { AuthProvider }          from '@/features/F-identity/contract/auth-hooks'
-import { ProgramRegistryProvider } from './dashboard-registry'
+import { ProgramRegistryProvider } from '@/features/F-surface/contract/surface-registry'
 
 interface ProvidersProps {
   children: React.ReactNode

@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-artifact/R2]
 // Built with LIV · livai.dev
 //
 // @manifest
-// standard:   LIV-Standard v1.5.1
+// standard:   LIV-Standard v1.5.2
 // amended:    4b-f-artifact-slice
+//             sprint-b2-unified-close (Point 6: LIV-Standard v1.5.1 → v1.5.2; AS v2.2 → v2.3 references in header swept; F-009 paired-write framing closure declared at this amendment; artifact emission is Path B to Store via internal-derivation channel — confirmed at body level)
 //             sprint-b1-shot-1 (dual-write: createArtifact writes substrate record)
 //             sprint-b1-shot-3 (scope corrected: input.turnId → input.projectId)
 //             sprint-b1-shot-3b (projectId threaded from MIInput)
@@ -180,12 +181,10 @@ function assembleEmission(input: CreateArtifactInput, resolved: S1Resolved): Art
   }
 }
 
-// G-Ar8 REMOVED (b1-final-shot-3): emissionId is a UUID minted per call via
-// generateId — structural collision is impossible. Gate carried no real
-// predicate and is formally removed from AS v2.2. evaluateAllGates receives
-// a constant-false stub only as an adapter shim until the gate array is
-// updated in a future AS minor version.
-function isEmissionIdCollisionNeverTrue(_emissionId: string): boolean { return false }
+// G-Ar8 dissolved at AS v2.3 (Sprint B2 Shot 2c): emissionId is a UUID minted
+// per call via generateId — structural collision is impossible. Gate carried
+// no real predicate (constant-false stub previously bridged the gap). Fully
+// removed from AS v2.3 axiom + gate set.
 
 // ─── S3: write to substrate ──────────────────────────────────────────────────
 // b1-final-shot-3: substrate is the single store.
@@ -282,7 +281,8 @@ async function runS3(
  *
  * b1-final-shot-3: `port` parameter removed. Substrate is the store.
  * S1 mints NodeIds via generateId. S3 writes full payload to substrate.
- * G-Ar8 formally removed — UUID emissionId collision is structurally impossible.
+ * Sprint B2 Shot 2c: G-Ar8 fully dissolved at AS v2.3 — UUID emissionId
+ * collision is structurally impossible.
  */
 export async function createArtifact(
   input: CreateArtifactInput,
@@ -292,7 +292,7 @@ export async function createArtifact(
 
   const emission = assembleEmission(input, s1.data)
 
-  const batch = evaluateAllGates(emission, input, false, isEmissionIdCollisionNeverTrue)
+  const batch = evaluateAllGates(emission, input, false)
   if (!batch.allPassed) {
     const first = batch.firstFail!
     return { ok: false, error: gateFailError(first.gateId, first.evidence ?? 'no evidence') }

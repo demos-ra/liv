@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-artifact/R1]
 // Built with LIV · livai.dev
 //
 // @manifest
-// standard:   LIV-Standard v1.5.1
+// standard:   LIV-Standard v1.5.2
 // amended:    4b-f-artifact-slice
+//             sprint-b2-unified-close (Point 6: LIV-Standard v1.5.1 → v1.5.2; AS v2.2 → v2.3 references in header swept; F-009 paired-write framing closure declared at this amendment; artifact emission is Path B to Store via internal-derivation channel — confirmed at body level)
 // slice:      F-artifact
 // layer:      R1
 // wires-in:
@@ -17,11 +18,11 @@
 // validated:  pending
 //
 // F-artifact R1 — gate predicates.
-// Pure. No I/O. Evaluates ArA1–ArA8 against a candidate emission assembled
+// Pure. No I/O. Evaluates ArA1–ArA7 against a candidate emission assembled
 // by S2. Every gate returns an ArtifactGateResult with gateId, result, and
 // evidence (populated on fail).
 //
-// Gate definitions (artifact-standard.md §4.2 G-Ar1..G-Ar8):
+// Gate definitions (artifact-standard.md §4.2 G-Ar1..G-Ar7):
 //
 //   G-Ar1 (ArA1 — both write blocks present)
 //     writes.a4 is non-null AND writes.a7 is non-null
@@ -64,9 +65,8 @@
 //   G-Ar7 (ArA7 — payload deep-equal to input.payload)
 //     emission.payload === input.payload by deep structural equality.
 //
-//   G-Ar8 (ArA8 — emissionId uniqueness)
-//     emission.emissionId not previously seen. Gate receives the registry
-//     predicate from S2; the registry owns storage, gate owns the predicate call.
+// Sprint B2 Shot 2c: G-Ar8 + ArA8 dissolved at AS v2.3. emissionId is a UUID v4
+// minted per call via generateId — structural collision is impossible.
 
 import type {
   NodeId,
@@ -281,26 +281,11 @@ export function evaluateGar7(
   return fail(gateId, 'emission.payload !== input.payload (deep inequality)')
 }
 
-// ─── G-Ar8 ───────────────────────────────────────────────────────────────────
-
-/**
- * G-Ar8 — emissionId uniqueness.
- * Registry predicate is injected: `(id: string) => boolean` returns true when
- * the id has been seen before (collision). R2 owns the registry; R1 only
- * evaluates the predicate.
- */
-export function evaluateGar8(
-  emission:     ArtifactEmission,
-  isCollision:  (emissionId: string) => boolean,
-): ArtifactGateResult {
-  const gateId = 'G-Ar8'
-  if (isCollision(emission.emissionId)) {
-    return fail(gateId, `emissionId=${emission.emissionId} already seen`)
-  }
-  return pass(gateId)
-}
-
 // ─── Composite: evaluate all gates ───────────────────────────────────────────
+// Sprint B2 Shot 2c: G-Ar8 (emissionId-uniqueness) dissolved at AS v2.3.
+// Rationale: emissionId is a UUID v4 minted per call via generateId — structural
+// collision is impossible. The gate predicate was already operationally vacuous
+// (constant-false stub at R2). Full removal per MA-L1 removal-is-additive clause.
 
 export type GateBatch = {
   gar1:  ArtifactGateResult
@@ -313,7 +298,6 @@ export type GateBatch = {
   gar5:  ArtifactGateResult
   gar6:  ArtifactGateResult
   gar7:  ArtifactGateResult
-  gar8:  ArtifactGateResult
   allPassed: boolean
   firstFail: ArtifactGateResult | null
 }
@@ -322,7 +306,6 @@ export function evaluateAllGates(
   emission:           ArtifactEmission,
   input:              CreateArtifactInput,
   mutationAttempted:  boolean,
-  isCollision:        (emissionId: string) => boolean,
 ): GateBatch {
   const gar1  = evaluateGar1(emission)
   const gar2  = evaluateGar2(emission)
@@ -334,14 +317,13 @@ export function evaluateAllGates(
   const gar5  = evaluateGar5(mutationAttempted)
   const gar6  = evaluateGar6(emission)
   const gar7  = evaluateGar7(emission, input)
-  const gar8  = evaluateGar8(emission, isCollision)
 
-  const ordered = [gar1, gar2, gar3, gar4a, gar4b, gar4c, gar4d, gar5, gar6, gar7, gar8]
+  const ordered = [gar1, gar2, gar3, gar4a, gar4b, gar4c, gar4d, gar5, gar6, gar7]
   const firstFail = ordered.find(g => g.result === 'failed') ?? null
   const allPassed = firstFail === null
 
   return {
-    gar1, gar2, gar3, gar4a, gar4b, gar4c, gar4d, gar5, gar6, gar7, gar8,
+    gar1, gar2, gar3, gar4a, gar4b, gar4c, gar4d, gar5, gar6, gar7,
     allPassed,
     firstFail,
   }

@@ -3,13 +3,13 @@ kind: framework
 placement: frameworks/standards/
 ---
 
-# artifact-standard-v2-2
+# artifact-standard-v2-3
 
 **Kind:** Framework
 **Mode:** generative
 **Level:** L3
-**Version:** v2.2
-**Authority:** L0 pending (Phase: L3 regen wave cycle 1)
+**Version:** v2.3
+**Authority:** L0 confirmed (Sprint B2 unified close — fix-round ratification per manager soundness-check; ArA8 dissolution = MA-L1 removal-is-additive of vacuously-true gate per §3.6 self-check L307)
 **Consumes:** substrate-v1-1, metaframework-v3-1, primitives.ts (core/R5)
 **Consumed by:** Plan Standard, Multi-Instance Standard, and every content framework declaring `carrier = 'artifact-standard'`
 **Dependencies:** substrate-v1-1 (by reference, per HR1 inherited), metaframework-v3-1 (via HR6 receive-side output contract), generation-procedure-v1-0 (generator)
@@ -34,7 +34,7 @@ Artifact Standard is the L3 generative-mode framework governing emission mechani
 | Kind | `Framework` |
 | Mode | `generative` |
 | Level | `L3` |
-| Version | `v2.2` |
+| Version | `v2.3` |
 | Ownership (template) | `L0` |
 | Ownership (applied) | `System` (under L0 authority) |
 | State (template) | `declared` |
@@ -42,7 +42,7 @@ Artifact Standard is the L3 generative-mode framework governing emission mechani
 | Carrier | `self` (emits `ArtifactEmission` W-ATOM directly per MA-S2) |
 | Consumes | substrate-v1-1 (via inherited HR1), metaframework-v3-1 (via HR6 receive-side), primitives.ts core/R5 |
 | Consumed by | Plan Standard, Multi-Instance Standard, any content framework declaring `carrier = 'artifact-standard'` |
-| Authority | L0 pending (regen cycle output; ratified on post-cycle confirmation gate per §5.3) |
+| Authority | L0 confirmed (Sprint B2 unified close — fix-round ratification per manager soundness-check; ArA8 dissolution = MA-L1 removal-is-additive of vacuously-true gate per §3.6 self-check L307) |
 | Genesis | `{bootstrapped: false, genesisEvent: 'generation-procedure-v1-0 S3 emission at L3 regen wave cycle 1'}` |
 | scopeOut | `['domain payload content (owned by content framework — Plan, M-I, etc.)', 'codec classification at A4 (owned by Cognitive Standard)', 'graph physics — node/energy/traversal (owned by Living Memory)', 'code structure (owned by LIV-Standard)', 'framework registry dispatch runtime (owned by each framework)', 'B-direction symmetric re-encoding at B3 (post-beta)']` |
 
@@ -52,8 +52,8 @@ Artifact Standard is the L3 generative-mode framework governing emission mechani
 |---|---|
 | Own state | `{stateTemplate, stateApplied}` ∈ substrate §9 `LifecycleState` enum; `{declared, applied, terminated, deprecated}` transitions declared at §5.1 |
 | Own I/O | input: `CreateArtifactInput` (§2.1); output: `ArtifactEmission` (§2.2) |
-| Own invariants | 11 axis-bound structural-transformation axioms (ArA1–ArA8 with ArA4a–ArA4d) per §3.3; + 35 axis-bound + 1 universal MA-G13 inherited from metaframework-v3-1 §3.2 |
-| Own discipline | three P8 step procedure (§3.4 S1–S3 under Stages {2, 3, 5}); axiom gates G-Ar1–G-Ar8 at §4.2; handoff rules HR-Ar1–HR-Ar4 at §6.2 |
+| Own invariants | 10 axis-bound structural-transformation axioms (ArA1–ArA7 with ArA4a–ArA4d) per §3.3 — ArA8 dissolved at v2.3 per Sprint B2 Shot 2c; + 35 axis-bound + 1 universal MA-G13 inherited from metaframework-v3-1 §3.2 |
+| Own discipline | three P8 step procedure (§3.4 S1–S3 under Stages {2, 3, 5}); axiom gates G-Ar1–G-Ar7 at §4.2 (G-Ar8 dissolved at v2.3); handoff rules HR-Ar1–HR-Ar4 at §6.2 |
 
 All four properties declared. MA-G13 passes. Artifact Standard is classified as framework (not state store; not protocol; not substrate).
 
@@ -203,7 +203,7 @@ Full custody table in §6.5. Pointer-only reference per A-08 single-source-via-r
 
 AS inherits metaframework-v3-1's seven-axis decomposition (A1 Identity, A2 Schema, A3 Structure, A4 Validity, A5 Lifecycle, A6 Coupling, A7 Judgment). Per substrate §1.3 S-03 permitted-multi-execution: axes are declared once at metaframework and consumed at multiple sites. AS does not redeclare.
 
-Per v3-1-spec §4.4 file-specific placement, AS's own structural content populates §3.3–§3.8 below: three P1 Axis instances (AS-local), sub-axis instances, leaves, axioms (ArA1–ArA8), and the three-step P8 procedure.
+Per v3-1-spec §4.4 file-specific placement, AS's own structural content populates §3.3–§3.8 below: three P1 Axis instances (AS-local), sub-axis instances, leaves, axioms (ArA1–ArA7), and the three-step P8 procedure. ArA8 dissolved at v2.3 per Sprint B2 Shot 2c.
 
 ### §3.2 Primitive instance counts
 
@@ -213,9 +213,9 @@ Per substrate §8 + §8.6 empty-declaration derivation:
 |---|---|---|
 | P1 Axis | 3 | `{primitiveKind: P1, instanceCount: 3, basis: "AS-local domain axes declared at §3.3: Emission, Composition, Lineage. Seven metaframework axes (A1–A7) are the framework-file shape shell per substrate §9 File-shape applicability; AS-local P1 instances populate §3 Structure under the inherited shell."}` |
 | P2 Sub-axis | 5 | Emission: `chainPositionA` + `chainPositionB`; Composition: `products` + `cardinality`; Lineage: `edgeSet`. Declared §3.4. |
-| P3 Leaf | 11 | One leaf per axiom condition per MA-St2 leaf atomicity; ArA1..ArA8 with ArA4a-d split → 11 leaves. Declared §3.5. |
-| P4 Axiom | 11 | ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d, ArA5, ArA6, ArA7, ArA8. Declared §3.6. |
-| P5 Gate | 11 | G-Ar1..G-Ar8 with G-Ar4a..G-Ar4d. One primary gate per axiom per G-M1. Declared §4.2. |
+| P3 Leaf | 10 | One leaf per axiom condition per MA-St2 leaf atomicity; ArA1..ArA7 with ArA4a-d split → 10 leaves (post-Sprint-B2-Shot-2c ArA8 dissolution). Declared §3.5. |
+| P4 Axiom | 10 | ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d, ArA5, ArA6, ArA7. Declared §3.6. ArA8 dissolved at v2.3 per Sprint B2 Shot 2c. |
+| P5 Gate | 10 | G-Ar1..G-Ar7 with G-Ar4a..G-Ar4d. One primary gate per axiom per G-M1. Declared §4.2. G-Ar8 dissolved at v2.3. |
 | P6 Handoff rule | 4 | HR-Ar1 (Cognitive Standard receive), HR-Ar2 (Living Memory write), HR-Ar3 (content framework receive), HR-Ar4 (content framework emit receipt). Declared §6.2. |
 | P7 Judgment input | 0 | `{primitiveKind: P7, instanceCount: 0, basis: "AS's createArtifact procedure is fully mechanical per MA-J4 emptyDeclared; every axiom condition reduces to substrate §6.3 mechanical-criterion ground (cardinality + reference resolution + structural property). No judgment inputs consumed at S1–S3."}` |
 | P8 Procedure step | 3 | S1 (compose), S2 (gate-execute), S3 (emit). Declared §3.7. |
@@ -283,7 +283,7 @@ Per MA-St2 (every leaf atomic per substrate leaf primitive shape):
 | `leaf-edge-version` | `axiom` | `ArtifactEdgeKind` literal `'version'` |
 | `leaf-edge-dependency` | `axiom` | `ArtifactEdgeKind` literal `'dependency'` |
 
-### §3.6 P4 Axiom instances (ArA1–ArA8)
+### §3.6 P4 Axiom instances (ArA1–ArA7)
 
 Per AxR1 (every axiom binds to exactly one axis) + AxR2 (one mechanical condition directly) + MA-St4 (primitive-atomicity) + MA-V1 (every axiom has ≥1 gate).
 
@@ -299,12 +299,13 @@ Per AxR1 (every axiom binds to exactly one axis) + AxR2 (one mechanical conditio
 | **ArA5** | `Emission/chainPositionA` / `leaf-chain-A7` | Post-emission mutation of `writes.a7.artifactAnchorNodeId` or `writes.a7.companionDataNodeId` content is forbidden. State changes produce a new emission with a `kind: 'version'` edge to the prior anchor per ArA4c. | structural property (mutation-rejection predicate on persisted node) |
 | **ArA6** | `Lineage/edgeSet` | `ArtifactEmission.edges` contains only entries with `kind ∈ ArtifactEdgeKind` enum. Enum exhaustive: `{'classification-lineage', 'categorical', 'version', 'dependency'}`. No out-of-enum kinds permitted. | enum membership |
 | **ArA7** | `Composition/products` / `leaf-companion` | `ArtifactEmission.payload` is the verbatim, byte-identical value of `input.payload`. AS does not inspect or transform `payload.content`. | deterministic-function result (identity function over input.payload) |
-| **ArA8** | `Composition/products` | Every emission has a unique `emissionId` across all prior emissions in registry scope. Uniqueness tested via Living Memory one-hop query on `emissionId` field. | reference resolution (uniqueness predicate) |
+
+*Sprint B2 Shot 2c: ArA8 (emissionId-uniqueness) dissolved. Rationale: emissionId is a UUID v4 minted per call via `generateId` — structural collision is impossible. The gate carried no real predicate (the runtime stub at `src/features/F-artifact/app/artifact-emit.ts` evaluated a constant-false function, indicating the gate was already operationally vacuous). Removed from axiom set, leaf set, gate set, P3/P4/P5 counts, S2 gate-execution bundle, X2 Determinism dimension mapping.*
 
 **AxR1 self-check:** each axiom binds to exactly one axis/sub-axis/leaf per attachment column. Pass.
 **AxR2 self-check:** each condition is one mechanical predicate stated directly. No "X passes gate Y" form. Pass.
-**AxR3 self-check:** axiom set additively versioned from v2.1 (v2.1 had ArA1–ArA5 with ArA4 split into ArA4a–ArA4d; v2.2 adds ArA6, ArA7, ArA8 to close edge-set-exhaustive, payload-verbatim, emissionId-uniqueness gaps surfaced by MA-St3 orthogonality and MA-V1 gate-per-axiom review). Pass.
-**AxR4 self-check:** all axiom text declarative (no imperative mood, no "should/must" — stated as invariant conditions). Pass.
+**AxR3 self-check:** axiom set additively versioned from v2.1 (v2.1 had ArA1–ArA5 with ArA4 split into ArA4a–ArA4d; v2.2 added ArA6, ArA7, ArA8 to close edge-set-exhaustive / payload-verbatim / emissionId-uniqueness gaps). v2.3 dissolves ArA8 — removal is additive per MA-L1 *removal-is-additive* clause (ArA8's predicate was vacuously satisfied per UUID v4 generation; no behavior change for prior-passing artifacts). Pass.
+**AxR4 self-check:** all axiom text declarative. Pass.
 
 ### §3.7 P8 Procedure step instances
 
@@ -313,10 +314,10 @@ Three steps. PR4 stage monotonicity + PR5 stage-content-kind alignment enforced.
 | id | order | stage | kind | input | output | kind-specific field |
 |---|---|---|---|---|---|---|
 | **S1** | 1 | 2 | `mechanical` | `CreateArtifactInput` | composed `(anchor, companion, content, edges)` tuple with `emissionId` generated | `derivation = "generate emissionId via UUID v4; resolve anchor NodeId via Living Memory node-create with properties {framework.id, framework.version, turnId, emissionId}; resolve companion NodeId via Living Memory node-create with payload = input.payload verbatim; traverse input.payload.content via Living Memory traverse() producing contentNodeIds[] with cardinality >= 1; compute edges[] per ArA4a (classification-lineage), ArA4b (categorical via mode-node lookup), ArA4c (version via prior-anchor lookup, conditional), ArA4d (dependency per input.dependsOn[])"` |
-| **S2** | 2 | 3 | `gate-execution` | composed tuple from S1 + framework-tier gate bundle | per-gate results + overall pass/fail | `gates = [PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8, G-I1, G-I2, G-I3, G-I4, G-I5, G-S1, G-S2, G-S3, G-St1, G-St2, G-St3, G-St4, G-St5, G-V1, G-V2, G-V3, G-V4, G-V5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-J1, G-J2, G-J3, G-J4, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4]` (52 framework-tier gates: 7 PG + 35 axiom inherited + 1 MA-G13 + 5 F-69 + 4 meta; NB: AS-own axiom gates G-Ar1..G-Ar8 with ArA4 split = 11 gates replace the inherited PG/axiom gates at the AS-specific level; AS's own gate suite is G-Ar1..G-Ar8 per MA-V1) |
+| **S2** | 2 | 3 | `gate-execution` | composed tuple from S1 + framework-tier gate bundle | per-gate results + overall pass/fail | `gates = [PG1, PG2, PG3, PG4, PG5, PG6, PG7, G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-I1, G-I2, G-I3, G-I4, G-I5, G-S1, G-S2, G-S3, G-St1, G-St2, G-St3, G-St4, G-St5, G-V1, G-V2, G-V3, G-V4, G-V5, G-L1, G-L2, G-L3, G-L4, G-L5, G-L6, G-L7, G-C1, G-C2, G-C3, G-C4, G-C5, G-C6, G-J1, G-J2, G-J3, G-J4, G-G13, G-U1, G-U2, G-U3, G-U4, G-U5, G-M1, G-M2, G-M3, G-M4]` (52 framework-tier gates: 7 PG + 35 axiom inherited + 1 MA-G13 + 5 F-69 + 4 meta; NB: AS-own axiom gates G-Ar1..G-Ar7 with ArA4 split = 10 gates at v2.3 — G-Ar8 dissolved per Sprint B2 Shot 2c) |
 | **S3** | 3 | 5 | `mechanical` | validated composed tuple | `ArtifactEmission` W-ATOM emitted to caller; Living Memory node+edge writes committed via Living Memory transaction | `derivation = "construct ArtifactEmission per §2.2 output schema from composed tuple; invoke Living Memory commit for anchor + companion + content nodes and edge set atomically per Living Memory transaction contract; return ArtifactEmission W-ATOM to caller; on Living Memory commit rejection, return Result { ok: false, error: ArtifactError { code: 'ARTIFACT_EMISSION_REJECTED' } } per Result<T, E> shape from primitives.ts"` |
 
-**Disambiguation note on S2 gates field:** AS's S2 gate-execution step declares the full 52 framework-tier gate bundle per metaframework `MetaframeworkGateIdSet` atom (metaframework §6.5), PLUS AS's own 11 axiom gates (G-Ar1..G-Ar8 with ArA4 split). The inherited axiom gates (G-I1..G-J4, 35 entries) test metaframework's own 35 axis-bound axioms when AS is the target framework — i.e., they test AS's conformance to metaframework axioms (MA-I1..MA-J4). AS's own axiom gates (G-Ar1..G-Ar8) test AS's own 11 axioms (ArA1..ArA8). Total per-invocation gate count at S2: 52 metaframework-tier + 11 AS-own = 63 gates. Substrate-tier gates (SG1–SG4) excluded per substrate §11.5 tier-1 "run once, not per framework" semantics.
+**Disambiguation note on S2 gates field:** AS's S2 gate-execution step declares the full 52 framework-tier gate bundle per metaframework `MetaframeworkGateIdSet` atom (metaframework §6.5), PLUS AS's own 10 axiom gates (G-Ar1..G-Ar7 with ArA4 split — post-Sprint-B2-Shot-2c ArA8 dissolution). The inherited axiom gates (G-I1..G-J4, 35 entries) test metaframework's own 35 axis-bound axioms when AS is the target framework — i.e., they test AS's conformance to metaframework axioms (MA-I1..MA-J4). AS's own axiom gates (G-Ar1..G-Ar7) test AS's own 10 axioms (ArA1..ArA7). Total per-invocation gate count at S2: 52 metaframework-tier + 10 AS-own = 62 gates. Substrate-tier gates (SG1–SG4) excluded per substrate §11.5 tier-1 "run once, not per framework" semantics.
 
 ### §3.8 Universal-variables table
 
@@ -359,7 +360,7 @@ Framework-local terms declared at point of use per PR1 (substrate §10.2). Subst
 
 ### §4.1 Gate count
 
-AS declares **11 own axiom gates** (G-Ar1..G-Ar8 with G-Ar4 split into G-Ar4a..G-Ar4d). All 52 metaframework framework-tier gates are inherited by reference per substrate §1.3 S-03 permitted-multi-execution; AS consumes them through the `MetaframeworkGateIdSet` atom (metaframework §6.5).
+AS declares **10 own axiom gates** (G-Ar1..G-Ar7 with G-Ar4 split into G-Ar4a..G-Ar4d). v2.2's 11 → 10 at v2.3 per Sprint B2 Shot 2c (G-Ar8 dissolved). All 52 metaframework framework-tier gates are inherited by reference per substrate §1.3 S-03 permitted-multi-execution; AS consumes them through the `MetaframeworkGateIdSet` atom (metaframework §6.5).
 
 | Category | Count | Source |
 |---|---|---|
@@ -389,9 +390,10 @@ Per MA-V1 (every axiom has ≥1 gate) + MA-V2 (gates test conditions directly, n
 | **G-Ar5** | ArA5 | For persisted emission E: Living Memory mutation attempts on E.writes.a7.artifactAnchorNodeId or E.writes.a7.companionDataNodeId properties are rejected by Living Memory write-protection predicate (predicate: `node.emissionId !== null → write.rejected = true`). | structural property (mutation-rejection predicate) |
 | **G-Ar6** | ArA6 | `forall e ∈ emission.edges: e.kind ∈ {'classification-lineage', 'categorical', 'version', 'dependency'}` | enum membership |
 | **G-Ar7** | ArA7 | `deepEqual(emission.payload, input.payload) === true` (byte-identical; no normalization) | deterministic-function result (identity) |
-| **G-Ar8** | ArA8 | `count(e ∈ registry where e.emissionId === emission.emissionId) === 1` (at write time; uniqueness predicate via Living Memory one-hop) | reference resolution (uniqueness) |
 
-**MA-V1 coverage:** 11 axioms ↔ 11 primary gates. 1:1 mapping. G-M1 passes.
+*Sprint B2 Shot 2c: G-Ar8 (paired with ArA8 emissionId-uniqueness) dissolved. Rationale: emissionId is a UUID v4 minted per call via `generateId` — structural collision is impossible. The runtime stub at `src/features/F-artifact/app/artifact-emit.ts` evaluated a constant-false function (`isEmissionIdCollisionNeverTrue`), indicating the gate was already operationally vacuous. Removed at v2.3 from §4.2 gate table, §3.4 S2 gate-execution bundle, §4.3 X2 Determinism dimension, §4.4 gate execution order, §4.5 AS-own gate enumeration.*
+
+**MA-V1 coverage:** 10 axioms ↔ 10 primary gates (post-Sprint-B2-Shot-2c). 1:1 mapping. G-M1 passes.
 **MA-V2 coverage:** every gate test body is a direct mechanical predicate; no test references another gate. Pass.
 **MA-V3 coverage:** every gate result ∈ `{'passed', 'failed', 'pending'}` per `ArtifactGateResult` shape (artifact-standard.types.ts). Binary-plus-pending ternary. Pass.
 **MA-V4 coverage:** gate re-verification on state change — AS state changes occur only via emission (post-emission immutability per ArA5); each emission invokes S2 gate-execution. Pass.
@@ -414,7 +416,7 @@ Per framework-audit-v1-3 §3.3 X1–X10 dimensions: AS's gate set covers all ten
 | Dimension | AS-own gates | Inherited gates |
 |---|---|---|
 | X1 Temporal / lifecycle | — | G-I4 (Semver), G-L1, G-L2, G-L3 |
-| X2 Determinism | G-Ar1..G-Ar8 (all mechanical) | G-S1, G-S2, G-S3, G-J2 |
+| X2 Determinism | G-Ar1..G-Ar7 (all mechanical) | G-S1, G-S2, G-S3, G-J2 |
 | X3 Observability | — | G-C4 (handoff captureShape), G-V2, G-C3 (provenance) |
 | X4 Negative space | — (scopeOut at §1) | G-I1 (Mode declared), G-L2 (amendment trigger) |
 | X5 Scale / composition | G-Ar3, G-Ar4d (cardinality scaling) | G-St1..G-St5 |
@@ -430,7 +432,7 @@ All 10 dimensions reachable from ≥1 gate. MA-V5 satisfied.
 
 Per substrate §11.5:
 1. Tier 1 — Substrate gates (SG1–SG4): excluded from AS's per-invocation path; run once at substrate audit.
-2. Tier 2 — Primitive + axiom gates (PG1–PG7 + G-I1..G-J4 inherited + G-Ar1..G-Ar8 own): run at S2.
+2. Tier 2 — Primitive + axiom gates (PG1–PG7 + G-I1..G-J4 inherited + G-Ar1..G-Ar7 own): run at S2.
 3. Tier 3 — Universal gates (G-G13, G-U1–G-U5): run at S2 after tier 2 pass.
 4. Tier 4 — Meta-gates (G-M1–G-M4): run at S2 after tier 3 pass.
 
@@ -453,7 +455,7 @@ Inherited from metaframework §4.6 by reference (v3-1-spec §3.4, unchanged from
 
 Gate ID enumeration (canonical set):
 
-AS-own (11): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8`.
+AS-own (10): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7` (post-Sprint-B2-Shot-2c — G-Ar8 dissolved).
 
 Inherited (52, per `MetaframeworkGateIdSet`): enumerated §4.3.
 
@@ -463,7 +465,7 @@ Inherited (52, per `MetaframeworkGateIdSet`): enumerated §4.3.
 
 ### §5.1 Version transition
 
-v2.1 → v2.2. Additive per MA-L1 (v2.1's 8 axiom-conditions preserved as ArA1..ArA5+ArA4a-d; v2.2 adds ArA6, ArA7, ArA8 to close edge-set-exhaustive / payload-verbatim / emissionId-uniqueness gaps; seven-axis shell rendered per metaframework-v3-1 §3.1 replacing v2.1's three-axis shape which was the metaframework v2.4 shell; no v2.1 axiom text removed, no axiom condition weakened). Regen against metaframework-v3-1 + generation-procedure-v1-0 via generation-procedure S1–S12 template-generation path.
+v2.1 → v2.2 → v2.3. Additive per MA-L1. v2.1 → v2.2: ArA6/ArA7/ArA8 added (edge-set-exhaustive, payload-verbatim, emissionId-uniqueness); seven-axis shell rendered. v2.2 → v2.3 (Sprint B2 Shot 2c): ArA8 + G-Ar8 dissolved per *removal-is-additive* clause — ArA8's predicate was vacuously satisfied per UUID v4 generation (structural collision impossible); the runtime stub at `src/features/F-artifact/app/artifact-emit.ts` evaluated a constant-false function, indicating gate already operationally vacuous. No behavior change for prior-passing artifacts.
 
 **v2.1 → v2.2 structural changes:**
 - Seven-axis shell (A1–A7) replaces v2.1's three-axis top level. v2.1's Emission/Composition/Lineage become AS-local P1 axis instances under the inherited A3 Structure shell.
@@ -483,7 +485,7 @@ Gap-driven + L0-directive. Amendment triggers declared ∈ `{'vision', 'gap', 'L
 
 ### §5.3 Confirmation gate
 
-Confirmation by L0 pending post-cycle (L3 regen wave cycle 1). Monotonic per MA-L3 (confirmation once given not retracted; future amendment requires new confirmation).
+Confirmation by L0 confirmed at Sprint B2 unified close fix-round (regen wave cycle 1 post-cycle ratification gate satisfied per manager soundness-check). Monotonic per MA-L3 (confirmation once given not retracted; future amendment requires new confirmation).
 
 ### §5.4 Escalation state
 
@@ -501,7 +503,7 @@ Per metaframework-v3-1 §5.7 + v3-1-spec §3.3 output-schema `lifecycle` field V
 |---|---|---|
 | S1 (compose) | `input` schema violation (missing required field, invalid type, confidence out of range) | return `Result { ok: false, error: ArtifactError { code: 'ARTIFACT_INPUT_INVALID' } }`; no Living Memory write; state unchanged |
 | S1 (compose) | Living Memory traversal of `payload.content` returns empty → ArA3 pre-commit violation | return `Result { ok: false, error: ArtifactError { code: 'ARTIFACT_COMPOSITION_FAILED' } }`; no Living Memory commit |
-| S2 (gate-execution) | Any of 11 AS-own gates or 52 inherited gates fails | apply metaframework §4.5 backward-invalidation rule (tier 4 fail → re-run tier 3; tier 3 fail → re-verify tier 2; tier 1 fail terminal, escalates to L0 per substrate §14.6); emission not produced; return `ArtifactError { code: 'ARTIFACT_GATE_FAILED' }` |
+| S2 (gate-execution) | Any of 10 AS-own gates or 52 inherited gates fails | apply metaframework §4.5 backward-invalidation rule (tier 4 fail → re-run tier 3; tier 3 fail → re-verify tier 2; tier 1 fail terminal, escalates to L0 per substrate §14.6); emission not produced; return `ArtifactError { code: 'ARTIFACT_GATE_FAILED' }` |
 | S3 (emit) | Living Memory transaction commit rejected (consistency violation, lock contention) | rollback; return `ArtifactError { code: 'ARTIFACT_EMISSION_REJECTED' }`; no partial write per Living Memory transaction atomicity |
 
 ### §5.7 Scale bounds
@@ -509,7 +511,7 @@ Per metaframework-v3-1 §5.7 + v3-1-spec §3.3 output-schema `lifecycle` field V
 Per v3-1-spec §3.3 V5-verification additions. Bounded by:
 - Input cardinality: `input.dependsOn.length` unbounded in schema; per-invocation gate cost scales as O(N) in dependsOn entries via G-Ar4d.
 - Content traversal: `writes.a7.contentNodeIds.length >= 1`; upper bound declared per Living Memory traversal limits (not AS-owned).
-- Gate execution: O(63) per-invocation (constant).
+- Gate execution: O(62) per-invocation (constant) — post-Sprint-B2-Shot-2c (was 63 at v2.2 with G-Ar8).
 - Living Memory write throughput: per substrate §13.4 atomicity table.
 
 ### §5.8 Atomicity declarations
@@ -529,6 +531,7 @@ AS emission end-to-end (S1 → S2 → S3) is not atomic across steps; each step 
 | v2.0 | pre-2026-04 | Regenerated against metaframework v2.4 (adds MA-G5c custody, MA-G5d provenance). | L0 |
 | v2.1 | pre-2026-04-23 | §9 output schema per-field provenance added; MA-G5d satisfied. | L0 |
 | v2.2 | 2026-04-23 (L3 regen wave cycle 1) | Regenerated against metaframework-v3-1 via generation-procedure-v1-0. Seven-axis shell adopted; v2.1 three-axis top-level folded into AS-local P1 axis instances under A3 Structure. Three P8 steps (S1–S3) under Stages {2, 3, 5} per substrate §8.3 + PR4 + PR5. Four handoff rules (HR-Ar1..HR-Ar4) with captureShape + diagnosticSignificance per substrate §8.2 amended P6 shape. ArA6 (edge-set enum exhaustive), ArA7 (payload verbatim-carry), ArA8 (emissionId uniqueness) added per MA-St3 orthogonality review. Custody table refreshed with owner + layer + consumers per substrate SG3. Provenance field populated per metaframework §2.2 (reference-default per A-20). | L0 (pending regen-cycle confirmation) |
+| v2.3 | 2026-05-15 (Sprint B2 Shot 2c) | ArA8 + G-Ar8 dissolved per *removal-is-additive* clause. Rationale: emissionId is a UUID v4 minted per call via `generateId` — structural collision is impossible. The runtime stub at `src/features/F-artifact/app/artifact-emit.ts` evaluated a constant-false function (`isEmissionIdCollisionNeverTrue`), indicating gate was already operationally vacuous. **Δ:** §1 Own invariants 11→10; §1 Own discipline G-Ar1–G-Ar8 → G-Ar1–G-Ar7; §3.2 P3/P4/P5 counts 11→10; §3 intro axiom range ArA1–ArA8 → ArA1–ArA7; §3.6 heading + ArA8 row removed + AxR3 self-check updated; §3.4 S2 gates field G-Ar8 removed; §3.4 disambiguation note 11→10 + 63→62; §3.7 P7 basis ArA1–ArA8 → ArA1–ArA7; §4.1 gate count 11→10; §4.2 G-Ar8 row removed + MA-V1 11↔11 → 10↔10; §4.3 X2 Determinism G-Ar1..G-Ar8 → G-Ar1..G-Ar7; §4.4 tier-2 list G-Ar8 removed; §4.5 AS-own (11) → (10) + enumeration sweep at both §4.5 and §745 audit-time bundle. **Source-side:** `isEmissionIdCollisionNeverTrue` stub removed from `src/features/F-artifact/app/artifact-emit.ts`; `evaluateGar8` removed from `src/features/F-artifact/domain/artifact-gates.ts`; `gar8` field removed from `GateBatch` type; `isCollision` parameter removed from `evaluateAllGates` signature; call-site at `createArtifact` updated. **Discipline:** removal is additive per MA-L1 — no behavior change for prior-passing artifacts; gate predicate was already constant-false at runtime. Cross-framework: PS v1.2 cross-framework input row references AS v2.3 (companion Sprint B2 Shot 2 amendment). authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'pending'} | L0 (pending Sprint B2 Shot 2c ratification) |
 
 ---
 
@@ -721,7 +724,7 @@ Runtime implementation deferred post-beta per §1 scopeOut row "framework regist
 
 Empty-declaration marker per substrate §8.6:
 ```
-{primitiveKind: P7, instanceCount: 0, basis: "AS's createArtifact procedure is fully mechanical. Every axiom condition (ArA1–ArA8) reduces to substrate §6.3 mechanical-criterion ground: cardinality (ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d), structural property (ArA5), enum membership (ArA6), deterministic-function result (ArA7), reference resolution (ArA8). No non-mechanical derivation required at S1, S2, or S3. MA-J4 emptyDeclared satisfied."}
+{primitiveKind: P7, instanceCount: 0, basis: "AS's createArtifact procedure is fully mechanical. Every axiom condition (ArA1–ArA7) reduces to substrate §6.3 mechanical-criterion ground: cardinality (ArA1, ArA2, ArA3, ArA4a, ArA4b, ArA4c, ArA4d), structural property (ArA5), enum membership (ArA6), deterministic-function result (ArA7). No non-mechanical derivation required at S1, S2, or S3. MA-J4 emptyDeclared satisfied. (ArA8 dissolved at v2.3 per Sprint B2 Shot 2c.)"}
 ```
 
 ### §7.2 Axis status
@@ -742,7 +745,7 @@ Future amendment path (per MA-L5): if AS acquires a judgment input (e.g., post-b
 
 **All 63 per-invocation gates: state = `not-yet-run`.** First-run pending framework-audit execution post-beta per §1 scopeOut + §5 lifecycle.
 
-AS-own gate ID enumeration (11): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7, G-Ar8`.
+AS-own gate ID enumeration (10): `G-Ar1, G-Ar2, G-Ar3, G-Ar4a, G-Ar4b, G-Ar4c, G-Ar4d, G-Ar5, G-Ar6, G-Ar7` (post-Sprint-B2-Shot-2c — G-Ar8 dissolved).
 
 Inherited gate ID enumeration (52, via `MetaframeworkGateIdSet`): see metaframework-v3-1 §4.7 canonical enumeration + §6.5 atom declaration. Not restated here per single-source via reference (A-08).
 
@@ -792,7 +795,8 @@ Per G-U1 (self-application at metaframework §4.3): framework-audit runs X1–X1
 | Version | Date | Change | Authority |
 |---|---|---|---|
 | v2.2 | 2026-04-23 | Initial regeneration against metaframework-v3-1 via generation-procedure-v1-0 (L3 regen wave cycle 1). Rendered as `GeneratedFrameworkTemplate` per metaframework §2.2 output schema. Seven-axis shell (A1–A7) inherited; AS-local P1 axes (Emission, Composition, Lineage) declared under A3 Structure. Eleven axioms ArA1..ArA8 with ArA4a–ArA4d split declared under AxR1/AxR2/AxR3/AxR4 discipline. Eleven AS-own axiom gates G-Ar1..G-Ar8 declared per MA-V1. Three P8 procedure steps S1–S3 under substrate §8.3 Stages {2, 3, 5} with PR4 + PR5 compliance. Four HRs (HR-Ar1..HR-Ar4) with captureShape + diagnosticSignificance per substrate §8.2 amended P6. Custody table refreshed per substrate SG3. Provenance field populated reference-default per A-20. Scope-out declared per X4 dimension. Operator-interface declared per A-13 + V5 verification. | L0 (pending regen-cycle confirmation) |
+| v2.3 | 2026-05-15 (Sprint B2 Shot 2c) | ArA8 + G-Ar8 dissolved. Rationale: emissionId is a UUID v4 minted per call via `generateId` — structural collision impossible; runtime stub at `src/features/F-artifact/app/artifact-emit.ts` (`isEmissionIdCollisionNeverTrue`) was a constant-false function, indicating gate already operationally vacuous. Removal is additive per MA-L1 *removal-is-additive* clause. Counts: ArA 11→10, G-Ar 11→10, total per-S2 invocation 63→62. Source-side: `isEmissionIdCollisionNeverTrue` stub removed; `evaluateGar8` removed from `domain/artifact-gates.ts`; `gar8` field removed from `GateBatch`; `isCollision` parameter removed from `evaluateAllGates`. Cross-framework: PS v1.2 cross-framework input row references AS v2.3. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'pending'} | L0 (pending Sprint B2 Shot 2c ratification) |
 
 ---
 
-## End of artifact-standard-v2-2
+## End of artifact-standard-v2-3

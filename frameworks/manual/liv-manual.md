@@ -5,9 +5,9 @@ placement: frameworks/manual/
 
 # LIV MANUAL
 
-SPEC-v13.1 · 2026-05-13
+SPEC-v13.3 · 2026-05-16
 
-Supersedes SPEC-v13.0. Patch-level governance-text amendment. Part IV authority chain reconciled to ratified chain per substrate v1.8.1 §5.2: L0 = Intent, L1 = Metaframework, L2 = Standards, L3 = Programs. Labels stable; role names attached. Prior "L4 = Programs" and "L1 = Protocol slot" framings superseded. Operations table swept to Sprint B1 sibling-version state: PS v1.0.1 → v1.1, Metaframework v3.2.7 → v3.3.1, LIV-Standard v1.5.1 → v1.5.2. No vision change.
+Supersedes SPEC-v13.2. Vision derivation correction (loop structure + artifact emission framing). Mediator category dissolved as descriptive residue: the memory loop has always operated through three positions (Modality → Boundary → Store) with programs emitting Path B writes directly to Store and Boundary handling Path A external arrivals; the prior four-position framing carried Mediator as a structural slot that had no source program inhabiting it as transit. Artifact emission framing aligned to Path B: artifacts accumulate in Store via `internal-derivation` channel, not by re-crossing the Boundary — the prior “crosses the Boundary on re-entry” framing was carried from the dissolved paired-write model (b1-final-shot-3 closure) and has been swept. Operations table reclassifies F-router and F-admin to Tool, dissolves F-intake, adds F-surface as the program-registry projection. SliceCategory enum reduced 7 → 6 values. F-artifact and AS references swept to v1.5.2 / v2.3. D7 conflation example refreshed to current taxonomy. No vision change to the root claim, three loops, or substrate model; no atom shapes, schemas, rules, or gates amended. Manual-version minor bump per MA-L1.
 
 ```
 Root claim
@@ -69,7 +69,6 @@ These names are fixed. Used exactly as written throughout this manual. A term no
 | **Store** | The program that governs the substrate's operational mechanics; terminal node of the memory loop |
 | **Boundary** | The program that governs typed/untyped crossing |
 | **Modality** | Programs that govern wearer-facing channels and surfaces — the entry and exit points of the memory loop |
-| **Mediator** | Programs that govern transit work through the memory loop between Boundary and Store |
 | **Generator** | The four programs that perform Cycle work on a target |
 | **Cycle** | The work shape that Generators perform — the five-state ordering's four adjacent transitions |
 | **Domain** | Programs that perform work in a wearer-declared domain — produced by Generators, run when invoked |
@@ -140,13 +139,13 @@ System-L0 does not bypass the Boundary. System-L0 confirmations cross as arrival
 
 ### The loop
 
-Wearer signal arrives at a Modality channel → Modality presents it to the Boundary → Boundary types it → Mediator carries it → Store accumulates it → Store is read → Mediator carries the response → Boundary untypes it → Modality emits it to the wearer.
+Wearer signal arrives at a Modality channel → Modality presents it to the Boundary → Boundary types it → Store accumulates it → Store is read → Boundary untypes it → Modality emits it to the wearer. Programs in the domain and governance loops write to Store directly via the program emission path; their output enters substrate as `internal-derivation` typed state-change without re-crossing the Boundary.
 
 The memory loop is arrival-triggered. It runs when signal arrives. It does not spin independently. Every other loop depends on this loop having run — domain programs read from the substrate this loop populates.
 
-Signal that domain programs write back re-enters this loop as new typed signal, is typed at the Boundary, and accumulates in Store. This is what makes the domain loop compound over time: each program's output becomes substrate signal that subsequent programs read.
+Signal that domain programs produce as artifacts accumulates in Store as new typed state-change via the program emission path — written directly to Store carrying `source.channel: 'internal-derivation'`, not re-crossed through the Boundary. The Boundary handles external arrivals (wearer signal, integration events) on Path A; programs write Path B directly to Store. This is what makes the domain loop compound over time: each program's output becomes substrate signal that subsequent programs read.
 
-The memory loop runs through four kinds of program. Each is named below in signal-flow order: Modality where signal enters and exits, Boundary where typed jurisdiction begins and ends, Mediator where typed signal moves, Store where it accumulates.
+The memory loop runs through three kinds of program. Each is named below in signal-flow order: Modality where signal enters and exits, Boundary where typed jurisdiction begins and ends, Store where it accumulates.
 
 ### Modality
 
@@ -162,10 +161,9 @@ Modality programs are arrival-triggered (intake direction) or emission-triggered
 
 - *F-chat* — conversational channel
 - *F-output* — output emission channel (build deliveries, downloads, push)
-- *F-admin* — L0 console surface
-- *F-dashboard* — wearer-facing render surface and program registry
+- *F-dashboard* — wearer-facing render surface
 
-The Modality Standard slot is acknowledged vacant — derivation pending if drift surfaces. Modality programs operate under Perimeter Standard v1.1 rules as interim fallback for crossing-adjacent concerns.
+The Modality Standard slot is acknowledged vacant — derivation pending if drift surfaces. Modality programs operate under Perimeter Standard v1.2.1 rules as interim fallback for crossing-adjacent concerns.
 
 ### Boundary
 
@@ -173,7 +171,7 @@ Boundary is the program that governs typed/untyped crossing.
 
 Every signal entering typed jurisdiction crosses here. Every signal leaving crosses here. One Boundary per LIV instance — unitary by structural necessity. A distributed boundary cannot be checked; a unitary boundary can.
 
-Boundary acts on every crossing. It does not accumulate — it transforms. It types signal on the way in, untypes on the way out, and passes the result downstream to Mediator toward Store.
+Boundary acts on every crossing. It does not accumulate — it transforms. It types signal on the way in, untypes on the way out, and passes the result downstream to Store on Path A. Programs emitting substrate signal (Path B) write to Store directly without re-crossing the Boundary.
 
 **Authority enforcement.** Boundary enforces authority at the crossing. Scope access is checked here. System-L0 and Wearer-L0 confirmations are recognized here. No unauthorized signal reaches Store.
 
@@ -197,28 +195,17 @@ Boundary acts on every crossing. It does not accumulate — it transforms. It ty
 - *Channel classification* — assigning source authority per channel
 - *Scope access enforcement* — gating arrivals against authority and scope
 
-Boundary is governed by a standard generated by Derivation. F-identity and proxy.ts are the current inhabitants, governed by Perimeter Standard v1.1.
-
-### Mediator
-
-Mediator programs govern transit work through the memory loop after signal has crossed the Boundary and before it reaches Store, and the reverse on the way out. They route, deliver, shape, and channel typed signal. They do not transform domain content — movement is their work, and the movement is internal to typed jurisdiction.
-
-Mediator programs are arrival-triggered. Each is governed by a standard generated by Derivation when one exists. Current inhabitants:
-
-- *F-router* — routing decisions: which program handles this typed signal
-- *F-intake* — arrival shaping: structuring arriving typed signal before it reaches downstream programs
-
-The Mediator Standard slot is acknowledged vacant — derivation pending. Mediator programs operate under LIV-Standard code-structure governance until dedicated derivation is performed.
+Boundary is governed by a standard generated by Derivation. F-identity and proxy.ts are the current inhabitants, governed by Perimeter Standard v1.2.1.
 
 ### Store
 
 Store is the program that governs the substrate's operational mechanics — write, accumulate, read — and the terminal node of the memory loop on the intake direction, the source node on the emission direction.
 
-Store is in the loop. The memory loop flows into Store on intake (where typed signal accumulates) and out of Store on emission (where accumulated state is read for response). Mediator delivers to Store; Mediator reads from Store. Boundary's typed signal terminates here.
+Store is in the loop. The memory loop flows into Store on intake (where typed signal accumulates) and out of Store on emission (where accumulated state is read for response). Boundary delivers typed signal to Store on Path A; programs from any loop write to Store directly on Path B (`internal-derivation` channel) and read from Store. Boundary's typed signal terminates here.
 
-Store does not initiate. It is acted upon. Mediator writes to it; programs from any loop read it and write to it. Store's work is to maintain faithful accumulation under that activity.
+Store does not initiate. It is acted upon. Boundary writes to it on Path A (external arrivals); programs from any loop write to it on Path B (internal emission) and read from it. Store's work is to maintain faithful accumulation under that activity.
 
-Store is governed by a standard generated by Derivation. One Store per LIV instance. F-memory is the current inhabitant, governed by Living Memory v3.2.
+Store is governed by a standard generated by Derivation. One Store per LIV instance. F-memory is the current inhabitant, governed by Living Memory v3.3.
 
 ---
 
@@ -290,15 +277,18 @@ Current inhabitants:
 | F-event-system | Event bus — inter-program event delivery |
 | F-executor | Code execution |
 | F-multi-instance | Multi-instance AI orchestration |
-| F-permissions | Authority enforcement |
+| F-permissions | Per-user / global access scoping |
 | F-ai-adapter | LLM call surface |
 | F-design-system | Visual construction primitives |
 | F-project | Project scope management |
 | F-user-profile | Identity data |
+| F-router | Routing decision utility — consulted by Modality and at Boundary dispatch |
+| F-admin | L0 console operational utility |
+| F-surface | Program-registry projection — layer through which Modality programs render onto F-dashboard |
 
 ### Invocation
 
-Every program in every loop is triggered by one of four invocation patterns. Declared here because invocation is first meaningfully variable at this level — Boundary, Modality, and Mediator have fixed arrival-triggered invocation; Generators, Domain programs, and Tools select among these four.
+Every program in every loop is triggered by one of four invocation patterns. Declared here because invocation is first meaningfully variable at this level — Boundary and Modality have fixed arrival-triggered invocation; Generators, Domain programs, and Tools select among these four.
 
 - **Wearer-invoked** — the wearer triggers the program directly. The typical pattern for programs whose output the wearer reads as a discrete result.
 - **Continuous** — the program runs whenever its output is needed for projection. No discrete invocation; runs by default when its output is required.
@@ -311,11 +301,11 @@ Invocation is a property of individual programs. Any program in any loop can hav
 
 Artifacts are the typed output produced by programs that perform domain work.
 
-**Carrier shape.** Every artifact has the same structural envelope regardless of domain. The carrier shape is universal across programs, declared by the artifact standard (currently AS v2.2).
+**Carrier shape.** Every artifact has the same structural envelope regardless of domain. The carrier shape is universal across programs, declared by the artifact standard (currently AS v2.3).
 
 **Domain content.** What the artifact actually contains is shaped by the program's governing standard. The plan standard declares what counts as plan content; the verification standard declares what counts as a verification result.
 
-**Artifacts are substrate signal.** Every artifact re-enters the memory loop as new typed signal, crosses the Boundary, and accumulates in Store. Subsequent domain programs read it as part of accumulated state. This is the mechanism by which each domain program's output becomes the richer substrate the next program reads.
+**Artifacts are substrate signal.** Every artifact accumulates in Store as a new typed state-change carrying `source.channel: 'internal-derivation'`. The emitting program writes Store directly via R3 — artifacts do not re-cross the Boundary. Subsequent domain programs read accumulated artifacts as part of substrate state. This is the mechanism by which each domain program's output becomes the richer substrate the next program reads.
 
 ---
 
@@ -373,7 +363,7 @@ No standard is created outside this path. System-L0 confirmation is required at 
 
 Standards are the output of Derivation. One governing standard per program or program category.
 
-Every program in every loop — Store, Boundary, Modality, Mediator, Generator, Domain, Tool — has exactly one governing standard. The standard declares what the program's work means in its domain: axioms, invariants, gates, procedures the program must satisfy. Standards do not run — they are consulted by programs during their work.
+Every program in every loop — Store, Boundary, Modality, Generator, Domain, Tool — has exactly one governing standard. The standard declares what the program's work means in its domain: axioms, invariants, gates, procedures the program must satisfy. Standards do not run — they are consulted by programs during their work.
 
 **Framework-slot structure.** Every program has a slot for its governing standard. Slots are forced by the program's existence. Inhabitants are selected by Derivation and confirmed by System-L0. A vacant slot is an acknowledged gap — not a structural defect. Current slot inhabitants and acknowledged vacant slots are tracked in Operations.
 
@@ -391,35 +381,34 @@ Process-level reference. Not vision. Does not cascade from the root claim. Amend
 
 | Program / category | Standard |
 |---|---|
-| Store | Living Memory v3.2 |
-| Boundary | Perimeter Standard v1.1 |
+| Store | Living Memory v3.3 |
+| Boundary | Perimeter Standard v1.2.1 |
 | F-plan | Plan Standard v2.2 |
 | F-verify | Verification Standard v1.0 |
 | F-discover | Research Standard v1.0 |
 | F-builder | Builder Standard v1.0 |
-| F-artifact | Artifact Standard v2.2 |
+| F-artifact | Artifact Standard v2.3 |
 | F-multi-instance | Multi-Instance Standard v2.3 |
 | F-design-system | Design Standard v1.0 |
 | Code structure (cross-slice) | LIV-Standard v1.5.2 |
 | Cross-tree placement | Placement Standard v1.0 |
-| Slice category vocabulary | SliceCategory (codified at core/types/slice-category.types.ts; closed-by-derivation, seven values) |
+| Slice category vocabulary | SliceCategory (codified at core/types/slice-category.types.ts; closed-by-derivation, six values) |
 | Derivation (L1) | Metaframework v3.3.1 |
+| F-permissions | Permissions Standard v1.0.2 |
 
 **Acknowledged vacant slots:**
 
 | Program / category | Status |
 |---|---|
-| Modality (category) | No category-wide standard. Modality programs operate under Perimeter Standard v1.1 rules as interim fallback. Dedicated derivation pending if drift surfaces. |
-| Mediator (category) | No category-wide standard. Mediator programs operate under LIV-Standard code-structure governance pending dedicated derivation. |
-| F-router | No program-specific standard. Operates under Mediator category fallback. |
-| F-intake | No program-specific standard. Operates under Mediator category fallback. |
+| Modality (category) | No category-wide standard. Modality programs operate under Perimeter Standard v1.2.1 rules as interim fallback. Dedicated derivation pending if drift surfaces. |
 | F-chat | No program-specific standard. Operates under Modality category fallback. |
 | F-output | No program-specific standard. Operates under Modality category fallback. |
-| F-admin | No program-specific standard. Operates under Modality category fallback. |
+| F-admin | No program-specific standard. Operates under Tool category vacant-slot status (no Tool-category standard at this version; per-program derivation pending). |
+| F-router | No program-specific standard. Operates under Tool category vacant-slot status. Pending derivation. |
+| F-surface | No program-specific standard. Operates under Tool category vacant-slot status. Pending derivation. |
 | F-dashboard | No program-specific standard. Operates under Modality category fallback. |
 | F-event-system | No governing standard. Pending derivation. |
 | F-executor | No governing standard. Pending derivation. |
-| F-permissions | No governing standard. Pending derivation. |
 | F-ai-adapter | No governing standard. Pending derivation. |
 | F-project | No governing standard. Pending derivation. |
 | F-user-profile | No governing standard. Pending derivation. |
@@ -567,7 +556,7 @@ Seven diagnostics. Any fires — stop and escalate to System-L0 with: diagnostic
 
 **D6 — Governance gap.** Any program without a governing standard and without an acknowledged vacant declaration in Operations. Any standard without a traceable derivation path through Derivation. Any slot in an ambiguous state — neither filled nor formally acknowledged vacant.
 
-**D7 — Category conflation.** Treating two distinct program categories as one. Examples: calling Modality and Mediator both "Flow"; calling Generator and Domain the same category; treating Tool as a structural participant in the memory loop rather than as injected utility. Categories are forced by what work each kind of program does; conflation papers over the structural commitments the categories name.
+**D7 — Category conflation.** Treating two distinct program categories as one. Examples: treating a Tool as a structural participant in the memory loop rather than as injected utility (e.g., classifying F-router or F-event-system as a loop-transit program when their work is reached-for utility, not loop transit); calling Generator and Domain the same category; calling Cycle work and the Generator category by the same name. Categories are forced by what work each kind of program does; conflation papers over the structural commitments the categories name.
 
 ---
 
@@ -581,7 +570,9 @@ Seven diagnostics. Any fires — stop and escalate to System-L0 with: diagnostic
 | v12.0 | 2026-05-10 | Full rewrite. Vision re-derived from first principles. Three loops. Perimeter dissolved into Boundary (memory loop program). Infrastructure dissolved into Flow and Tool. Five kinds reduced to derivation-order structure. Historical record removed from vision sections. |
 | v13.0 | 2026-05-12 | Vision revision. Flow category dissolved (empirical bucket); inhabitants redistributed to Modality (F-chat, F-output, F-admin, F-dashboard), Mediator (F-router, F-intake), and Tool (F-event-system). Cycle programs named Generator as a category, distinct from the Cycle work shape they perform and from Domain programs they produce. Store rewritten as terminal node of memory loop (resolving prior contradiction). Three-loops framing retained; perpendicularity of domain and governance loops named in body and in new top-section framing. Operations expanded: dissolution sprint protocol, 5-check audit sweep, builder/auditor/manager workflow discipline, deploy path corrections, command-chaining discipline. D7 added (category conflation). Slice category vocabulary slot filled (SliceCategory in source). |
 | v13.1 | 2026-05-13 | Sprint B1 Shot 6 closure. Part IV authority chain reconciled to ratified chain per substrate v1.8.1 §5.2: L0 Intent, L1 Metaframework (L0 automating L0 work), L2 Standards, L3 Programs. Labels stable (L0/L1/L2/L3 numerics retained); role names attached. Prior "L4 = Programs" framing superseded; programs are L3 governed by L2 standards. Prior "L1 = Protocol slot" framing superseded; Protocol is L0 intent expressed as invariant declarations, not a separate governance tier. Recursion-direction prose at Part IV amended to ratified chain. Operations table swept to Sprint B1 sibling-version state: PS v1.0.1 → v1.1, Metaframework v3.2.7 → v3.3.1, LIV-Standard v1.5.1 → v1.5.2. Operations Derivation row labeled (L1) per amended chain. Deployment section "L1 invariants" reference amended to "Protocol invariants (L0 intent)". Historical succession references at v11.1 Change-log row and Cognitive-Standard migration-notes row retained verbatim (succession-point context preserves PS v1.0.1 as the version at slot-fill / dissolution time). Patch-level governance text amendment per MA-L1. No vision change, no atoms, no schema, no rules, no gates amended. |
+| v13.2 | 2026-05-16 | Six-line Operations-table sweep aligning sibling-version standards references (PS v1.2.1, LM v3.3, Permissions Standard v1.0.2). Boundary-mechanics row reframed to access-scoping per Sprint B2 Shot 2 extraction. Patch-level governance-text amendment per MA-L1. No vision change, no atoms, no schema, no rules, no gates amended. |
+| v13.3 | 2026-05-16 | Core-loop reshape + artifact-emission framing sweep (descriptive residue closure). Mediator category dissolved — memory loop framed as three positions (Modality → Boundary → Store) with Path A (Boundary-handled external arrivals) and Path B (program internal-derivation emission to Store) named explicitly. Artifact-emission framing aligned to Path B (Part III §Artifacts L314/L318 sweep): artifacts accumulate in Store via `internal-derivation` channel; “crosses the Boundary on re-entry” residue from dissolved paired-write model swept. F-router and F-admin reclassified Modality/Mediator → Tool. F-intake program deleted (no inhabitant remaining post-F-planner-dissolution). F-surface program added (extracted from F-dashboard's program-registry concern; full projection ownership — atoms at R0, hooks at R3 per L0 ruling). F-dashboard narrowed to render surface only. SliceCategory enum 7 → 6 values. FSlice enum churn: F-intake removed, F-surface added. F-artifact slice headers swept to LIV-Standard v1.5.2 + AS v2.3. D7 conflation doctrine example refreshed. Standards ratified-ref groundings to Manual v13.0 four-position framing retained as version-pinned historical anchors per Path A precedent. Minor-class derivation correction per MA-L1; no vision change, no atom shapes, schemas, rules, or gates amended. Fix-round closure: Operations table sites missed by initial v13.2 overlay swept (L385 Boundary→PS v1.2.1, L402 Modality fallback→PS v1.2.1, L390 F-artifact→AS v2.3). Permissions Standard v1.0.2 slot transitioned Acknowledged-vacant → Filled per L0 ratification at manager soundness-check confirmation. F-router and F-surface added to Acknowledged-vacant Tool slots. v13.2 changelog PMS abbreviation disambiguated to “Permissions Standard v1.0.2”. |
 
 ---
 
-End of Manual SPEC-v13.1.
+End of Manual SPEC-v13.3.

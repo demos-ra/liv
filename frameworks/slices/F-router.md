@@ -5,7 +5,7 @@ placement: frameworks/slices/
 
 # F-router Slice
 
-**Sprint 8 Shot 2 · Pure routing infrastructure**
+**Sprint 8 Shot 2 · Pure routing — Tool category (sprint-b2-unified-close reclassification)**
 
 ## Declaration
 
@@ -15,7 +15,7 @@ placement: frameworks/slices/
 | Layers | R0, R1, R2, R3 |
 | Owner | F-router exclusively |
 | Purpose | Message routing infrastructure. Given a `RouterMessage` + `RouterSessionContext`, return a `Destination` (slice + optional programId). Pure routing logic; no framework, no I/O, no DB. |
-| Framework | None — F-router is infrastructure, not a governed program (Decision-D-S2-1, L0-confirmed). |
+| Framework | None — F-router is a Tool program (sprint-b2-unified-close reclassification, supersedes Decision-D-S2-1 "infrastructure" framing). No category-wide standard pending derivation; acknowledged vacant per Manual Operations. |
 
 ## What This Slice Owns
 

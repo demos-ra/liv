@@ -32,8 +32,7 @@
     ],
     "exceptions": {
       "F-design-system": "Pure token/component library. No app/ or exec/ \u2014 no server ops, no DB, no events.",
-      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events \u2014 no exec/ needed. Orchestrates F-intake, F-plan, F-output hooks. providers.tsx lives here.",
-      "F-intake": "Client-only intake form. No server ops beyond calling F-plan/F-project contracts.",
+      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events \u2014 no exec/ needed. Orchestrates F-plan, F-output hooks. providers.tsx lives here.",
       "F-output": "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/.",
       "F-builder": "pipeline execution shell; owns runPipeline + emitPlanForContract post-F-planner dissolution (sprint-12-shot-3)"
     },
@@ -51,7 +50,6 @@
     "F-event-system",
     "F-executor",
     "F-identity",
-    "F-intake",
     "F-memory",
     "F-multi-instance",
     "F-output",
@@ -59,6 +57,7 @@
     "F-plan",
     "F-project",
     "F-router",
+    "F-surface",
     "F-user-profile",
     "F-verify"
   ],

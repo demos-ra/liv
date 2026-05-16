@@ -1,22 +1,22 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-verify/contract/verify-face.tsx]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    sprint-12-shot-4 (NEW — Render Standard v1.0 DA1–DA5)
+// standard:   LIV-Standard v1.5.2
+// amended:    sprint-12-shot-4 (NEW — Render Standard v1.0 DA1–DA5); sprint-b2-unified-close-fix-round-2 (ProgramProps import repointed F-dashboard/types/dashboard-types → F-surface/types/surface-types per L0 ruling A "external consumers import directly from F-surface/R0")
 // slice:      F-verify
 // layer:      R3
 // wires-in:
-//   W-HOOK  useRegisterProgram     F-dashboard/contract/dashboard-registry
-//   W-ATOM  ProgramRenderIntent    F-dashboard/types/dashboard-types
+//   W-HOOK  useRegisterProgram     F-surface/contract/surface-registry
+//   W-ATOM  ProgramProps           F-surface/types/surface-types
 //   W-FN    threadQuery            F-memory/contract/substrate-contract
 //   W-ATOM  StateChangeRecord      core/types/substrate.types
 // wires-out:
-//   W-HOOK  VerifyFace  →  F-dashboard/contract/dashboard-registry
+//   W-HOOK  VerifyFace  →  F-surface/contract/surface-registry
 // deps:
-//   R3  @/features/F-dashboard/contract/dashboard-registry
-//   R0  @/features/F-dashboard/types/dashboard-types
+//   R3  @/features/F-surface/contract/surface-registry
+//   R0  @/features/F-surface/types/surface-types
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R5  @/core/types/substrate.types
 //   R5  react
@@ -28,10 +28,10 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRegisterProgram }          from '@/features/F-dashboard/contract/dashboard-registry'
+import { useRegisterProgram }          from '@/features/F-surface/contract/surface-registry'
 import { threadQuery }                 from '@/features/F-memory/contract/substrate-contract'
 import type { StateChangeRecord, IdentityRef, ScopeRef } from '@/core/types/substrate.types'
-import type { ProgramProps }           from '@/features/F-dashboard/types/dashboard-types'
+import type { ProgramProps }           from '@/features/F-surface/types/surface-types'
 
 export function VerifyFace({ programId, userId, projectId }: ProgramProps) {
   const [records, setRecords]   = useState<StateChangeRecord[]>([])

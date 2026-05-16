@@ -1,11 +1,12 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-router/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-2 (F-router authoring)
+// standard:   LIV-Standard v1.5.2
+// amended:    sprint-8-shot-2 (F-router authoring); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2)
 // slice:      F-router
+// category:   Tool
 // layer:      R0
 // wires-in:   none
 // wires-out:

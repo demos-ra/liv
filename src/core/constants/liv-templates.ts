@@ -141,7 +141,7 @@ export {}  // module marker — declarations live in @wire blocks above`,
   },
 
   // ─── R1 — Pure Logic ────────────────────────────────────────
-  // Pattern: F-intake/domain/intake-logic.ts
+  // Pattern: F-plan/domain/plan-logic.ts
 
   'TPL-R1-LOGIC': {
     id: 'TPL-R1-LOGIC',
@@ -479,7 +479,7 @@ export function use{SliceName}(): {SliceName}Hook {
   },
 
   // ─── R3 — UI Component ─────────────────────────────────────
-  // Pattern: F-intake/contract/intake-ui.tsx
+  // Pattern: F-admin/contract/admin-ui.tsx
 
   'TPL-R3-UI': {
     id: 'TPL-R3-UI',

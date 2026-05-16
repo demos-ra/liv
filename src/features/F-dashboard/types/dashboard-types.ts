@@ -1,18 +1,18 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-dashboard/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    step5b-phaseA, phase-5.2, phase-5-audit, sprint-12-shot-4 (actionKinds + userId)
+// standard:   LIV-Standard v1.5.2
+// amended:    step5b-phaseA, phase-5.2, phase-5-audit, sprint-12-shot-4 (actionKinds + userId); sprint-b2-unified-close (ProgramRenderIntent + ProgramProps relocated to F-surface/R0 — local import only, no re-export per L0 ruling A); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (re-export dropped; local import added for WorkspaceHook field-type — Shape B per L0 ruling)
 // slice:      F-dashboard
+// category:   Modality
 // layer:      R0
 // wires-in:
 //   W-ATOM  ProjectSummary, CreateProjectPayload, ProjectDelta, ProjectId  F-project/R0
 //   W-ATOM  PushPayload, PushResult, OutputFiles  F-output/R0
 // wires-out:
 //   W-ATOM  ActiveProgram           →  F-dashboard/R3, src/app/page.tsx
-//   W-ATOM  ProgramRenderIntent     →  F-dashboard/R3 (dashboard-registry.tsx)
 //   W-ATOM  OutputActions           →  F-dashboard/R3
 //   W-ATOM  ProjectActions          →  F-dashboard/R3
 //   W-ATOM  OutputState             →  F-dashboard/R3
@@ -31,7 +31,6 @@
 //     the dashboard shell can pass the context triple (programId, userId, projectId)
 //     to each mounted program component per G-RS4.
 
-import type { ComponentType } from 'react'
 import type {
   ProjectSummary,
   CreateProjectPayload,
@@ -39,23 +38,13 @@ import type {
   ProjectId,
 } from '@/features/F-project/types/project-types'
 import type { PushPayload, PushResult, OutputFiles } from '@/features/F-output/types/output-types'
+import type { ProgramRenderIntent } from '@/features/F-surface/types/surface-types'
 
-export type ProgramProps = {
-  programId:  string
-  userId:     string
-  projectId:  string
-}
-
-// ── ProgramRenderIntent (A3) ──────────────────────────────────────────────────
-// sprint-12-shot-4: added actionKinds per Render Standard v1.0 DA1.
-export type ProgramRenderIntent = {
-  programId:   string
-  label:       string
-  component:   ComponentType<ProgramProps>
-  actionKinds: string[]           // v1.0: empty; DA2/DA3 dispatch wired post-beta
-  statusDot?:  'accent' | 'dis' | 'error'
-  statusLine?: string
-}
+// ── Local import only — F-surface owns the projection-layer atoms ─────────────
+// sprint-b2-unified-close: ProgramRenderIntent + ProgramProps relocated to
+// F-surface/R0 per L0 ruling A. No re-export here — external consumers import
+// directly from F-surface/R0. ProgramRenderIntent imported above for local
+// WorkspaceHook field-type reference only.
 
 // ── ActiveProgram (A3) ────────────────────────────────────────────────────────
 export type ActiveProgram = {

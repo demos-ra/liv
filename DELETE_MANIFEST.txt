@@ -1,0 +1,11 @@
+# Files (xargs git rm < this section)
+src/features/F-intake/contract/intake-hook.ts
+src/features/F-intake/contract/intake-ui.tsx
+src/features/F-intake/domain/intake-logic.ts
+src/features/F-intake/types/intake-const.ts
+src/features/F-intake/types/intake-types.ts
+src/features/F-intake/types/intake-wires.ts
+src/features/F-dashboard/contract/dashboard-registry.tsx
+
+# Directories (rmdir 'literal-name' after files removed; git does not track empty dirs)
+src/features/F-intake/

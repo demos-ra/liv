@@ -31,12 +31,12 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-commit-log':      'commitLog',
   'F-user-profile':    'userProfile',
   'F-dashboard':       'dashboard',
+  'F-surface':         'surface',           // sprint-b2-unified-close — program registry projection
   'F-editor':          'editor',
   'F-health-panel':    'healthPanel',
   'F-execution-panel': 'executionPanel',
   'F-memory':          'memory',
   // 'F-planner': dissolved Sprint 12 Shot 3
-  'F-intake':          'intake',           // Phase 5
   'F-output':          'output',           // Phase 6
   'F-artifact':        'artifact',         // Phase 4b — AS v2.2 runtime
   'F-multi-instance':  'multiInstance',    // Phase 4b — M-I v2.3 runtime

@@ -1,10 +1,11 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-artifact/R3]
 // Built with LIV · livai.dev
 //
 // @manifest
-// standard:   LIV-Standard v1.5.1
+// standard:   LIV-Standard v1.5.2
 // amended:    4b-f-artifact-slice
+//             sprint-b2-unified-close (Point 6: LIV-Standard v1.5.1 → v1.5.2; AS v2.2 → v2.3 references in header swept; F-009 paired-write framing closure declared at this amendment; artifact emission is Path B to Store via internal-derivation channel — confirmed at body level)
 //             sprint-8-shot-4 (hydrateArtifactStore re-exported for boot wiring)
 //             b1-final-shot-3 (hydrateArtifactStore removed — art_* dissolved;
 //                              ArtifactGraphPort removed — port dissolved;

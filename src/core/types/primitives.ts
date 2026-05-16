@@ -123,12 +123,12 @@ export type FSlice =
   | 'F-commit-log'
   | 'F-user-profile'
   | 'F-dashboard'
+  | 'F-surface'     // sprint-b2-unified-close — program registry projection layer (Tool)
   | 'F-editor'
   | 'F-health-panel'
   | 'F-execution-panel'
   | 'F-memory'
   // | 'F-planner'  // dissolved Sprint 12 Shot 3 — functions redistributed to F-plan + F-builder
-  | 'F-intake'      // Phase 5 — requirements intake UI
   | 'F-output'      // Phase 6 — output assembly, zip download, git push
   | 'F-artifact'         // Phase 4b — AS v2.2 createArtifact runtime
   | 'F-multi-instance'   // Phase 4b — M-I v2.3 executeRun runtime

@@ -1,12 +1,12 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.2
 // [F-admin/types/admin-types.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5b-phaseA
+// standard:   LIV-Standard v1.5.2
+// amended:    step5b-phaseA; sprint-b2-unified-close (category retagged Modality → Tool per Manual v13.3 reclassification — F-admin is an L0-tier operational utility, not a wearer-facing Modality channel); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline)
 // slice:      F-admin
-// category:   Modality
+// category:   Tool
 // layer:      R0
 // wires-in:   none (R0 — pure declarations)
 // wires-out:

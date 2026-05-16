@@ -1,11 +1,12 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-router/R0]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-2 (F-router authoring)
+// standard:   LIV-Standard v1.5.2
+// amended:    sprint-8-shot-2 (F-router authoring); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2)
 // slice:      F-router
+// category:   Tool
 // layer:      R0
 // wires-in:
 //   W-ATOM FSlice    core/R5 (primitives)
@@ -23,7 +24,7 @@
 // validated:  pending
 
 // F-router R0 — atom declarations.
-// F-router is infrastructure, not a governed program — no Standard backs it.
+// F-router is a Tool — routing decision utility consulted by Modality and at Boundary dispatch. No Standard backs it at this version (acknowledged vacant slot per Manual Operations).
 // Per Decision-D-S2-1: 'F-router' added to FSlice enum at core/R5.
 //
 // A1: F-router owns these atoms exclusively.

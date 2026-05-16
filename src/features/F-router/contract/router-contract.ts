@@ -1,13 +1,14 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-3 sprint-11-shot-6a
+// @liv-standard v1.5.2 amended sprint-11-shot-3 sprint-11-shot-6a
 // [F-router/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-2  (F-router authoring)
+// standard:   LIV-Standard v1.5.2
+// amended:    sprint-8-shot-2  (F-router authoring); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2)
 //             sprint-11-shot-3 (onBoot wired to event-system startup; registerDestination wired to router-registrations)
 //             sprint-11-shot-6a (S11-A1 fix: registerDomainPrograms re-exported at R3 — A2 compliance)
 // slice:      F-router
+// category:   Tool
 // layer:      R3
 // wires-in:
 //   W-FN  route                  F-router/R2 router-service

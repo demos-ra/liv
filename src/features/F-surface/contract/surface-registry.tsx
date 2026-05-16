@@ -1,36 +1,38 @@
-// @liv-standard v1.3
-// [F-dashboard/contract/dashboard-registry.tsx]
+// @liv-standard v1.5.2
+// [F-surface/contract/surface-registry.tsx]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5d-phase1
-// slice:      F-dashboard
+// standard:   LIV-Standard v1.5.2
+// amended:    sprint-b2-unified-close (extracted from F-dashboard/contract/dashboard-registry.tsx — registry concern relocated per Manual v13.3 program-registry projection ownership)
+// slice:      F-surface
+// category:   Tool
 // layer:      R3
 // wires-in:
-//   W-ATOM  ProgramRenderIntent  ../types/dashboard-types
+//   W-ATOM  ProgramRenderIntent  ../types/surface-types
 // wires-out:
-//   W-HOOK  useRegisterProgram     →  F-planner/R3 (planner-register.tsx)
-//   W-HOOK  useRegisteredPrograms  →  F-dashboard/R3 (dashboard-hook.ts, dashboard-ui.tsx)
-//   W-ATOM  ProgramRegistryProvider →  F-dashboard/R3 (providers.tsx)
+//   W-HOOK  useRegisterProgram      →  F-plan/R3, F-discover/R3, F-builder/R3, F-admin/R3, F-memory/R3, F-verify/R3 (all Modality programs that mount themselves; cross-slice via A5)
+//   W-HOOK  useRegisteredPrograms   →  F-dashboard/R3 (dashboard-hook.ts, dashboard-ui.tsx)
+//   W-ATOM  ProgramRegistryProvider →  F-dashboard/R3 (providers.tsx mounts the provider in the tree)
 // deps:
-//   R0  ../types/dashboard-types
+//   R0  ../types/surface-types
 //   R5  react
 // validated:  pending
 //
-// step5d-phase1 (A1, A3, A5, A6):
-//   New file. React context registry — programs declare into dashboard via
-//   useRegisterProgram(). Dashboard reads via useRegisteredPrograms().
-//   F-dashboard has zero knowledge of which programs exist — pure protocol.
-//   useRegisterProgram: mounts registration, deregisters on unmount. Idempotent
-//   by programId — duplicate registration updates in place (same component ref).
-//   React context chosen over event bus: registration is synchronous mount-time
-//   React lifecycle, not a runtime event. No cross-slice async needed.
+// sprint-b2-unified-close:
+//   Slice extracted from F-dashboard. Registry mechanics unchanged from
+//   F-dashboard/contract/dashboard-registry.tsx pre-extraction — same React
+//   context, same idempotency, same lifecycle. The structural change is
+//   ownership: F-surface (Tool) owns the projection layer between Modality
+//   programs and F-dashboard. F-dashboard becomes a pure render surface.
 //   Axiom cite:
-//     A1 — F-dashboard owns the registry. Programs are consumers, not owners.
-//     A3 — ProgramRenderIntent is the typed atom at the boundary.
-//     A5 — F-planner imports only from F-dashboard/contract (R3 surface) — A5 compliant.
-//     A6 — ProgramRegistryContext declared at R3 of owning slice.
+//     A1 — F-surface owns the program-registry projection. F-dashboard
+//          consumes the projection (render side); registered programs
+//          consume the registration hook (declare side).
+//     A3 — ProgramRenderIntent atom typed at the F-surface boundary.
+//     A5 — All external consumers import only from F-surface/R3 (this file)
+//          and F-surface/R0 (atoms). No reaching into the file directly.
+//     A6 — ProgramRegistryContext declared at R3 of owning slice (F-surface).
 
 'use client'
 
@@ -42,7 +44,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react'
-import type { ProgramRenderIntent } from '../types/dashboard-types'
+import type { ProgramRenderIntent } from '../types/surface-types'
 
 // ── Context ───────────────────────────────────────────────────────────────────
 

@@ -1,11 +1,12 @@
-// @liv-standard v1.3
+// @liv-standard v1.5.2
 // [F-dashboard/contract/dashboard-hook.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.3
-// amended:    step5b-phaseB
+// standard:   LIV-Standard v1.5.2
+// amended:    step5b-phaseB; sprint-b2-unified-close (useRegisteredPrograms source changed: F-dashboard/contract/dashboard-registry → F-surface/contract/surface-registry per registry concern extraction); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline)
 // slice:      F-dashboard
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook         ../types/dashboard-types
@@ -15,14 +16,14 @@
 //   W-ATOM  ProjectActions        ../types/dashboard-types
 //   W-ATOM  OutputState           ../types/dashboard-types
 //   W-ATOM  DashboardSectionState ../types/dashboard-types
-//   W-HOOK  useRegisteredPrograms @/features/F-dashboard/contract/dashboard-registry
+//   W-HOOK  useRegisteredPrograms @/features/F-surface/contract/surface-registry
 //   W-HOOK  useProject            @/features/F-project/contract/project-hook
 //   W-HOOK  useOutput             @/features/F-output/contract/output-hook
 // wires-out:
 //   W-HOOK  useWorkspace  →  F-dashboard/R3 (dashboard-ui.tsx), src/app/page.tsx
 // deps:
 //   R0  ../types/dashboard-types
-//   R3  ./dashboard-registry         (intra-slice — A5 compliant)
+//   R3  @/features/F-surface/contract/surface-registry  (cross-slice via A5)
 //   R3  @/features/F-project/contract/project-hook   (A5)
 //   R3  @/features/F-output/contract/output-hook     (A5)
 //   R5  react
@@ -47,7 +48,7 @@
 import { useState, useCallback } from 'react'
 import { useProject }            from '@/features/F-project/contract/project-hook'
 import { useOutput }             from '@/features/F-output/contract/output-hook'
-import { useRegisteredPrograms } from './dashboard-registry'
+import { useRegisteredPrograms } from '@/features/F-surface/contract/surface-registry'
 import type {
   WorkspaceHook,
   ActiveProgram,

@@ -1,15 +1,16 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [F-dashboard/R3]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    step5b-phaseB, phase-5.2, phase-5.3, phase-5.4
+// standard:   LIV-Standard v1.5.2
+// amended:    step5b-phaseB, phase-5.2, phase-5.3, phase-5.4; sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (ProgramRenderIntent import repointed F-dashboard/types/dashboard-types → F-surface/types/surface-types per L0 ruling A)
 // slice:      F-dashboard
+// category:   Modality
 // layer:      R3
 // wires-in:
 //   W-ATOM  WorkspaceHook       ../types/dashboard-types
-//   W-ATOM  ProgramRenderIntent ../types/dashboard-types
+//   W-ATOM  ProgramRenderIntent @/features/F-surface/types/surface-types  (sprint-b2-unified-close-fix-round-2 — repointed from F-dashboard/types/dashboard-types per L0 ruling A)
 //   W-ATOM  Surface             @/features/F-design-system/contract/primitives
 //   W-ATOM  StatusDot           @/features/F-design-system/contract/primitives
 //   W-ATOM  Spinner             @/features/F-design-system/contract/primitives
@@ -17,6 +18,7 @@
 //   W-ATOM  DashboardUI  →  src/app/page.tsx
 // deps:
 //   R0  ../types/dashboard-types
+//   R0  @/features/F-surface/types/surface-types
 //   R3  @/features/F-design-system/contract/primitives  (A5)
 //   R5  react
 // validated: pending
@@ -68,7 +70,8 @@
 
 import React, { Suspense } from 'react'
 import { Surface, StatusDot, Spinner } from '@/features/F-design-system/contract/primitives'
-import type { WorkspaceHook, ProgramRenderIntent } from '../types/dashboard-types'
+import type { WorkspaceHook } from '../types/dashboard-types'
+import type { ProgramRenderIntent } from '@/features/F-surface/types/surface-types'
 
 // ── ProgramLoadingFallback (internal) ────────────────────────────────────────
 // Spinner centered in dash-min-h container. Shown while lazy program chunk loads.
