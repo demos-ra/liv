@@ -37,7 +37,7 @@
 //   W-ATOM PERIMETER_CARRIER                         → carrier resolution
 //   W-ATOM PERIMETER_CARRIER_REF                     → carrier resolution
 //   W-ATOM LIV_INSTANCE_PERIMETER_SITE_REF           → F-identity middleware (PA-I + PA-A6 unitary site identifier)
-//   W-ATOM DEFAULT_PERIMETER_BINDING                 → F-identity middleware (deployment default; G-PS-Cn3 vacuous-pass target at v1.0)
+//   W-ATOM DEFAULT_PERIMETER_BINDING                 → F-identity middleware (deployment default; PMA-Av2 boundary-consultation atom per Permissions Standard v1.0 jurisdiction at Action Vocabulary axis)
 // deps: none
 // validated: pending
 
@@ -68,9 +68,12 @@
 export const PERIMETER_FRAMEWORK_ID = 'perimeter' as const
 export const PERIMETER_FRAMEWORK_VERSION = '1.0' as const
 
-// ─── Axiom IDs (§3.6; 22 per MA-V1 + AxR1/AxR2/AxR3/AxR4) ───────────────────
-// 21 axis-bound (PA1, PA2, PA-T1..PA-T4, PA-A1..PA-A6, PA-Cn1..PA-Cn4,
-// PA-IR1..PA-IR4, PA-Co1..PA-Co3) + 1 Identity-tier (PA-I).
+// ─── Axiom IDs (§3.6; 18 per MA-V1 + AxR1/AxR2/AxR3/AxR4 — post-Sprint-B2-Shot-2) ───
+// 17 axis-bound (PA1, PA2, PA-T1..PA-T4, PA-A1, PA-A5, PA-A6, PA-Cn1, PA-Cn2,
+// PA-Cn4, PA-IR1..PA-IR4, PA-Co1..PA-Co3) + 1 Identity-tier (PA-I).
+// Sprint B2 Shot 2: PA-A2/A3 extracted → Permissions Standard PMA-Sb2/PMA-D2+PMA-Sb3;
+// PA-Cn3 extracted → Permissions Standard PMA-Av2; PA-A4 dissolved (paired-write
+// vacuously satisfied post art_* table drop at Sprint B1 final shot 3).
 
 export const PERIMETER_AXIOM_IDS = [
   // Direction axis
@@ -81,17 +84,13 @@ export const PERIMETER_AXIOM_IDS = [
   'PA-T2',
   'PA-T3',
   'PA-T4',
-  // Authority Enforcement axis
+  // Authority Enforcement axis (post-Sprint-B2-Shot-2: PA-A2/A3 extracted to Permissions Standard; PA-A4 dissolved)
   'PA-A1',
-  'PA-A2',
-  'PA-A3',
-  'PA-A4',
   'PA-A5',
   'PA-A6',
-  // Channel Classification axis
+  // Channel Classification axis (post-Sprint-B2-Shot-2: PA-Cn3 extracted to Permissions Standard)
   'PA-Cn1',
   'PA-Cn2',
-  'PA-Cn3',
   'PA-Cn4',
   // Identity Resolution axis
   'PA-IR1',
@@ -118,14 +117,10 @@ export const PERIMETER_AXIOM_GATE_IDS = [
   'G-PS-T3',       // tests PA-T3
   'G-PS-T4',       // tests PA-T4
   'G-PS-A1',       // tests PA-A1
-  'G-PS-A2',       // tests PA-A2
-  'G-PS-A3',       // tests PA-A3
-  'G-PS-A4',       // tests PA-A4
   'G-PS-A5',       // tests PA-A5
   'G-PS-A6',       // tests PA-A6
   'G-PS-Cn1',      // tests PA-Cn1
   'G-PS-Cn2',      // tests PA-Cn2
-  'G-PS-Cn3',      // tests PA-Cn3
   'G-PS-Cn4',      // tests PA-Cn4
   'G-PS-IR1',      // tests PA-IR1
   'G-PS-IR2',      // tests PA-IR2
@@ -314,10 +309,17 @@ export const PERIMETER_CARRIER_REF = {
 
 export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'proxy.ts'
 
-// ─── Default PerimeterBinding (§6.2; G-PS-Cn3 vacuous-pass target at v1.0) ──
-// Default permitted-authority bindings for the seven named channels. Sprint 6
-// Shot 3 deploy supplies the runtime PerimeterBinding; pre-deploy this default
-// satisfies G-PS-Cn3 with vacuous-pass per spec §4.8.
+// ─── Default PerimeterBinding (§6.2; PMA-Av2 boundary-consultation atom) ────
+// Default permitted-authority bindings for the seven named channels.
+// Governed by Permissions Standard v1.0 PMA-Av2 (vocabulary closure on Action
+// Vocabulary axis). PMA-Av2 owns the channel × permitted-authority closure
+// rule; this default is the boundary-side consultation surface for that rule,
+// paralleling the access-check consultation site at F-permissions runtime.
+// Same axiom, two consultation sites — Permissions Standard §3.13.11
+// jurisdictionClaim (Action Vocabulary axis) covers both declaration sites.
+// Pre-Sprint-6-Shot-3 deploy: F-identity middleware consults this default
+// binding at the perimeter site; Sprint 9 wire-in replaces with runtime
+// PerimeterBinding when deployment configuration arrives.
 //
 // Permitted-authority sets are inclusive: a channel admits any AuthorityClaim
 // whose (level, actor) pair is in the listed set.

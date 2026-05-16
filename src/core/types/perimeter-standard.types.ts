@@ -37,13 +37,14 @@
 //   W-ATOM IdentityClaim                              → all PS consumers
 //   W-ATOM ResolvedIdentity                           → all PS consumers
 //   W-ATOM CellGovernanceRecord                       → all PS consumers
-//   W-ATOM EmissionPairRef                            → all PS consumers, Sprint 9 paired-write programs
 //   W-ATOM AuthorityEnforcementRecord                 → all PS consumers
 //   W-ATOM BoundaryArrival                            → F-identity middleware (intake constructor)
 //   W-ATOM BoundaryDispatchRequest                    → program L4 (dispatch submitters)
 //   W-ATOM BoundaryCrossingRecord                     → all PS consumers, audit consumers, LM (via SubstrateWriteInput translation)
 //   W-ATOM PerimeterBinding                           → F-identity middleware, deployment configuration
 //   W-ATOM PermittedAuthoritySet                      → PerimeterBinding instance authors
+//   W-ATOM AuthorityAssertion                         → all PS runtime authority sites (substrate A-23; replaces AuthorityClaim at runtime crossing sites per Shot 2 cascade)
+//   W-ATOM AuthorityLevel                             → AuthorityAssertion.level (single declaration; substrate §5 closed enum L0|L1|L2|L3)
 //   W-ATOM PerimeterValidityError                     → PS callers (error surface)
 //   W-ATOM PerimeterCrossingResult                    → PS callers (Result-wrapped)
 // deps:
@@ -289,40 +290,27 @@ export interface CellGovernanceRecord {
   readonly reversibilityStatus: ReversibilityFlag
 }
 
-// ─── Emission pair (Authority Enforcement axis, §3.3 PA-A4 orphan rule) ─────
-
-/**
- * EmissionPairRef — paired-write reference per F-009 D6 ruling.
- *
- * PA-A4 orphan rule: every program emission with paired-write contract writes
- * BOTH a substrate state-change AND an artifact-store record. An emission with
- * exactly one side null is an orphan.
- *
- * Invariant (enforced by G-PS-A4):
- * - For dispatches from paired-write programs:
- *   substrateStateChangeId !== null AND artifactStoreRecordId !== null
- *
- * Orphan revocation: per LMA2, wearer-initiated revocation issues a RevokeRef
- * SubstrateWriteInput targeting the present side; the missing side requires no
- * revocation (already absent).
- *
- * v1.0 vacuous-pass: at this delivery the paired-write program registry is
- * empty; G-PS-A4 vacuously satisfied. Sprint 9 wire-in populates the registry.
- */
-export interface EmissionPairRef {
-  readonly substrateStateChangeId: string | null
-  readonly artifactStoreRecordId: string | null
-}
-
 // ─── Authority enforcement record (Authority Enforcement axis, §3.3 PA-A1) ──
 
 /**
- * AuthorityClaim — substrate §5 type, consumed by PS via reference per §2.3.
- * Re-declared structurally here for type composition; runtime values come from
- * substrate-tier discipline.
+ * AuthorityLevel — substrate §5 closed enum; shared by AuthorityClaim (§5.3)
+ * and AuthorityAssertion (§5.6 A-23). Single declaration site per S1.
+ * Consumers: AuthorityClaim (governance stamps), AuthorityAssertion (runtime
+ * crossing claims), A-12 ActivationTrigger (via AuthorityClaim), A-22 AxisBasis
+ * (via AuthorityClaim l0-ratified-ref arm).
  */
-export interface AuthorityClaim {
-  readonly level: 'L0' | string
+export type AuthorityLevel = 'L0' | 'L1' | 'L2' | 'L3'
+
+/**
+ * AuthorityAssertion — substrate §5.6 / A-23 type, runtime authority claim
+ * consumed by PS via reference per §2.3. Stamped at Boundary crossing;
+ * L3 program consumer. Distinct from governance AuthorityClaim (substrate §5.3)
+ * which carries {level, confirmedBy, timestamp} at governance closure.
+ * Shape: {level, actor, source} per runtime crossing semantics.
+ * AuthorityLevel enum declared above; single source per S1.
+ */
+export interface AuthorityAssertion {
+  readonly level: AuthorityLevel
   readonly actor: 'wearer' | 'system' | string
   readonly source: string | null
 }
@@ -338,7 +326,7 @@ export type ScopeRef = string
  * Populated at PA-A1 enforcement; carried on BoundaryCrossingRecord per §2.2.
  */
 export interface AuthorityEnforcementRecord {
-  readonly authorityClaimed: AuthorityClaim
+  readonly authorityClaimed: AuthorityAssertion
   readonly authorityValidated: boolean
   readonly authorityScopeMatch: boolean
   readonly validationBasis: string
@@ -397,7 +385,7 @@ export interface BoundaryArrival {
   readonly arrivalId: ArrivalId
   readonly surfaceForm: unknown
   readonly channelClaim: ChannelClaim
-  readonly authorityClaim: AuthorityClaim
+  readonly authorityClaim: AuthorityAssertion
   readonly scopeClaim: ScopeRef
   readonly dispositionClaim: DispositionKind
   readonly correlationClaim: CorrelationRefBrand | null
@@ -410,7 +398,9 @@ export interface BoundaryArrival {
 /**
  * BoundaryDispatchRequest — dispatch-direction input to PS.
  * Submitted by program L4 emitters; PS validates per PA1, PA2, PA-T1..PA-T4,
- * PA-A1, PA-A4, PA-A5, PA-A6, PA-Cn1..PA-Cn4, PA-Co1, PA-Co3, PA-I.
+ * PA-A1, PA-A5, PA-A6, PA-Cn1, PA-Cn2, PA-Cn4, PA-Co1, PA-Co3, PA-I.
+ * (PA-A2/A3/Cn3 extracted to Permissions Standard v1.0; PA-A4 dissolved
+ * at Sprint B2 Shot 2.)
  */
 export interface BoundaryDispatchRequest {
   readonly dispatchId: DispatchId
@@ -422,7 +412,7 @@ export interface BoundaryDispatchRequest {
   readonly channelTarget: ChannelKind
   readonly dispositionClaim: DispositionKind
   readonly scopeContext: ScopeRef
-  readonly authorityContext: AuthorityClaim
+  readonly authorityContext: AuthorityAssertion
   readonly correlationRef: CorrelationRefBrand | null
   readonly reversibility: ReversibilityFlag
   readonly requestedAt: EpochMs
@@ -452,14 +442,13 @@ export interface BoundaryCrossingRecord {
   readonly resolvedDisposition: DispositionKind
   readonly cellGovernance: CellGovernanceRecord
 
-  // Channel Classification axis (PA-Cn1, PA-Cn2, PA-Cn3, PA-Cn4)
+  // Channel Classification axis (PA-Cn1, PA-Cn2, PA-Cn4 — PA-Cn3 extracted to Permissions Standard PMA-Av2 at Sprint B2 Shot 2)
   readonly resolvedChannel: ChannelKind
 
-  // Authority Enforcement axis (PA-A1, PA-A2, PA-A3, PA-A4, PA-A5, PA-A6)
-  readonly resolvedAuthority: AuthorityClaim
+  // Authority Enforcement axis (PA-A1, PA-A5, PA-A6 — post-Sprint-B2-Shot-2)
+  readonly resolvedAuthority: AuthorityAssertion
   readonly resolvedScope: ScopeRef
   readonly authorityEnforced: AuthorityEnforcementRecord
-  readonly emissionPair: EmissionPairRef | null
 
   // Identity Resolution axis (PA-IR1, PA-IR2, PA-IR3, PA-IR4) — intake-only
   readonly resolvedIdentities: ReadonlyArray<ResolvedIdentity>
@@ -478,13 +467,25 @@ export interface BoundaryCrossingRecord {
   readonly crossedAt: EpochMs
 }
 
-// ─── Permitted-authority set (Channel × Authority cross-axis, PA-Cn3) ───────
+// ─── Permitted-authority set (Channel × Authority — PMA-Av2 boundary consultation) ──
 
 /**
  * PermittedAuthoritySet — per-channel authority admissibility set declared at
- * PerimeterBinding instance. PA-Cn3 verifies authorityClaimed ∈ this set.
+ * PerimeterBinding instance.
+ *
+ * Governed by Permissions Standard v1.0 PMA-Av2 (vocabulary closure on Action
+ * Vocabulary axis). PMA-Av2 owns the channel × permitted-authority closure
+ * rule as a single concern; this type is the boundary-side consultation atom
+ * for that rule, paralleling the access-check consultation site at F-permissions
+ * runtime. Same axiom, two consultation sites — see Permissions Standard
+ * §3.13.11 jurisdictionClaim (Action Vocabulary axis) covering both this type's
+ * declaration site and the access-check site.
+ *
+ * Defense-in-depth: malformed crossings caught at perimeter before any program
+ * touches them; the same vocabulary closure rule then applies at decision time
+ * inside F-permissions. L0 ratification: Sprint B2 Shot 2 re-roll, disposition (b).
  */
-export type PermittedAuthoritySet = ReadonlyArray<AuthorityClaim>
+export type PermittedAuthoritySet = ReadonlyArray<AuthorityAssertion>
 
 // ─── PerimeterBinding (deployment configuration, §6.2) ──────────────────────
 
@@ -497,7 +498,8 @@ export type PermittedAuthoritySet = ReadonlyArray<AuthorityClaim>
  * audit-time per spec §6.7.
  *
  * v1.0 vacuous-pass: pre-Sprint-6-Shot-3 deploy uses default binding;
- * G-PS-Cn3 vacuously satisfied per spec §4.8.
+ * boundary consultation of PMA-Av2 vocabulary closure runs against this
+ * binding once F-identity middleware wires in (Sprint 9).
  */
 export interface PerimeterBinding {
   readonly bindingId: string

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    step5d-phase1; sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (W-DASH-009 retired — ProgramRenderIntent ownership relocated to F-surface/R0 per L0 ruling A)
+// amended:    step5d-phase1; sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline)
 // slice:      F-dashboard
 // category:   Modality
 // layer:      R0
@@ -22,8 +22,8 @@
 //   W-DASH-001 (DashboardPanel): retired — tab system deleted in step4b3. Stale entry.
 //   W-DASH-003 (PlannerActions): retired — F-planner owns its own action surface.
 //   W-DASH-008 (PipelineView): retired — F-planner owns pipeline view state.
-//   W-DASH-009 (ProgramRenderIntent): retired at sprint-b2-unified-close-fix-round-2 — atom relocated to F-surface/R0 per L0 ruling A; ownership leaves F-dashboard.
-//   Axiom cite: A1 — F-dashboard owns its own wires, not F-planner's or F-surface's. A7 — retired wires removed.
+//   W-DASH-009 (ProgramRenderIntent): added — program registry atom.
+//   Axiom cite: A1 — F-dashboard owns its own wires, not F-planner's. A7 — retired wires removed.
 
 export const DASHBOARD_WIRES = [
   {
@@ -60,6 +60,13 @@ export const DASHBOARD_WIRES = [
     emitsTo:  ['F-dashboard/R3', 'src/app/page.tsx'],
     status:   'active',
     notes:    'Full return type of useWorkspace(). page.tsx spreads this to DashboardUI.',
+  },
+  {
+    wireId:   'W-DASH-009',
+    atom:     'ProgramRenderIntent',
+    emitsTo:  ['F-dashboard/R3 (dashboard-registry.tsx)'],
+    status:   'active',
+    notes:    'Program declares programId + component. Dashboard renders component autonomously.',
   },
 ] as const
 

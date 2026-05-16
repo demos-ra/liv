@@ -6,8 +6,8 @@ placement: frameworks/metaframework/frameworks/
 # substrate-v1-1
 
 **Kind:** non-framework (universal declarations)
-**Version:** v1.8.1
-**Authority:** L0 confirmed (Sprint B1 Shot 6 — Governance Text Closure delivery)
+**Version:** v1.8.2
+**Authority:** L0 confirmed (Sprint B2 Shot 1 — AuthorityClaim atom split delivery) [pending ratification]
 **Consumed by:** metaframework-v3-1, framework-registry-v1-0, generation-procedure-v1-0, framework-audit-v1-2, amendment-propagation-v1-0, all generated L3 frameworks
 **Dependencies:** none (upstream of all frameworks)
 **Versioning discipline:** additive only (per S3)
@@ -219,7 +219,7 @@ Frameworks decompose axes using Universal Variables. An axis expressed across al
 
 Atoms are typed shapes referenced by any framework's schema. Declared once at substrate. Consumed by reference. Never redeclared.
 
-Nine atoms exist in v1.0. Five additional atoms added in v1.2 (A-10..A-14 per R-phase-1-2-0015 type-promotion resolution). Three additional atoms added in v1.3 (cycle-1: A-15 GateIdSet per F-cycle-1-14, A-16 AmendmentProvenance per F-cycle-1-12, A-17 EmptyPrimitiveDeclaration per F-cycle-1-7) plus A-05 in-place rename (`ProvenanceRow` → `OriginProvenance` per F-cycle-1-12; semantic clarification only). v1.4 (cycle-1.5): A-17 `primitiveKind` field genericized to `PrimitiveKindRef` reference type — shape-preserving per MA-S7 (no atom add, no atom remove). Three additional atoms added in v1.6 (cycle-2: A-18 ReferentCitation, A-19 ReferentAlignmentState, A-20 ReferentSnapshot per spec↔referent alignment closure; A-18 carries inline `ExpectedShape` discriminated-union sub-shape per A-17/PrimitiveKindRef sub-shape precedent). One additional atom added in v1.7 (Sprint B1 Shot 1: A-21 StateOrdering per brief Δ-1). One additional atom added in v1.8 (Sprint B1 Shot 2: A-22 AxisBasis per brief Δ-3). Total: 22 atoms at v1.8. New atoms added additively per S3.
+Nine atoms exist in v1.0. Five additional atoms added in v1.2 (A-10..A-14 per R-phase-1-2-0015 type-promotion resolution). Three additional atoms added in v1.3 (cycle-1: A-15 GateIdSet per F-cycle-1-14, A-16 AmendmentProvenance per F-cycle-1-12, A-17 EmptyPrimitiveDeclaration per F-cycle-1-7) plus A-05 in-place rename (`ProvenanceRow` → `OriginProvenance` per F-cycle-1-12; semantic clarification only). v1.4 (cycle-1.5): A-17 `primitiveKind` field genericized to `PrimitiveKindRef` reference type — shape-preserving per MA-S7 (no atom add, no atom remove). Three additional atoms added in v1.6 (cycle-2: A-18 ReferentCitation, A-19 ReferentAlignmentState, A-20 ReferentSnapshot per spec↔referent alignment closure; A-18 carries inline `ExpectedShape` discriminated-union sub-shape per A-17/PrimitiveKindRef sub-shape precedent). One additional atom added in v1.7 (Sprint B1 Shot 1: A-21 StateOrdering per brief Δ-1). One additional atom added in v1.8.2 (Sprint B2 Shot 1: A-23 AuthorityAssertion per atom-split brief — runtime authority claim distinct from governance AuthorityClaim). Total: 23 atoms at v1.8.2. New atoms added additively per S3.
 
 ### §4.2 Atom enumeration
 
@@ -490,6 +490,19 @@ AxisBasis =
 
 Custody: substrate. Consumed by metaframework §3 Structure (MA-St17 quantifies over declarations that must carry A-22 basis); consumed by framework-audit (G-St17 executor).
 
+**A-23 — AuthorityAssertion** (new Sprint B2 Shot 1, per atom-split brief; splits runtime authority shape from governance AuthorityClaim at §5.3. Declared at substrate tier because the runtime claim shape crosses the Perimeter Standard / Permissions Standard boundary and must be single-source per S1.)
+```
+AuthorityAssertion = {
+  level:  AuthorityLevel,
+  actor:  ActorRef,             // 'wearer' | 'system' | open-vocabulary IdentityRef
+  source: SourceIdentifier | null
+}
+
+ActorRef = 'wearer' | 'system' | string
+SourceIdentifier = string
+```
+Semantic: runtime claim made by an arriving or dispatched signal. Stamped at Boundary crossing. L3 program consumer. `AuthorityLevel` enum shared with §5.3 `AuthorityClaim` and §5.6 `AuthorityAssertion` (both reuse by reference); transitively reused by A-12 `ActivationTrigger` and A-22 `AxisBasis` via `AuthorityClaim`. Closure rule: additive per S3.
+
 ### §4.3 Atom usage
 
 Every atom referenced by any framework is consumed by reference through the atom's ID. Redeclaration violates S1 and triggers SG2/SG3 failure.
@@ -527,13 +540,30 @@ AuthorityClaim = {
 }
 ```
 
+Semantic: confirmation event record. Stamped at governance closure. L1 apparatus consumer.
+
 ### §5.4 Authority binding
 
-Every framework declares its Level in Identity axis (per MA-I3). Every confirmation event carries an AuthorityClaim.
+Every framework declares its Level in Identity axis (per MA-I3); every confirmation event carries an `AuthorityClaim`. Every Boundary crossing under typed jurisdiction carries an `AuthorityAssertion` per Perimeter Standard PA-A1.
 
 ### §5.5 Escalation to L0
 
 Escalation paths declared in lifecycle (per MA-L4) terminate at L0 when no lower authority can resolve.
+
+### §5.6 AuthorityAssertion (A-23)
+
+```
+AuthorityAssertion = {
+  level:  AuthorityLevel,
+  actor:  ActorRef,             // 'wearer' | 'system' | open-vocabulary IdentityRef
+  source: SourceIdentifier | null
+}
+
+ActorRef = 'wearer' | 'system' | string
+SourceIdentifier = string
+```
+
+Semantic: runtime claim made by an arriving or dispatched signal. Stamped at Boundary crossing. L3 program consumer. `AuthorityLevel` enum is shared with `AuthorityClaim` (§5.3); both atoms consume it by reference. Declared at substrate tier because the runtime authority shape crosses the Perimeter Standard / Permissions Standard boundary and must be single-source per S1.
 
 ---
 
@@ -982,6 +1012,8 @@ Declared consumers per substrate element. Enforces SG3.
 | §4 Atom A-21 StateOrdering | substrate §2.2 (Mode signature position-pair indexing); substrate §11.1 SG6 (Mode-count gate executor) |
 | §4 Atom A-22 AxisBasis | metaframework §3 Structure (MA-St17 axis-and-declaration-kind grounding predicate); framework-audit (G-St17 executor) |
 | §5 Authority levels | all frameworks (universal via Identity axis) |
+| §5.3 Atom AuthorityClaim | metaframework, all frameworks carrying confirmation events; A-12 ActivationTrigger (initiator field); A-22 AxisBasis (l0-ratified-ref arm) |
+| §5.6 Atom AuthorityAssertion | Perimeter Standard v1.2.1 PA-A1 + leaf-PA-A1; Permissions Standard v1.0.2 PMA-Av2 |
 | §6 Judgment shape | generation-procedure (primary), any framework with judgment inputs |
 | §6.3 Mechanical-criterion ground | framework-audit (executor) |
 | §7 Semver | all frameworks (universal via Identity axis) |
@@ -1175,8 +1207,8 @@ Non-framework file. Self-audit at declaration time:
 | SG1 (element declaration completeness) | ✓ — all elements in §1–§14 declared with ID and shape |
 | SG2 (no framework references) | ✓ — §12 consumer registry entries are declared consumer references, not framework dependencies |
 | SG3 (consumer registry completeness) | ✓ — every element in §1–§14 has ≥1 row in §12 |
-| SG4 (additive versioning) | ✓ — v1.8 transition from v1.7 is additive per S3. One new atom (A-22 AxisBasis); §2.3 ModeSignature amended in-place: fields renamed (`inputKind`→`inputPosition`, `outputKind`→`outputPosition`) **and** retyped from `string` to `StateOrderingIndex` (a union literal type alias declared inline). The change is additive under MA-S7 recursive `≼`: the new field types are strictly narrower than the prior `string` type, which means every prior-valid ModeSignature value satisfying the prior `string` fields satisfies the new union-literal fields when the string value was already one of `'0'...'4'`; in practice ModeSignature instances were never materialised with free-string values (the position semantics were always implicit per §2.2 Shot 1), so zero-instance breakage. The change is an in-place type-level binding of pre-existing position semantics. `StateOrderingIndex` type alias cross-references A-21. No field removal. |
-| SG5 (naming-function conformance) | ✓ — every identifier instance in §1–§16 conforms to S6: single-locus kinds (substrate atoms `A-NN` including new A-22, substrate gates `SG1..SG6`) carry bare canonical form; multi-locus kinds carry locus-qualified canonical form. |
+| SG4 (additive versioning) | ✓ — v1.8.2 transition from v1.8.1 is additive per S3. One new atom (A-23 AuthorityAssertion at §4.2); §5.3 retained byte-identical; §5.4 second sentence added; §5.6 new section declared; §12 consumer registry rows added for §5.3 AuthorityClaim and §5.6 AuthorityAssertion. No removal. AmendmentProvenance recorded at §16. |
+| SG5 (naming-function conformance) | ✓ — every identifier instance in §1–§16 conforms to S6: single-locus kinds (substrate atoms `A-NN` including new A-23, substrate gates `SG1..SG6`) carry bare canonical form; multi-locus kinds carry locus-qualified canonical form. |
 | SG6 (Mode count = StateOrdering length − 1) | ✓ — A-21 StateOrdering.length = 5; §2.2 Mode count = 4; 4 = 5 − 1. Invariant satisfied. |
 
 Ongoing verification occurs at framework-audit execution per consumer invocation.
@@ -1225,6 +1257,7 @@ Ongoing verification occurs at framework-audit execution per consumer invocation
 | v1.7 | Sprint B1 Shot 1 — StateOrdering atom + SG6 gate (2026-05-13) | Δ-1 per brief. A-21 StateOrdering added to §4.2: closed five-state tuple `['unknown','known','structured','produced','verified']` (length 5); closure rule declared (additive rule S3 governs atom declaration itself; tuple content closed at declaration time, extensible only via explicit substrate amendment). §2.2 Mode enumeration amended: A-21 position-pair column added to Mode table; each Mode signature now indexes into A-21 by `[inputPosition, outputPosition]` pair (replaces prior free-string signatures; information-preserving). SG6 added to §11.1: Mode count = StateOrdering length − 1; paired with A-21; mechanical. §11.5 gate execution order extended (SG1→…→SG5→SG6). §12 consumer registry: A-21 row added (consumers: substrate §2.2 + SG6). §15 self-audit: SG6 row added (pass: 4 = 5 − 1). §4.1 atom count 20 → 21. Substrate gate count 5 → 6. Total all-gates: 90 → 91. All amendments additive per S3. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot1'} | L0 |
 | v1.8 | Sprint B1 Shot 2 — AxisBasis atom + ModeSignature type-level binding (2026-05-13) | A-22 AxisBasis added to §4.2: three-arm discriminated union (`substrate-atom-ref` \| `substrate-amendment-ref` \| `l0-ratified-ref`); `l0-ratified-ref` arm carries `ratification: AuthorityClaim`, `manualLocus: string`, `manualVersion: Semver`, `basis: string`; closure rule additive per S3. §2.3 ModeSignature amended in-place: `inputKind: string` + `outputKind: string` → `inputPosition: StateOrderingIndex` + `outputPosition: StateOrderingIndex`; `StateOrderingIndex = 0 \| 1 \| 2 \| 3 \| 4` type alias declared inline; cross-reference to A-21 added. Amendment is information-preserving (type-level binding of pre-existing position semantics from Shot 1 §2.2). §12 consumer registry: A-22 row added. §15 self-audit: SG4 row updated (v1.8). §4.1 atom count 21 → 22. No new substrate gates (SG count unchanged at 6). All amendments additive per S3. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot2'} | L0 |
 | v1.8.1 | Sprint B1 Shot 6 — Governance Text Closure (2026-05-13) | §5.2 amended: authority levels reconciled to ratified chain. L0 = Intent, L1 = Metaframework (L0 automating L0 work), L2 = Standards, L3 = Programs. Prior L1 "protocol/L0 instructions codified" slot collapsed into L0 (under MF = L0 automating L0 work, protocol-shaped declarations are L0 intent expressed; the automated form is L1). Prior implicit L4 framings (Manual-side) do not appear in substrate at v1.8; no removal required at substrate. Labels stable (L0/L1/L2/L3 numerics retained); role names attached. §5.2 closing paragraph added superseding prior framings and citing source-code `AuthorityLevel` typed union as reflection of chain. Patch-level; governance text amendment per MA-L1. No atoms, no schema, no rules, no gates amended. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B1-Shot6'} | L0 |
+| v1.8.2 | Sprint B2 Shot 1 — AuthorityClaim atom split (2026-05-16) | **AmendmentProvenance.** Drift inventory: `AuthorityClaim` name carried two incompatible shapes — §5.3 governance shape `{level, confirmedBy, timestamp}` and PS v1.2 BoundaryCrossingRecord + src `perimeter-standard.types.ts:298` runtime shape `{level, actor, source}`. Resolution: split into two distinct typed atoms. **A1.** §5.3 `AuthorityClaim` retained verbatim (governance confirmation event record; stamped at governance closure; L1 apparatus consumer). §5.6 new section declared: `AuthorityAssertion` = `{level: AuthorityLevel, actor: ActorRef, source: SourceIdentifier \| null}` (runtime claim by arriving or dispatched signal; stamped at Boundary crossing; L3 program consumer). A-23 `AuthorityAssertion` added to §4.2 atom enumeration. §4.1 atom count 22 → 23. **A2.** §5.4 second sentence added: every Boundary crossing under typed jurisdiction carries `AuthorityAssertion` per Perimeter Standard PA-A1. **A3.** §12 consumer registry: §5.3 `AuthorityClaim` row added (metaframework, A-12, A-22 consumers); §5.6 `AuthorityAssertion` row added (PS v1.2 PA-A1 + leaf-PA-A1; Permissions Standard v1.0.1 PMA-Av2); §4 A-23 row added (same). §15 self-audit SG4 + SG5 rows updated. **Shot 1 defect closed in Shot 2 tar:** duplicate `§5.5 Escalation to L0` heading (introduced when §5.6 was inserted after §5.5 in Shot 1) removed; §5 structure is now §5.3 → §5.4 → §5.5 → §5.6 with no duplicate. No gates added or removed. Substrate gate count unchanged at 6. All amendments additive per S3. Closed-set rule: `AuthorityLevel` enum unchanged; both atoms reuse by reference. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Sprint-B2-Shot1-pending'} | L0 pending |
 
 ---
 

@@ -4,19 +4,17 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    step5b-phaseD, phase-5.4; sprint-b2-unified-close (category retagged Modality → Tool per Manual v13.3 reclassification — F-admin is an L0-tier operational utility, not a wearer-facing Modality channel); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (ProgramProps import repointed F-dashboard/types/dashboard-types → F-surface/types/surface-types per L0 ruling A; wires-in + deps declared)
+// amended:    step5b-phaseD, phase-5.4; sprint-b2-unified-close (category retagged Modality → Tool per Manual v13.3 reclassification — F-admin is an L0-tier operational utility, not a wearer-facing Modality channel); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline)
 // slice:      F-admin
 // category:   Tool
 // layer:      R3
 // wires-in:
 //   W-HOOK  useRegisterProgram  @/features/F-surface/contract/surface-registry
-//   W-ATOM  ProgramProps        @/features/F-surface/types/surface-types
 //   W-ATOM  AdminDashboard      ./admin-ui  (dynamic import — deferred)
 // wires-out:
 //   W-ATOM  AdminRegister  →  src/app/page.tsx (composition root)
 // deps:
 //   R3  @/features/F-surface/contract/surface-registry  (A5 — R3 surface)
-//   R0  @/features/F-surface/types/surface-types         (A5 — R0 atom)
 //   R3  ./admin-ui                                          (intra-slice — A5 compliant)
 //   R5  react
 //   R5  next/dynamic
@@ -49,7 +47,7 @@ const AdminDashboard = dynamic(
   { ssr: false }
 )
 
-import type { ProgramProps } from '@/features/F-surface/types/surface-types'
+import type { ProgramProps } from '@/features/F-dashboard/types/dashboard-types'
 
 export function AdminRegister() {
   useRegisterProgram({

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    step5b-phaseA, phase-5.2, phase-5-audit, sprint-12-shot-4 (actionKinds + userId); sprint-b2-unified-close (ProgramRenderIntent + ProgramProps relocated to F-surface/R0 — local import only, no re-export per L0 ruling A); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (re-export dropped; local import added for WorkspaceHook field-type — Shape B per L0 ruling)
+// amended:    step5b-phaseA, phase-5.2, phase-5-audit, sprint-12-shot-4 (actionKinds + userId); sprint-b2-unified-close (ProgramRenderIntent + ProgramProps relocated to F-surface/R0; re-exported here for intra-slice backward compatibility); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep → v1.5.2 per cascade discipline); sprint-b2-unified-close-fix-round-2 (import added — pure type re-export does not bind names locally per TS module semantics; local consumer at WorkspaceHook needs the binding)
 // slice:      F-dashboard
 // category:   Modality
 // layer:      R0
@@ -38,13 +38,16 @@ import type {
   ProjectId,
 } from '@/features/F-project/types/project-types'
 import type { PushPayload, PushResult, OutputFiles } from '@/features/F-output/types/output-types'
-import type { ProgramRenderIntent } from '@/features/F-surface/types/surface-types'
 
-// ── Local import only — F-surface owns the projection-layer atoms ─────────────
+// ── Atom re-exports (F-surface owns the projection-layer atoms) ───────────────
 // sprint-b2-unified-close: ProgramRenderIntent + ProgramProps relocated to
-// F-surface/R0 per L0 ruling A. No re-export here — external consumers import
-// directly from F-surface/R0. ProgramRenderIntent imported above for local
-// WorkspaceHook field-type reference only.
+// F-surface/R0 per L0 ruling. Imported for local consumption (WorkspaceHook below)
+// AND re-exported for backward-compatible intra-slice consumers. External consumers
+// should import directly from F-surface/R0.
+// sprint-b2-unified-close-fix-round-2: import added to bind names locally; pure
+// re-export shim left them unbound in this file's scope per TS module semantics.
+import type { ProgramProps, ProgramRenderIntent } from '@/features/F-surface/types/surface-types'
+export type { ProgramProps, ProgramRenderIntent }
 
 // ── ActiveProgram (A3) ────────────────────────────────────────────────────────
 export type ActiveProgram = {
