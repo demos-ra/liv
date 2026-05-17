@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -18,6 +18,7 @@
 //   W-CONST   SUBSTRATE_TABLE_NAME    F-memory/R0 substrate-config
 //   W-INJECT  db                      core/R5
 // wires-out:  none (consumed by R2 substrate-service)
+//   W-FN      exportByScope           →  F-memory/R2 substrate-service (sprint-b2-shot-3)
 // deps:
 //   R0  ../config/substrate-config
 //   R5  @/core/db/client
@@ -382,6 +383,35 @@ export async function readAdjacency(
       ok: false,
       error: {
         code:    'SUBSTRATE_ADJACENCY_FAILED',
+        message: err instanceof Error ? err.message : String(err),
+      },
+    }
+  }
+}
+
+// ─── Export by scope (§3.11 userId index scan) ────────────────────────────────
+// exportByScope: returns all StateChangeRecords for a given userId, ordered by
+// position ASC. Uses the userId index declared at LM v3.1 §3.11 (scope → positions).
+// R4 I/O only — zero domain logic. Additive: no existing primitive signature changed.
+
+export async function exportByScope(
+  userId: string,
+): Promise<Result<StateChangeRecord[]>> {
+  try {
+    const result = await db.query<StateChangeRow>(
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+              user_id, identities, relations
+         FROM ${SUBSTRATE_TABLE_NAME}
+        WHERE user_id = $1
+        ORDER BY position ASC`,
+      [userId],
+    )
+    return { ok: true, data: result.rows.map(rowToRecord) }
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code:    'SUBSTRATE_EXPORT_FAILED',
         message: err instanceof Error ? err.message : String(err),
       },
     }

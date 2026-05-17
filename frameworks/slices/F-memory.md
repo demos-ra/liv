@@ -16,9 +16,9 @@ placement: frameworks/slices/
 | Owner | F-memory exclusively |
 | Purpose | Living Memory v3.1 substrate. Pure event-store: two axes (position, identity threads), state-change records, scope as attribute. Forward-additive writes; revocation as in-band destructive exception. |
 
-## Axioms (LMA1–LMA11)
+## Axioms (LMA1–LMA12)
 
-Per `src/core/standards/living-memory.md` §3.2. Eleven axioms governing substrate write/read mechanics:
+Per `src/core/standards/living-memory.md` §3.2. Twelve axioms governing substrate write/read mechanics:
 
 | ID | Concern |
 |---|---|
@@ -33,6 +33,7 @@ Per `src/core/standards/living-memory.md` §3.2. Eleven axioms governing substra
 | LMA9 | Three-and-only-three thread primitives — identity-recurrence, role-pattern, adjacency |
 | LMA10 | Two-axis structure — position monotonic, identity threads as projection |
 | LMA11 | Modality stored as recorded metadata, re-derived at execution |
+| LMA12 | User ownership — every SubstrateWriteInput carries exactly one userId; every committed StateChangeRecord carries that userId unchanged |
 
 ## What This Slice Owns
 

@@ -18,6 +18,7 @@
 //   W-ATOM    PLANNER_CONST          F-builder/config/builder-const
 //   W-INJECT  IPlannerDb, IAiAdapter  F-builder/domain/builder-pipeline
 //   W-ATOM    emitEvent              F-event-system/contract/event-bus
+//   W-FN      writeStateChange  F-memory/contract/substrate-contract
 //   W-ATOM    getSliceForInstance, getInstanceProfile  @/core/constants/liv-api
 // wires-out:
 //   W-FN  handleInMainTurn   →  F-plan/R3 plan-contract
@@ -35,6 +36,7 @@
 //   R2  @/features/F-builder/domain/builder-pipeline  (type imports only — IPlannerDb, IAiAdapter, IExecutor)
 //   R1  ../domain/plan-logic                                              (sprint-13-shot-2: relocated from F-planner)
 //   R3  @/features/F-event-system/contract/event-bus
+//   R3  @/features/F-memory/contract/substrate-contract
 //   R5  @/core/constants/liv-api
 // validated:  pending
 //
@@ -46,6 +48,8 @@
 //   event slice references updated: 'F-planner' → 'F-plan' in all emitEvent calls.
 
 import { emitEvent } from '@/features/F-event-system/contract/event-bus'
+import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
+import type { IdentityRef, RoleRef, ScopeRef } from '@/features/F-memory/contract/substrate-contract'
 import {
   getSliceForInstance,
   getInstanceProfile,
@@ -430,6 +434,38 @@ export async function advanceStage(
       type:    PLANNER_EVENTS.PIPELINE_COMPLETED,
       slice:   'F-plan',
       payload: { jobId: input.jobId, projectId: job.projectId, userId: job.userId, featureIntent: job.ifContract?.featureIntent ?? null, outcome: job.pipelineReport?.outcome ?? null } satisfies PipelineCompletedPayload,
+    })
+    writeStateChange({
+      userId: job.userId,
+      content: {
+        identities: [
+          'pipeline-completed'    as IdentityRef,
+          input.jobId             as unknown as IdentityRef,
+          job.projectId           as IdentityRef,
+          job.userId              as IdentityRef,
+        ],
+        relations: [
+          {
+            type:                'pipeline-completed' as IdentityRef,
+            modality:            'declarative',
+            identitiesWithRoles: [
+              { identity: input.jobId   as unknown as IdentityRef, role: 'pipeline' as RoleRef },
+              { identity: job.projectId as IdentityRef,            role: 'project'  as RoleRef },
+              ...(job.pipelineReport?.outcome != null
+                ? [{ identity: job.pipelineReport.outcome as IdentityRef, role: 'outcome' as RoleRef }]
+                : []),
+            ],
+            negation: false,
+          },
+        ],
+      },
+      metadata: {
+        time:   Date.now(),
+        source: { channel: 'internal-derivation', scope: job.projectId as ScopeRef },
+      },
+    }).catch((err: unknown) => {
+      console.error('[F-plan] pipeline-completed substrate write failed',
+        err instanceof Error ? err.message : err)
     })
     return doneResult
   }

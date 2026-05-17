@@ -101,6 +101,7 @@ export type SourceChannel =
   | 'cron'
   | 'integration-event'
   | 'internal-derivation'
+  | 'system-l0'           // Manual Part II L180 — distinct channel origin for System-L0 initiated writes
 
 // ─── SubstrateSourceRef (LM v3.1 §2.1 SourceRef; renamed for codebase) ────────
 // Origin channel + scope attribute on every state-change.

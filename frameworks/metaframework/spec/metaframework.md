@@ -645,6 +645,8 @@ Carrier=none handoff as table-row case (per R-phase-1-1-resolution-17): explicit
 
 **All six Coupling axioms (MA-C1 to MA-C6) satisfied** at handoff tier (unchanged from original spec verification).
 
+**Three operational flows enumerated (F-MFA-SPEC-001 informational clarification):** The seven handoff rules serve three distinct MF operational flows: (1) **Generation flow** — L0 → MF via HR0, MF → generation-procedure via HR2, generation-procedure → registry via HR5, generation-procedure → L3 framework via HR6; produces `GeneratedFrameworkTemplate`. (2) **Audit flow** — L0 → MF via HR0, MF → framework-audit via HR3; produces `SelfAuditRecord`. (3) **Amendment flow** — L0 → MF via HR0, MF → amendment-propagation via HR4; produces `PropagationResult`. HR1 (substrate → MF) and HR5 (registry) participate across all three flows as foundational inputs. Each flow is initiated by L0 activation (HR0) and terminates when the target framework returns its output per its own HR receive-side contract.
+
 ---
 
 ## §4 File decomposition

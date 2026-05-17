@@ -3,7 +3,93 @@ kind: framework
 placement: frameworks/metaframework/
 ---
 
-# v3.2.7 Canonical Bundle Manifest
+# v3.3.1 Canonical Bundle Manifest
+
+**Cycle:** Sprint B2 Shot 5 — Apparatus Closure
+**Date:** 2026-05-17
+**Authority:** L0 (Sprint B2 Shot 5 ratification)
+**Predecessor:** v3.2.7 (MF-Cycle-2 Spec↔Referent Alignment Closure, 2026-04-30)
+
+## Frameworks
+
+- frameworks/substrate-v1-1.md → v1.8.1 (current; substrate-tech-spec 2026-05-16 amendments)
+- frameworks/metaframework-v3-1.md → v3.3.1 (Sprint B1 Shot 2/5 + Sprint B2 Shot 5 F-MFA-SPEC-001 clarification)
+- frameworks/framework-audit-v1-2.md → v1.3.6
+- frameworks/framework-registry-v1-0.md → v1.4
+- frameworks/amendment-propagation-v1-0.md → v1.3.3
+- frameworks/generation-procedure-v1-0.md → v1.1.7
+
+## Spec
+
+- spec/metaframework.md → v3.2.7 + Sprint B2 Shot 5 F-MFA-SPEC-001 Flow 3 enumeration clarification
+
+## Standards (L3 — governed by this bundle)
+
+- frameworks/standards/living-memory.md → v3.3.1 (Sprint B2 Shot 5: MA-V10pB RC closure — partial-drift dissolved)
+- frameworks/standards/perimeter-standard.md → v1.2.2 (Sprint B2 Shot 5: MA-V10pB RC closure — partial-drift dissolved)
+- frameworks/standards/liv-standard.md → v1.5.3 (Sprint B2 Shot 5: MA-V10pB RC closure — partial-drift dissolved)
+- frameworks/standards/permissions-standard.md → v1.0.3 (Sprint B2 Shot 5: MA-V10pB RC closure — partial-drift dissolved)
+- frameworks/standards/artifact-standard.md → v2.4 (Sprint B2 Shot 5: MA-I8 governsRuntimeCode + MA-V10pB RC apparatus added)
+- frameworks/standards/plan-standard.md → v2.2 + Sprint B2 Shot 5 §1.3 MA-G13 four-property block added (F-MFA-PL-001)
+
+## Slices
+
+- frameworks/slices/F-memory.md → Sprint B2 Shot 5: LMA1–LMA11 → LMA1–LMA12 (F-MFA-LM-002)
+
+## Source
+
+- src/core/types/substrate.types.ts → SourceChannel + 'system-l0' (Part E, Sprint B2 Shot 5)
+
+## Reports
+
+- reports/MF-patch-1-delivery-report.md (F-MFA backlog source)
+- reports/render-standard-v1-0-genesis-report.md
+- reports/v3-2-3-delivery-report.md
+- reports/phase-9h-terminal-delivery-report.md
+- reports/phase-9h-cross-file-consistency-report.md
+- reports/phase-9h-G-U1-first-run-report.md
+- reports/phase-9h-ap-self-recursion-report.md
+- reports/phase-1-2-fix-trail-hygiene-delivery-report.md
+
+## Sprint B2 Shot 5 — What changed
+
+**Part A — MA-V10pB RC closure (5 standards):**
+- Living Memory v3.3 → v3.3.1: Structure + Schema axes referentCitations populated (5+2 RCs); partial-drift dissolved
+- Perimeter Standard v1.2.1 → v1.2.2: six own axes + PA-I referentCitations populated (6+1 RC sets); partial-drift dissolved
+- LIV-Standard v1.5.2 → v1.5.3: five inherited axes extended beyond baseline (2→7+ RCs); partial-drift dissolved
+- Permissions Standard v1.0.2 → v1.0.3: four axes referentCitations populated (11 RCs total); partial-drift dissolved
+- Artifact Standard v2.3 → v2.4: MA-I8 governsRuntimeCode + referentCitations declared (5 RCs); §1 fields added
+
+**Part B — F-MFA backlog closure:**
+- F-MFA-LM-002: F-memory SLICE banner LMA1–LMA11 → LMA1–LMA12 (LMA12 row added)
+- F-MFA-PL-001: Plan Standard §1.3 MA-G13 four-property block added
+- F-MFA-AS-001: Artifact Standard §3.5 leaf-reconciliation footnote added (15 declared rows vs P3=10 canonical)
+- F-MFA-PL-002: Already present in plan-standard §3.5 — no edit needed; verified closed
+- F-MFA-SPEC-001: Metaframework spec §3.5 Flow 3 enumeration clarification added (informational)
+- F-MFA-PF-001: Disposed by Path B per MF-patch-1-delivery-report §6 — no file change; basis recorded
+
+**Part C — Carried backlog verification:**
+- AS scopeOut dispatch landing: `'B-direction symmetric re-encoding at B3 (post-beta)'` present — no drift found
+- Render face self-registration coupling: F-surface/contract/surface-registry.tsx owns program-registry atoms cleanly per A1/A3/A5/A6 annotation; no residual coupling found
+
+**Part E — SourceChannel addition:**
+- src/core/types/substrate.types.ts: `'system-l0'` added to SourceChannel union (Manual Part II L180)
+
+## Counts (Sprint B2 Shot 5 — apparatus closure, no structural change)
+
+| Count | Pre-B2-Shot-5 | Post-B2-Shot-5 | Delta |
+|---|---|---|---|
+| Substrate atoms | 20 | 20 | 0 |
+| Metaframework axioms | 69 | 69 | 0 |
+| Framework-tier gates | 87 | 87 | 0 |
+| Standards at full RC coverage | 0 | 5 | +5 |
+| Standards at partial-drift | 5 | 0 | -5 |
+| SourceChannel enum members | 5 | 6 | +1 |
+
+## Self-application result
+
+G-V10 part B on all five standards: PASS (full RC coverage declared, partial-drift dissolved). G-V10 part A: pending first audit run per standard (ReferentCitations declared; alignment verification requires ReferentSnapshot at first-run execution). G-S8: non-vacuous-pass (referentCitations non-empty on all five standards). G-L11: pending first audit run.
+
 
 **Cycle:** MF-Cycle-2 Spec↔Referent Alignment Closure
 **Date:** 2026-04-30

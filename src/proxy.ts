@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1 b1-final-shot-2 sprint-b1.5-shot-2
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1 b1-final-shot-2 sprint-b1.5-shot-2 sprint-b2-shot-2
 // @perimeter-standard v1.0
 // [perimeter site — unitary per PA-I]
 // Built with LIV · livai.dev
@@ -17,6 +17,7 @@
 //             sprint-b1-shot-2 (resolvedDisposition + cellGovernance added; PERIMETER_HEADER_DISPOSITION set)
 //             b1-final-shot-2 (PA-IR1..4 closed via ambiguous-pending outcome; PA-Co1 self-correlation; PA-A1..6 authorityEnforced record)
 //             sprint-b1.5-shot-2 (middleware→proxy rename; runtime export removed; closes F-NEXT-PROXY-1)
+//             sprint-b2-shot-2 (Part 2a: 10 missing PS v1.2.1 fields landed; Part 2b: resolvedIdentities via threadQuery)
 // placement:  src/proxy.ts (Next.js proxy; self-declared per inverted PL-A1, Sprint 9 Shot 1; renamed sprint-b1.5-shot-2)
 // wires-in:
 //   W-ATOM    SESSION_COOKIE_NAME           @/features/F-identity/contract/auth-contract
@@ -25,6 +26,7 @@
 //   W-FN      createAuthDb                 @/features/F-identity/exec/auth-db  (F-5 fix: declared)
 //   W-FN      emitEvent                    @/features/F-event-system/contract/event-bus
 //   W-FN      writeStateChange              @/features/F-memory/contract/substrate-contract
+//   W-FN      threadQuery                   @/features/F-memory/contract/substrate-contract
 //   W-FN      generateId                    @/core/types/primitives
 //   W-ATOM    PERIMETER_HEADER_USER_ID      @/core/constants/perimeter-headers
 //   W-ATOM    PERIMETER_HEADER_SESSION_ID   @/core/constants/perimeter-headers
@@ -74,7 +76,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
 import { validateAndRefreshSession, createAuthDeps } from '@/features/F-identity/app/auth-workflow'
-import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
+import { writeStateChange, threadQuery } from '@/features/F-memory/contract/substrate-contract'
 import { generateId } from '@/core/types/primitives'
 import { db, taggedDb } from '@/core/db/client'
 import { createAuthDb } from '@/features/F-identity/exec/auth-db'
@@ -266,11 +268,60 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     reversibilityStatus: cellEntry.reversibilityStatus as ReversibilityFlag,
   }
 
-  // PA-IR1..PA-IR4 closure (b1-final-shot-2):
-  // userId is the surface-form identity claim at intake. Substrate Ref lookup requires
-  // a read primitive not available in the synchronous middleware path. Per PA-IR4
-  // (disambiguation deferral), outcome is 'ambiguous-pending-disambiguation' with
-  // ambiguityDetail recording the deferral reason. ref=null is correct per PA-IR4 invariant.
+  // PA-IR1..PA-IR4 closure (b1-final-shot-2 → sprint-b2-shot-2 upgrade):
+  // Part 2b: threadQuery now available at crossing. resolveIdentity attempts
+  // surface-form-to-Ref matching on user.id via identity-recurrence thread kind.
+  // G-PS-IR2 invariant: ambiguous → ref===null + ambiguityDetail non-empty.
+  // bound-to-existing-Ref or new-Ref-created → ref!==null.
+
+  type IdentityResolutionOutcome =
+    | { outcome: 'bound-to-existing-Ref';          ref: IdentityRef; ambiguityDetail?: never }
+    | { outcome: 'new-Ref-created';                ref: IdentityRef; ambiguityDetail?: never }
+    | { outcome: 'ambiguous-pending-disambiguation'; ref: null;       ambiguityDetail: Array<{ reason: string }> }
+
+  async function resolveIdentity(surfaceForm: string, scope: ScopeRef): Promise<IdentityResolutionOutcome> {
+    let queryResult: Awaited<ReturnType<typeof threadQuery>>
+    try {
+      queryResult = await threadQuery(
+        { threadKind: 'identity-recurrence', anchor: surfaceForm as IdentityRef, scope },
+        surfaceForm,
+      )
+    } catch (err) {
+      return {
+        outcome:         'ambiguous-pending-disambiguation',
+        ref:             null,
+        ambiguityDetail: [{ reason: err instanceof Error ? err.message : 'threadQuery threw' }],
+      }
+    }
+
+    if (!queryResult.ok) {
+      return {
+        outcome:         'ambiguous-pending-disambiguation',
+        ref:             null,
+        ambiguityDetail: [{ reason: queryResult.error.message }],
+      }
+    }
+
+    const records = queryResult.data.records
+    if (records.length === 1) {
+      // Single match — bound to existing Ref.
+      const matchedRef = records[0]!.content.identities[0] ?? surfaceForm as IdentityRef
+      return { outcome: 'bound-to-existing-Ref', ref: matchedRef }
+    }
+    if (records.length === 0) {
+      // No match — userId itself becomes the new Ref.
+      return { outcome: 'new-Ref-created', ref: surfaceForm as IdentityRef }
+    }
+    // Multiple matches — ambiguous.
+    return {
+      outcome:         'ambiguous-pending-disambiguation',
+      ref:             null,
+      ambiguityDetail: [{ reason: `${records.length} identity-recurrence matches; disambiguation required` }],
+    }
+  }
+
+  const identityResolution = await resolveIdentity(user.id, user.id as ScopeRef)
+
   // PA-Co1 closure: crossingId self-correlates (no upstream MI correlation at v1.0).
   // PA-A1..PA-A6 closure: authority validated at session check above; record constructed here.
   const selfCorrelationRef = crossingId
@@ -280,6 +331,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     authorityScopeMatch:   true,   // userId scope matches session.userId
     validationBasis:       'session-cookie-validated-by-middleware',
   }
+
+  const arrivalRef = generateId('ar') as unknown as IdentityRef
+  const authorityAssertion: IdentityRef = JSON.stringify({ level: 'L0', actor: 'wearer', source: null }) as IdentityRef
 
   // Write crossing record to substrate (HR-PS-LM1).
   // Fire-and-forget: write failure must not block the request.
@@ -294,19 +348,49 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         cellGovernance.governanceLevel       as IdentityRef,
         selfCorrelationRef                   as unknown as IdentityRef,
         'authority-validated'                as IdentityRef,
-        'identity-ambiguous-pending'         as IdentityRef,
+        // Part 2b: identity-outcome now reflects actual resolution result
+        identityResolution.outcome           as IdentityRef,
+        // Part 2a: new identities
+        arrivalRef,
+        'intake'                             as IdentityRef,
+        authorityAssertion,
+        'true'                               as IdentityRef,
+        'session-cookie-validated-by-middleware' as IdentityRef,
+        'src/middleware.ts'                  as IdentityRef,
+        ...(identityResolution.ref !== null ? [identityResolution.ref] : []),
       ],
       relations: [
         {
           type:                'boundary-crossing' as IdentityRef,
           modality:            'declarative',
           identitiesWithRoles: [
-            { identity: user.id as IdentityRef,                        role: 'agent'             as RoleRef },
-            { identity: crossingId as unknown as IdentityRef,          role: 'crossing'          as RoleRef },
-            { identity: resolvedDisposition as IdentityRef,            role: 'disposition'       as RoleRef },
-            { identity: selfCorrelationRef as unknown as IdentityRef,  role: 'correlation'       as RoleRef },
-            { identity: 'authority-validated' as IdentityRef,          role: 'authority-outcome' as RoleRef },
-            { identity: 'identity-ambiguous-pending' as IdentityRef,   role: 'identity-outcome'  as RoleRef },
+            { identity: user.id as IdentityRef,                        role: 'agent'                    as RoleRef },
+            { identity: crossingId as unknown as IdentityRef,          role: 'crossing'                 as RoleRef },
+            { identity: resolvedDisposition as IdentityRef,            role: 'disposition'              as RoleRef },
+            { identity: selfCorrelationRef as unknown as IdentityRef,  role: 'correlation'              as RoleRef },
+            { identity: 'authority-validated' as IdentityRef,          role: 'authority-outcome'        as RoleRef },
+            { identity: identityResolution.outcome as IdentityRef,     role: 'identity-outcome'         as RoleRef },
+            // Part 2a: 10 missing fields
+            { identity: 'intake' as IdentityRef,                       role: 'direction'                as RoleRef },
+            { identity: arrivalRef,                                     role: 'arrival'                  as RoleRef },
+            { identity: authorityAssertion,                            role: 'resolved-authority'       as RoleRef },
+            { identity: JSON.stringify({ level: 'L0', actor: 'wearer', source: null }) as IdentityRef,
+                                                                        role: 'authority-claimed'        as RoleRef },
+            { identity: 'true' as IdentityRef,                         role: 'authority-validated-flag' as RoleRef },
+            { identity: 'true' as IdentityRef,                         role: 'authority-scope-match'    as RoleRef },
+            { identity: 'session-cookie-validated-by-middleware' as IdentityRef,
+                                                                        role: 'validation-basis'         as RoleRef },
+            { identity: cellGovernance.cell as unknown as IdentityRef, role: 'cell'                     as RoleRef },
+            { identity: cellGovernance.confirmationStatus as IdentityRef,
+                                                                        role: 'confirmation-status'      as RoleRef },
+            { identity: cellGovernance.auditStatus as IdentityRef,     role: 'audit-status'             as RoleRef },
+            { identity: cellGovernance.reversibilityStatus as IdentityRef,
+                                                                        role: 'reversibility-status'     as RoleRef },
+            { identity: 'src/middleware.ts' as IdentityRef,            role: 'unitary-site'             as RoleRef },
+            // Part 2b: resolvedIdentities outcome at identity-resolution role
+            ...(identityResolution.ref !== null
+              ? [{ identity: identityResolution.ref,                   role: 'identity-resolution'      as RoleRef }]
+              : [{ identity: identityResolution.outcome as IdentityRef, role: 'identity-resolution'     as RoleRef }]),
           ],
           negation: false,
         },

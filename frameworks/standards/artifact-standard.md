@@ -34,7 +34,7 @@ Artifact Standard is the L3 generative-mode framework governing emission mechani
 | Kind | `Framework` |
 | Mode | `generative` |
 | Level | `L3` |
-| Version | `v2.3` |
+| Version | `v2.4` (v2.3 → v2.4 per MA-L1 patch at Sprint B2 Shot 5 — MA-I8 governsRuntimeCode declared; MA-V10pB RC apparatus added at §3.13; partial-drift dissolved; no axiom/gate/schema change) |
 | Ownership (template) | `L0` |
 | Ownership (applied) | `System` (under L0 authority) |
 | State (template) | `declared` |
@@ -45,6 +45,10 @@ Artifact Standard is the L3 generative-mode framework governing emission mechani
 | Authority | L0 confirmed (Sprint B2 unified close — fix-round ratification per manager soundness-check; ArA8 dissolution = MA-L1 removal-is-additive of vacuously-true gate per §3.6 self-check L307) |
 | Genesis | `{bootstrapped: false, genesisEvent: 'generation-procedure-v1-0 S3 emission at L3 regen wave cycle 1'}` |
 | scopeOut | `['domain payload content (owned by content framework — Plan, M-I, etc.)', 'codec classification at A4 (owned by Cognitive Standard)', 'graph physics — node/energy/traversal (owned by Living Memory)', 'code structure (owned by LIV-Standard)', 'framework registry dispatch runtime (owned by each framework)', 'B-direction symmetric re-encoding at B3 (post-beta)']` |
+| `governsRuntimeCode` | `true` (per MA-I8). Basis: Artifact Standard governs F-artifact slice runtime code — `src/features/F-artifact/app/artifact-emit.ts` (S1→S2→S3 procedure), `src/features/F-artifact/domain/artifact-gates.ts` (G-Ar1..G-Ar7 gate evaluations), `src/features/F-artifact/domain/artifact-edges.ts` (ArA4a–ArA4d edge construction), `src/features/F-artifact/contract/artifact-contract.ts` (R3 public surface). The axiom set ArA1–ArA7, procedure S1–S3, and gate set G-Ar1–G-Ar7 govern these paths. jurisdictionClaim declared below. |
+| `referentCitations` | RC array populated Sprint B2 Shot 5: `[{path:'src/features/F-artifact/app/artifact-emit.ts',expectedShape:'exports createArtifact(CreateArtifactInput)→Promise<CreateArtifactResult> composing S1 (anchor+companion+content+edges construction per ArA1–ArA4d) → S2 (gate-execution per G-Ar1..G-Ar7) → S3 (emit ArtifactEmission to LM via AS carrier); emissionId generated via generateId per ArA1; anchor/companion NodeIds resolved via LM node-create per ArA2; contentNodeIds via LM traverse per ArA3; edges per ArA4a–ArA4d; ArA8 isEmissionIdCollisionNeverTrue stub removed at v2.3',kind:'typed-function-set'},{path:'src/features/F-artifact/domain/artifact-gates.ts',expectedShape:'exports evaluateAllGates(GateBatch)→GateBatchResult; evaluates G-Ar1..G-Ar7 gate conditions (ArA1 chain-position, ArA2 cardinality, ArA3 content-cardinality, ArA4a–ArA4d edge-set, ArA5 emission-identity, ArA6 edge-set-exhaustive, ArA7 payload-verbatim); gar8/isCollision removed at v2.3',kind:'typed-function-set'},{path:'src/features/F-artifact/domain/artifact-edges.ts',expectedShape:'exports buildEdges(input)→ArtifactEdge[] computing ArA4a classification-lineage + ArA4b categorical + ArA4c version (conditional) + ArA4d dependency edges; edge-kind enum exhaustive per ArA6',kind:'typed-function-set'},{path:'src/features/F-artifact/contract/artifact-contract.ts',expectedShape:'R3 public surface — sole cross-slice import path per A5/LIV-Standard; re-exports createArtifact; per HR-Ar3 receive-side contract',kind:'typed-contract'},{path:'src/features/F-artifact/types/artifact-types.ts',expectedShape:'declares CreateArtifactInput/ArtifactEmission/ArtifactEdge/ArtifactEdgeKind typed atoms per MA-S1/MA-S2; ArtifactChainPosition enum (A4/A7/B3) governs leaf-chain-A4/A7/B3 per ArA1',kind:'typed-types-module'}]` |
+| `governsRuntimeCode` | `true` (per MA-I8, Sprint B2 Shot 5). Basis: AS governs F-artifact slice runtime code at `src/features/F-artifact/**` — domain (artifact-gates.ts, artifact-edges.ts), app (artifact-emit.ts), types (wires.ts, artifact-types.ts), contract (artifact-contract.ts). The axiom set (ArA1–ArA7), procedure (S1–S3), and gate set (G-Ar1–G-Ar7) govern createArtifact emission mechanics, edge-set construction, and payload-verbatim invariant at these paths. jurisdictionClaim per axis declared at §3.13 below. |
+| `referentCitations` | Sprint B2 Shot 5 RC closure — partial-drift dissolved. `[{path:'src/features/F-artifact/app/artifact-emit.ts',expectedShape:'exports createArtifact(CreateArtifactInput)→CreateArtifactResult; realizes S1 (emissionId generation, anchor/companion NodeId resolution, content traversal, edge construction per ArA4a–ArA4d), S2 (gate execution G-Ar1..G-Ar7), S3 (ArtifactEmission output)',kind:'typed-function-set'},{path:'src/features/F-artifact/domain/artifact-gates.ts',expectedShape:'exports evaluateAllGates(GateBatch)→GateBatch; per-axiom gate predicates G-Ar1..G-Ar7 (ArA8/G-Ar8 dissolved at v2.3); GateBatch typed shape per ArA1..ArA7',kind:'typed-function-set'},{path:'src/features/F-artifact/domain/artifact-edges.ts',expectedShape:'exports edge construction helpers realizing ArA4a (classification-lineage), ArA4b (categorical), ArA4c (version, conditional), ArA4d (dependency per dependsOn[]); ArtifactEdgeKind enum membership per ArA5',kind:'typed-function-set'},{path:'src/features/F-artifact/types/artifact-types.ts',expectedShape:'exports CreateArtifactInput{framework,turnId,userId,payload,dependsOn?}; ArtifactEmission{emissionId,writes:{a4,a7}}; ArtifactEdge{kind:ArtifactEdgeKind,fromId,toId}; all AS schema atoms typed here',kind:'typed-types-module'},{path:'src/features/F-artifact/contract/artifact-contract.ts',expectedShape:'exports createArtifact as R3 single-import surface; no logic; thin wire per LIV-Standard A5',kind:'typed-contract'}]` |
 
 **MA-G13 four-property test (framework classification):**
 
@@ -283,6 +287,10 @@ Per MA-St2 (every leaf atomic per substrate leaf primitive shape):
 | `leaf-edge-version` | `axiom` | `ArtifactEdgeKind` literal `'version'` |
 | `leaf-edge-dependency` | `axiom` | `ArtifactEdgeKind` literal `'dependency'` |
 
+**Leaf-count reconciliation note (§3.2 counts P3 = 10 per MA-St2 one-leaf-per-axiom-condition, post-ArA8 dissolution at v2.3):**
+
+Axiom conditions are 10 (ArA1..ArA7 with ArA4a–ArA4d split; ArA8 dissolved at Sprint B2 Shot 2c). The 15 leaf rows above decompose finer than axiom conditions in some cases: ArA2 yields two cardinality leaves (`leaf-anchor-card`, `leaf-companion-card`); ArA4a–ArA4d each yield one edge-kind leaf plus the shared `leaf-edge` descriptor; ArA1 yields three chain-position leaves. Per MA-St2, "one leaf per axiom condition" is the canonical binding; additional leaf rows carry sub-field shape declarations that aggregate into one axiom-condition leaf at the axiom-attachment level (§3.6). The canonical P3 count reported in §3.2 is 10 (the axiom-condition-anchored leaf count used by MA-St2 + G-M1 mechanics); the table above lists 15 shape-declaration rows including sub-field descriptors. This is an audit-trail observation, not a count violation: axiom gates bind 1:1 to axiom conditions per G-M1 (§4.2), and leaf attachment in §3.6 uses the axiom-condition-anchored set.
+
 ### §3.6 P4 Axiom instances (ArA1–ArA7)
 
 Per AxR1 (every axiom binds to exactly one axis) + AxR2 (one mechanical condition directly) + MA-St4 (primitive-atomicity) + MA-V1 (every axiom has ≥1 gate).
@@ -353,6 +361,46 @@ Framework-local terms declared at point of use per PR1 (substrate §10.2). Subst
 | `mode node` (`modeNode`) | §3.6 ArA4b | Living Memory graph node representing one of the four substrate §2 Mode values; resolved by `framework.id → modeNodeId` lookup via Living Memory one-hop query. One per Mode, globally scoped. |
 | `prior anchor` | §3.6 ArA4c | most-recent anchor in Living Memory graph with matching tuple `(framework.id, userId)`. |
 | `NodeId`, `UserId`, `Semver`, `CognitivePrimitive`, `Result`, `AppError` | primitives.ts core/R5 | consumed by reference |
+
+---
+
+### §3.13 MA-V10 part B jurisdiction coverage declaration
+
+Per MA-V10 part B (metaframework v3.3.1 §3.2.1): when `governsRuntimeCode = true`, every source-governing axis with declared `jurisdictionClaim` must have ReferentCitations covering its claim.
+
+AS's source-governing intent is concentrated at the **Structure axis** (ArA1–ArA7 govern the createArtifact procedure's emission mechanics, edge-set structure, and payload-verbatim invariant) and the **Schema axis** (CreateArtifactInput / ArtifactEmission / ArtifactEdge govern the typed I/O shapes that runtime code must produce and consume). Remaining inherited axes (Identity, Validity, Lifecycle, Coupling, Judgment) are declarative-tier concerns at AS; no jurisdictionClaim declared (applicability='n/a').
+
+| Axis | `jurisdictionClaim` | RC coverage at v2.4 | Status |
+|---|---|---|---|
+| **Structure** | `['src/features/F-artifact/app/artifact-emit.ts', 'src/features/F-artifact/domain/artifact-gates.ts', 'src/features/F-artifact/domain/artifact-edges.ts']` (ArA1–ArA7 govern emission procedure, gate evaluation, and edge-set construction at these paths) | 3 ReferentCitations: artifact-emit.ts (S1 procedure, ArA2 cardinality, ArA3 content-card, ArA6 edge-exhaustive, ArA7 payload-verbatim), artifact-gates.ts (G-Ar1..G-Ar7 gate predicates per ArA1..ArA7), artifact-edges.ts (ArA4a–ArA4d edge kind realizations, ArA5 enum-membership). Full coverage: every ArA1–ArA7 has ≥1 citation path. | RC coverage complete. Partial-drift dissolved. |
+| **Schema** | `['src/features/F-artifact/types/artifact-types.ts', 'src/features/F-artifact/contract/artifact-contract.ts']` (CreateArtifactInput / ArtifactEmission / ArtifactEdge typed shapes declared and exported at these paths) | 2 ReferentCitations: artifact-types.ts (all AS schema atoms typed per MA-S1/MA-S2 — CreateArtifactInput, ArtifactEmission, ArtifactEdge, ArtifactEdgeKind), artifact-contract.ts (re-exports createArtifact as R3 single-import surface — typed boundary per LIV-Standard A3/A5). Full coverage: all schema shapes resolvable at cited paths. | RC coverage complete. Partial-drift dissolved. |
+| Identity | not declared (declarative-tier — §1 header is framework's own identity, not source-governing) | n/a | applicability='n/a' |
+| Validity | not declared (declarative-tier — gate predicates are declarative governance; execution is framework-audit concern) | n/a | applicability='n/a' |
+| Lifecycle | not declared (declarative-tier — version history and transition declarations are not source-governing) | n/a | applicability='n/a' |
+| Coupling | not declared (declarative-tier — HR contracts declared at standards tier; execution site is F-artifact slice per LIV-Standard A5) | n/a | applicability='n/a' |
+| Judgment | not declared (declarative-tier — zero J-inputs declared per §7.1 P7=0) | n/a | applicability='n/a' |
+
+**Discipline:** every source-governing axis declared with RC coverage at v2.4. G-V10 part B now produces full-coverage-pass on Structure + Schema axes. Partial-drift dissolved.
+
+#### §3.13.1 AmendmentProvenance (Sprint B2 Shot 5)
+
+```
+amendmentProvenance = {
+  amendmentId:        'artifact-standard-v2-4-sprint-b2-shot-5',
+  predecessorVersion: '2.3',
+  successorVersion:   '2.4',
+  cycleId:            'sprint-b2-shot-5',
+  timestamp:          '2026-05-17',
+  authorityClaim:     { level: 'L0', actor: 'wearer', source: 'demos_ra@hotmail.com' },
+  scope: [
+    'Δ-A: §1 governsRuntimeCode = true row added per MA-I8 with basis prose',
+    'Δ-B: §1 referentCitations populated with 5-RC array covering Structure + Schema axes',
+    'Δ-C: §3.13 MA-V10 part B jurisdiction coverage section added with 5-axis table',
+    'Δ-D: §3.13.1 AmendmentProvenance added; §9 change log entry added; version v2.3 → v2.4',
+    'Δ-E: §3.5 leaf-reconciliation footnote added (F-MFA-AS-001 closure)'
+  ]
+}
+```
 
 ---
 
@@ -532,6 +580,7 @@ AS emission end-to-end (S1 → S2 → S3) is not atomic across steps; each step 
 | v2.1 | pre-2026-04-23 | §9 output schema per-field provenance added; MA-G5d satisfied. | L0 |
 | v2.2 | 2026-04-23 (L3 regen wave cycle 1) | Regenerated against metaframework-v3-1 via generation-procedure-v1-0. Seven-axis shell adopted; v2.1 three-axis top-level folded into AS-local P1 axis instances under A3 Structure. Three P8 steps (S1–S3) under Stages {2, 3, 5} per substrate §8.3 + PR4 + PR5. Four handoff rules (HR-Ar1..HR-Ar4) with captureShape + diagnosticSignificance per substrate §8.2 amended P6 shape. ArA6 (edge-set enum exhaustive), ArA7 (payload verbatim-carry), ArA8 (emissionId uniqueness) added per MA-St3 orthogonality review. Custody table refreshed with owner + layer + consumers per substrate SG3. Provenance field populated per metaframework §2.2 (reference-default per A-20). | L0 (pending regen-cycle confirmation) |
 | v2.3 | 2026-05-15 (Sprint B2 Shot 2c) | ArA8 + G-Ar8 dissolved per *removal-is-additive* clause. Rationale: emissionId is a UUID v4 minted per call via `generateId` — structural collision is impossible. The runtime stub at `src/features/F-artifact/app/artifact-emit.ts` evaluated a constant-false function (`isEmissionIdCollisionNeverTrue`), indicating gate was already operationally vacuous. **Δ:** §1 Own invariants 11→10; §1 Own discipline G-Ar1–G-Ar8 → G-Ar1–G-Ar7; §3.2 P3/P4/P5 counts 11→10; §3 intro axiom range ArA1–ArA8 → ArA1–ArA7; §3.6 heading + ArA8 row removed + AxR3 self-check updated; §3.4 S2 gates field G-Ar8 removed; §3.4 disambiguation note 11→10 + 63→62; §3.7 P7 basis ArA1–ArA8 → ArA1–ArA7; §4.1 gate count 11→10; §4.2 G-Ar8 row removed + MA-V1 11↔11 → 10↔10; §4.3 X2 Determinism G-Ar1..G-Ar8 → G-Ar1..G-Ar7; §4.4 tier-2 list G-Ar8 removed; §4.5 AS-own (11) → (10) + enumeration sweep at both §4.5 and §745 audit-time bundle. **Source-side:** `isEmissionIdCollisionNeverTrue` stub removed from `src/features/F-artifact/app/artifact-emit.ts`; `evaluateGar8` removed from `src/features/F-artifact/domain/artifact-gates.ts`; `gar8` field removed from `GateBatch` type; `isCollision` parameter removed from `evaluateAllGates` signature; call-site at `createArtifact` updated. **Discipline:** removal is additive per MA-L1 — no behavior change for prior-passing artifacts; gate predicate was already constant-false at runtime. Cross-framework: PS v1.2 cross-framework input row references AS v2.3 (companion Sprint B2 Shot 2 amendment). authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'pending'} | L0 (pending Sprint B2 Shot 2c ratification) |
+| v2.4 | 2026-05-17 (Sprint B2 Shot 5) | MA-I8 governsRuntimeCode apparatus applied + MA-V10pB RC closure + F-MFA-AS-001 leaf-reconciliation footnote. **Δ-A:** §1 `governsRuntimeCode: true` row added with basis prose (AS governs `src/features/F-artifact/**` — domain, app, types, contract layers). **Δ-B:** §1 `referentCitations` populated — 5-RC array covering Structure axis (artifact-emit.ts, artifact-gates.ts, artifact-edges.ts) and Schema axis (artifact-types.ts, artifact-contract.ts); partial-drift dissolved. **Δ-C:** §3.13 jurisdiction coverage section added with 5-axis table — Structure + Schema axes at full RC coverage; remaining axes applicability='n/a'. **Δ-D:** §3.13.1 AmendmentProvenance added. **Δ-E:** §3.5 leaf-reconciliation footnote added (15 shape-declaration rows vs P3=10 canonical axiom-condition count; audit-trail observation per MA-St2). **Δ-F:** §1 Version v2.3 → v2.4; this change log entry. Zero axiom/gate/schema changes; zero primitive count changes. Additive per MA-L1. authorityClaim: {level:'L0', actor:'wearer', source:'demos_ra@hotmail.com'} | L0 (Sprint B2 Shot 5) |
 
 ---
 

@@ -65,6 +65,19 @@ Per metaframework §3.2 Identity-axis axioms MA-I1..MA-I5:
 | MA-I4 | LifecycleState declared for template + applied in §1 rows. |
 | MA-I5 | Genesis declared §1.1; parent framework + generation procedure named. |
 
+### §1.3 MA-G13 four-property test (framework classification)
+
+Per MA-G13 (metaframework §3.2.1): a framework must declare all four properties.
+
+| Property | Satisfied by |
+|---|---|
+| Own state | `{stateTemplate, stateApplied}` ∈ substrate §9 `LifecycleState` enum; `{declared, runtime, terminated, deprecated}` transitions declared at §5.1 |
+| Own I/O | input: `PlanInput` (§2.1); output: `PlanArtifactContent` (§2.2) — rides as `ArtifactPayload.content` inside AS v2.2 emission |
+| Own invariants | 15 axis-bound structural-integrity axioms (PA1..PA12 with PA2/PA4/PA10 atomicity-decomposed) per §3.6 + 36 axis-bound + 1 universal MA-G13 inherited from metaframework-v3-1 §3.2 |
+| Own discipline | zero P8 procedure steps (Mode=structural per substrate §8.3 — P8 absent, not empty; see §3.7 positive empty-declaration); axiom gates G-Pl1..G-Pl15 at §4.2; handoff rules HR-PS1..HR-PS4 at §6.2 |
+
+All four properties declared. MA-G13 passes. Plan Standard is classified as framework (not state store; not protocol; not substrate).
+
 ---
 
 ## §2 Schema
