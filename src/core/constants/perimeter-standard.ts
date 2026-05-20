@@ -307,7 +307,7 @@ export const PERIMETER_CARRIER_REF = {
 // Value: 'proxy.ts' — renamed from middleware.ts, sprint-b1.5-shot-2 (Next.js 16.2.x proxy convention).
 // Registry lookup replaced with static literal; PLACEMENT_REGISTRY dissolved.
 
-export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'proxy.ts'
+export const LIV_INSTANCE_PERIMETER_SITE_REF: string = 'src/proxy.ts'
 
 // ─── Default PerimeterBinding (§6.2; PMA-Av2 boundary-consultation atom) ────
 // Default permitted-authority bindings for the seven named channels.

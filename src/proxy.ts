@@ -89,7 +89,7 @@ import {
   PERIMETER_HEADER_DISPOSITION,
 } from '@/core/constants/perimeter-headers'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
-import { FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
+import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
 import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 
@@ -357,7 +357,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         authorityAssertion,
         'true'                               as IdentityRef,
         'session-cookie-validated-by-middleware' as IdentityRef,
-        'src/middleware.ts'                  as IdentityRef,
+        LIV_INSTANCE_PERIMETER_SITE_REF       as IdentityRef,
         ...(identityResolution.ref !== null ? [identityResolution.ref] : []),
       ],
       relations: [
@@ -375,8 +375,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             { identity: 'intake' as IdentityRef,                       role: 'direction'                as RoleRef },
             { identity: arrivalRef,                                     role: 'arrival'                  as RoleRef },
             { identity: authorityAssertion,                            role: 'resolved-authority'       as RoleRef },
-            { identity: JSON.stringify({ level: 'L0', actor: 'wearer', source: null }) as IdentityRef,
-                                                                        role: 'authority-claimed'        as RoleRef },
+            { identity: authorityAssertion,                            role: 'authority-claimed'        as RoleRef },
             { identity: 'true' as IdentityRef,                         role: 'authority-validated-flag' as RoleRef },
             { identity: 'true' as IdentityRef,                         role: 'authority-scope-match'    as RoleRef },
             { identity: 'session-cookie-validated-by-middleware' as IdentityRef,
@@ -387,7 +386,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             { identity: cellGovernance.auditStatus as IdentityRef,     role: 'audit-status'             as RoleRef },
             { identity: cellGovernance.reversibilityStatus as IdentityRef,
                                                                         role: 'reversibility-status'     as RoleRef },
-            { identity: 'src/middleware.ts' as IdentityRef,            role: 'unitary-site'             as RoleRef },
+            { identity: LIV_INSTANCE_PERIMETER_SITE_REF as IdentityRef, role: 'unitary-site'             as RoleRef },
             // Part 2b: resolvedIdentities outcome at identity-resolution role
             ...(identityResolution.ref !== null
               ? [{ identity: identityResolution.ref,                   role: 'identity-resolution'      as RoleRef }]

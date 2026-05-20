@@ -1,5 +1,5 @@
-// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1
-// @perimeter-standard v1.0
+// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1 boundary-symmetry-shot
+// @perimeter-standard v1.3
 // [F-identity/R3]
 // Built with LIV · livai.dev
 // @manifest
@@ -8,6 +8,7 @@
 //             sprint-b1-shot-2 (PerimeterSession extended: resolvedDisposition; PERIMETER_HEADER_DISPOSITION read)
 //             sprint-13c-shot-1 (dispatchCrossing added: dispatch-direction BoundaryCrossingRecord → substrate)
 //             b1-final-shot-2 (PA-A1..6 authorityEnforced identity added to dispatch write; PA-Co1 correlationRef already present)
+//             boundary-symmetry-shot (dispatchCrossing extended to full 17-field landing parallel to proxy.ts intake; closes Manual v13.4 §IV.4 directional symmetry; LIV_INSTANCE_PERIMETER_SITE_REF imported from canonical constant — local shadow dissolved per S1)
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -33,6 +34,8 @@
 //   W-ATOM    CrossingId                      @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
 //   W-ATOM    EpochMs                         @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
 //   W-ATOM    CorrelationRefBrand             @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
+//   W-ATOM    LIV_INSTANCE_PERIMETER_SITE_REF @/core/constants/perimeter-standard              (boundary-symmetry-shot; replaces local shadow — S1 closure)
+//   W-ATOM    FOUR_CELL_GOVERNANCE_MAP        @/core/constants/perimeter-standard              (boundary-symmetry-shot; cellGovernance decomposition at dispatch direction)
 // wires-out:
 //   W-FN      getPerimeterSession             → all distributed R3 contracts (F-chat, F-verify, F-output, F-permissions, F-plan, F-project, F-user-profile)
 //   W-ATOM    PerimeterSession                → all distributed R3 contracts
@@ -74,7 +77,7 @@ import {
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
 } from '@/core/constants/perimeter-headers'
-import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM } from '@/core/constants/perimeter-standard'
+import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM, LIV_INSTANCE_PERIMETER_SITE_REF, FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
 import type {
   BoundaryDispatchRequest,
@@ -205,7 +208,6 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
 // constant ('src/proxy.ts') is the unitary site identity per PA-I — shared across
 // intake and dispatch directions for audit-trail coherence.
 
-const LIV_INSTANCE_PERIMETER_SITE_REF = 'src/proxy.ts'
 const PERIMETER_FRAMEWORK_VERSION = '1.0.0'
 
 export function dispatchCrossing(request: BoundaryDispatchRequest): void {
@@ -217,32 +219,81 @@ export function dispatchCrossing(request: BoundaryDispatchRequest): void {
   const correlationRef: CorrelationRefBrand =
     request.correlationRef ?? (crossingId as unknown as CorrelationRefBrand)
 
-  // SubstrateWriteInput — parallel to intake crossing write in middleware.ts.
-  // Identities: crossingId, dispatchId, resolvedDisposition, channelTarget, source.programId.
+  // resolvedChannel: promote to top scope for reuse in metadata + identity landing.
+  const resolvedChannel = toSourceChannel(request.channelTarget)
+
+  // dispatchRef: parallel to intake arrivalRef (proxy.ts L336). generateId('dr').
+  const dispatchRef = generateId('dr') as unknown as IdentityRef
+
+  // cellGovernance: full 5-field decomposition from FOUR_CELL_GOVERNANCE_MAP.
+  // Key: (direction='dispatch', request.dispositionClaim) → 'reference-dispatch' | 'act-dispatch'.
+  const cellKey: string = `${request.dispositionClaim}-dispatch`
+  const cellEntry = FOUR_CELL_GOVERNANCE_MAP[cellKey as keyof typeof FOUR_CELL_GOVERNANCE_MAP]
+    ?? FOUR_CELL_GOVERNANCE_MAP['act-dispatch']  // conservative fallback per PS §IV.2
+  const cellGovernance = {
+    cell:                cellKey,
+    governanceLevel:     cellEntry.governanceLevel,
+    confirmationStatus:  cellEntry.confirmationStatus,
+    auditStatus:         cellEntry.auditStatus,
+    reversibilityStatus: request.reversibility,  // PA-T4: runtime override per emitting program
+  }
+
+  // authorityEnforced: dispatch-direction record parallel to proxy.ts L329–334.
+  // Caller scope-validated upstream by F-permissions before reaching dispatchCrossing.
+  const authorityAssertion: IdentityRef = JSON.stringify(request.authorityContext) as IdentityRef
+
+  // SubstrateWriteInput — 17-field parallel to proxy.ts intake structure L341–399.
+  // Identities: 17 entries. identitiesWithRoles relation: 17 entries.
   // Relation type: 'boundary-crossing-dispatch' — distinct from intake 'boundary-crossing'
-  // for audit-trail separation per direction.
+  // for audit-trail separation per direction. Preserved from prior delivery.
   const crossingWrite: SubstrateWriteInput = {
     userId: request.source.programId,
     content: {
       identities: [
-        crossingId                        as unknown as IdentityRef,
-        request.dispatchId                as unknown as IdentityRef,
-        request.dispositionClaim          as IdentityRef,
-        request.channelTarget             as IdentityRef,
-        request.source.programId          as IdentityRef,
-        correlationRef                    as unknown as IdentityRef,
-        'authority-validated'             as IdentityRef,
+        crossingId                                     as unknown as IdentityRef,
+        request.dispatchId                             as unknown as IdentityRef,
+        request.dispositionClaim                       as IdentityRef,
+        request.channelTarget                          as IdentityRef,
+        request.source.programId                       as IdentityRef,
+        correlationRef                                 as unknown as IdentityRef,
+        'authority-validated'                          as IdentityRef,
+        'pre-resolved'                                 as IdentityRef,  // PA-IR1 scopeOut: dispatch carries pre-resolved refs
+        dispatchRef,
+        'dispatch'                                     as IdentityRef,
+        authorityAssertion,
+        'true'                                         as IdentityRef,
+        'caller-authority-validated-at-source-program' as IdentityRef,
+        LIV_INSTANCE_PERIMETER_SITE_REF               as IdentityRef,
+        cellGovernance.cell                            as IdentityRef,
+        cellGovernance.confirmationStatus              as IdentityRef,
+        cellGovernance.auditStatus                     as IdentityRef,
       ],
       relations: [
         {
           type:                'boundary-crossing-dispatch' as IdentityRef,
           modality:            'declarative',
           identitiesWithRoles: [
-            { identity: crossingId       as unknown as IdentityRef, role: 'crossing'          as RoleRef },
-            { identity: request.source.programId as IdentityRef,    role: 'agent'             as RoleRef },
-            { identity: request.dispositionClaim as IdentityRef,    role: 'disposition'       as RoleRef },
-            { identity: correlationRef   as unknown as IdentityRef, role: 'correlation'       as RoleRef },
-            { identity: 'authority-validated' as IdentityRef,       role: 'authority-outcome' as RoleRef },
+            { identity: request.source.programId          as IdentityRef,      role: 'agent'                    as RoleRef },
+            { identity: crossingId                        as unknown as IdentityRef, role: 'crossing'           as RoleRef },
+            { identity: request.dispositionClaim          as IdentityRef,      role: 'disposition'              as RoleRef },
+            { identity: correlationRef                    as unknown as IdentityRef, role: 'correlation'        as RoleRef },
+            { identity: 'authority-validated'             as IdentityRef,      role: 'authority-outcome'        as RoleRef },
+            { identity: 'pre-resolved'                    as IdentityRef,      role: 'identity-outcome'         as RoleRef },
+            { identity: 'dispatch'                        as IdentityRef,      role: 'direction'                as RoleRef },
+            { identity: dispatchRef,                                            role: 'dispatch'                 as RoleRef },
+            { identity: authorityAssertion,                                    role: 'resolved-authority'       as RoleRef },
+            { identity: authorityAssertion,                                    role: 'authority-claimed'        as RoleRef },
+            { identity: 'true'                            as IdentityRef,      role: 'authority-validated-flag' as RoleRef },
+            { identity: 'true'                            as IdentityRef,      role: 'authority-scope-match'    as RoleRef },
+            { identity: 'caller-authority-validated-at-source-program' as IdentityRef,
+                                                                                role: 'validation-basis'         as RoleRef },
+            { identity: cellGovernance.cell               as IdentityRef,      role: 'cell'                     as RoleRef },
+            { identity: cellGovernance.confirmationStatus as IdentityRef,      role: 'confirmation-status'      as RoleRef },
+            { identity: cellGovernance.auditStatus        as IdentityRef,      role: 'audit-status'             as RoleRef },
+            { identity: cellGovernance.reversibilityStatus as IdentityRef,     role: 'reversibility-status'     as RoleRef },
+            { identity: LIV_INSTANCE_PERIMETER_SITE_REF  as IdentityRef,      role: 'unitary-site'             as RoleRef },
+            // PA-IR1 scopeOut: dispatch direction carries pre-resolved Refs (no surface-form-to-Ref work needed)
+            { identity: 'pre-resolved'                    as IdentityRef,      role: 'identity-resolution'      as RoleRef },
           ],
           negation: false,
         },
@@ -250,15 +301,12 @@ export function dispatchCrossing(request: BoundaryDispatchRequest): void {
     },
     metadata: {
       time:   crossedAt,
-      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24
-      // default-derivation rule applied at runtime via
-      // deriveContentClassFromChannel(channel). Dispatch crossing is Path A
-      // (Boundary stamping site).
+      // Boundary stamping site — dispatch direction (B-direction crossing of the Boundary).
+      // ContentClass derived from channel per substrate v1.8.3 A-24.
       source: (() => {
-        const ch = toSourceChannel(request.channelTarget)
         return {
-          channel:      ch,
-          contentClass: deriveContentClassFromChannel(ch),
+          channel:      resolvedChannel,
+          contentClass: deriveContentClassFromChannel(resolvedChannel),
           scope:        request.scopeContext as ScopeRef,
         }
       })(),
