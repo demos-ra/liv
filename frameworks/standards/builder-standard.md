@@ -3,7 +3,7 @@ kind: framework
 placement: frameworks/standards/
 ---
 
-# builder-standard-v1-0
+# builder-standard-v1-1
 
 **Kind:** Framework
 **Level:** L3
@@ -28,7 +28,7 @@ Builder Standard is **distinct from F-multi-instance (L4)**: F-multi-instance is
 | `kind` | `Framework` (per substrate §4 A-10 `Kind` enum; consumed by reference; string-typed) |
 | `mode` | `generative` (per substrate §2 Mode enum; `structured → produced`) |
 | `level` | `L3` (per substrate §5 AuthorityLevel; consumed by reference) |
-| `version` | `1.0` (per substrate §7 Semver) |
+| `version` | `1.1` (per substrate §7 Semver; v1.0 → v1.1 per MA-L1 minor at Side-Quest Shot 4 — Phase D ContentClass classification §6.11 added; no axiom/gate/schema change) |
 | `ownershipTemplate` | `Human` (per substrate §4 A-11 Ownership enum; consumed by reference; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (per substrate §4 A-11 Ownership enum) |
 | `stateTemplate` | `declared` (per substrate §9 LifecycleState; consumed by reference) |
@@ -850,6 +850,18 @@ Per metaframework-v3-1 §3.1 A6 Coupling axis: cross-framework handoff content r
 | `BuildEmission` | BS composes + validates → HR-BS3 outbound substrate write → F-output / F-verify consume from substrate |
 | delegation payload | BS constructs per-instruction → HR-BS4 outbound to F-multi-instance → result captured verbatim into `files[instrId].content` |
 
+### §6.11 Phase D ContentClass classification for L4 program direct emissions
+
+*Added Side-Quest Shot 4 (Phase D). Declares the ContentClass classification for L4 programs implementing Builder Standard when they emit substrate records via `'internal-derivation'` channel. Builder Standard's carrier = `self` (substrate-direct write per §6.1), so all BS emissions are direct internal-derivation writes (no AS carrier path; no §6.11 carrier-relation subsection in BS — this §6.11 is the natural ContentClass declaration locus).*
+
+**Classification.** L4 programs implementing Builder Standard (F-builder slice) emit `build-emission` / `build-completed` records via `'internal-derivation'` channel with `contentClass: 'system-introspection'` per substrate v1.8.3 §4.2 A-24 + LM v3.4 LMA13.
+
+**Basis.** `build-emission` records carry `identitiesWithRoles: [{role: 'subject', identity: jobId}, {role: 'result', identity: status}]` — apparatus-identifiable roles only (jobId names the build job, status names the completion state); no wearer-as-agent role. These records are apparatus build-cycle completion metadata — F-builder operates in the governance loop (Builder Standard generates frameworks and side-quest dispatches as system-tier work). Per Manual SPEC-v13.4 Part I §"The phantom layer": records of LIV's own operation are classified as `system-introspection` and excluded from LMA7 anchor-candidacy by LMA13 construction.
+
+**Contrast with peer L4 programs.** F-builder differs from F-plan / F-discover / F-verify (whose direct emissions classify as `'wearer-life'` because they carry wearer-as-agent role): F-builder operates strictly in the governance loop on framework generation and build dispatch, not on wearer-domain content. The build-emission records do not represent wearer cognition; they represent apparatus build-cycle completion.
+
+**Runtime callsite.** `src/features/F-builder/app/builder-workflow.ts` line ~70 (`writeBuildEmission` function) — ratifies Shot 1 Phase A provisional `'system-introspection'` stamp (no literal change; Phase D derivation confirms Shot 1 provisional as the correct classification).
+
 ---
 
 ## §7 Judgment
@@ -938,6 +950,7 @@ Per G-U1 (self-application): BS's gate suite (G-BS1..G-BS5 + 85 inherited) will 
 | Version | Date | Change | Source |
 |---|---|---|---|
 | v1.0 | 2026-05-09 | Initial declaration. Generated against metaframework-v3-1 v3.2.7 via generation-procedure-v1-0 v1.1.6 under substrate-v1-1 v1.6. Five BS-local P1 axes (Input, Instruction, Delegation, Emission, Retry). Five axioms BA1..BA5 with 1:1 axis-axiom binding: BA1 (input receipt + substrate resolution), BA2 (instruction ordering + kind enum), BA3 (emission field presence + verbatim directive carry), BA4 (retry/restart semantics + partial preservation), BA5 (F-multi-instance delegation contract + verdict derivation). Five paired gates G-BS1..G-BS5 (1:1 per G-M1). Four HRs HR-BS1..HR-BS4 with captureShape per substrate §8.2 amended P6. P7=1 (one generation-time J-input: J-build-emission-observation, §7.1; corrected from initial P7=0 per F-BS-4 resolution) and P8=4 (Mode=generative — BS1 judgment-input stage-1, BS2 mechanical stage-2, BS3 gate-execution stage-3, BS4 mechanical stage-5; PR4/PR5 self-check passes at §3.7.4). Carrier = self (substrate-direct write; rationale: build artifacts substrate-native, no chat-surface envelope needed at v1.0). BuildBinding shape declared with zero domain instances at v1.0. `referentCitations: []` per Cognitive v1.2.2 / VS v1.0 / RS v1.0 precedent. Provenance reference-default per A-20. J-build-emission-observation declared (§7.1; three mechanical criteria; consumed at generation-procedure S11). Distinct from F-multi-instance (tool) and peer programs (F-plan, F-discover, F-verify) by tier (L3 vs L4) and concern (typed-work synthesis contract vs execution). | Sprint 10 Shot 1 / Phase 2 missing-governance gate clearance per LIV deploy state |
+| v1.1 | 2026-05-19 | **Side-Quest Shot 4 — ContentClass apparatus alignment, Phase D — Builder Standard.** Predecessor: v1.0 (Sprint 10 Shot 1). Ratified ground: substrate v1.8.3 §4.2 A-24 (Shot 1) + LM v3.4 LMA13 (Shot 2) + Manual SPEC-v13.4 phantom-layer addendum (Shot 3) + AS v2.5 §3.7 S3 Phase D declaration (Shot 4 sibling). **Δ-A:** §6.11 subsection added (Phase D ContentClass classification for L4 program direct emissions). Declares: L4 programs implementing BS (F-builder slice) emit `build-emission` records via `'internal-derivation'` with `contentClass: 'system-introspection'`. Basis: records carry `[{role: 'subject', identity: jobId}, {role: 'result', identity: status}]` — apparatus-identifiable roles only, no wearer-as-agent role; F-builder operates strictly in the governance loop on framework generation and build dispatch. Per Manual SPEC-v13.4 Part I §"The phantom layer": records of LIV's own operation are classified as `'system-introspection'` and excluded from LMA7 anchor-candidacy by LMA13 construction. Carrier = `self` (no AS path); §6.11 is the natural Phase D declaration locus (BS has no §6.11 carrier-relation subsection — slot reused). **Δ-B:** §1 Identity version v1.0 → v1.1. **Δ-C:** Runtime sweep: `src/features/F-builder/app/builder-workflow.ts:70` (`writeBuildEmission`) ratified at `contentClass: 'system-introspection'` (no literal change; comment update only — Shot 1 Phase A provisional stamp confirmed as correct classification by Phase D derivation). No axiom, gate, primitive, HR, custody, carrier, Mode, P7/P8, or TypeScript shape change. Additive per MA-L1 minor. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Side-Quest-Shot4-pending'} | L0 pending |
 
 ---
 
@@ -962,4 +975,4 @@ BS3 overall: **PASS.**
 
 ---
 
-**End of builder-standard-v1-0. Pending L0 confirmation at v1.0 closure.**
+**End of builder-standard-v1-1. Side-Quest Shot 4 (Phase D) amendment pending L0 confirmation.**

@@ -84,6 +84,7 @@ import type {
 } from '@/core/types/perimeter-standard.types'
 import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
+import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 import { generateId } from '@/core/types/primitives'
 
 // ─── ChannelKind → SourceChannel mapping (dispatch direction) ─────────────────
@@ -249,10 +250,18 @@ export function dispatchCrossing(request: BoundaryDispatchRequest): void {
     },
     metadata: {
       time:   crossedAt,
-      source: {
-        channel: toSourceChannel(request.channelTarget),
-        scope:   request.scopeContext as ScopeRef,
-      },
+      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24
+      // default-derivation rule applied at runtime via
+      // deriveContentClassFromChannel(channel). Dispatch crossing is Path A
+      // (Boundary stamping site).
+      source: (() => {
+        const ch = toSourceChannel(request.channelTarget)
+        return {
+          channel:      ch,
+          contentClass: deriveContentClassFromChannel(ch),
+          scope:        request.scopeContext as ScopeRef,
+        }
+      })(),
     },
   }
 

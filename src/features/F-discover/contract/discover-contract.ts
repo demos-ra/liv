@@ -155,7 +155,14 @@ function writeResearchOutput(userId: string, turnId: string, projectId: string):
     },
     metadata: {
       time:   Date.now(),
-      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+      // Side-Quest Shot 4 (Phase D, Research Standard v1.1): F-discover emits via
+      // 'internal-derivation' with contentClass: 'wearer-life'. Basis:
+      // research-output / research-emitted records carry `{role: 'agent', identity: userId}`
+      // — the wearer as agent of the research emission. Records of wearer
+      // cognition (the wearer's research) participating in the cognition LIV
+      // extends per LM v3.4 LMA13.
+      // Replaces Shot 1 Phase A provisional 'system-introspection' stamp.
+      source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
   writeStateChange(write).catch((err: unknown) => {

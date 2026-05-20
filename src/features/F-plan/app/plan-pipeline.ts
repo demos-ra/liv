@@ -461,7 +461,17 @@ export async function advanceStage(
       },
       metadata: {
         time:   Date.now(),
-        source: { channel: 'internal-derivation', scope: job.projectId as ScopeRef },
+        // Side-Quest Shot 4 (Phase D, Plan Standard v2.3): F-plan-pipeline emits via
+        // 'internal-derivation' with contentClass: 'system-introspection'. Basis:
+        // pipeline-completed records are apparatus pipeline-machinery completion
+        // metadata (the F-plan pipeline being a piece of apparatus); roles are
+        // 'pipeline: jobId' + 'project: projectId' + 'outcome: outcome' — all
+        // apparatus-identifiable, not wearer cognition. Distinguished from
+        // plan-output records (plan-contract.ts:185) which carry wearer-as-agent
+        // and classify as 'wearer-life'. Records of LIV's own operation per LM
+        // v3.4 LMA13.
+        // Ratifies Shot 1 Phase A provisional 'system-introspection' stamp.
+        source: { channel: 'internal-derivation', contentClass: 'system-introspection', scope: job.projectId as ScopeRef },
       },
     }).catch((err: unknown) => {
       console.error('[F-plan] pipeline-completed substrate write failed',

@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields)
+// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields), sprint-b2-shot-5 (SourceChannel: 'system-l0' added), side-quest-shot-1 (substrate v1.8.3: A-24 ContentClass added, SubstrateSourceRef.contentClass field added), side-quest-shot-2 (LM v3.4: ThreadQueryInput.contentClass? optional filter added for LMA13)
 // slice: core
 // layer: R5
 // wires-in:
@@ -25,6 +25,8 @@
 //   W-ATOM StateChangeId        → substrate-internal + thread query consumers
 //   W-ATOM ThreadKind           → thread query consumers
 //   W-ATOM SourceChannel        → perimeter (channel enum)
+//   W-ATOM ContentClass         → all substrate consumers (substrate v1.8.3 A-24; carried on SubstrateSourceRef.contentClass)
+//   W-FUNC deriveContentClassFromChannel → Path A Boundary stampers + variable-channel Path B callers (default-derivation rule per substrate §4.2 A-24)
 //   W-CONST REVOKE_REF          → SW3 RevokeRef detection (LMA2)
 // deps:
 //   R5 ./primitives
@@ -103,12 +105,72 @@ export type SourceChannel =
   | 'internal-derivation'
   | 'system-l0'           // Manual Part II L180 — distinct channel origin for System-L0 initiated writes
 
+// ─── Content class (substrate v1.8.3 A-24: closed two-value classification) ────
+// ContentClass: classifies the content of a recorded state-change as either
+//   record-of-wearer-life (content participating in the cognition LIV extends —
+//   Manual L28 root claim) or record-of-system-operation (apparatus's faithful
+//   record of its own activity). Closed at declaration time per substrate v1.8.3
+//   A-24 closure rule; extensible only via explicit substrate amendment.
+//
+// Default-derivation rule (channel → ContentClass) per substrate v1.8.3 §4.2:
+//   wearer / ai / integration-event → 'wearer-life'
+//   cron / system-l0                → 'system-introspection'
+//   internal-derivation             → declared per emitting Standard (Phase D).
+//
+// Carried at SubstrateSourceRef.contentClass — required field (no nullable);
+//   stamped at Boundary on Path A crossings, declared at emission site on Path B.
+
+export type ContentClass =
+  | 'wearer-life'
+  | 'system-introspection'
+
+// ─── deriveContentClassFromChannel (substrate v1.8.3 §4.2 A-24 default-rule) ──
+// Mechanical projection of channel → ContentClass per the default-derivation
+// rule declared at substrate §4.2 A-24. Five channels deterministic; one
+// channel polymorphic.
+//
+// IMPORTANT: 'internal-derivation' is polymorphic at substrate tier — the
+// classification is declared per emitting Standard at Phase D. Callers that
+// know they emit via 'internal-derivation' must specify the ContentClass
+// directly at the construction site (e.g., F-artifact emissions declare per
+// target class; Present Standard emissions declare 'system-introspection').
+//
+// This helper is for Path A (Boundary stamping at proxy/perimeter) and any
+// Path B caller whose channel is variable and known to be in the deterministic
+// five-channel set. For static 'internal-derivation' callers, do NOT use this
+// helper — declare the ContentClass literal at the call site per the emitting
+// Standard's discipline.
+//
+// During the Phase A backfill window (pre-Phase-D), legacy 'internal-derivation'
+// emissions that have not yet been classified by their emitting Standard
+// receive the provisional 'system-introspection' stamp per substrate §4.2
+// A-24 boot-time backfill rule.
+
+export function deriveContentClassFromChannel(channel: SourceChannel): ContentClass {
+  switch (channel) {
+    case 'wearer':
+    case 'ai':
+    case 'integration-event':
+      return 'wearer-life'
+    case 'cron':
+    case 'system-l0':
+      return 'system-introspection'
+    case 'internal-derivation':
+      // Polymorphic at substrate tier; callers should normally declare directly.
+      // Boot-time backfill provisional stamp per substrate §4.2 A-24 backfill rule.
+      return 'system-introspection'
+  }
+}
+
 // ─── SubstrateSourceRef (LM v3.1 §2.1 SourceRef; renamed for codebase) ────────
 // Origin channel + scope attribute on every state-change.
+// v1.8.3: `contentClass` field added (substrate A-24); sibling on origin-axis
+//   shape per locus derivation (see substrate v1.8.3 §4.2 A-24 declaration).
 
 export type SubstrateSourceRef = {
-  channel: SourceChannel
-  scope:   ScopeRef
+  channel:      SourceChannel
+  contentClass: ContentClass
+  scope:        ScopeRef
 }
 
 // ─── Relation modality (LMA3 + LMA11: stored, re-derived at execution) ────────
@@ -176,14 +238,20 @@ export type SubstrateWriteInput = {
 // ─── Thread query input (R3 surface) ──────────────────────────────────────────
 // ThreadQueryInput: input W-ATOM for thread reads. TQ1 validates;
 //   TQ2 runs LMA9 gate; TQ3 executes against substrate.
+//
+// v3.4 (Side-Quest Shot 2): contentClass? optional filter parameter added.
+// LM v3.4 LMA13 declares ContentClass discipline; the filter is the read-side
+// mechanism for selecting on the row-stamped ContentClass column. Default
+// (omitted) returns all classes — backward-compatible with v3.3.1 callers.
 
 export type ThreadQueryInput = {
-  threadKind:  ThreadKind
-  anchor:      IdentityRef | PositionRef   // identity- or position-anchored per kind
-  roleFilter?: RoleRef                     // required for 'role-pattern'
-  scope?:      ScopeRef                    // optional read-time scope filter
-  window?:     number                      // required for 'adjacency'; positive integer
-  limit?:      number                      // max positions to return
+  threadKind:    ThreadKind
+  anchor:        IdentityRef | PositionRef   // identity- or position-anchored per kind
+  roleFilter?:   RoleRef                     // required for 'role-pattern'
+  scope?:        ScopeRef                    // optional read-time scope filter
+  contentClass?: ContentClass                // v3.4: optional read-time ContentClass filter (LM v3.4 LMA13)
+  window?:       number                      // required for 'adjacency'; positive integer
+  limit?:        number                      // max positions to return
 }
 
 // ─── State change record (output of SW3 commit) ───────────────────────────────

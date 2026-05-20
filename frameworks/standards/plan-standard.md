@@ -3,7 +3,7 @@ kind: framework
 placement: frameworks/standards/
 ---
 
-# plan-standard-v2-2
+# plan-standard-v2-3
 
 **Kind:** Framework
 **Level:** L3
@@ -24,7 +24,7 @@ This file is a `GeneratedFrameworkTemplate` instance per metaframework-v3-1 §2.
 | `kind` | `Framework` (per substrate §4 A-10 `Kind` enum; consumed by reference; string-typed this regen) |
 | `mode` | `structural` (per substrate §2 Mode enum; `known → structured`) |
 | `level` | `L3` (per substrate §5 AuthorityLevel; consumed by reference) |
-| `version` | `2.2` (per substrate §7 Semver) |
+| `version` | `2.3` (per substrate §7 Semver; v2.2 → v2.3 per MA-L1 minor at Side-Quest Shot 4 — Phase D ContentClass classification §6.12 added; no axiom/gate/schema change) |
 | `ownershipTemplate` | `Human` (per substrate §4 A-11 Ownership enum; consumed by reference; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (per substrate §4 A-11 Ownership enum) |
 | `stateTemplate` | `declared` (per substrate §9 LifecycleState; consumed by reference; string-typed this regen) |
@@ -872,6 +872,22 @@ const emissionResult: CreateArtifactResult = createArtifact(asInput)  // AS v2.2
 - **Re-plan semantics** (PA5): re-planning produces a new `PlanArtifactContent` with a new `planId` and new `planVersion`. The new plan emits through AS v2.2 as a separate `createArtifact` invocation; AS v2.2 ArA4c creates a `kind: 'version'` edge from new plan anchor → prior plan anchor iff the tuple `(framework.id='plan', userId)` matches (which it does for re-plans by the same user). Re-plan version lineage is thus tracked at AS v2.2 graph level, not inside Plan.
 - **Binding immutability** (PA9): AS v2.2 companion node holds the full `PlanArtifactContent` payload including `binding`. AS v2.2 ArA5 forbids post-emission mutation of companion node content. Therefore `content.binding` is immutable post-emission without a Plan-framework-specific axiom layer — AS v2.2 ArA5 is the enforcer. PA9 is still declared at Plan level because it scopes the invariant at Plan's domain (binding-captured-alongside-content), even though mechanical enforcement is at AS.
 
+### §6.12 Phase D ContentClass classification for L4 program direct emissions
+
+*Added Side-Quest Shot 4 (Phase D). Declares the ContentClass classification for L4 programs implementing Plan Standard when they emit substrate records via `'internal-derivation'` channel directly (outside the AS v2.2 carrier path declared in §6.11). Plan Standard's L4 implementation (F-plan slice) emits **two distinct record kinds** via `'internal-derivation'`, each receiving a different classification per content-kind discipline.*
+
+**Classification — `plan-output` records: `'wearer-life'`.** F-plan emits `plan-output` / `plan-emitted` records carrying `identitiesWithRoles: [{role: 'agent', identity: userId}]` — the wearer as agent of the plan emission. These records participate in the cognition LIV extends per Manual SPEC-v13.4 Part I §"The phantom layer": records of wearer cognition (the wearer's planning) are `wearer-life` and enter LMA7 anchor-derivation candidate set.
+
+**Classification — `pipeline-completed` records: `'system-introspection'`.** F-plan emits `pipeline-completed` records from `plan-pipeline.ts` carrying `identitiesWithRoles: [{role: 'pipeline', identity: jobId}, {role: 'project', identity: projectId}, {role: 'outcome', identity: outcome}]` — apparatus-identifiable roles only; no wearer-as-agent role. These records are apparatus pipeline-machinery completion metadata (the F-plan pipeline being a piece of apparatus); they belong to "records of LIV's own operation" per Manual SPEC-v13.4 phantom-layer addendum and are excluded from LMA7 anchor-candidacy by LMA13 construction.
+
+**Two-kinds-of-record discipline.** The same L4 program (F-plan) writes both classes — the distinction is at the *record content kind*, not at the program identity. A record carrying wearer-as-agent is wearer-life; a record carrying only apparatus identifiers is system-introspection. This per-content-kind classification is the Phase D pattern that the per-Standard amendments operationalize.
+
+**Distinguished from AS-carriered emissions.** Plan Standard's primary emission contract is the AS v2.2 carriered `PlanArtifactContent` (per §6.11) — that emission's ContentClass is owned by AS v2.5 §3.7 S3 derivation (declared `contentClass: 'wearer-life'`). The §6.12 declaration is for F-plan's direct internal-derivation writes that happen alongside the AS-carriered emission.
+
+**Runtime callsites.**
+- `src/features/F-plan/contract/plan-contract.ts` line ~181 (`writePlanOutput` function) — `plan-output` records → `'wearer-life'` (supersedes Shot 1 Phase A provisional `'system-introspection'`).
+- `src/features/F-plan/app/plan-pipeline.ts` line ~464 (`pipeline-completed` write) — `pipeline-completed` records → `'system-introspection'` (ratifies Shot 1 Phase A provisional).
+
 ---
 
 ## §7 Judgment
@@ -954,7 +970,8 @@ Plan does not self-apply (Plan's Mode is structural; it structures input into `P
 | v2.1 | No gate additions beyond 1:1 mapping from 15 axioms to G-Pl1..G-Pl12 (with PA2/PA4/PA10 decomposed gates per G-M1). v2.1 declared gate coverage at §11 prose; v2.2 elevates to typed G-Pl* suite with machine-form predicates per §4.2. | G-M1 + MA-V1 |
 | v2.2 (fix-round-1) | fix-round-1: closes Phase 1 findings Ph1-03; file-shape conformance — A-18 nine-section compliance (§7 Cross-framework handoff folded into §6 Coupling as §6.9/§6.10/§6.11; §8 Judgment → §7; §9 Self-audit → §8; §10 Change log → §9; internal cross-references from §7.3 carrier content updated to §6.11). No axiom, gate, primitive, HR, custody, or semantic change. | spec-l3-fix-round-1 AM-03 + substrate-a18-excerpt.md §4 ruling |
 | v2.2 (fix-round-2) | fix-round-2: closes Phase 2 finding Ph2-Plan-03; §1 Identity scopeOut row added (seven entries enumerating concerns owned by adjacent frameworks: domain-standard validity predicates, M-I runtime execution, AS emission mechanics, Living Memory graph physics, authoring-program pre-plan composition, LIV-Standard code/R4 wiring, B3 re-derivation post-beta). Mirrors AS §1 and M-I §1 scopeOut row shape. No axiom, gate, primitive, HR, custody, carrier, Mode, P8, or TypeScript change. Version unchanged (remains v2.2). | spec-l3-fix-round-2 AM-05 |
+| v2.3 | 2026-05-19 (Side-Quest Shot 4, Phase D) | **ContentClass apparatus alignment, Phase D — Plan Standard.** Predecessor: v2.2 (fix-round-2). Ratified ground: substrate v1.8.3 §4.2 A-24 (Shot 1) + LM v3.4 LMA13 (Shot 2) + Manual SPEC-v13.4 phantom-layer addendum (Shot 3) + AS v2.5 §3.7 S3 Phase D declaration (Shot 4 sibling). **Δ-A:** §6.12 subsection added (Phase D ContentClass classification for L4 program direct emissions). Plan Standard's L4 implementation (F-plan slice) emits two distinct record kinds via `'internal-derivation'`, each receiving a different classification per content-kind discipline: `plan-output` records → `contentClass: 'wearer-life'` (records carry `{role: 'agent', identity: userId}` — wearer cognition); `pipeline-completed` records → `contentClass: 'system-introspection'` (records carry only apparatus identifiers — pipeline-machinery completion metadata). The two-kinds-of-record discipline is the load-bearing Phase D pattern: classification axis is record content kind, not program identity. **Δ-B:** §1 Identity version v2.2 → v2.3. **Δ-C:** Runtime sweep — two callsites: `src/features/F-plan/contract/plan-contract.ts:181` (`writePlanOutput`) changed from provisional `contentClass: 'system-introspection'` to ratified `contentClass: 'wearer-life'`; `src/features/F-plan/app/plan-pipeline.ts:464` (`pipeline-completed` write) ratified at `contentClass: 'system-introspection'` (no literal change; comment update only — Shot 1 provisional confirmed as correct classification by Phase D derivation). No axiom, gate, primitive, HR, custody, carrier, Mode, P7/P8, or TypeScript shape change. Additive per MA-L1 minor. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Side-Quest-Shot4-pending'} | L0 pending |
 
 ---
 
-**End of plan-standard-v2-2. Pending L0 confirmation at regen-cycle-2 closure.**
+**End of plan-standard-v2-3. Side-Quest Shot 4 (Phase D) amendment pending L0 confirmation.**

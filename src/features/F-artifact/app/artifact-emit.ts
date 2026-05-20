@@ -262,7 +262,13 @@ async function runS3(
     },
     metadata: {
       time:   Date.now(),
-      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+      // Side-Quest Shot 4 (Phase D, AS v2.5): F-artifact emits via 'internal-derivation'
+      // with contentClass: 'wearer-life'. Basis: artifact-emitted records carry
+      // `author: userId` + name `payload.domain` / `payload.schemaRef` — records of
+      // wearer's emission being materialized as durable artifact (records of wearer
+      // cognition participating in the cognition LIV extends per LM v3.4 LMA13).
+      // Replaces Shot 1 Phase A provisional 'system-introspection' stamp.
+      source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
 

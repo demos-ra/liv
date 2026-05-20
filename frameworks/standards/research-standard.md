@@ -3,7 +3,7 @@ kind: framework
 placement: frameworks/standards/
 ---
 
-# research-standard-v1-0
+# research-standard-v1-1
 
 **Kind:** Framework
 **Level:** L3
@@ -28,7 +28,7 @@ Research Standard is **distinct from F-discover slice (L4)**: F-discover (L4 aut
 | `kind` | `Framework` (per substrate §4 A-10 `Kind` enum; consumed by reference; string-typed) |
 | `mode` | `epistemic` (per substrate §2 Mode enum; `unknown → known`) |
 | `level` | `L3` (per substrate §5 AuthorityLevel; consumed by reference) |
-| `version` | `1.0` (per substrate §7 Semver) |
+| `version` | `1.1` (per substrate §7 Semver; v1.0 → v1.1 per MA-L1 minor at Side-Quest Shot 4 — Phase D ContentClass classification §6.12 added; no axiom/gate/schema change) |
 | `ownershipTemplate` | `Human` (per substrate §4 A-11 Ownership enum; consumed by reference; L0 authors) |
 | `ownershipApplied` | `System-under-L0` (per substrate §4 A-11 Ownership enum) |
 | `stateTemplate` | `declared` (per substrate §9 LifecycleState; consumed by reference) |
@@ -1060,6 +1060,18 @@ All four properties declared. MA-G13 passes. RS is classified as framework (not 
 
 All cross-framework consistency checks pass. No findings.
 
+### §6.12 Phase D ContentClass classification for L4 program direct emissions
+
+*Added Side-Quest Shot 4 (Phase D). Declares the ContentClass classification for L4 programs implementing RS when they emit substrate records via `'internal-derivation'` channel directly (outside the AS v2.2 carrier path declared in §6.11).*
+
+**Classification.** L4 programs implementing Research Standard (e.g., F-discover at v1.0) emit `research-output` / `research-emitted` records via `'internal-derivation'` channel with `contentClass: 'wearer-life'` per substrate v1.8.3 §4.2 A-24 + LM v3.4 LMA13.
+
+**Basis.** `research-output` records carry `identitiesWithRoles: [{role: 'agent', identity: userId}]` — the wearer as agent of the research emission. These records participate in the cognition LIV extends per Manual SPEC-v13.4 Part I §"The phantom layer" structural property: records of wearer cognition (the wearer's research process) are classified as `wearer-life` and enter LMA7 anchor-derivation candidate set; records of LIV's own operation are classified as `system-introspection` and excluded from anchor-candidacy.
+
+**Distinguished from AS-carriered emissions.** RS's primary emission contract is the AS v2.2 carriered `ResearchArtifactContent` (per §6.11) — that emission's ContentClass is owned by AS v2.5 §3.7 S3 derivation (declared `contentClass: 'wearer-life'`). The §6.12 declaration is for L4 programs' direct internal-derivation writes that happen alongside the AS-carriered emission (e.g., F-discover's `writeResearchOutput` at `src/features/F-discover/contract/discover-contract.ts`).
+
+**Runtime callsite.** `src/features/F-discover/contract/discover-contract.ts` line ~158 (`writeResearchOutput` function) — supersedes Shot 1 Phase A provisional `'system-introspection'` stamp.
+
 ---
 
 ## §9 Change log
@@ -1067,6 +1079,7 @@ All cross-framework consistency checks pass. No findings.
 | Version | Date | Change | Source |
 |---|---|---|---|
 | v1.0 | 2026-05-02 | Initial declaration. Generated against metaframework-v3-1 v3.2.7 via generation-procedure-v1-0 v1.1.6 under substrate-v1-1 v1.6. Six RS-local P1 axes (Input, Question, Finding, Source, Closure, Self-application) with Decomposition cross-axis-shared positional with Question per types.ts authoritative declaration (line 228 comment); axis names derived from types.ts Positional enum prefixes per D-RS-AXES-FROM-TYPES (§10). Ten axioms RA1..RA10 with 1:1 axis-axiom binding (RA2 attached at Question/decomposition cross-axis; RA4 cross-axis Source ↔ Finding; RA6 cross-axis Question ↔ Source ↔ Closure; RA7 cross-axis Closure ↔ full content; RA10 cross-axis Input ↔ Question/priorKnowledge). RA8 closing self-application as the epistemic-mode-specific invariant; RA10 closing priorKnowledge verbatim-carry as the input-side symmetric to RA9 question-freeze (epistemic-mode-specific input verbatim invariant absent from VS). Ten paired gates G-RS1..G-RS10 (1:1 per G-M1). Four HRs HR-RS1..HR-RS4 with captureShape per substrate §8.2 amended P6. P7=0 (mechanical) and P8=0 (Mode=epistemic + substrate §8.3 generative-only binding) positive empty-declarations per A-17. Carrier = named → Artifact Standard v2.2 (structural symmetry with VS v1.0 + Plan v2.2 — all three L3 mode-primitive frameworks carriered through AS at the same version). ResearchBinding shape declared with zero domain instances at v1.0 deployed-spec level (frozen shape; F-discover slice supplies LIV-architecture smoke binding at Sprint 5 close per F-discover D-RS-BINDING-V1; full domain bindings deferred per natural-defer). `referentCitations: []` declared with basis per VS v1.0 + Cognitive v1.2.2 precedent. Provenance reference-default per A-20. Cycle-2 referent infrastructure (G-V10 + G-S8 + G-L11) inherited and vacuous-pass per zero-citation declaration. R5 types file `research-standard.types.ts` (680 lines, 47 RA-references) deployed Sprint 5 HEAD `9862092` ahead of spec md; spec md authored Sprint 5.5 Shot 1 closes Playbook §1.20 strict-functional-rule gap surfaced by types.ts line 73 canonical-spec marker. Distinct from F-discover (L4 authoring program) by tier and concern: RS declares the contract; F-discover composes against it. Six D-rows recorded §10 (D-RS-AXES-FROM-TYPES, D-RS-P8-EMPTY, D-RS-RA10-PRIORKNOWLEDGE, D-RS-RA-SEMANTICS-MAP, D-RS-EPOCHMS-LOCATION, D-RS-AUTHORING-CHANNEL). | Sprint 5.5 Shot 1 dispatch brief (Sprint 5.5 pre-Sprint-6 standards completion) |
+| v1.1 | 2026-05-19 | **Side-Quest Shot 4 — ContentClass apparatus alignment, Phase D — Research Standard.** Predecessor: v1.0 (Sprint 5.5 Shot 1). Ratified ground: substrate v1.8.3 §4.2 A-24 (Shot 1) + LM v3.4 LMA13 (Shot 2) + Manual SPEC-v13.4 phantom-layer addendum (Shot 3) + AS v2.5 §3.7 S3 Phase D declaration (Shot 4 sibling amendment). **Δ-A:** §6.12 subsection added (Phase D ContentClass classification for L4 program direct emissions). Declares: L4 programs implementing RS emit `research-output` records via `'internal-derivation'` with `contentClass: 'wearer-life'` (records carry wearer-as-agent — wearer cognition participating in the cognition LIV extends). Distinguished from AS-carriered `ResearchArtifactContent` emissions (§6.11) which are governed by AS v2.5 §3.7 S3 declaration. **Δ-B:** §1 Identity version v1.0 → v1.1. **Δ-C:** Runtime sweep: `src/features/F-discover/contract/discover-contract.ts:158` callsite changed from provisional `contentClass: 'system-introspection'` to ratified `contentClass: 'wearer-life'` (supersedes Shot 1 Phase A provisional). No axiom, gate, primitive, HR, custody, carrier, Mode, P7/P8, or TypeScript shape change. Additive per MA-L1 minor. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Side-Quest-Shot4-pending'} | L0 pending |
 
 ---
 

@@ -158,7 +158,15 @@ function writeVerificationOutput(userId: string, turnId: string, projectId: stri
     },
     metadata: {
       time:   Date.now(),
-      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+      // Side-Quest Shot 4 (Phase D, Verification Standard v1.1): F-verify emits via
+      // 'internal-derivation' with contentClass: 'wearer-life'. Basis:
+      // verification-output / verification-emitted records carry
+      // `{role: 'agent', identity: userId}` — the wearer as agent of the
+      // verification emission. Records of wearer cognition (the wearer's
+      // verification process) participating in the cognition LIV extends per
+      // LM v3.4 LMA13.
+      // Replaces Shot 1 Phase A provisional 'system-introspection' stamp.
+      source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
   writeStateChange(write).catch((err: unknown) => {

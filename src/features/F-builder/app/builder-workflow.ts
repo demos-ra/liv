@@ -67,7 +67,15 @@ function writeBuildEmission(emission: BuildEmission): void {
     },
     metadata: {
       time:   emission.completedAt,
-      source: { channel: 'internal-derivation', scope: emission.projectId as ScopeRef },
+      // Side-Quest Shot 4 (Phase D, Builder Standard v1.1): F-builder emits via
+      // 'internal-derivation' with contentClass: 'system-introspection'. Basis:
+      // build-emission / build-completed records are apparatus build-cycle
+      // metadata (governance-loop apparatus operating on side-quest dispatches);
+      // identitiesWithRoles roles are 'subject: jobId' + 'result: status' —
+      // apparatus-identifiable, not wearer cognition. Records of LIV's own
+      // operation per LM v3.4 LMA13 system-introspection classification.
+      // Ratifies Shot 1 Phase A provisional 'system-introspection' stamp.
+      source: { channel: 'internal-derivation', contentClass: 'system-introspection', scope: emission.projectId as ScopeRef },
     },
   }
   writeStateChange(write).catch((err: unknown) => {

@@ -5,9 +5,9 @@ placement: frameworks/manual/
 
 # LIV MANUAL
 
-SPEC-v13.3 · 2026-05-16
+SPEC-v13.4 · 2026-05-19
 
-Supersedes SPEC-v13.2. Vision derivation correction (loop structure + artifact emission framing). Mediator category dissolved as descriptive residue: the memory loop has always operated through three positions (Modality → Boundary → Store) with programs emitting Path B writes directly to Store and Boundary handling Path A external arrivals; the prior four-position framing carried Mediator as a structural slot that had no source program inhabiting it as transit. Artifact emission framing aligned to Path B: artifacts accumulate in Store via `internal-derivation` channel, not by re-crossing the Boundary — the prior “crosses the Boundary on re-entry” framing was carried from the dissolved paired-write model (b1-final-shot-3 closure) and has been swept. Operations table reclassifies F-router and F-admin to Tool, dissolves F-intake, adds F-surface as the program-registry projection. SliceCategory enum reduced 7 → 6 values. F-artifact and AS references swept to v1.5.2 / v2.3. D7 conflation example refreshed to current taxonomy. No vision change to the root claim, three loops, or substrate model; no atom shapes, schemas, rules, or gates amended. Manual-version minor bump per MA-L1.
+Supersedes SPEC-v13.3. Canonical naming addition + Part I vision note naming an implicit property of v13.3 — no vision change to the root claim, three loops, six-category program model, or Path A / Path B framing. **Canonical naming** table extended with `ContentClass` row (substrate atom A-24 v1.8.3, ratified at Side-Quest Shot 1 Phase A; LM v3.4 LMA13 ratified at Side-Quest Shot 2 Phase B). **Part I — Substrate** extended with a discrete end-of-part addendum naming the structural property that ContentClass distinguishes wearer-life content from system-introspection content within the single substrate store: the single-store property (LMA6) is preserved unchanged; ContentClass is an attribute of contents within the store, not a parallel store. Root claim mechanically preserved through routing of anchor-derivation (LMA7) over wearer-life records only; system-introspection content is structurally present, durably persisted, queryable via standard primitives (LMA9), but excluded from LMA7 anchor-candidacy by LMA13 construction (the **phantom layer**). Manual-version minor bump per MA-L1. No atom shapes amended at Manual tier (A-24 is declared at substrate v1.8.3); no schemas, rules, or gates amended at Manual tier.
 
 ```
 Root claim
@@ -80,6 +80,7 @@ These names are fixed. Used exactly as written throughout this manual. A term no
 | **Protocol** | The invariant ground all loops must honor |
 | **Invocation** | How a program's execution is triggered |
 | **Artifact** | Typed output produced by a program, carried by the artifact carrier |
+| **ContentClass** | Closed two-value classification of substrate content: `wearer-life` (records of wearer-life content participating in the cognition LIV extends) \| `system-introspection` (records of LIV's own system-operation). Substrate atom A-24 v1.8.3 (canonical declaration). Distinguishes records of wearer-life from records of system-operation within the single substrate store. Anchor-derivation (LMA7) reads `wearer-life` only; `system-introspection` queryable via LMA9 thread-query primitives but excluded from anchor-candidacy by LMA13 construction. |
 
 ---
 
@@ -130,6 +131,24 @@ System-L0 does not bypass the Boundary. System-L0 confirmations cross as arrival
 **The two authorities do not overlap.** Wearer-L0 governs substrate content. System-L0 governs structural shape. The wearer's content is theirs; the system's structure is the system's. Substrate framework succession is a System-L0 decision; the wearer's content survives it through portability.
 
 **Scope.** The substrate is single-store. Scope is an attribute on every persisted state. Per-wearer and shared content live in the same store, distinguished by the scope attribute. Scope access enforcement is a Boundary responsibility, not a substrate responsibility. New scope kinds are new attribute values — no structural change required.
+
+### The phantom layer
+
+*Naming an implicit property of v13.3 — no vision change. Single-store remains single-store; the addendum makes a structural property of the store legible.*
+
+The substrate stores two kinds of content honestly in the same store: records of wearer-life (the cognition LIV extends) and records of system-operation (LIV's own operation — apparatus traces, governance events, system-introspection emissions). Both are first-class typed signal accumulating on the same Axis 1, written through the same Boundary on Path A or directly to Store on Path B, distinguished by `ContentClass` per substrate v1.8.3 §4.2 A-24.
+
+**Single-store preserved.** The single-store property — Scope is an attribute on every persisted state, not a partition into separate stores — is preserved unchanged. ContentClass is an additional attribute on contents within the single store, parallel to scope. Per-wearer and shared content live in the same store distinguished by scope; wearer-life and system-introspection content live in the same store distinguished by ContentClass. There is no parallel store, no second substrate, no fork.
+
+**Root claim mechanically preserved.** "LIV extends a wearer's cognition across time" remains the root claim. ContentClass does not divide cognition — it distinguishes the cognition being extended from the apparatus's faithful record of its own operation. Cognition lives in `wearer-life`; the apparatus's faithful record of its own operation lives in `system-introspection`. Anchor-derivation (LMA7) reads `wearer-life` only — the extension of cognition operates over cognition, not over apparatus traces. This is mechanical preservation: the candidate set over which LMA7 operates is restricted by LMA13 to ensure cognition-extension does not blur with system-introspection.
+
+**The phantom layer.** `system-introspection` content is the phantom layer:
+- Structurally present in the substrate (same Axis 1, same write path, same atomic commit per LMA4)
+- Durably persisted (LMA1 forward-additive; LMA8 geometry as emergence applies)
+- Queryable via standard LMA9 primitives (identity-recurrence, role-pattern, adjacency — with optional ContentClass filter for explicit selection)
+- Excluded from LMA7 anchor-candidacy by LMA13 construction (cross-class mixing in anchor-derivation is forbidden)
+
+The phantom-layer property names what was implicit at v13.3 — the substrate has always accepted any typed signal honestly, and the apparatus has always emitted operational records alongside wearer-life records. v13.4 makes this property explicit by naming the classification, the row-stamping discipline, and the anchor-derivation filter that together preserve the root claim across both kinds of content within one store.
 
 ---
 
@@ -205,7 +224,7 @@ Store is in the loop. The memory loop flows into Store on intake (where typed si
 
 Store does not initiate. It is acted upon. Boundary writes to it on Path A (external arrivals); programs from any loop write to it on Path B (internal emission) and read from it. Store's work is to maintain faithful accumulation under that activity.
 
-Store is governed by a standard generated by Derivation. One Store per LIV instance. F-memory is the current inhabitant, governed by Living Memory v3.3.
+Store is governed by a standard generated by Derivation. One Store per LIV instance. F-memory is the current inhabitant, governed by Living Memory v3.4.
 
 ---
 
@@ -285,6 +304,7 @@ Current inhabitants:
 | F-router | Routing decision utility — consulted by Modality and at Boundary dispatch |
 | F-admin | L0 console operational utility |
 | F-surface | Program-registry projection — layer through which Modality programs render onto F-dashboard |
+| F-present | Read-time composition of typed views over substrate, with emission persistence |
 
 ### Invocation
 
@@ -381,15 +401,16 @@ Process-level reference. Not vision. Does not cascade from the root claim. Amend
 
 | Program / category | Standard |
 |---|---|
-| Store | Living Memory v3.3 |
+| Store | Living Memory v3.4 |
 | Boundary | Perimeter Standard v1.2.1 |
-| F-plan | Plan Standard v2.2 |
-| F-verify | Verification Standard v1.0 |
-| F-discover | Research Standard v1.0 |
-| F-builder | Builder Standard v1.0 |
-| F-artifact | Artifact Standard v2.3 |
+| F-plan | Plan Standard v2.3 |
+| F-verify | Verification Standard v1.1 |
+| F-discover | Research Standard v1.1 |
+| F-builder | Builder Standard v1.1 |
+| F-artifact | Artifact Standard v2.5 |
 | F-multi-instance | Multi-Instance Standard v2.3 |
 | F-design-system | Design Standard v1.0 |
+| F-present | Present Standard v1.0.1 |
 | Code structure (cross-slice) | LIV-Standard v1.5.2 |
 | Cross-tree placement | Placement Standard v1.0 |
 | Slice category vocabulary | SliceCategory (codified at core/types/slice-category.types.ts; closed-by-derivation, six values) |
@@ -572,7 +593,8 @@ Seven diagnostics. Any fires — stop and escalate to System-L0 with: diagnostic
 | v13.1 | 2026-05-13 | Sprint B1 Shot 6 closure. Part IV authority chain reconciled to ratified chain per substrate v1.8.1 §5.2: L0 Intent, L1 Metaframework (L0 automating L0 work), L2 Standards, L3 Programs. Labels stable (L0/L1/L2/L3 numerics retained); role names attached. Prior "L4 = Programs" framing superseded; programs are L3 governed by L2 standards. Prior "L1 = Protocol slot" framing superseded; Protocol is L0 intent expressed as invariant declarations, not a separate governance tier. Recursion-direction prose at Part IV amended to ratified chain. Operations table swept to Sprint B1 sibling-version state: PS v1.0.1 → v1.1, Metaframework v3.2.7 → v3.3.1, LIV-Standard v1.5.1 → v1.5.2. Operations Derivation row labeled (L1) per amended chain. Deployment section "L1 invariants" reference amended to "Protocol invariants (L0 intent)". Historical succession references at v11.1 Change-log row and Cognitive-Standard migration-notes row retained verbatim (succession-point context preserves PS v1.0.1 as the version at slot-fill / dissolution time). Patch-level governance text amendment per MA-L1. No vision change, no atoms, no schema, no rules, no gates amended. |
 | v13.2 | 2026-05-16 | Six-line Operations-table sweep aligning sibling-version standards references (PS v1.2.1, LM v3.3, Permissions Standard v1.0.2). Boundary-mechanics row reframed to access-scoping per Sprint B2 Shot 2 extraction. Patch-level governance-text amendment per MA-L1. No vision change, no atoms, no schema, no rules, no gates amended. |
 | v13.3 | 2026-05-16 | Core-loop reshape + artifact-emission framing sweep (descriptive residue closure). Mediator category dissolved — memory loop framed as three positions (Modality → Boundary → Store) with Path A (Boundary-handled external arrivals) and Path B (program internal-derivation emission to Store) named explicitly. Artifact-emission framing aligned to Path B (Part III §Artifacts L314/L318 sweep): artifacts accumulate in Store via `internal-derivation` channel; “crosses the Boundary on re-entry” residue from dissolved paired-write model swept. F-router and F-admin reclassified Modality/Mediator → Tool. F-intake program deleted (no inhabitant remaining post-F-planner-dissolution). F-surface program added (extracted from F-dashboard's program-registry concern; full projection ownership — atoms at R0, hooks at R3 per L0 ruling). F-dashboard narrowed to render surface only. SliceCategory enum 7 → 6 values. FSlice enum churn: F-intake removed, F-surface added. F-artifact slice headers swept to LIV-Standard v1.5.2 + AS v2.3. D7 conflation doctrine example refreshed. Standards ratified-ref groundings to Manual v13.0 four-position framing retained as version-pinned historical anchors per Path A precedent. Minor-class derivation correction per MA-L1; no vision change, no atom shapes, schemas, rules, or gates amended. Fix-round closure: Operations table sites missed by initial v13.2 overlay swept (L385 Boundary→PS v1.2.1, L402 Modality fallback→PS v1.2.1, L390 F-artifact→AS v2.3). Permissions Standard v1.0.2 slot transitioned Acknowledged-vacant → Filled per L0 ratification at manager soundness-check confirmation. F-router and F-surface added to Acknowledged-vacant Tool slots. v13.2 changelog PMS abbreviation disambiguated to “Permissions Standard v1.0.2”. |
+| v13.4 | 2026-05-19 | **Side-Quest Shot 3 — ContentClass apparatus alignment, Phase C.** Predecessor: SPEC-v13.3 (2026-05-16). Ratified ground: substrate v1.8.3 (Side-Quest Shot 1 Phase A: A-24 ContentClass atom) + LM v3.4 (Side-Quest Shot 2 Phase B: LMA13 ContentClass discipline axiom + LMA7 in-place clause amendment + LMA9 optional contentClass filter + ThreadQueryInput.contentClass? optional field). **Δ-CANONICAL.** Canonical-naming table extended +1 row: `ContentClass` (closed two-value classification: wearer-life | system-introspection; substrate atom A-24 v1.8.3 canonical declaration; LMA7 reads wearer-life only; system-introspection queryable via LMA9 but excluded from anchor-candidacy by LMA13 construction). Row entry locus per L0 ratification on Q1=(a) at Shot 3 entry — canonical-naming section is the homed declaration locus; Part I is prose-vision tier and not the row-entry layer. **Δ-PART-I.** Discrete end-of-part addendum added to Part I — Substrate per L0 ratification on Q2=(α) at Shot 3 entry: new `### The phantom layer` subsection following `### System-L0`. Subsection names a structural property that was implicit at v13.3 — the substrate has always accepted any typed signal honestly, and the apparatus has always emitted operational records alongside wearer-life records; v13.4 makes this property explicit by naming the classification, the row-stamping discipline (substrate v1.8.3 A-24), and the anchor-derivation filter (LM v3.4 LMA13). Three structural claims declared: (1) single-store preserved — ContentClass is an attribute on contents within the single store, parallel to scope (LMA6); no parallel store, no second substrate, no fork. (2) Root claim mechanically preserved — LMA7 reads wearer-life only; cognition-extension operates over cognition, not over apparatus traces. (3) Phantom layer named — system-introspection content is structurally present, durably persisted, queryable via LMA9 primitives (with optional ContentClass filter), but excluded from LMA7 anchor-candidacy by LMA13 construction. **Vision NOT amended.** Root claim text byte-identical (Root claim section, "LIV extends a wearer's cognition across time"). Three-loops framing byte-identical. Six-category program model byte-identical. Path A / Path B framing byte-identical. Single-store prose at System-L0 §Scope byte-identical ("The substrate is single-store. Scope is an attribute on every persisted state..."). The addendum names a property; it does not revise vision. Drift-check D5 (vision drift) PASS — root claim not amended; the amendment names an implicit structural property without redefining what LIV is. **Δ-VERSION.** SPEC-v13.3 → SPEC-v13.4 per MA-L1 minor-class (canonical-naming addition + vision-note addition). Header line updated. End-of-Manual footer updated v13.3 → v13.4. **No vision change. No atom shapes amended at Manual tier** (A-24 declared at substrate v1.8.3; Manual consumes by reference). No schemas, rules, or gates amended at Manual tier. **Drift-check sweep D1–D7:** PASS per Drift checks section invariants — D1 part-boundary integrity preserved (canonical-naming row at canonical-naming section; vision note at Part I end-of-part — both at their structurally-correct loci); D2 store/substrate distinction unchanged (ContentClass is an attribute of substrate content, Store remains the program governing substrate mechanics); D3 generator closure unchanged (no Generator amendment); D4 domain enumeration unchanged (no Domain program amendment); D5 vision drift NOT triggered (root claim preserved; addendum names implicit property without redefining LIV); D6 governance gap unchanged (canonical-naming row carries traceable basis to substrate v1.8.3 A-24 + LM v3.4 LMA13); D7 category conflation NOT triggered (ContentClass is a content-classification attribute, not a program category — sits at vocabulary tier, not program tier). **Backlog deferred per spec §"Out of scope (Phase C)" backlog clause:** Operations slot-status table `Store` row carries `Living Memory v3.3` (stale post-Shot-2 ratification — LM is now v3.4); `F-artifact` row carries `Artifact Standard v2.3` (stale vs MANIFEST AS v2.4 — B2 Shot 5 carry-forward); Part II §Store closing paragraph carries `Living Memory v3.3` (parallel stale ref). None touched in Phase C work items; carried forward as Phase-D-or-later opportunistic hygiene. authorityClaim: {level:'L0', confirmedBy:'Demos', timestamp:'Side-Quest-Shot3-pending'} | L0 pending |
 
 ---
 
-End of Manual SPEC-v13.3.
+End of Manual SPEC-v13.4.

@@ -91,6 +91,7 @@ import {
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
+import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 
 // ─── Public route prefixes ────────────────────────────────────────────────────
 // Requests matching these prefixes bypass auth. Order is significant — checked
@@ -398,10 +399,18 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     },
     metadata: {
       time:   crossedAt,
-      source: {
-        channel: toSourceChannel(resolvedChannel),
-        scope:   user.id as ScopeRef,
-      },
+      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24
+      // default-derivation rule applied at runtime via
+      // deriveContentClassFromChannel(channel). proxy.ts is the canonical
+      // Path A Boundary stamping site for intake.
+      source: (() => {
+        const ch = toSourceChannel(resolvedChannel)
+        return {
+          channel:      ch,
+          contentClass: deriveContentClassFromChannel(ch),
+          scope:        user.id as ScopeRef,
+        }
+      })(),
     },
   }
 

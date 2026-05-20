@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -75,8 +75,9 @@ function rowToRecord(row: StateChangeRow): StateChangeRecord {
     metadata: {
       time:     Number(row.time_ms),
       source: {
-        channel: row.source_channel as SubstrateSourceRef['channel'],
-        scope:   row.source_scope as ScopeRef,         // brand: external origin
+        channel:      row.source_channel as SubstrateSourceRef['channel'],
+        contentClass: row.source_content_class as SubstrateSourceRef['contentClass'],  // v1.8.3 A-24
+        scope:        row.source_scope as ScopeRef,    // brand: external origin
       },
       position: row.position as PositionRef,           // brand: external origin (number)
     },
@@ -129,13 +130,14 @@ export async function commitStateChange(
 
       await client.query(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
-           (id, position, time_ms, source_channel, source_scope, user_id, identities, relations)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
+           (id, position, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
         [
           id,
           position,
           String(validated.time),
           validated.source.channel,
+          validated.source.contentClass,  // v1.8.3 A-24: stamped at construction site
           validated.source.scope,
           validated.userId,
           JSON.stringify(validated.identities),
@@ -225,7 +227,7 @@ export async function readByPosition(
 ): Promise<Result<StateChangeRecord | null>> {
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position = $1`,
@@ -260,7 +262,7 @@ export async function iterateAxisRows(
 
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position ${op} $1
@@ -303,7 +305,7 @@ export async function readIdentityRecurrence(
     }
 
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE identities @> $1::jsonb${scopeClause}
@@ -370,7 +372,7 @@ export async function readAdjacency(
     }
 
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}
@@ -399,7 +401,7 @@ export async function exportByScope(
 ): Promise<Result<StateChangeRecord[]>> {
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_scope,
+      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE user_id = $1

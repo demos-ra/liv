@@ -143,6 +143,7 @@ import type {
   RoleRef,
   SourceChannel,
 }                                                from '@/core/types/substrate.types'
+import { deriveContentClassFromChannel }         from '@/core/types/substrate.types'
 import type {
   RouterMessage,
   RouterSessionContext,
@@ -538,7 +539,12 @@ export async function POST_message(
       // session.resolvedChannel is ChannelKind ('wearer-message'); SubstrateWriteInput.source.channel
       // expects SourceChannel. Explicit map: 'wearer-message' → 'wearer'. Not a silent coerce.
       // Mapping mirrors src/middleware.ts toSourceChannel(). AI write remains 'ai' — correct, unaffected.
-      source: { channel: channelKindToSourceChannel(session.resolvedChannel), scope: projectId as ScopeRef },
+      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24 default-derivation
+      // rule applied at runtime via deriveContentClassFromChannel(channel).
+      source: (() => {
+        const ch = channelKindToSourceChannel(session.resolvedChannel)
+        return { channel: ch, contentClass: deriveContentClassFromChannel(ch), scope: projectId as ScopeRef }
+      })(),
     },
   }
 
@@ -703,7 +709,9 @@ export async function POST_message(
         },
         metadata: {
           time:   Date.now(),
-          source: { channel: 'ai', scope: projectId as ScopeRef },
+          // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24.
+          // 'ai' channel deterministically → 'wearer-life' per default-derivation rule.
+          source: { channel: 'ai', contentClass: 'wearer-life', scope: projectId as ScopeRef },
         },
       }
 

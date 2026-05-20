@@ -178,7 +178,15 @@ function writePlanOutput(userId: string, projectId: string, planRef: string): vo
     },
     metadata: {
       time:   Date.now(),
-      source: { channel: 'internal-derivation', scope: projectId as ScopeRef },
+      // Side-Quest Shot 4 (Phase D, Plan Standard v2.3): F-plan plan-output emits via
+      // 'internal-derivation' with contentClass: 'wearer-life'. Basis:
+      // plan-output / plan-emitted records carry `{role: 'agent', identity: userId}`
+      // — the wearer as agent of the plan emission. Records of wearer cognition
+      // (the wearer's planning) participating in the cognition LIV extends per
+      // LM v3.4 LMA13. Distinguished from pipeline-completed records
+      // (plan-pipeline.ts:468) which classify as 'system-introspection'.
+      // Replaces Shot 1 Phase A provisional 'system-introspection' stamp.
+      source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
   writeStateChange(write).catch((err: unknown) => {

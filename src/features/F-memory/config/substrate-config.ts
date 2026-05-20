@@ -49,14 +49,15 @@ import type {
 // StateChangeRecord. JSONB columns inflate to typed atoms at the R4 boundary.
 
 export type StateChangeRow = {
-  id:          string
-  position:    number
-  time_ms:     string                          // bigint serialized as string
-  source_channel: string
-  source_scope:   string
-  user_id:     string                          // v3.2: authentication identity of writer
-  identities:  string[]                        // JSONB array of IdentityRef strings
-  relations:   unknown                          // JSONB array of Relation objects (validated at R4 → typed)
+  id:                  string
+  position:            number
+  time_ms:             string                          // bigint serialized as string
+  source_channel:      string
+  source_content_class: string                         // v1.8.3 A-24: ContentClass column on state_change
+  source_scope:        string
+  user_id:             string                          // v3.2: authentication identity of writer
+  identities:          string[]                        // JSONB array of IdentityRef strings
+  relations:           unknown                          // JSONB array of Relation objects (validated at R4 → typed)
 }
 
 // ─── SW1 validation output (post-shape-check, pre-gate) ───────────────────────
