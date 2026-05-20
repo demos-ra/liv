@@ -45,6 +45,7 @@ export const STATE_NAMESPACES: Record<FSlice, string> = {
   'F-discover':        'discover',          // Sprint 11 Shot 6c
   'F-verify':          'verify',            // Sprint 11 Shot 6c
   'F-builder':         'builder',           // Sprint 11 Shot 6c
+  'F-present':         'present',           // Sprint 2 — read-time composition Tool
 }
 
 export const NAMESPACE_OWNER: Record<string, FSlice> = Object.fromEntries(

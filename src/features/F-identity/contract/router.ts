@@ -8,10 +8,12 @@
 // AppRouter type consumed by core/api/trpc-client.ts via this export.
 
 import { createTRPCRouter } from './trpc-procedures'
-import { authRouter } from './auth-routes'
+import { authRouter }       from './auth-routes'
+import { presentRouter }    from '@/features/F-present/contract/present-contract'
 
 export const appRouter = createTRPCRouter({
-  auth: authRouter,
+  auth:    authRouter,
+  present: presentRouter,
   // chat:    chatRouter,    ← Phase B
   // project: projectRouter, ← Phase B
 })

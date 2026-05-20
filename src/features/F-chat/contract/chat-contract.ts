@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1 sprint-2-shot-6
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -13,6 +13,7 @@
 //             sprint-13-shot-1 (dispatch wire: routeResult.ok branch dispatches to cycle program contract entries)
 //             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
 //             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
+//             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -23,12 +24,12 @@
 //   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
 //   W-HOOK  isPipelineActive     F-plan/contract/plan-contract  (R3→R3, read-only query)
 //   W-FN    writeStateChange     F-memory/contract/substrate-contract  (HR-LM1 write surface)
-//   W-FN    threadQuery          F-memory/contract/substrate-contract  (thread read surface)
+//   W-FN    present              F-present/contract/present-contract   (sprint-2-shot-6: replaces threadQuery at context assembly)
 //   W-FN    route                F-router/contract/router-contract     (message routing)
 //   W-FN    generateId           core/types/primitives                 (turnId generation)
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
-//   W-ATOM  ThreadQueryInput     core/types/substrate.types
-//   W-ATOM  ThreadResult         core/types/substrate.types
+//   W-ATOM  PresentView          F-present/contract/present-contract   (sprint-2-shot-6: replaces ThreadResult as contextRef type)
+//   W-ATOM  PresentReadIntent    F-present/contract/present-contract   (sprint-2-shot-6)
 //   W-ATOM  ChannelKind          core/types/perimeter-standard.types  (sprint-b1-shot-1: Decision-D-CHANNEL mapping)
 //   W-ATOM  RouterMessage        F-router/config/router-types
 //   W-ATOM  RouterSessionContext F-router/config/router-types
@@ -62,7 +63,7 @@
 //
 // Chat Standard v1.0 alignment:
 //   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
-//   CA2 — substrate threadQuery assembles context before LLM call (lines ~202–230)
+//   CA2 — present() assembles context before LLM call (lines ~591–625; sprint-2-shot-6 migration)
 //   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
 //   CA4 — stream and write are independent; write failure non-fatal to stream (.catch pattern)
 //   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
@@ -129,15 +130,15 @@ import { validateMessageContent }                from '../domain/chat-logic'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
-import { writeStateChange, threadQuery }         from '@/features/F-memory/contract/substrate-contract'
+import { writeStateChange }                       from '@/features/F-memory/contract/substrate-contract'
+import { present }                                from '@/features/F-present/contract/present-contract'
+import type { PresentView, PresentReadIntent, IntentIdRef, FrameworkRef } from '@/features/F-present/contract/present-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
 import type { ChannelKind }                      from '@/core/types/perimeter-standard.types'
 import type {
   SubstrateWriteInput,
-  ThreadQueryInput,
-  ThreadResult,
   IdentityRef,
   ScopeRef,
   RoleRef,
@@ -587,32 +588,37 @@ export async function POST_message(
     })
   }
 
-  // ── Thread query — context assembly — sprint-11-shot-2 ────────────────────
-  // Identity-recurrence on userId, scope-filtered to userId.
-  // Replaces the codec-decoded systemPromptBlock injection (sprint-8-shot-3a removal).
+  // ── F-present context assembly — sprint-2-shot-6 ────────────────────────────
+  // Migrated from direct threadQuery (sprint-11-shot-2) to present() service call.
+  // operation: search-by-identity on session.userId, scope-filtered to projectId.
   // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call not suppressed.
-  let contextRef: ThreadResult | null = null
+  // bound: maxNodes=20, maxThreads=40, walkBudget=100 (conservative starting values per spec §7 note 2).
+  let contextRef: PresentView | null = null
   let systemPrompt = ''
 
   try {
-    const queryInput: ThreadQueryInput = {
-      threadKind: 'identity-recurrence',
-      anchor:     session.userId as IdentityRef,
-      scope:      projectId as ScopeRef,
-      limit:      20,
+    const presentIntent: PresentReadIntent = {
+      intentId:        generateId('intent') as unknown as IntentIdRef,
+      consumerRef:     'F-chat' as unknown as FrameworkRef,
+      userId:          session.userId,
+      scopeRef:        projectId as unknown as ScopeRef,
+      operation:       { kind: 'search-by-identity' },
+      parameter:       { kind: 'search-by-identity', identity: session.userId as IdentityRef },
+      currentPosition: null,
+      bound:           { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
+      provenance:      { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
     }
-    const queryResult = await threadQuery(queryInput, session.userId)
-    if (queryResult.ok && queryResult.data.records.length > 0) {
-      contextRef   = queryResult.data
-      // Assemble system prompt from thread records: surface identity anchors as context lines.
-      const lines  = queryResult.data.records.map(r =>
-        r.content.identities.join(' | ')
-      )
+    const viewResult = await present(presentIntent)
+    if (viewResult.ok && viewResult.data.composition.nodes.length > 0) {
+      contextRef   = viewResult.data
+      // System prompt assembly from PresentView: dominantSurfaceForm per node (identity string as fallback).
+      // Equivalent to prior identity-join per record; richer when dominantSurfaceForm is distinct.
+      const lines  = viewResult.data.composition.nodes.map(n => n.dominantSurfaceForm || n.identity)
       systemPrompt = lines.join('\n')
     }
   } catch (err) {
     // §5.6: substrate read failure — proceed with empty system prompt.
-    console.error('[chat] thread query failed', err instanceof Error ? err.message : err)
+    console.error('[chat] present() context assembly failed', err instanceof Error ? err.message : err)
   }
 
   // ── F-router dispatch — sprint-11-shot-2 / sprint-13-shot-1 ─────────────────

@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.4
-// amended:    none
+// amended:    sprint-2-shot-6 (threadQuery removed from inbound; present() added from F-present/R3)
 // slice:      F-chat
 // category:   Modality
 // layer:      R0
@@ -21,7 +21,7 @@
 //   W-ATOM  providerForModel       ←  F-ai-adapter/R0 (ai-adapter-config)
 //   W-ATOM  MODELS                 ←  F-ai-adapter/R0 (ai-adapter-config)
 //   W-FN    traverse()             ←  F-memory/R3 (memory-contract)
-//   W-FN    Present()              ←  F-memory/R3 (memory-contract; LM v2.2 §D, replaces v2.1 getPresentState)
+//   W-FN    present()              ←  F-present/R3 (present-contract; sprint-2-shot-6: replaces direct threadQuery for context assembly)
 //   W-FN    getApiKey()            ←  F-user-profile/R3 (user-profile-contract)
 //   W-ATOM  PROVIDERS              ←  F-user-profile/R0 (provider-keys-config)
 //   W-ATOM  ProviderId             ←  F-user-profile/R0 (provider-keys-config)

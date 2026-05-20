@@ -137,6 +137,7 @@ export type FSlice =
   | 'F-discover'    // Sprint 11 Shot 3 — discovery/research program
   | 'F-verify'      // Sprint 11 Shot 3 — verification program
   | 'F-builder'     // Sprint 11 Shot 5 — build execution slice (F-planner spin-out)
+  | 'F-present'     // Sprint 2 — read-time composition Tool
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 

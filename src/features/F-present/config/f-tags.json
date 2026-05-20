@@ -1,0 +1,62 @@
+{
+  "version": "2.1.0",
+  "format": {
+    "pattern": "F-[a-z][a-z0-9-]*",
+    "description": "Kebab-case, starts with lowercase letter"
+  },
+  "core_infrastructure": {
+    "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
+    "modules": [
+      "src/core/db/client.ts        — Postgres pool singleton",
+      "src/core/api/trpc-setup.ts   — tRPC init",
+      "src/core/api/trpc-client.ts  — tRPC React client",
+      "src/core/api/router.ts       — App router assembly",
+      "src/core/types/primitives.ts — Shared types and ID generation",
+      "src/core/types/state-registry.ts — Namespace registry map"
+    ]
+  },
+  "completeness": {
+    "required_layers": [
+      "domain",
+      "contract",
+      "exec"
+    ],
+    "optional_layers": [
+      "config",
+      "app"
+    ],
+    "exceptions": {}
+  },
+  "slice": {
+    "name": "F-present",
+    "category": "Tool",
+    "governed_by": "Present Standard v1.0.1",
+    "description": "Read-time composition Tool. Derives PresentView from substrate state via 5 wearer operations and 4 LMA9 read primitives. Emits PresentViewEmission to substrate on each invocation.",
+    "r_tier_exception": null,
+    "sprint_introduced": "Sprint 2"
+  },
+  "declared_slices": [
+    "F-admin",
+    "F-ai-adapter",
+    "F-artifact",
+    "F-builder",
+    "F-chat",
+    "F-dashboard",
+    "F-design-system",
+    "F-discover",
+    "F-event-system",
+    "F-executor",
+    "F-identity",
+    "F-memory",
+    "F-multi-instance",
+    "F-output",
+    "F-permissions",
+    "F-plan",
+    "F-present",
+    "F-project",
+    "F-router",
+    "F-surface",
+    "F-user-profile",
+    "F-verify"
+  ]
+}
