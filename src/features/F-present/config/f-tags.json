@@ -30,8 +30,8 @@
   "slice": {
     "name": "F-present",
     "category": "Tool",
-    "governed_by": "Present Standard v1.0.1",
-    "description": "Read-time composition Tool. Derives PresentView from substrate state via 5 wearer operations and 4 LMA9 read primitives. Emits PresentViewEmission to substrate on each invocation.",
+    "governed_by": "Present Standard v2.0",
+    "description": "Read-time composition Tool. Derives PresentView from substrate state via one parameterized operation present(standpoint, focus, ordering) over the LMA9 read primitives. Emits PresentViewEmission to substrate on each invocation.",
     "r_tier_exception": null,
     "sprint_introduced": "Sprint 2"
   },

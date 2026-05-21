@@ -1,54 +1,68 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/validate-intent.ts]
-// Sprint 2 — Shot 2
+// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
-// PR1 — J-operation-binding mechanical check per Present Standard v1.0.1 §7.1.
-// Six criteria C1–C6. Returns on first failure with failedCriterion populated.
+// PR1 — J-intent-binding mechanical check per Present Standard v2.0 §7.1.
+//
+// v2.0 re-derivation: the v1.0.1 PR1 validated a five-arm operation/parameter
+// pair (criteria C1–C6 over WearerOperation × OperationParameter). Under v2.0
+// there is one operation; the wearer-callable surface is the three independent
+// dimensions of PresentIntent. PR1 validates the three dimensions:
+//   D1 standpoint — PositionRef | null (no further constraint; null = live present)
+//   D2 focus      — FocusSelector: well-formed 3-arm discriminated union
+//   D3 ordering   — OrderingSelector: axis ∈ {time,identity,role}, direction optional
+//
 // Pure function — no I/O, no cross-slice calls.
 
-import type { PresentReadIntent, WearerOperation, OperationParameter } from '../config/present-types'
+import type { PresentIntent, FocusSelector } from '../config/present-types'
 import type { PresentResult } from '../config/present-errors'
 
-const VALID_OPERATION_KINDS: ReadonlySet<WearerOperation['kind']> = new Set([
-  'search-by-identity',
-  'search-by-role',
-  'default-entry',
-  'move-neighborhood',
-  'move-trajectory',
+const VALID_FOCUS_KINDS: ReadonlySet<FocusSelector['kind']> = new Set([
+  'identity',
+  'identity-role',
+  'density',
 ])
 
-export function validateIntent(intent: PresentReadIntent): PresentResult<PresentReadIntent> {
-  // C1: operation.kind ∈ {5 valid kinds}
-  if (!VALID_OPERATION_KINDS.has(intent.operation.kind)) {
-    return {
-      ok: false,
-      error: {
-        code:            'PRESENT_INTENT_INVALID',
-        failedCriterion: 'C1',
-        message:         `operation.kind '${intent.operation.kind}' is not a valid WearerOperation kind`,
-      },
+const VALID_ORDERING_AXES: ReadonlySet<string> = new Set([
+  'time',
+  'identity',
+  'role',
+])
+
+export function validateIntent(intent: PresentIntent): PresentResult<PresentIntent> {
+  // C1: standpoint is PositionRef | null.
+  //   null = the live present (head). non-null = a Reading-A snapshot ceiling.
+  //   A PositionRef is a monotonic integer; reject non-integer / negative.
+  if (intent.standpoint !== null) {
+    if (typeof intent.standpoint !== 'number' || !Number.isInteger(intent.standpoint) || intent.standpoint < 0) {
+      return {
+        ok: false,
+        error: {
+          code:            'PRESENT_INTENT_INVALID',
+          failedCriterion: 'C1',
+          message:         `standpoint must be null or a non-negative integer PositionRef; got '${intent.standpoint}'`,
+        },
+      }
     }
   }
 
-  // C2: parameter.kind === operation.kind (discriminated union alignment)
-  if (intent.parameter.kind !== intent.operation.kind) {
+  // C2: focus.kind ∈ {identity, identity-role, density}.
+  if (!intent.focus || !VALID_FOCUS_KINDS.has(intent.focus.kind)) {
     return {
       ok: false,
       error: {
         code:            'PRESENT_INTENT_INVALID',
         failedCriterion: 'C2',
-        message:         `parameter.kind '${intent.parameter.kind}' does not match operation.kind '${intent.operation.kind}'`,
+        message:         `focus.kind '${intent.focus?.kind}' is not a valid FocusSelector kind`,
       },
     }
   }
 
-  // C3: parameter conforms to OperationParameter discriminated-union arm per kind.
-  //   TypeScript's type system narrows at compile time; runtime checks cover
-  //   required fields missing from the arm (e.g., identity absent on search-by-identity).
-  const c3Error = validateParameterArm(intent.operation.kind, intent.parameter)
+  // C3: focus arm-specific field checks.
+  const c3Error = validateFocusArm(intent.focus)
   if (c3Error) {
     return {
       ok: false,
@@ -60,71 +74,44 @@ export function validateIntent(intent: PresentReadIntent): PresentResult<Present
     }
   }
 
-  // C4: currentPosition cardinality —
-  //   move-*: non-null required
-  //   default-entry: null required
-  //   search-*: null permitted (no enforcement)
-  const opKind = intent.operation.kind
-  if ((opKind === 'move-neighborhood' || opKind === 'move-trajectory') && intent.currentPosition === null) {
+  // C4: ordering.axis ∈ {time, identity, role}.
+  if (!intent.ordering || !VALID_ORDERING_AXES.has(intent.ordering.axis)) {
     return {
       ok: false,
       error: {
         code:            'PRESENT_INTENT_INVALID',
         failedCriterion: 'C4',
-        message:         `currentPosition must be non-null for operation '${opKind}'`,
+        message:         `ordering.axis '${intent.ordering?.axis}' is not a valid ordering axis`,
       },
     }
   }
-  if (opKind === 'default-entry' && intent.currentPosition !== null) {
+
+  // C5: ordering.direction, if present, ∈ {forward, backward}.
+  if (
+    intent.ordering.direction !== undefined &&
+    intent.ordering.direction !== 'forward' &&
+    intent.ordering.direction !== 'backward'
+  ) {
     return {
       ok: false,
       error: {
         code:            'PRESENT_INTENT_INVALID',
-        failedCriterion: 'C4',
-        message:         `currentPosition must be null for operation 'default-entry'`,
+        failedCriterion: 'C5',
+        message:         `ordering.direction '${intent.ordering.direction}' must be 'forward' or 'backward' when present`,
       },
     }
   }
 
-  // C5: for move-*, parameter.relationFilter if present must be a non-empty string (IdentityRef)
-  if (opKind === 'move-neighborhood' || opKind === 'move-trajectory') {
-    const param = intent.parameter as Extract<OperationParameter, { kind: 'move-neighborhood' }> | Extract<OperationParameter, { kind: 'move-trajectory' }>
-    if ('relationFilter' in param && param.relationFilter !== undefined && typeof param.relationFilter !== 'string') {
-      return {
-        ok: false,
-        error: {
-          code:            'PRESENT_INTENT_INVALID',
-          failedCriterion: 'C5',
-          message:         `parameter.relationFilter must be an IdentityRef string when present`,
-        },
-      }
-    }
-    if ('relationFilter' in param && param.relationFilter !== undefined && (param.relationFilter as string).length === 0) {
-      return {
-        ok: false,
-        error: {
-          code:            'PRESENT_INTENT_INVALID',
-          failedCriterion: 'C5',
-          message:         `parameter.relationFilter must be non-empty when present`,
-        },
-      }
-    }
-  }
-
-  // C6: for default-entry, parameter.anchorRule if present ∈ {'identity-density', 'position-density'}
-  if (opKind === 'default-entry') {
-    const param = intent.parameter as Extract<OperationParameter, { kind: 'default-entry' }>
-    if (
-      param.anchorRule !== undefined &&
-      param.anchorRule !== 'identity-density' &&
-      param.anchorRule !== 'position-density'
-    ) {
+  // C6: density focus rule, if present, ∈ {identity-density, position-density}.
+  if (intent.focus.kind === 'density') {
+    const rule = intent.focus.rule
+    if (rule !== undefined && rule !== 'identity-density' && rule !== 'position-density') {
       return {
         ok: false,
         error: {
           code:            'PRESENT_INTENT_INVALID',
           failedCriterion: 'C6',
-          message:         `parameter.anchorRule '${param.anchorRule}' must be 'identity-density' or 'position-density'`,
+          message:         `focus.rule '${rule}' must be 'identity-density' or 'position-density' when present`,
         },
       }
     }
@@ -135,38 +122,25 @@ export function validateIntent(intent: PresentReadIntent): PresentResult<Present
 
 // ── C3 arm-specific field checks ──────────────────────────────────────────────
 
-function validateParameterArm(kind: WearerOperation['kind'], param: OperationParameter): string | null {
-  switch (kind) {
-    case 'search-by-identity': {
-      const p = param as Extract<OperationParameter, { kind: 'search-by-identity' }>
-      if (!p.identity || typeof p.identity !== 'string') return `parameter.identity is required for 'search-by-identity'`
-      return null
-    }
-    case 'search-by-role': {
-      const p = param as Extract<OperationParameter, { kind: 'search-by-role' }>
-      if (!p.identity || typeof p.identity !== 'string') return `parameter.identity is required for 'search-by-role'`
-      if (!p.role    || typeof p.role    !== 'string') return `parameter.role is required for 'search-by-role'`
-      return null
-    }
-    case 'default-entry':
-      // no required fields beyond kind; anchorRule optional (C6 checks membership)
-      return null
-    case 'move-neighborhood': {
-      const p = param as Extract<OperationParameter, { kind: 'move-neighborhood' }>
-      if (typeof p.window !== 'number' || p.window <= 0 || !Number.isInteger(p.window)) {
-        return `parameter.window must be a positive integer for 'move-neighborhood'`
+function validateFocusArm(focus: FocusSelector): string | null {
+  switch (focus.kind) {
+    case 'identity': {
+      if (!focus.identity || typeof focus.identity !== 'string') {
+        return `focus.identity is required for focus kind 'identity'`
       }
       return null
     }
-    case 'move-trajectory': {
-      const p = param as Extract<OperationParameter, { kind: 'move-trajectory' }>
-      if (p.direction !== 'forward' && p.direction !== 'backward') {
-        return `parameter.direction must be 'forward' or 'backward' for 'move-trajectory'`
+    case 'identity-role': {
+      if (!focus.identity || typeof focus.identity !== 'string') {
+        return `focus.identity is required for focus kind 'identity-role'`
       }
-      if (typeof p.count !== 'number' || p.count <= 0 || !Number.isInteger(p.count)) {
-        return `parameter.count must be a positive integer for 'move-trajectory'`
+      if (!focus.role || typeof focus.role !== 'string') {
+        return `focus.role is required for focus kind 'identity-role'`
       }
       return null
     }
+    case 'density':
+      // no required fields beyond kind; rule optional (C6 checks membership)
+      return null
   }
 }

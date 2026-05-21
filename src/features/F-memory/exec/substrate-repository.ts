@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -54,6 +54,7 @@ import type {
   IdentityRef,
   Relation,
   SubstrateSourceRef,
+  ContentClass,
 } from '@/core/types/substrate.types'
 import type {
   StateChangeRow,
@@ -285,11 +286,27 @@ export async function iterateAxisRows(
 // ─── Identity recurrence (TQ3 thread kind: 'identity-recurrence') ─────────────
 // All state-changes whose identities array contains the anchor identity.
 // Optionally scope-filtered.
+//
+// present-rederive-shot-1: two optional read-side filters added.
+//   contentClass? — LM v3.4 LMA13 filter (type added at v3.4; repository
+//     read-path plumbing deferred to "the F-present build sprint" — landed here).
+//     Applied as `AND source_content_class = $n`.
+//   asOfPosition? — LM v3.5 Reading-A position ceiling. Applied as
+//     `AND position <= $n` — an open-ended ceiling: every state-change at or
+//     before the standpoint position. NOT count-limited, NOT direction-dispatched
+//     (it is not the iterateAxisRows clause — that scan is LIMIT-bounded and
+//     direction='backward'/'forward' dispatched; this is a fresh conjunct on this
+//     function's own WHERE clause).
+// Both conjuncts are independently optional: absent ⇒ no conjunct emitted.
+// They compose by AND with each other and with the existing scope and limit
+// clauses. Parameter indices assigned in the existing incremental-`params` style.
 
 export async function readIdentityRecurrence(
   anchor: IdentityRef,
   scope?: ScopeRef,
   limit?: number,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
   try {
     const params: unknown[] = [JSON.stringify([anchor])]
@@ -297,6 +314,16 @@ export async function readIdentityRecurrence(
     if (scope !== undefined) {
       params.push(scope)
       scopeClause = ` AND source_scope = $${params.length}`
+    }
+    let contentClassClause = ''
+    if (contentClass !== undefined) {
+      params.push(contentClass)
+      contentClassClause = ` AND source_content_class = $${params.length}`
+    }
+    let asOfClause = ''
+    if (asOfPosition !== undefined) {
+      params.push(asOfPosition)
+      asOfClause = ` AND position <= $${params.length}`
     }
     let limitClause = ''
     if (typeof limit === 'number' && limit > 0) {
@@ -308,7 +335,7 @@ export async function readIdentityRecurrence(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE identities @> $1::jsonb${scopeClause}
+        WHERE identities @> $1::jsonb${scopeClause}${contentClassClause}${asOfClause}
         ORDER BY position ASC${limitClause}`,
       params,
     )
@@ -332,14 +359,21 @@ export async function readIdentityRecurrence(
 // role match applied in TS by walking the relations JSON for each row.
 // Acceptable at current scale; an (identity, role) GIN index can replace
 // the TS walk if needed (see substrate-config SUBSTRATE_INDICES.identityRole).
+//
+// present-rederive-shot-1: readRolePattern has no SQL of its own — it delegates
+// to readIdentityRecurrence and filters roles in TS. It gains both optional
+// parameters (contentClass?, asOfPosition?) and passes them straight through to
+// readIdentityRecurrence, where the WHERE conjuncts are applied.
 
 export async function readRolePattern(
   anchor: IdentityRef,
   role: string,
   scope?: ScopeRef,
   limit?: number,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
-  const recurrence = await readIdentityRecurrence(anchor, scope, limit)
+  const recurrence = await readIdentityRecurrence(anchor, scope, limit, contentClass, asOfPosition)
   if (!recurrence.ok) return recurrence
 
   const matches = recurrence.data.filter(record =>
@@ -355,11 +389,21 @@ export async function readRolePattern(
 // ─── Adjacency (TQ3 thread kind: 'adjacency') ─────────────────────────────────
 // Position-anchored ± window. Returns ordered ascending. Position gaps are
 // honest (LMA2) — gaps are skipped without error.
+//
+// present-rederive-shot-1: two optional read-side filters added.
+//   contentClass? — LM v3.4 LMA13 filter. Applied as `AND source_content_class = $n`.
+//   asOfPosition? — LM v3.5 Reading-A position ceiling. Applied as
+//     `AND position <= $n` — it clips the upper edge of the BETWEEN window at the
+//     standpoint: a window whose far edge is beyond the standpoint is restricted
+//     to the standpoint. Open-ended ceiling, composes by AND with the window.
+// Both conjuncts independently optional; parameter indices in incremental style.
 
 export async function readAdjacency(
   anchor: PositionRef,
   window: number,
   scope?: ScopeRef,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
   if (window <= 0) return { ok: true, data: [] }
 
@@ -370,12 +414,22 @@ export async function readAdjacency(
       params.push(scope)
       scopeClause = ` AND source_scope = $${params.length}`
     }
+    let contentClassClause = ''
+    if (contentClass !== undefined) {
+      params.push(contentClass)
+      contentClassClause = ` AND source_content_class = $${params.length}`
+    }
+    let asOfClause = ''
+    if (asOfPosition !== undefined) {
+      params.push(asOfPosition)
+      asOfClause = ` AND position <= $${params.length}`
+    }
 
     const result = await db.query<StateChangeRow>(
       `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}
+        WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}${contentClassClause}${asOfClause}
         ORDER BY position ASC`,
       params,
     )

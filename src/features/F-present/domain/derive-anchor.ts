@@ -1,60 +1,51 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/derive-anchor.ts]
-// Sprint 2 — Shot 2
+// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
-// PR3 — Anchor derivation per Present Standard v1.0.1 §3.7.
-// Dispatches on operation.kind → AnchorTrace.
+// PR3 — Anchor derivation per Present Standard v2.0 §3.7.
+// v2.0 re-derivation: anchor is derived from `focus` + `standpoint`, not from a
+// five-arm `operation.kind`. The focus dimension determines the anchor's source
+// and shape; the standpoint dimension is recorded for downstream ceiling wiring
+// (PR4 dispatch-read) but does not itself change the anchor shape.
 //
-// Design note (default-entry crystallization):
-//   PR3 emits an AnchorTrace with derivedAs.identity = userId (seed).
-//   The actual densest identity is crystallized at PR4 (dispatch-read.ts) after
-//   the substrate read. PR4 returns a crystallizedAnchor that either confirms the
-//   seed or promotes the densest result. This is Shape A (see dispatch-read.ts).
-//   PR3 does NOT perform any read — it only emits the trace shell.
-//   PrA7 (no cached anchor maps between invocations) is satisfied: every call
-//   re-derives from scratch; no heap state persists across invocations.
+//   focus 'identity'      → wearer-content anchor on the named identity
+//   focus 'identity-role' → wearer-content anchor on the named identity + role
+//   focus 'density'       → system-derived seed anchor (userId), crystallized at PR4
+//
+// Design note (density crystallization):
+//   For focus='density', PR3 emits an AnchorTrace with derivedAs.identity = userId
+//   (seed). The actual densest identity is crystallized at PR4 (dispatch-read.ts)
+//   after the substrate read. PrA7 (no cached anchor maps between invocations) is
+//   satisfied: every call re-derives from scratch.
 //
 // Pure function — no I/O, no cross-slice calls.
 
-import type { PresentReadIntent, AnchorTrace, OperationParameter } from '../config/present-types'
-import type { IdentityRef, RoleRef } from '@/core/types/substrate.types'
+import type { PresentIntent, AnchorTrace } from '../config/present-types'
+import type { IdentityRef } from '@/core/types/substrate.types'
 
-export function deriveAnchor(intent: PresentReadIntent): AnchorTrace {
-  const op    = intent.operation
-  const param = intent.parameter
+export function deriveAnchor(intent: PresentIntent): AnchorTrace {
+  const focus = intent.focus
 
-  switch (op.kind) {
-    case 'search-by-identity': {
-      const p = param as Extract<OperationParameter, { kind: 'search-by-identity' }>
+  switch (focus.kind) {
+    case 'identity': {
       return {
         source:    'wearer-content',
-        derivedAs: { identity: p.identity },
+        derivedAs: { identity: focus.identity },
       }
     }
 
-    case 'search-by-role': {
-      const p = param as Extract<OperationParameter, { kind: 'search-by-role' }>
+    case 'identity-role': {
       return {
         source:    'wearer-content',
-        derivedAs: { identity: p.identity, role: p.role },
+        derivedAs: { identity: focus.identity, role: focus.role },
       }
     }
 
-    case 'move-neighborhood':
-    case 'move-trajectory': {
-      // C4 validated upstream (currentPosition non-null for move-*).
-      return {
-        source:    'current-position',
-        derivedAs: { position: intent.currentPosition! },
-      }
-    }
-
-    case 'default-entry': {
-      const p    = param as Extract<OperationParameter, { kind: 'default-entry' }>
-      const rule = p.anchorRule ?? 'identity-density'
+    case 'density': {
+      const rule = focus.rule ?? 'identity-density'
       // Seed: userId cast to IdentityRef. PR4 crystallizes the true anchor after reading.
       const seed = intent.userId as unknown as IdentityRef
       return {

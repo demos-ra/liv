@@ -1,11 +1,13 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R0]
 // Built with LIV · livai.dev
 // [F-present/config/present-errors.ts]
 // Sprint 2 — Shot 1
 //
-// PresentError union. Error codes per Present Standard v1.0.1 §4.5.
+// PresentError union. Error codes per Present Standard v2.0 §4.5.
+// present-rederive-shot-2: @present-standard pin bumped v1.0.1 → v2.0; C1–C6
+// criteria + PrG1–PrG8 gates unchanged (validate-intent + run-gates conform).
 
 export type PresentErrorCode =
   | 'PRESENT_INTENT_INVALID'

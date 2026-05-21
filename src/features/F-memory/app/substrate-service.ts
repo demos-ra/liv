@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through), present-rederive-shot-1 (LM v3.4/v3.5: TQ3 threads contentClass? + asOfPosition? to repository reads; identityRecurrence/rolePattern/adjacency wrappers gain the optional parameters)
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -77,6 +77,7 @@ import type {
   RoleRef,
   StateChangeId,
   Relation,
+  ContentClass,
 } from '@/core/types/substrate.types'
 import { REVOKE_REF } from '@/core/types/substrate.types'
 import type {
@@ -440,6 +441,8 @@ async function tq3Execute(
         validated.anchor as IdentityRef,
         validated.scope,
         validated.limit,
+        validated.contentClass,
+        validated.asOfPosition,
       )
       if (!records.ok) return records
       return {
@@ -457,6 +460,8 @@ async function tq3Execute(
         validated.roleFilter as RoleRef,
         validated.scope,
         validated.limit,
+        validated.contentClass,
+        validated.asOfPosition,
       )
       if (!records.ok) return records
       return {
@@ -474,6 +479,8 @@ async function tq3Execute(
         validated.anchor as PositionRef,
         validated.window as number,
         validated.scope,
+        validated.contentClass,
+        validated.asOfPosition,
       )
       if (!records.ok) return records
       // Apply limit at TS level for adjacency (window already bounds; limit
@@ -550,6 +557,9 @@ export async function threadQuery(
 // (6) adjacency          — TQ via threadQuery({ threadKind: 'adjacency' })
 //
 // Convenience wrappers for direct callers (R3 contract surfaces these).
+// present-rederive-shot-1: each wrapper gains optional contentClass? + asOfPosition?
+// parameters, forwarded onto the constructed ThreadQueryInput. Existing callers
+// pass neither — additive-optional, backward-compatible, no callsite sweep.
 
 export async function readStateChange(
   position: PositionRef,
@@ -569,12 +579,16 @@ export async function identityRecurrence(
   anchor: IdentityRef,
   scope?: ScopeRef,
   limit?: number,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<ThreadResult>> {
   return threadQuery({
     threadKind: 'identity-recurrence',
     anchor,
     scope,
     limit,
+    contentClass,
+    asOfPosition,
   })
 }
 
@@ -583,6 +597,8 @@ export async function rolePattern(
   role: RoleRef,
   scope?: ScopeRef,
   limit?: number,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<ThreadResult>> {
   return threadQuery({
     threadKind:  'role-pattern',
@@ -590,6 +606,8 @@ export async function rolePattern(
     roleFilter:  role,
     scope,
     limit,
+    contentClass,
+    asOfPosition,
   })
 }
 
@@ -598,6 +616,8 @@ export async function adjacency(
   window: number,
   scope?: ScopeRef,
   limit?: number,
+  contentClass?: ContentClass,
+  asOfPosition?: PositionRef,
 ): Promise<Result<ThreadResult>> {
   return threadQuery({
     threadKind: 'adjacency',
@@ -605,6 +625,8 @@ export async function adjacency(
     window,
     scope,
     limit,
+    contentClass,
+    asOfPosition,
   })
 }
 

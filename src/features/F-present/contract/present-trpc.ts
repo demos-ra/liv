@@ -1,16 +1,19 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R3]
 // Built with LIV · livai.dev
 // [F-present/contract/present-trpc.ts]
 // Sprint 2 — Shot 5
+// amended: present-rederive-shot-2 (v2.0 contract: Zod schema re-derived to mirror
+//   PresentIntent / FocusSelector / OrderingSelector; WearerOperation +
+//   OperationParameter discriminated-union schemas removed)
 //
 // R3 — tRPC router for F-present.
 // Mirrors F-identity/contract/auth-routes.ts pattern (createTRPCRouter + protectedProcedure + zod input).
 //
-// Zod schema mirrors PresentReadIntent at the API boundary.
+// Zod schema mirrors PresentIntent at the API boundary.
 // TypeScript types remain the source of truth; zod is for runtime validation at boundary.
-// WearerOperation + OperationParameter use discriminatedUnion on `kind`.
+// FocusSelector uses discriminatedUnion on `kind`; OrderingSelector is a plain object.
 //
 // ctx provides userId from the PS-stamped session (protectedProcedure guarantees session non-null).
 // scopeRef sourced from input.scopeRef (caller supplies project/workspace scope).
@@ -22,64 +25,48 @@ import { presentService } from '../app/present-service'
 import { generateId }     from '@/core/types/primitives'
 
 import type {
-  PresentReadIntent,
-  WearerOperation,
-  OperationParameter,
+  PresentIntent,
+  FocusSelector,
+  OrderingSelector,
   FrameworkRef,
   IntentIdRef,
 } from '../config/present-types'
 
-import type { ScopeRef } from '@/core/types/substrate.types'
+import type { ScopeRef, PositionRef } from '@/core/types/substrate.types'
 
-// ── Zod: WearerOperation discriminated union ──────────────────────────────────
+// ── Zod: FocusSelector discriminated union (D2 — LOOKING AT WHAT) ──────────────
 
-const WearerOperationSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('search-by-identity') }),
-  z.object({ kind: z.literal('search-by-role')     }),
-  z.object({ kind: z.literal('default-entry')      }),
-  z.object({ kind: z.literal('move-neighborhood')  }),
-  z.object({ kind: z.literal('move-trajectory')    }),
-])
-
-// ── Zod: OperationParameter discriminated union ───────────────────────────────
-
-const OperationParameterSchema = z.discriminatedUnion('kind', [
+const FocusSelectorSchema = z.discriminatedUnion('kind', [
   z.object({
-    kind:          z.literal('search-by-identity'),
-    identity:      z.string().min(1),
-    scopeOverride: z.string().min(1).optional(),
+    kind:     z.literal('identity'),
+    identity: z.string().min(1),
   }),
   z.object({
-    kind:     z.literal('search-by-role'),
+    kind:     z.literal('identity-role'),
     identity: z.string().min(1),
     role:     z.string().min(1),
   }),
   z.object({
-    kind:          z.literal('default-entry'),
-    anchorRule:    z.enum(['identity-density', 'position-density']).optional(),
-    scopeOverride: z.string().min(1).optional(),
-  }),
-  z.object({
-    kind:           z.literal('move-neighborhood'),
-    window:         z.number().int().positive(),
-    relationFilter: z.string().min(1).optional(),
-  }),
-  z.object({
-    kind:           z.literal('move-trajectory'),
-    direction:      z.enum(['forward', 'backward']),
-    count:          z.number().int().positive(),
-    relationFilter: z.string().min(1).optional(),
+    kind: z.literal('density'),
+    rule: z.enum(['identity-density', 'position-density']).optional(),
   }),
 ])
 
-// ── Zod: PresentReadIntent (without userId — sourced from ctx) ────────────────
+// ── Zod: OrderingSelector (D3 — ARRANGED HOW) ─────────────────────────────────
 
-const PresentReadIntentInput = z.object({
-  consumerRef:     z.string().min(1),
-  scopeRef:        z.string().min(1),
-  operation:       WearerOperationSchema,
-  parameter:       OperationParameterSchema,
-  currentPosition: z.number().int().nullable(),
+const OrderingSelectorSchema = z.object({
+  axis:      z.enum(['time', 'identity', 'role']),
+  direction: z.enum(['forward', 'backward']).optional(),
+})
+
+// ── Zod: PresentIntent (without userId — sourced from ctx) ────────────────────
+
+const PresentIntentInput = z.object({
+  consumerRef: z.string().min(1),
+  scopeRef:    z.string().min(1),
+  standpoint:  z.number().int().nullable(),
+  focus:       FocusSelectorSchema,
+  ordering:    OrderingSelectorSchema,
   bound: z.object({
     maxNodes:   z.number().int().positive(),
     maxThreads: z.number().int().positive(),
@@ -97,17 +84,17 @@ export const presentRouter = createTRPCRouter({
    * userId is sourced from ctx.session (PS-stamped); scopeRef from input.
    */
   read: protectedProcedure
-    .input(PresentReadIntentInput)
+    .input(PresentIntentInput)
     .mutation(async ({ input, ctx }) => {
-      const intent: PresentReadIntent = {
-        intentId:        generateId('intent') as unknown as IntentIdRef,
-        consumerRef:     input.consumerRef    as unknown as FrameworkRef,
-        userId:          ctx.session!.userId,
-        scopeRef:        input.scopeRef       as unknown as ScopeRef,
-        operation:       input.operation      as WearerOperation,
-        parameter:       input.parameter      as OperationParameter,
-        currentPosition: input.currentPosition as any,
-        bound:           input.bound,
+      const intent: PresentIntent = {
+        intentId:    generateId('intent') as unknown as IntentIdRef,
+        consumerRef: input.consumerRef    as unknown as FrameworkRef,
+        userId:      ctx.session!.userId,
+        scopeRef:    input.scopeRef       as unknown as ScopeRef,
+        standpoint:  input.standpoint as PositionRef | null,
+        focus:       input.focus    as FocusSelector,
+        ordering:    input.ordering as OrderingSelector,
+        bound:       input.bound,
         provenance: {
           consumerSlice: input.consumerRef as unknown as FrameworkRef,
           stampedAt:     Date.now(),

@@ -1,29 +1,30 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R2]
 // Built with LIV · livai.dev
 // [F-present/app/present-service.ts]
-// Sprint 2 — Shot 5
+// Sprint 2 — Shot 5; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
-// R2 — Orchestration layer. Composes PR1→PR8 in sequence per Present Standard v1.0.1 §3.7.
+// R2 — Orchestration layer. Composes PR1→PR8 in sequence per Present Standard v2.0 §3.7.
 //
-// PR1  validateIntent    — J-operation-binding six criteria C1–C6
+// PR1  validateIntent    — J-intent-binding (the three dimensions of PresentIntent)
 // PR2  authorizeIntent   — PS handshake mechanics (userId + scopeRef presence)
-// PR3  deriveAnchor      — AnchorTrace dispatch on operation.kind
-// PR4  dispatchRead      — LMA9 primitive dispatch + ContentClass filter
+// PR3  deriveAnchor      — AnchorTrace dispatch on focus + standpoint
+// PR4  dispatchRead      — focus/ordering/standpoint dispatch onto LMA9 primitives
+//                          + ContentClass filter + Reading-A asOfPosition ceiling
 // PR5  composeView       — Option C weighting, LMA5 cluster, LMA3 relations
 // PR6  emitView          — PresentViewEmission via writeStateChange (atomic, LMA4)
 // PR7  runGates          — PrG1–PrG8 runtime audit harness
 // PR8  deliverView       — ViewBound enforcement + consumer return
 //
-// Shot 5 resolves the PerspectiveDeclaration.direction surface from Shot 3:
-//   compose-view now receives OperationParameter alongside WearerOperation so that
-//   move-trajectory can populate perspective.direction from parameter.direction.
-//   compose-view signature extended accordingly (see compose-view.ts amendment note).
+// v2.0 re-derivation:
+//   - The wearer-callable input is PresentIntent (one operation, three dimensions).
+//   - composeView receives the `ordering` dimension directly; perspective IS the
+//     ordering selector (no operation/parameter pair).
+//   - PresentView.provenance.operationApplied is REMOVED (the verb layer collapsed
+//     to one member; the field recorded a dimension with nothing behind it).
 //
-// emittedAt: stamped here (service layer) at the point between PR4 and PR5,
-//   before compose and emit. compose-view receives it as part of the view scaffold;
-//   emit-view uses it as metadata.time.
+// emittedAt: stamped here (service layer) at the point between PR4 and PR5.
 
 import { validateIntent }  from '../domain/validate-intent'
 import { authorizeIntent } from '../domain/authorize-intent'
@@ -35,11 +36,10 @@ import { runGates }        from '../domain/run-gates'
 import { deliverView }     from '../domain/deliver-view'
 import { generateId }      from '@/core/types/primitives'
 
-import type { PresentReadIntent, PresentView, ViewIdRef } from '../config/present-types'
-import type { PresentResult }                              from '../config/present-errors'
-import type { StateChangeId }                              from '@/core/types/substrate.types'
+import type { PresentIntent, PresentView, ViewIdRef } from '../config/present-types'
+import type { PresentResult }                         from '../config/present-errors'
 
-export async function presentService(intent: PresentReadIntent): Promise<PresentResult<PresentView>> {
+export async function presentService(intent: PresentIntent): Promise<PresentResult<PresentView>> {
 
   // PR1
   const v1 = validateIntent(intent)
@@ -60,13 +60,12 @@ export async function presentService(intent: PresentReadIntent): Promise<Present
   const emittedAt = Date.now()
   const viewId    = generateId('view') as unknown as ViewIdRef
 
-  // PR5 — compose-view receives OperationParameter for perspective.direction resolution
+  // PR5 — compose-view receives the ordering dimension; perspective IS the ordering
   const { composition, weightingTrace } = composeView({
-    records:   r4.data.records,
-    anchor:    r4.data.crystallizedAnchor,
-    operation: v2.data.operation,
-    parameter: v2.data.parameter,
-    bound:     v2.data.bound,
+    records:  r4.data.records,
+    anchor:   r4.data.crystallizedAnchor,
+    ordering: v2.data.ordering,
+    bound:    v2.data.bound,
   })
 
   // Assemble PresentView candidate (emission id added to provenance after PR6)
@@ -78,13 +77,12 @@ export async function presentService(intent: PresentReadIntent): Promise<Present
     provenance: {
       sourceStateChangeIds: r4.data.records.map(r => r.id),
       readPrimitivesUsed:   r4.data.traces,
-      operationApplied:     v2.data.operation,
       anchorDerived:        r4.data.crystallizedAnchor,
       weightingApplied:     weightingTrace,
     },
     reversibility: {
       appealCourtIs:    'substrate-state-change-table',
-      replayDiscipline: 'invoke F-present with same PresentReadIntent → equivalent PresentView per PrA8',
+      replayDiscipline: 'invoke F-present with same PresentIntent → equivalent PresentView per PrA8',
     },
   }
 

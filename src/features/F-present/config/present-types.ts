@@ -1,13 +1,29 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R0]
 // Built with LIV · livai.dev
 // [F-present/config/present-types.ts]
-// Sprint 2 — Shot 1
+// Sprint 2 — Shot 1; present-rederive — Shot 2 (v1.0.1 → v2.0 contract re-derivation)
 //
-// All atom types from Present Standard v1.0.1 §2.1 + §2.4.
-// Governed by: Present Standard v1.0.1
-// Non-negotiables: 5 WearerOperation arms, 4 ReadPrimitive arms. No additions.
+// All atom types from Present Standard v2.0 §2.1 + §2.4.
+// Governed by: Present Standard v2.0
+//
+// v2.0 re-derivation (STEP-1-derive-corrected-rev2.md):
+//   The v1.0.1 wearer-callable surface — five operations (search-by-identity,
+//   search-by-role, default-entry, move-neighborhood, move-trajectory) carried
+//   as the five-arm WearerOperation / OperationParameter unions — was re-derived
+//   over the WEARER-INTENT domain (Phase two) rather than the substrate-primitive
+//   domain. The nine-cell grid (Phase four) collapsed the operation set to ONE
+//   parameterized operation: present(standpoint, focus, ordering) → PresentView.
+//   The five v1.0.1 operations survive only as PRESETS — named configurations of
+//   the one operation — not as a typed enum.
+//
+//   WearerOperation and OperationParameter are REMOVED. PresentReadIntent is
+//   REMOVED. The wearer-callable input is now PresentIntent, carrying the three
+//   independent dimensions of wearer-intent space (Phase three):
+//     D1 standpoint  — FROM WHERE  — PositionRef | null
+//     D2 focus       — LOOKING AT WHAT — FocusSelector (3-arm)
+//     D3 ordering    — ARRANGED HOW    — OrderingSelector
 //
 // Type-import provenance:
 //   IdentityRef, RoleRef, ScopeRef, PositionRef, StateChangeId, ContentClass,
@@ -20,14 +36,9 @@
 //
 //   FrameworkRef ← declared locally below per substrate A-12 intent.
 //     Not yet a named export in core/types/substrate.types; declared here as a
-//     local branded alias. Matches { id: string; version: Semver } FrameworkRef shape
-//     comment in other standard types files, but Present Standard uses it as a
-//     string identifier (slice name). Local string-brand is the correct resolution.
-//     Forward: promote to substrate.types at next MF revision.
+//     local branded alias. Forward: promote to substrate.types at next MF revision.
 //
 //   Timestamp ← number (ms epoch), per substrate pattern (SubstrateWriteInput.source.time).
-//     Standard references substrate A-09 Timestamp; codebase does not export a named
-//     Timestamp type — uses plain number throughout. Local alias declared below.
 
 import type {
   IdentityRef,
@@ -65,23 +76,25 @@ export type OriginProvenance = {
   stampedAt:     Timestamp
 }
 
-// ── WearerOperation — closed 5-arm discriminated union per §2.1 + spec non-negotiable ─
+// ── FocusSelector — §2.1 — D2 focal selector (LOOKING AT WHAT) ────────────────
+// Three-arm discriminated union: the target the view is centred on.
+//   identity      — a named identity
+//   identity-role — a named identity in a named role
+//   density       — no named target; the density-default anchor (optional rule
+//                    selects identity-density vs position-density crystallization)
 
-export type WearerOperation =
-  | { kind: 'search-by-identity' }
-  | { kind: 'search-by-role'     }
-  | { kind: 'default-entry'      }
-  | { kind: 'move-neighborhood'  }
-  | { kind: 'move-trajectory'    }
+export type FocusSelector =
+  | { kind: 'identity';      identity: IdentityRef                       }
+  | { kind: 'identity-role'; identity: IdentityRef; role: RoleRef        }
+  | { kind: 'density';       rule?: 'identity-density' | 'position-density' }
 
-// ── OperationParameter — 5-arm discriminated union, kind-matched to WearerOperation ───
+// ── OrderingSelector — §2.1 — D3 ordering (ARRANGED HOW) ──────────────────────
+// The axis the view is projected along, with optional direction.
 
-export type OperationParameter =
-  | { kind: 'search-by-identity'; identity: IdentityRef;                                        scopeOverride?: ScopeRef }
-  | { kind: 'search-by-role';     identity: IdentityRef; role: RoleRef                                                   }
-  | { kind: 'default-entry';      anchorRule?: 'identity-density' | 'position-density';         scopeOverride?: ScopeRef }
-  | { kind: 'move-neighborhood';  window: number;        relationFilter?: IdentityRef                                     }
-  | { kind: 'move-trajectory';    direction: 'forward' | 'backward'; count: number; relationFilter?: IdentityRef          }
+export type OrderingSelector = {
+  axis:       'time' | 'identity' | 'role'
+  direction?: 'forward' | 'backward'
+}
 
 // ── ViewBound ─────────────────────────────────────────────────────────────────
 
@@ -91,18 +104,26 @@ export type ViewBound = {
   walkBudget: number
 }
 
-// ── PresentReadIntent — §2.1 ───────────────────────────────────────────────────
+// ── PresentIntent — §2.1 — the one wearer-callable input (v2.0) ───────────────
+// Replaces PresentReadIntent. Carries the three independent dimensions of
+// wearer-intent space plus the existing envelope fields.
+//   standpoint — D1: FROM WHERE. null = the live present (head); non-null = a
+//                Reading-A snapshot ceilinged at that chain position.
+//   focus      — D2: LOOKING AT WHAT.
+//   ordering   — D3: ARRANGED HOW.
+// Envelope fields (bound, userId, scopeRef, intentId, consumerRef, provenance)
+// carry the same names and types as the v1.0.1 PresentReadIntent envelope.
 
-export type PresentReadIntent = {
-  intentId:        IntentIdRef
-  consumerRef:     FrameworkRef
-  userId:          UserId
-  scopeRef:        ScopeRef
-  operation:       WearerOperation
-  parameter:       OperationParameter
-  currentPosition: PositionRef | null
-  bound:           ViewBound
-  provenance:      OriginProvenance
+export type PresentIntent = {
+  intentId:    IntentIdRef
+  consumerRef: FrameworkRef
+  userId:      UserId
+  scopeRef:    ScopeRef
+  standpoint:  PositionRef | null
+  focus:       FocusSelector
+  ordering:    OrderingSelector
+  bound:       ViewBound
+  provenance:  OriginProvenance
 }
 
 // ── ViewNode, ViewThread ───────────────────────────────────────────────────────
@@ -143,7 +164,8 @@ export type ReadPrimitiveTrace = {
   primitive:           'identity-recurrence' | 'role-pattern' | 'adjacency' | 'iterate-axis'
   parameters:          Record<string, unknown>   // kind-specific per LMA9
   recordCount:         number
-  contentClassFilter?: ContentClass              // v1.0.1: declared when filter applied per LMA13
+  contentClassFilter?: ContentClass              // declared when ContentClass filter applied per LMA13
+  asOfPosition?:       PositionRef               // v2.0: declared when standpoint ceiling applied per LM v3.5
 }
 
 // ── WeightingTrace ────────────────────────────────────────────────────────────
@@ -159,10 +181,20 @@ export type WeightingTrace = {
 }
 
 // ── PresentView — composed-view atom (per §2.1 ratified shape) ─────────────────
+// v2.0: PresentView's structural skeleton (composition / provenance /
+// reversibility, the node/thread shapes) is preserved from v1.0.1. Two field
+// types change as a structural consequence of the operation-set collapse:
+//   derivedFromIntent — retyped PresentReadIntent → PresentIntent.
+//   provenance.operationApplied — REMOVED. The v1.0.1 field recorded which of
+//     five operations ran; under v2.0 the verb layer has one member (`present`),
+//     so the field records a dimension with nothing behind it. Each wearer-intent
+//     dimension is recorded inside the shape via its own slot — standpoint via
+//     provenance + ReadPrimitiveTrace.asOfPosition, focus via anchorDerived,
+//     ordering via composition.perspective — leaving no slot for `operation`.
 
 export type PresentView = {
   viewId:            ViewIdRef
-  derivedFromIntent: PresentReadIntent
+  derivedFromIntent: PresentIntent
   emittedAt:         Timestamp              // substrate A-09
   composition: {
     nodes:       ViewNode[]
@@ -173,13 +205,12 @@ export type PresentView = {
   provenance: {
     sourceStateChangeIds: StateChangeId[]
     readPrimitivesUsed:   ReadPrimitiveTrace[]
-    operationApplied:     WearerOperation
     anchorDerived:        AnchorTrace
     weightingApplied:     WeightingTrace
   }
   reversibility: {
     appealCourtIs:    'substrate-state-change-table'
-    replayDiscipline: 'invoke F-present with same PresentReadIntent → equivalent PresentView per PrA8'
+    replayDiscipline: 'invoke F-present with same PresentIntent → equivalent PresentView per PrA8'
   }
 }
 
@@ -188,7 +219,6 @@ export type PresentView = {
 //   source.channel      = 'internal-derivation'
 //   source.contentClass = 'system-introspection'
 //   carrier             = 'self' (present-standard §2.1)
-// Shot 3 populates the concrete shape in emit-view.ts.
 
 export type PresentViewEmission = SubstrateWriteInput
 

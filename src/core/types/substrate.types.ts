@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields), sprint-b2-shot-5 (SourceChannel: 'system-l0' added), side-quest-shot-1 (substrate v1.8.3: A-24 ContentClass added, SubstrateSourceRef.contentClass field added), side-quest-shot-2 (LM v3.4: ThreadQueryInput.contentClass? optional filter added for LMA13)
+// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields), sprint-b2-shot-5 (SourceChannel: 'system-l0' added), side-quest-shot-1 (substrate v1.8.3: A-24 ContentClass added, SubstrateSourceRef.contentClass field added), side-quest-shot-2 (LM v3.4: ThreadQueryInput.contentClass? optional filter added for LMA13), present-rederive-shot-1 (LM v3.5: ThreadQueryInput.asOfPosition? optional position-ceiling filter added for Reading-A snapshot)
 // slice: core
 // layer: R5
 // wires-in:
@@ -243,6 +243,15 @@ export type SubstrateWriteInput = {
 // LM v3.4 LMA13 declares ContentClass discipline; the filter is the read-side
 // mechanism for selecting on the row-stamped ContentClass column. Default
 // (omitted) returns all classes — backward-compatible with v3.3.1 callers.
+//
+// v3.5 (Present-rederive Shot 1): asOfPosition? optional ceiling parameter added.
+// LM v3.5 LMA9 mechanical clarification — an open-ended position ceiling on the
+// three thread primitives. When present, the thread read returns only
+// state-changes at or before the given chain position (the substrate as it
+// actually stood at that position — a Reading-A snapshot). Default (omitted)
+// returns the full accumulated thread — backward-compatible with v3.4 callers.
+// Not count-limited, not direction-dispatched; composes by AND with scope? and
+// contentClass?.
 
 export type ThreadQueryInput = {
   threadKind:    ThreadKind
@@ -250,6 +259,7 @@ export type ThreadQueryInput = {
   roleFilter?:   RoleRef                     // required for 'role-pattern'
   scope?:        ScopeRef                    // optional read-time scope filter
   contentClass?: ContentClass                // v3.4: optional read-time ContentClass filter (LM v3.4 LMA13)
+  asOfPosition?: PositionRef                 // v3.5: optional read-time position ceiling (LM v3.5 LMA9 — Reading-A snapshot)
   window?:       number                      // required for 'adjacency'; positive integer
   limit?:        number                      // max positions to return
 }

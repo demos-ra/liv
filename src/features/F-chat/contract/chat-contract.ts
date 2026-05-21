@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1 sprint-2-shot-6
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -14,6 +14,7 @@
 //             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
 //             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
 //             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
+//             present-rederive-shot-4 (present() call re-migrated to v2.0 PresentIntent contract: focus/standpoint/ordering)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -29,7 +30,7 @@
 //   W-FN    generateId           core/types/primitives                 (turnId generation)
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
 //   W-ATOM  PresentView          F-present/contract/present-contract   (sprint-2-shot-6: replaces ThreadResult as contextRef type)
-//   W-ATOM  PresentReadIntent    F-present/contract/present-contract   (sprint-2-shot-6)
+//   W-ATOM  PresentIntent        F-present/contract/present-contract   (present-rederive-shot-4: v2.0 contract — replaces PresentReadIntent)
 //   W-ATOM  ChannelKind          core/types/perimeter-standard.types  (sprint-b1-shot-1: Decision-D-CHANNEL mapping)
 //   W-ATOM  RouterMessage        F-router/config/router-types
 //   W-ATOM  RouterSessionContext F-router/config/router-types
@@ -132,7 +133,7 @@ import { createRateLimiter }                     from '@/core/domain/rate-limite
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { writeStateChange }                       from '@/features/F-memory/contract/substrate-contract'
 import { present }                                from '@/features/F-present/contract/present-contract'
-import type { PresentView, PresentReadIntent, IntentIdRef, FrameworkRef } from '@/features/F-present/contract/present-contract'
+import type { PresentView, PresentIntent, IntentIdRef, FrameworkRef } from '@/features/F-present/contract/present-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
@@ -588,25 +589,30 @@ export async function POST_message(
     })
   }
 
-  // ── F-present context assembly — sprint-2-shot-6 ────────────────────────────
+  // ── F-present context assembly — sprint-2-shot-6 / present-rederive-shot-4 ──
   // Migrated from direct threadQuery (sprint-11-shot-2) to present() service call.
-  // operation: search-by-identity on session.userId, scope-filtered to projectId.
+  // present-rederive-shot-4: re-migrated to the v2.0 PresentIntent contract.
+  //   focus: identity on session.userId, scope-filtered to projectId — the
+  //   v2.0 expression of the v1.0.1 'search-by-identity' preset.
+  //   standpoint: null — the live present (no Reading-A ceiling).
+  //   ordering: { axis: 'identity' } — the v2.0 perspective for an identity focus,
+  //   matching the v1.0.1 derivePerspective default for search-by-identity.
   // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call not suppressed.
   // bound: maxNodes=20, maxThreads=40, walkBudget=100 (conservative starting values per spec §7 note 2).
   let contextRef: PresentView | null = null
   let systemPrompt = ''
 
   try {
-    const presentIntent: PresentReadIntent = {
-      intentId:        generateId('intent') as unknown as IntentIdRef,
-      consumerRef:     'F-chat' as unknown as FrameworkRef,
-      userId:          session.userId,
-      scopeRef:        projectId as unknown as ScopeRef,
-      operation:       { kind: 'search-by-identity' },
-      parameter:       { kind: 'search-by-identity', identity: session.userId as IdentityRef },
-      currentPosition: null,
-      bound:           { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
-      provenance:      { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
+    const presentIntent: PresentIntent = {
+      intentId:    generateId('intent') as unknown as IntentIdRef,
+      consumerRef: 'F-chat' as unknown as FrameworkRef,
+      userId:      session.userId,
+      scopeRef:    projectId as unknown as ScopeRef,
+      standpoint:  null,
+      focus:       { kind: 'identity', identity: session.userId as IdentityRef },
+      ordering:    { axis: 'identity' },
+      bound:       { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
+      provenance:  { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
     }
     const viewResult = await present(presentIntent)
     if (viewResult.ok && viewResult.data.composition.nodes.length > 0) {

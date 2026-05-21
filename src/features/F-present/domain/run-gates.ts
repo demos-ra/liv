@@ -1,38 +1,46 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/run-gates.ts]
-// Sprint 2 — Shot 4
+// Sprint 2 — Shot 4; present-rederive — Shot 3 (v2.0 domain re-wire — PrG5 re-derived)
 //
-// PR7 — PrG1–PrG8 runtime audit harness per Present Standard v1.0.1 §4.2.
+// PR7 — PrG1–PrG8 runtime audit harness per Present Standard v2.0 §4.2.
 //
 // Gate taxonomy (§4.2 ground-class):
 //   PrG1 — structural (type-check + reference-resolution)
 //   PrG2 — cardinality + type-check
 //   PrG3 — enum-membership + cardinality + type-check
 //   PrG4 — type-check (userId + scopeRef on all reads and writes)
-//   PrG5 — enum-membership + cardinality (operation kind ∈ 5 valid)
+//   PrG5 — type-check + enum-membership (the one operation's three-dimension
+//          parameter space — standpoint, focus.kind, ordering.axis — is valid)
 //   PrG6 — enum-membership (primitive ∈ 4 valid; contentClassFilter ∈ 2 valid)
 //   PrG7 — declarative-pass (design assertion: no module-level mutable state)
 //   PrG8 — declarative-pass at runtime (replay determinism verified at Shot 7 harness)
 //
+// v2.0 re-derivation of PrG5:
+//   The v1.0.1 PrG5 asserted `operation.kind ∈ 5 valid kinds`. Under v2.0 there
+//   is no operation.kind and no five-kind enum — the operation set collapsed to
+//   one parameterized operation `present(standpoint, focus, ordering)` (rev2
+//   derivation Phase four). A gate asserting membership in a five-kind set is the
+//   five-operation model surfacing in the gate harness — the same residue class
+//   as the removed operationApplied field. PrG5 is re-derived (not dissolved:
+//   PrG2's provenance-cardinality checks do not cover dimension validity, and the
+//   PR7 harness independently confirms what PR1 validated). v2.0 PrG5 gates the
+//   three independent dimensions of the one operation's parameter space.
+//
 // PrG7 declarative rationale:
 //   F-present has no module-level mutable variables; every invocation derives
-//   from its input alone (PrA7). This is a structural property of the design,
-//   not a runtime-observable fact on each call. The gate passes by construction.
-//   Shot 7 audit independently verifies via static inspection of module exports.
+//   from its input alone (PrA7). The gate passes by construction.
 //
 // PrG8 declarative rationale:
-//   Replay determinism (PrA8) — identical intent + unchanged substrate → equivalent view —
-//   is a property of the full PR1→PR8 pipeline, not verifiable in a single call's output.
-//   At runtime this gate passes by design; Shot 7 audit verifies via two-invocation
-//   replay test against a fixed substrate snapshot.
+//   Replay determinism (PrA8) is a property of the full PR1→PR8 pipeline. At
+//   runtime this gate passes by design; Shot 7 audit verifies via replay test.
 //
 // Pure function — no I/O. Deterministic on identical input (PrA8).
 
 import type {
-  PresentReadIntent,
+  PresentIntent,
   PresentView,
   ReadPrimitiveTrace,
 } from '../config/present-types'
@@ -57,7 +65,7 @@ export type GateRunResult = {
 // ── Input shape ───────────────────────────────────────────────────────────────
 
 export type RunGatesInput = {
-  intent:               PresentReadIntent
+  intent:               PresentIntent
   view:                 PresentView
   emissionId:           StateChangeId
   emissionChannel:      'internal-derivation'
@@ -73,12 +81,16 @@ export type RunGatesInput = {
 
 // ── Valid enum sets ───────────────────────────────────────────────────────────
 
-const VALID_OPERATION_KINDS = new Set([
-  'search-by-identity',
-  'search-by-role',
-  'default-entry',
-  'move-neighborhood',
-  'move-trajectory',
+const VALID_FOCUS_KINDS = new Set([
+  'identity',
+  'identity-role',
+  'density',
+])
+
+const VALID_ORDERING_AXES = new Set([
+  'time',
+  'identity',
+  'role',
 ])
 
 const VALID_READ_PRIMITIVES = new Set([
@@ -268,13 +280,35 @@ function checkPrG4(input: RunGatesInput): GateResult {
   return pass('PrG4')
 }
 
-// ── PrG5 — operation kind ∈ 5 valid kinds ────────────────────────────────────
+// ── PrG5 — the one operation's three-dimension parameter space is valid ──────
+// v2.0 re-derivation: gates the three independent dimensions of PresentIntent,
+// read off view.derivedFromIntent —
+//   D1 standpoint  — PositionRef | null
+//   D2 focus.kind  — ∈ {identity, identity-role, density}
+//   D3 ordering.axis — ∈ {time, identity, role}
+// (Replaces the v1.0.1 `operation.kind ∈ 5 valid kinds` check — there is no
+// operation.kind under v2.0; the operation set collapsed to one.)
 
 function checkPrG5(input: RunGatesInput): GateResult {
-  const kind = input.view.derivedFromIntent.operation.kind
-  if (!VALID_OPERATION_KINDS.has(kind)) {
-    return fail('PrG5', `operation.kind '${kind}' is not in the valid 5-kind set`)
+  const intent = input.view.derivedFromIntent
+
+  // D1 — standpoint is PositionRef | null
+  if (intent.standpoint !== null) {
+    if (typeof intent.standpoint !== 'number' || !Number.isInteger(intent.standpoint) || intent.standpoint < 0) {
+      return fail('PrG5', `standpoint '${intent.standpoint}' is not null or a non-negative integer PositionRef`)
+    }
   }
+
+  // D2 — focus.kind ∈ valid focus kinds
+  if (!intent.focus || !VALID_FOCUS_KINDS.has(intent.focus.kind)) {
+    return fail('PrG5', `focus.kind '${intent.focus?.kind}' is not in the valid 3-kind FocusSelector set`)
+  }
+
+  // D3 — ordering.axis ∈ valid ordering axes
+  if (!intent.ordering || !VALID_ORDERING_AXES.has(intent.ordering.axis)) {
+    return fail('PrG5', `ordering.axis '${intent.ordering?.axis}' is not in the valid 3-axis OrderingSelector set`)
+  }
+
   return pass('PrG5')
 }
 
@@ -307,11 +341,11 @@ function checkPrG7(): GateResult {
 }
 
 // ── PrG8 — declarative: replay determinism (PrA8) ────────────────────────────
-// Identical PresentReadIntent + unchanged substrate → equivalent PresentView.
+// Identical PresentIntent + unchanged substrate → equivalent PresentView.
 // This is a full-pipeline property (PR1→PR8), not observable from a single invocation's
 // output alone. At runtime this gate passes by construction (compose-view is deterministic;
 // no non-determinism introduced at any PR step). Shot 7 audit verifies via two-invocation
-// replay test against a fixed substrate snapshot (5 operations × 2 invocations = 10 records).
+// replay test against a fixed substrate snapshot.
 
 function checkPrG8(): GateResult {
   return pass('PrG8')

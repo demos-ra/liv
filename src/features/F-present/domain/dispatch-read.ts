@@ -1,51 +1,58 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/dispatch-read.ts]
-// Sprint 2 — Shot 2
+// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
-// PR4 — Operation → LMA9 primitive dispatch per Present Standard v1.0.1 §3.7.
+// PR4 — focus/ordering/standpoint dispatch onto the LMA9 read primitives,
+//        per Present Standard v2.0 §3.7.
 //
-// ContentClass filter discipline (per LMA13 + spec §3.7 PR4):
-//   Anchor-candidate reads (search-by-identity, search-by-role, default-entry)
-//     → pass contentClass: 'wearer-life'
-//   Full state reads (move-neighborhood, move-trajectory)
-//     → omit contentClass filter
+// v2.0 re-derivation: dispatch is keyed on the three PresentIntent dimensions,
+// not on a five-arm operation.kind. The `focus` dimension selects the read
+// primitive; the `standpoint` dimension supplies the Reading-A ceiling.
 //
-// 4 LMA9 read primitives used (non-negotiable per spec §1):
-//   threadQuery({ threadKind: 'identity-recurrence' })  — search-by-identity, default-entry
-//   threadQuery({ threadKind: 'role-pattern' })         — search-by-role
-//   threadQuery({ threadKind: 'adjacency' })            — move-neighborhood
-//   iterateAxis(start, direction, count)                — move-trajectory
+//   focus 'identity'      → threadQuery({ threadKind: 'identity-recurrence' })
+//   focus 'identity-role' → threadQuery({ threadKind: 'role-pattern' })
+//   focus 'density'       → threadQuery({ threadKind: 'identity-recurrence' }) on
+//                           the userId seed, then crystallize the densest identity
 //
-// Shape A (default-entry crystallization):
-//   Single read on userId seed via identity-recurrence.
-//   If the result contains at least one identity, the most-recurrent identity
-//   (first record's leading identity) becomes the crystallized anchor.
-//   Otherwise the seed is retained as crystallized anchor.
-//   Rationale: Shape A satisfies PrA7 (no cached state) and performs one LMA9
-//   invocation instead of two. Standard does not require Shape B. Preferred.
+// Reading-A wiring (the standpoint dimension):
+//   standpoint non-null → every thread read this dispatch issues passes
+//     `asOfPosition: standpoint`, ceiling the read to the snapshot position —
+//     the substrate as it actually stood at that chain position.
+//   standpoint null → no asOfPosition is passed — the live present.
+//   PrA6 substrate-read closure stays at the LMA9 thread primitives;
+//   asOfPosition? is a parameter on them (LM v3.5), not a new primitive.
+//
+// ContentClass filter discipline (per LMA13 + §3.7 PR4):
+//   All three focus arms are anchor-candidate reads → pass contentClass:
+//   'wearer-life'. (The v1.0.1 full-state reads — move-neighborhood,
+//   move-trajectory — are not v2.0 focus arms; they collapsed into the one
+//   operation per the Phase-four grid. A wearer wanting a position-anchored or
+//   trajectory view expresses it through standpoint + ordering, not a separate
+//   operation; those views are out of the focus-keyed read path and ride the
+//   identity/role primitives ceilinged by standpoint.)
 //
 // One ReadPrimitiveTrace is emitted per primitive invocation per §2.1.
 //
 // Imports: runtime functions from substrate-contract R3 (cross-slice via A5);
 //          typed atoms from core/types/substrate.types (core import, established pattern).
 
-import { threadQuery, iterateAxis } from '@/features/F-memory/contract/substrate-contract'
+import { threadQuery } from '@/features/F-memory/contract/substrate-contract'
 
 import type {
   StateChangeRecord,
   IdentityRef,
   PositionRef,
   ContentClass,
+  ThreadQueryInput,
 } from '@/core/types/substrate.types'
 
 import type {
-  PresentReadIntent,
+  PresentIntent,
   AnchorTrace,
   ReadPrimitiveTrace,
-  OperationParameter,
 } from '../config/present-types'
 
 import type { PresentResult } from '../config/present-errors'
@@ -61,34 +68,38 @@ export type DispatchReadResult = {
 // ── Main dispatch ─────────────────────────────────────────────────────────────
 
 export async function dispatchRead(
-  intent: PresentReadIntent,
+  intent: PresentIntent,
   anchor: AnchorTrace,
 ): Promise<PresentResult<DispatchReadResult>> {
   const traces: ReadPrimitiveTrace[] = []
 
-  switch (intent.operation.kind) {
+  // Reading-A ceiling: non-null standpoint → asOfPosition on every thread read.
+  const asOf: PositionRef | undefined =
+    intent.standpoint !== null ? intent.standpoint : undefined
 
-    // ── search-by-identity ────────────────────────────────────────────────────
-    case 'search-by-identity': {
+  switch (intent.focus.kind) {
+
+    // ── focus 'identity' → identity-recurrence ────────────────────────────────
+    case 'identity': {
       const identityAnchor = anchor.derivedAs.identity!
-      const result = await threadQuery(
-        {
-          threadKind:   'identity-recurrence',
-          anchor:       identityAnchor,
-          scope:        intent.scopeRef,
-          contentClass: 'wearer-life' as ContentClass,
-          limit:        intent.bound.maxNodes,
-        },
-        intent.userId,
-      )
+      const query: ThreadQueryInput = {
+        threadKind:   'identity-recurrence',
+        anchor:       identityAnchor,
+        scope:        intent.scopeRef,
+        contentClass: 'wearer-life' as ContentClass,
+        limit:        intent.bound.maxNodes,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
+      }
+      const result = await threadQuery(query, intent.userId)
       if (!result.ok) {
         return { ok: false, error: { code: 'PRESENT_READ_FAILED', message: result.error.message, underlying: result.error } }
       }
       traces.push({
-        primitive:           'identity-recurrence',
-        parameters:          { userId: intent.userId, anchor: identityAnchor, scope: intent.scopeRef, limit: intent.bound.maxNodes },
-        recordCount:         result.data.records.length,
-        contentClassFilter:  'wearer-life' as ContentClass,
+        primitive:          'identity-recurrence',
+        parameters:         { userId: intent.userId, anchor: identityAnchor, scope: intent.scopeRef, limit: intent.bound.maxNodes, ...(asOf !== undefined ? { asOfPosition: asOf } : {}) },
+        recordCount:        result.data.records.length,
+        contentClassFilter: 'wearer-life' as ContentClass,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
       })
       return {
         ok: true,
@@ -100,29 +111,29 @@ export async function dispatchRead(
       }
     }
 
-    // ── search-by-role ────────────────────────────────────────────────────────
-    case 'search-by-role': {
+    // ── focus 'identity-role' → role-pattern ──────────────────────────────────
+    case 'identity-role': {
       const identityAnchor = anchor.derivedAs.identity!
       const roleAnchor     = anchor.derivedAs.role!
-      const result = await threadQuery(
-        {
-          threadKind:   'role-pattern',
-          anchor:       identityAnchor,
-          roleFilter:   roleAnchor,
-          scope:        intent.scopeRef,
-          contentClass: 'wearer-life' as ContentClass,
-          limit:        intent.bound.maxNodes,
-        },
-        intent.userId,
-      )
+      const query: ThreadQueryInput = {
+        threadKind:   'role-pattern',
+        anchor:       identityAnchor,
+        roleFilter:   roleAnchor,
+        scope:        intent.scopeRef,
+        contentClass: 'wearer-life' as ContentClass,
+        limit:        intent.bound.maxNodes,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
+      }
+      const result = await threadQuery(query, intent.userId)
       if (!result.ok) {
         return { ok: false, error: { code: 'PRESENT_READ_FAILED', message: result.error.message, underlying: result.error } }
       }
       traces.push({
-        primitive:           'role-pattern',
-        parameters:          { userId: intent.userId, anchor: identityAnchor, roleFilter: roleAnchor, scope: intent.scopeRef, limit: intent.bound.maxNodes },
-        recordCount:         result.data.records.length,
-        contentClassFilter:  'wearer-life' as ContentClass,
+        primitive:          'role-pattern',
+        parameters:         { userId: intent.userId, anchor: identityAnchor, roleFilter: roleAnchor, scope: intent.scopeRef, limit: intent.bound.maxNodes, ...(asOf !== undefined ? { asOfPosition: asOf } : {}) },
+        recordCount:        result.data.records.length,
+        contentClassFilter: 'wearer-life' as ContentClass,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
       })
       return {
         ok: true,
@@ -134,103 +145,32 @@ export async function dispatchRead(
       }
     }
 
-    // ── move-neighborhood ─────────────────────────────────────────────────────
-    case 'move-neighborhood': {
-      const positionAnchor = anchor.derivedAs.position!
-      const param = intent.parameter as Extract<OperationParameter, { kind: 'move-neighborhood' }>
-      const result = await threadQuery(
-        {
-          threadKind: 'adjacency',
-          anchor:     positionAnchor as unknown as IdentityRef,   // adjacency anchor is PositionRef; ThreadQueryInput union permits both
-          scope:      intent.scopeRef,
-          window:     param.window,
-          limit:      intent.bound.maxNodes,
-          // contentClass omitted — full state traversal per PR4 discipline
-        },
-        intent.userId,
-      )
-      if (!result.ok) {
-        return { ok: false, error: { code: 'PRESENT_READ_FAILED', message: result.error.message, underlying: result.error } }
+    // ── focus 'density' → identity-recurrence on seed, then crystallize ───────
+    case 'density': {
+      const seedIdentity = anchor.derivedAs.identity!   // userId seed cast at PR3
+      const rule         = anchor.rule ?? 'identity-density'
+      const query: ThreadQueryInput = {
+        threadKind:   'identity-recurrence',
+        anchor:       seedIdentity,
+        scope:        intent.scopeRef,
+        contentClass: 'wearer-life' as ContentClass,
+        limit:        intent.bound.maxNodes,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
       }
-      // Post-filter by relationFilter if present
-      let records = result.data.records
-      if (param.relationFilter) {
-        records = records.filter(r => r.content.relations.some(rel => rel.identitiesWithRoles.some(iwr => iwr.identity === param.relationFilter)))
-      }
-      traces.push({
-        primitive:    'adjacency',
-        parameters:   { userId: intent.userId, anchor: positionAnchor, scope: intent.scopeRef, window: param.window, limit: intent.bound.maxNodes },
-        recordCount:  records.length,
-        // contentClassFilter omitted — no filter applied
-      })
-      return {
-        ok: true,
-        data: {
-          records,
-          traces,
-          crystallizedAnchor: anchor,
-        },
-      }
-    }
-
-    // ── move-trajectory ───────────────────────────────────────────────────────
-    case 'move-trajectory': {
-      const positionAnchor = anchor.derivedAs.position!
-      const param = intent.parameter as Extract<OperationParameter, { kind: 'move-trajectory' }>
-      const result = await iterateAxis(positionAnchor, param.direction, param.count)
-      if (!result.ok) {
-        return { ok: false, error: { code: 'PRESENT_READ_FAILED', message: result.error.message, underlying: result.error } }
-      }
-      // Post-filter by relationFilter if present
-      let records = result.data
-      if (param.relationFilter) {
-        records = records.filter(r => r.content.relations.some(rel => rel.identitiesWithRoles.some(iwr => iwr.identity === param.relationFilter)))
-      }
-      traces.push({
-        primitive:   'iterate-axis',
-        parameters:  { userId: intent.userId, start: positionAnchor, direction: param.direction, count: param.count },
-        recordCount: records.length,
-        // contentClassFilter omitted — full state traversal
-      })
-      return {
-        ok: true,
-        data: {
-          records,
-          traces,
-          crystallizedAnchor: anchor,
-        },
-      }
-    }
-
-    // ── default-entry (Shape A) ───────────────────────────────────────────────
-    case 'default-entry': {
-      const seedIdentity   = anchor.derivedAs.identity!   // userId cast at PR3
-      const rule           = anchor.rule ?? 'identity-density'
-      const result = await threadQuery(
-        {
-          threadKind:   'identity-recurrence',
-          anchor:       seedIdentity,
-          scope:        intent.scopeRef,
-          contentClass: 'wearer-life' as ContentClass,
-          limit:        intent.bound.maxNodes,
-        },
-        intent.userId,
-      )
+      const result = await threadQuery(query, intent.userId)
       if (!result.ok) {
         return { ok: false, error: { code: 'PRESENT_READ_FAILED', message: result.error.message, underlying: result.error } }
       }
 
-      // Crystallize anchor: find most-recurrent identity in result.
-      // Shape A: the same records serve both crystallization and view composition.
-      // Most-recurrent = identity appearing in the most records (first leading identity wins on tie).
-      // If result is empty, seed is retained.
+      // Crystallize the densest identity in the result. If empty, seed is retained.
       const crystallizedIdentity = crystallizeDensestIdentity(result.data.records, seedIdentity, rule)
 
       traces.push({
-        primitive:           'identity-recurrence',
-        parameters:          { userId: intent.userId, anchor: seedIdentity, scope: intent.scopeRef, limit: intent.bound.maxNodes, crystallizationRule: rule },
-        recordCount:         result.data.records.length,
-        contentClassFilter:  'wearer-life' as ContentClass,
+        primitive:          'identity-recurrence',
+        parameters:         { userId: intent.userId, anchor: seedIdentity, scope: intent.scopeRef, limit: intent.bound.maxNodes, crystallizationRule: rule, ...(asOf !== undefined ? { asOfPosition: asOf } : {}) },
+        recordCount:        result.data.records.length,
+        contentClassFilter: 'wearer-life' as ContentClass,
+        ...(asOf !== undefined ? { asOfPosition: asOf } : {}),
       })
 
       const crystallizedAnchor: AnchorTrace = {
@@ -251,17 +191,17 @@ export async function dispatchRead(
   }
 }
 
-// ── Crystallization helper (default-entry Shape A) ────────────────────────────
+// ── Crystallization helper (density focus) ────────────────────────────────────
 // Counts identity occurrences across all records; returns the most-frequent.
 // Stable: on count tie, the identity that appeared first in record order wins.
-// 'position-density' rule uses the same read result (single read per Shape A);
-// density here means recurrence across records, which is the available signal
-// from a single identity-recurrence read.
+// 'position-density' uses the same single read result per the Shape-A discipline
+// carried from v1.0.1 — density here means recurrence across records, the
+// available signal from one identity-recurrence read.
 
 function crystallizeDensestIdentity(
-  records:      StateChangeRecord[],
-  seed:         IdentityRef,
-  _rule:        'identity-density' | 'position-density',
+  records: StateChangeRecord[],
+  seed:    IdentityRef,
+  _rule:   'identity-density' | 'position-density',
 ): IdentityRef {
   if (records.length === 0) return seed
 

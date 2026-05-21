@@ -1,11 +1,11 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/emit-view.ts]
-// Sprint 2 — Shot 3
+// Sprint 2 — Shot 3; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
-// PR6 — PresentViewEmission via writeStateChange per Present Standard v1.0.1 §3.7 + §2.1.
+// PR6 — PresentViewEmission via writeStateChange per Present Standard v2.0 §3.7 + §2.1.
 //
 // PresentViewEmission ≡ SubstrateWriteInput where (PrA3 non-negotiables):
 //   source.channel      = 'internal-derivation'
@@ -26,14 +26,13 @@
 //   [0] viewId               — the view being emitted (primary identity)
 //   [1] intent.intentId      — the intent that produced this view
 //   [2] intent.consumerRef   — consuming slice identity
-//   [3] intent.operation.kind as IdentityRef — operation applied
+//   [3] intent.focus.kind as IdentityRef — focus kind applied (v2.0: replaces
+//       the v1.0.1 operation.kind label; the verb is now always `present`, so
+//       the focus dimension is the stable identity label for what was emitted)
 //
-// content.relations: [] (empty — the emission is a presence record, not a relation record;
-//   the structural information is encoded in identities + metadata.source).
-//   Present Standard §2.1 does not prescribe specific relations on the emission record.
+// content.relations: [] (empty — the emission is a presence record, not a relation record).
 //
 // Imports: writeStateChange from substrate-contract R3 (cross-slice via A5).
-//          StateChangeId, IdentityRef, Relation from core/types/substrate.types (core pattern).
 
 import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
 
@@ -42,12 +41,12 @@ import type {
   IdentityRef,
 } from '@/core/types/substrate.types'
 
-import type { PresentView, PresentReadIntent } from '../config/present-types'
+import type { PresentView, PresentIntent } from '../config/present-types'
 import type { PresentResult } from '../config/present-errors'
 
 export async function emitView(input: {
   view:   PresentView
-  intent: PresentReadIntent
+  intent: PresentIntent
 }): Promise<PresentResult<StateChangeId>> {
   const { view, intent } = input
 
@@ -55,10 +54,10 @@ export async function emitView(input: {
     userId: intent.userId,
     content: {
       identities: [
-        view.viewId       as unknown as IdentityRef,   // viewId branded string → IdentityRef
-        intent.intentId   as unknown as IdentityRef,   // intentId branded string → IdentityRef
-        intent.consumerRef as unknown as IdentityRef,  // FrameworkRef → IdentityRef (slice-name identity)
-        intent.operation.kind as IdentityRef,           // operation kind as identity label
+        view.viewId        as unknown as IdentityRef,   // viewId branded string → IdentityRef
+        intent.intentId    as unknown as IdentityRef,   // intentId branded string → IdentityRef
+        intent.consumerRef as unknown as IdentityRef,   // FrameworkRef → IdentityRef (slice-name identity)
+        intent.focus.kind  as IdentityRef,              // v2.0: focus kind as identity label
       ] satisfies IdentityRef[],
       relations: [] as [],
     },

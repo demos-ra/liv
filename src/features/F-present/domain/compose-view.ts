@@ -1,12 +1,15 @@
 // @liv-standard v1.5.2
-// @present-standard v1.0.1
+// @present-standard v2.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/compose-view.ts]
-// Sprint 2 — Shot 3
+// Sprint 2 — Shot 3; present-rederive — Shot 3 (v2.0 domain re-wire)
 //
 // PR5 — Composition + Option C weighting + perspective + focus.
-// Present Standard v1.0.1 §3.7 PR5 + §2.1 ViewNode/ViewThread/PerspectiveDeclaration.
+// Present Standard v2.0 §3.7 PR5 + §2.1 ViewNode/ViewThread/PerspectiveDeclaration.
+//
+// v2.0 re-derivation: composeView consumes the `ordering` dimension directly;
+// perspective IS the ordering selector (no operation.kind dispatch).
 //
 // Option C weights (spec §5 non-negotiable):
 //   w_recur  = 0.4   (identity recurrence across records)
@@ -34,8 +37,7 @@ import type {
   PerspectiveDeclaration,
   AnchorTrace,
   WeightingTrace,
-  WearerOperation,
-  OperationParameter,
+  OrderingSelector,
   ViewBound,
   ViewNodeRef,
 } from '../config/present-types'
@@ -47,13 +49,15 @@ const W_DENSITY = 0.2
 const W_ADJ     = 0.4
 
 // ── Public interface ──────────────────────────────────────────────────────────
+// v2.0 re-derivation: composeView receives the `ordering` dimension directly
+// (D3 — ARRANGED HOW) instead of a five-arm operation/parameter pair. The
+// view's perspective is the ordering selector; no operation.kind dispatch.
 
 export type ComposeViewInput = {
-  records:   StateChangeRecord[]
-  anchor:    AnchorTrace
-  operation: WearerOperation
-  parameter: OperationParameter   // Shot 5: added for perspective.direction resolution on move-trajectory
-  bound:     ViewBound
+  records:  StateChangeRecord[]
+  anchor:   AnchorTrace
+  ordering: OrderingSelector
+  bound:    ViewBound
 }
 
 export type ComposeViewOutput = {
@@ -62,7 +66,7 @@ export type ComposeViewOutput = {
 }
 
 export function composeView(input: ComposeViewInput): ComposeViewOutput {
-  const { records, anchor, operation, parameter, bound } = input
+  const { records, anchor, ordering, bound } = input
 
   // ── Step 1: cluster records by identity → identity stats ──────────────────
   // recurrenceCount[id] = number of records in which id appears
@@ -210,9 +214,15 @@ export function composeView(input: ComposeViewInput): ComposeViewOutput {
 
   const focus = (focusNode?.identity ?? nodes[0]?.identity ?? '') as unknown as ViewNodeRef
 
-  // ── Step 7: perspective — derived from operation.kind (+ parameter for direction) ─
+  // ── Step 7: perspective — the ordering dimension is the perspective ───────
+  // v2.0: PerspectiveDeclaration and OrderingSelector are structurally identical
+  // (axis + optional direction). The ordering dimension (D3) IS the perspective;
+  // no operation.kind dispatch.
 
-  const perspective = derivePerspective(operation, parameter)
+  const perspective: PerspectiveDeclaration = {
+    axis: ordering.axis,
+    ...(ordering.direction !== undefined ? { direction: ordering.direction } : {}),
+  }
 
   // ── Weighting trace ───────────────────────────────────────────────────────
 
@@ -236,27 +246,6 @@ export function composeView(input: ComposeViewInput): ComposeViewOutput {
 
 function clamp(v: number): number {
   return Math.max(0, Math.min(1, v))
-}
-
-/**
- * Derive PerspectiveDeclaration from operation.kind + parameter.
- *   move-trajectory   → 'time' + direction from parameter.direction (Shot 5 resolution)
- *   search-by-role    → 'role'
- *   everything else   → 'identity'
- */
-function derivePerspective(operation: WearerOperation, parameter: OperationParameter): PerspectiveDeclaration {
-  switch (operation.kind) {
-    case 'move-trajectory': {
-      const p = parameter as Extract<OperationParameter, { kind: 'move-trajectory' }>
-      return { axis: 'time', direction: p.direction }
-    }
-    case 'search-by-role':
-      return { axis: 'role' }
-    case 'search-by-identity':
-    case 'default-entry':
-    case 'move-neighborhood':
-      return { axis: 'identity' }
-  }
 }
 
 /**

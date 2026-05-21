@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring)
+// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields)
 // slice:      F-memory
 // layer:      R0
 // wires-in:
@@ -42,6 +42,7 @@ import type {
   RoleRef,
   Relation,
   ThreadKind,
+  ContentClass,
 } from '@/core/types/substrate.types'
 
 // ─── DB row shape (raw Postgres) ──────────────────────────────────────────────
@@ -90,14 +91,22 @@ export type SubstrateGateResult = {
 }
 
 // ─── TQ1 validation output ────────────────────────────────────────────────────
+// present-rederive-shot-1: contentClass? + asOfPosition? added. ThreadQueryInput
+// carries both optional read-side filters (contentClass? since LM v3.4;
+// asOfPosition? since LM v3.5). tq1Validate spreads the input through unchanged,
+// so the validated shape must carry both fields for TQ3 to read them — TQ3
+// applies contentClass? (LM v3.4 deferred plumbing, landed this shot) and
+// asOfPosition? (LM v3.5) as WHERE-clause conjuncts on the thread reads.
 
 export type ThreadQueryValidated = {
-  threadKind:  ThreadKind
-  anchor:      IdentityRef | PositionRef
-  roleFilter?: RoleRef
-  scope?:      ScopeRef
-  window?:     number
-  limit?:      number
+  threadKind:    ThreadKind
+  anchor:        IdentityRef | PositionRef
+  roleFilter?:   RoleRef
+  scope?:        ScopeRef
+  contentClass?: ContentClass   // v3.4 plumbing landed present-rederive-shot-1 (LM v3.4 LMA13)
+  asOfPosition?: PositionRef    // v3.5: Reading-A position ceiling (LM v3.5 LMA9)
+  window?:       number
+  limit?:        number
 }
 
 // ─── DB constants ─────────────────────────────────────────────────────────────
