@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v2.1
 // [F-present/R0]
 // Built with LIV · livai.dev
 // [F-present/config/present-types.ts]
@@ -92,7 +92,7 @@ export type FocusSelector =
 // The axis the view is projected along, with optional direction.
 
 export type OrderingSelector = {
-  axis:       'time' | 'identity' | 'role'
+  axis:       'weight' | 'temporal' | 'categorical' | 'relational'
   direction?: 'forward' | 'backward'
 }
 
@@ -146,7 +146,7 @@ export type ViewThread = {
 // ── PerspectiveDeclaration ────────────────────────────────────────────────────
 
 export type PerspectiveDeclaration = {
-  axis:       'time' | 'identity' | 'role'
+  axis:       'weight' | 'temporal' | 'categorical' | 'relational'
   direction?: 'forward' | 'backward'
 }
 

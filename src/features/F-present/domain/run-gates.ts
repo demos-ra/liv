@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v2.1
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/run-gates.ts]
@@ -88,9 +88,10 @@ const VALID_FOCUS_KINDS = new Set([
 ])
 
 const VALID_ORDERING_AXES = new Set([
-  'time',
-  'identity',
-  'role',
+  'weight',
+  'temporal',
+  'categorical',
+  'relational',
 ])
 
 const VALID_READ_PRIMITIVES = new Set([
@@ -142,7 +143,7 @@ function checkPrG1(input: RunGatesInput): GateResult {
   if (typeof c.focus !== 'string' || c.focus.length === 0) {
     return fail('PrG1', 'composition.focus is missing or empty')
   }
-  if (!['time', 'identity', 'role'].includes(c.perspective.axis)) {
+  if (!['weight', 'temporal', 'categorical', 'relational'].includes(c.perspective.axis)) {
     return fail('PrG1', `composition.perspective.axis '${c.perspective.axis}' is not a valid axis`)
   }
   for (let i = 0; i < c.nodes.length; i++) {
@@ -285,7 +286,7 @@ function checkPrG4(input: RunGatesInput): GateResult {
 // read off view.derivedFromIntent —
 //   D1 standpoint  — PositionRef | null
 //   D2 focus.kind  — ∈ {identity, identity-role, density}
-//   D3 ordering.axis — ∈ {time, identity, role}
+//   D3 ordering.axis — ∈ {weight, temporal, categorical, relational}
 // (Replaces the v1.0.1 `operation.kind ∈ 5 valid kinds` check — there is no
 // operation.kind under v2.0; the operation set collapsed to one.)
 
@@ -306,7 +307,7 @@ function checkPrG5(input: RunGatesInput): GateResult {
 
   // D3 — ordering.axis ∈ valid ordering axes
   if (!intent.ordering || !VALID_ORDERING_AXES.has(intent.ordering.axis)) {
-    return fail('PrG5', `ordering.axis '${intent.ordering?.axis}' is not in the valid 3-axis OrderingSelector set`)
+    return fail('PrG5', `ordering.axis '${intent.ordering?.axis}' is not in the valid 4-axis OrderingSelector set`)
   }
 
   return pass('PrG5')

@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v2.1
 // [F-present/R3]
 // Built with LIV · livai.dev
 // [F-present/contract/present-trpc.ts]
@@ -55,7 +55,7 @@ const FocusSelectorSchema = z.discriminatedUnion('kind', [
 // ── Zod: OrderingSelector (D3 — ARRANGED HOW) ─────────────────────────────────
 
 const OrderingSelectorSchema = z.object({
-  axis:      z.enum(['time', 'identity', 'role']),
+  axis:      z.enum(['weight', 'temporal', 'categorical', 'relational']),
   direction: z.enum(['forward', 'backward']).optional(),
 })
 

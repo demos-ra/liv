@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v2.1
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/compose-view.ts]
@@ -214,14 +214,112 @@ export function composeView(input: ComposeViewInput): ComposeViewOutput {
 
   const focus = (focusNode?.identity ?? nodes[0]?.identity ?? '') as unknown as ViewNodeRef
 
-  // ── Step 7: perspective — the ordering dimension is the perspective ───────
-  // v2.0: PerspectiveDeclaration and OrderingSelector are structurally identical
-  // (axis + optional direction). The ordering dimension (D3) IS the perspective;
-  // no operation.kind dispatch.
+  // ── Step 7: perspective + ordering arrangement (v2.1 — D3 ordering) ───────────
+  // D3 ordering: axis 'weight' is the no-re-sort default — nodes stay in the
+  // weight-order Steps 4–6 produced (byte-identical to resident: resident Step 7
+  // never sorted by axis). A sort universal ('temporal'|'categorical'|'relational')
+  // opt-in activates the re-sort. The structural axis (containment) is NOT here —
+  // it is the wearer's next present() call re-anchoring focus (LMA8: geometry emergent).
 
+  const resolvedDirection: 'forward' | 'backward' =
+    ordering.direction ?? 'forward'
+
+  let orderedNodes   = nodes      // default ('weight'): weight-order from Steps 4–6
+  let orderedThreads = threads    // default ('weight'): thickness-order from Steps 4–6
+
+  if (ordering.axis !== 'weight') {
+    // ── sort universal — opt-in re-sort ────────────────────────────────────────
+
+    // recordById — one pass over records, built once at Step 7 entry (B3)
+    const recordById = new Map<string, StateChangeRecord>()
+    for (const r of records) recordById.set(r.id as string, r)
+
+    function nodeKey(n: ViewNode): number | string {
+      switch (ordering.axis) {
+        case 'temporal': {
+          // derived from sourceIds (Step 1 map) joined to metadata.time via
+          // recordById — NOT a re-scan of records.
+          const recIds = sourceIds.get(n.identity as string) ?? new Set<string>()
+          const times: number[] = []
+          for (const rid of recIds) {
+            const rec = recordById.get(rid)
+            if (rec) times.push(rec.metadata.time)
+          }
+          if (times.length === 0) return 0
+          return resolvedDirection === 'forward' ? Math.max(...times) : Math.min(...times)
+        }
+        case 'categorical':
+          return n.identity as string
+        case 'relational':
+          // un-folded adjacency — incident edge count; the SAME adjacencyCount
+          // map Option C weighting consumed (blended), here read raw as a sort key.
+          return adjacencyCount.get(n.identity as string) ?? 0
+        case 'weight':
+          // unreachable — gated out above; present for switch exhaustiveness.
+          return 0
+      }
+    }
+
+    function cmpNodes(a: ViewNode, b: ViewNode): number {
+      const ka = nodeKey(a), kb = nodeKey(b)
+      let primary: number
+      if (typeof ka === 'number' && typeof kb === 'number') {
+        // temporal: forward = newest-first. relational: forward = most-connected.
+        primary = resolvedDirection === 'forward' ? kb - ka : ka - kb
+      } else {
+        primary = resolvedDirection === 'forward'
+          ? String(ka).localeCompare(String(kb))
+          : String(kb).localeCompare(String(ka))
+      }
+      return primary || a.identity.localeCompare(b.identity)   // carried PrA8 tiebreak — total
+    }
+
+    function threadKey(t: ViewThread): number | string {
+      switch (ordering.axis) {
+        case 'temporal': {
+          const recIds = t.sourceStateChangeIds as string[]   // brand-strip for recordById keying
+          const times: number[] = []
+          for (const rid of recIds) {
+            const rec = recordById.get(rid)
+            if (rec) times.push(rec.metadata.time)
+          }
+          if (times.length === 0) return 0
+          return resolvedDirection === 'forward' ? Math.max(...times) : Math.min(...times)
+        }
+        case 'categorical':
+          return `${t.source}::${t.relationType}::${t.target}`
+        case 'relational':
+          return t.thickness                                  // thickness IS the edge's relational density
+        case 'weight':
+          return 0                                            // unreachable — see nodeKey
+      }
+    }
+
+    function cmpThreads(a: ViewThread, b: ViewThread): number {
+      const ka = threadKey(a), kb = threadKey(b)
+      let primary: number
+      if (typeof ka === 'number' && typeof kb === 'number') {
+        primary = resolvedDirection === 'forward' ? kb - ka : ka - kb
+      } else {
+        primary = resolvedDirection === 'forward'
+          ? String(ka).localeCompare(String(kb))
+          : String(kb).localeCompare(String(ka))
+      }
+      const ak = `${a.source}::${a.relationType}::${a.target}`
+      const bk = `${b.source}::${b.relationType}::${b.target}`
+      return primary || ak.localeCompare(bk)                  // carried thread tiebreak
+    }
+
+    orderedNodes   = [...nodes].sort(cmpNodes)
+    orderedThreads = [...threads].sort(cmpThreads)
+  }
+
+  // perspective records the resolved {axis, direction} — written always (v2.0's
+  // conditional spread on direction removed). axis carries the ordering axis value;
+  // when axis is 'weight', perspective truthfully records the view is in weight-order.
   const perspective: PerspectiveDeclaration = {
-    axis: ordering.axis,
-    ...(ordering.direction !== undefined ? { direction: ordering.direction } : {}),
+    axis:      ordering.axis,
+    direction: resolvedDirection,
   }
 
   // ── Weighting trace ───────────────────────────────────────────────────────
@@ -237,7 +335,7 @@ export function composeView(input: ComposeViewInput): ComposeViewOutput {
   }
 
   return {
-    composition: { nodes, threads, focus, perspective },
+    composition: { nodes: orderedNodes, threads: orderedThreads, focus, perspective },
     weightingTrace,
   }
 }

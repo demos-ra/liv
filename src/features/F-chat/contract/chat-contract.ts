@@ -595,8 +595,9 @@ export async function POST_message(
   //   focus: identity on session.userId, scope-filtered to projectId — the
   //   v2.0 expression of the v1.0.1 'search-by-identity' preset.
   //   standpoint: null — the live present (no Reading-A ceiling).
-  //   ordering: { axis: 'identity' } — the v2.0 perspective for an identity focus,
-  //   matching the v1.0.1 derivePerspective default for search-by-identity.
+  //   ordering: { axis: 'weight' } — the v2.1 default ordering axis (the no-re-sort
+  //   sentinel); F-chat carries the 'weight' default, which compose-view Step 7
+  //   resolves to weight-descending node order — byte-identical to the resident view.
   // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call not suppressed.
   // bound: maxNodes=20, maxThreads=40, walkBudget=100 (conservative starting values per spec §7 note 2).
   let contextRef: PresentView | null = null
@@ -610,7 +611,7 @@ export async function POST_message(
       scopeRef:    projectId as unknown as ScopeRef,
       standpoint:  null,
       focus:       { kind: 'identity', identity: session.userId as IdentityRef },
-      ordering:    { axis: 'identity' },
+      ordering:    { axis: 'weight' },
       bound:       { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
       provenance:  { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
     }

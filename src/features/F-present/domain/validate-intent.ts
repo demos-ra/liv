@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v2.1
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/validate-intent.ts]
@@ -13,7 +13,7 @@
 // dimensions of PresentIntent. PR1 validates the three dimensions:
 //   D1 standpoint — PositionRef | null (no further constraint; null = live present)
 //   D2 focus      — FocusSelector: well-formed 3-arm discriminated union
-//   D3 ordering   — OrderingSelector: axis ∈ {time,identity,role}, direction optional
+//   D3 ordering   — OrderingSelector: axis ∈ {weight,temporal,categorical,relational}, direction optional
 //
 // Pure function — no I/O, no cross-slice calls.
 
@@ -27,9 +27,10 @@ const VALID_FOCUS_KINDS: ReadonlySet<FocusSelector['kind']> = new Set([
 ])
 
 const VALID_ORDERING_AXES: ReadonlySet<string> = new Set([
-  'time',
-  'identity',
-  'role',
+  'weight',
+  'temporal',
+  'categorical',
+  'relational',
 ])
 
 export function validateIntent(intent: PresentIntent): PresentResult<PresentIntent> {
@@ -74,7 +75,7 @@ export function validateIntent(intent: PresentIntent): PresentResult<PresentInte
     }
   }
 
-  // C4: ordering.axis ∈ {time, identity, role}.
+  // C4: ordering.axis ∈ {weight, temporal, categorical, relational}.
   if (!intent.ordering || !VALID_ORDERING_AXES.has(intent.ordering.axis)) {
     return {
       ok: false,
