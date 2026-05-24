@@ -1,19 +1,28 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v6.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/deliver-view.ts]
-// Sprint 2 — Shot 4; present-rederive — Shot 3 (v2.0 domain re-wire)
+// Sprint 2 — Shot 4; present-rederive — Shot 3 (v2.0 domain re-wire);
+//   sprint-b3-present-v5 (v5.0: structure-carrying composition);
+//   sprint-b3-present-v6 — Shots 1/6 (maxThreads -> maxEdges; the trim
+//   preserves the stack-carrying nodes/edges, root, camera, extent)
 //
-// PR8 — Consumer emission with ViewBound enforcement per Present Standard v2.0 §3.7.
+// PR8 — Consumer emission with ViewBound enforcement per Present Standard v6.0 §3.7.
 //
 // Defensive bound re-trim: compose-view (PR5) applies bounds at composition time;
-// PR8 re-trims defensively in case the gate path or upstream logic produced an
-// oversized view. No further composition (PrA1).
+// PR8 re-trims defensively in case upstream produced an oversized view. No
+// further composition (PrA1).
+//
+// v6.0 ([R4]/[R19]): the composition carries the tree of stacks — nodes
+// (ViewNode[] each carrying a stack), edges (ViewEdge[] each carrying a stack),
+// plus root + camera refs and extent='granularity-cutoff'. The trim re-sorts
+// and slices nodes and edges; root, camera, and extent are carried through
+// untouched; every node and edge keeps its stack.
 //
 // Sort order matches compose-view for determinism (PrA8):
-//   nodes:   descending weight, tiebreak lexicographic ascending on identity
-//   threads: descending thickness, tiebreak lexicographic ascending on key
+//   nodes: descending weight, tiebreak lexicographic ascending on identity
+//   edges: descending thickness, tiebreak lexicographic ascending on edge key
 //
 // Pure function — no I/O. Returns PresentResult<PresentView>.
 
@@ -26,30 +35,30 @@ export function deliverView(input: {
 }): PresentResult<PresentView> {
   const { view, intent } = input
 
-  let nodes   = view.composition.nodes
-  let threads = view.composition.threads
+  let nodes = view.composition.nodes
+  let edges = view.composition.edges
 
   // Nodes: trim to maxNodes, stable sort descending weight + lexicographic tiebreak
   if (nodes.length > intent.bound.maxNodes) {
     nodes = [...nodes]
-      .sort((a, b) => b.weight - a.weight || a.identity.localeCompare(b.identity))
+      .sort((a, b) => b.weight - a.weight || (a.identity as string).localeCompare(b.identity as string))
       .slice(0, intent.bound.maxNodes)
   }
 
-  // Threads: trim to maxThreads, stable sort descending thickness + lexicographic tiebreak
-  if (threads.length > intent.bound.maxThreads) {
-    threads = [...threads]
+  // Edges: trim to maxEdges, stable sort descending thickness + lexicographic tiebreak
+  if (edges.length > intent.bound.maxEdges) {
+    edges = [...edges]
       .sort((a, b) =>
         b.thickness - a.thickness ||
-        `${a.source}::${a.relationType}::${a.target}`.localeCompare(
-          `${b.source}::${b.relationType}::${b.target}`,
-        )
+        `${a.parent}::${a.relationType}::${a.child}`.localeCompare(
+          `${b.parent}::${b.relationType}::${b.child}`,
+        ),
       )
-      .slice(0, intent.bound.maxThreads)
+      .slice(0, intent.bound.maxEdges)
   }
 
   // If neither list was trimmed, return view reference directly (no allocation)
-  if (nodes === view.composition.nodes && threads === view.composition.threads) {
+  if (nodes === view.composition.nodes && edges === view.composition.edges) {
     return { ok: true, data: view }
   }
 
@@ -60,7 +69,7 @@ export function deliverView(input: {
       composition: {
         ...view.composition,
         nodes,
-        threads,
+        edges,
       },
     },
   }

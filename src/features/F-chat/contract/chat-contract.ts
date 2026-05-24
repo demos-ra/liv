@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -15,6 +15,7 @@
 //             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
 //             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
 //             present-rederive-shot-4 (present() call re-migrated to v2.0 PresentIntent contract: focus/standpoint/ordering)
+//             kind-a-v6 (present() call migrated to v6.0 PresentIntent: camera/temporal/standpoint three-control model; view-read uses ViewNode.stack surface, dominantSurfaceForm deleted)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -589,17 +590,17 @@ export async function POST_message(
     })
   }
 
-  // ── F-present context assembly — sprint-2-shot-6 / present-rederive-shot-4 ──
+  // ── F-present context assembly — sprint-2-shot-6 / present-rederive-shot-4 / kind-a-v6 ──
   // Migrated from direct threadQuery (sprint-11-shot-2) to present() service call.
-  // present-rederive-shot-4: re-migrated to the v2.0 PresentIntent contract.
-  //   focus: identity on session.userId, scope-filtered to projectId — the
-  //   v2.0 expression of the v1.0.1 'search-by-identity' preset.
-  //   standpoint: null — the live present (no Reading-A ceiling).
-  //   ordering: { axis: 'weight' } — the v2.1 default ordering axis (the no-re-sort
-  //   sentinel); F-chat carries the 'weight' default, which compose-view Step 7
-  //   resolves to weight-descending node order — byte-identical to the resident view.
+  // kind-a-v6: migrated to the v6.0 PresentIntent contract — the three-control model.
+  //   F-chat is the user-driven path, so:
+  //   camera: { mode: 'derived' } — F-present derives the anchor (the user's
+  //     latest state-change); F-chat states no identity.
+  //   temporal: { depth: 'surface' } — the still, the present moment.
+  //   standpoint: null — the live present (no scrub-back to a past position).
+  //   camera derived + temporal surface + standpoint null = the live present.
   // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call not suppressed.
-  // bound: maxNodes=20, maxThreads=40, walkBudget=100 (conservative starting values per spec §7 note 2).
+  // bound: maxNodes=20, maxEdges=40, walkBudget=100 (conservative starting values per spec §7 note 2).
   let contextRef: PresentView | null = null
   let systemPrompt = ''
 
@@ -609,18 +610,22 @@ export async function POST_message(
       consumerRef: 'F-chat' as unknown as FrameworkRef,
       userId:      session.userId,
       scopeRef:    projectId as unknown as ScopeRef,
+      camera:      { mode: 'derived' },
+      temporal:    { depth: 'surface' },
       standpoint:  null,
-      focus:       { kind: 'identity', identity: session.userId as IdentityRef },
-      ordering:    { axis: 'weight' },
-      bound:       { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
+      bound:       { maxNodes: 20, maxEdges: 40, walkBudget: 100 },
       provenance:  { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
     }
     const viewResult = await present(presentIntent)
     if (viewResult.ok && viewResult.data.composition.nodes.length > 0) {
       contextRef   = viewResult.data
-      // System prompt assembly from PresentView: dominantSurfaceForm per node (identity string as fallback).
-      // Equivalent to prior identity-join per record; richer when dominantSurfaceForm is distinct.
-      const lines  = viewResult.data.composition.nodes.map(n => n.dominantSurfaceForm || n.identity)
+      // System prompt assembly from PresentView: v6.0 ViewNode carries a `stack`
+      // of StackEntry; the surface form is the stack's last entry (kind-a-v6 —
+      // v6.0 deleted ViewNode.dominantSurfaceForm). Identity string as fallback.
+      const lines  = viewResult.data.composition.nodes.map(n => {
+        const surface = n.stack[n.stack.length - 1]
+        return (surface && surface.surfaceForm) || n.identity
+      })
       systemPrompt = lines.join('\n')
     }
   } catch (err) {

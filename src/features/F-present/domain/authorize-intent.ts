@@ -1,11 +1,13 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v6.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/authorize-intent.ts]
-// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire)
+// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire);
+//   sprint-b3-present-v5 — pin bump; sprint-b3-present-v6 — pin bump only
+//   (PR2 PS-handshake mechanics — userId/scopeRef presence — unchanged)
 //
-// PR2 — PS handshake mechanics per Present Standard v2.0 §3.7 + PrA4.
+// PR2 — PS handshake mechanics per Present Standard v6.0 §3.7 + PrA4.
 //
 // PrA4: F-present applies mechanics, does NOT authorize. PS PA-IR3 owns enforcement.
 // The intent arriving at F-present already carries PS-stamped userId + scopeRef

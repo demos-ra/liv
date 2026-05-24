@@ -1,42 +1,35 @@
 // @liv-standard v1.5.2
-// @present-standard v2.1
+// @present-standard v6.0
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/validate-intent.ts]
-// Sprint 2 — Shot 2; present-rederive — Shot 3 (v2.0 domain re-wire)
+// Sprint 2 — Shot 2; present-rederive — Shot 3; sprint-b3-present-build (v3.0);
+//   b3-v4-reconciliation (v4.0); sprint-b3-present-v5 (v5.0 intent collapse);
+//   sprint-b3-present-v6 — Shot 7 (J-intent-binding re-stated against the
+//   three-control envelope)
 //
-// PR1 — J-intent-binding mechanical check per Present Standard v2.0 §7.1.
+// PR1 — J-intent-binding mechanical check per Present Standard v6.0 §7.1.
 //
-// v2.0 re-derivation: the v1.0.1 PR1 validated a five-arm operation/parameter
-// pair (criteria C1–C6 over WearerOperation × OperationParameter). Under v2.0
-// there is one operation; the wearer-callable surface is the three independent
-// dimensions of PresentIntent. PR1 validates the three dimensions:
-//   D1 standpoint — PositionRef | null (no further constraint; null = live present)
-//   D2 focus      — FocusSelector: well-formed 3-arm discriminated union
-//   D3 ordering   — OrderingSelector: axis ∈ {weight,temporal,categorical,relational}, direction optional
+// v6.0 re-derivation (Shot 7 — the three-control envelope):
+//   The v5.0 criteria were C1 (standpoint) + C2 (zoomAnchor). v6.0 re-states
+//   PresentIntent against the three controls, so the criteria are re-derived:
+//     C1 — standpoint: PositionRef | null            (carried unchanged)
+//     C2 — camera:     CameraSetting                 (re-derived — zoomAnchor
+//          generalized into CameraSetting's 'set' mode)
+//     C3 — temporal:   TemporalSetting               (v6.0 NEW)
+//   The lens is stored dial state, validated where it is set — not at PR1.
+//   C2 checks SHAPE only — a 'set' camera's anchor must be a well-formed
+//   IdentityRef; it does NOT check the identity exists in any present (that is
+//   the LLM's responsibility, [R9]).
 //
 // Pure function — no I/O, no cross-slice calls.
 
-import type { PresentIntent, FocusSelector } from '../config/present-types'
+import type { PresentIntent } from '../config/present-types'
 import type { PresentResult } from '../config/present-errors'
-
-const VALID_FOCUS_KINDS: ReadonlySet<FocusSelector['kind']> = new Set([
-  'identity',
-  'identity-role',
-  'density',
-])
-
-const VALID_ORDERING_AXES: ReadonlySet<string> = new Set([
-  'weight',
-  'temporal',
-  'categorical',
-  'relational',
-])
 
 export function validateIntent(intent: PresentIntent): PresentResult<PresentIntent> {
   // C1: standpoint is PositionRef | null.
-  //   null = the live present (head). non-null = a Reading-A snapshot ceiling.
-  //   A PositionRef is a monotonic integer; reject non-integer / negative.
+  //   null = the live present. non-null = a past position (scrub-back, [R16]).
   if (intent.standpoint !== null) {
     if (typeof intent.standpoint !== 'number' || !Number.isInteger(intent.standpoint) || intent.standpoint < 0) {
       return {
@@ -44,104 +37,66 @@ export function validateIntent(intent: PresentIntent): PresentResult<PresentInte
         error: {
           code:            'PRESENT_INTENT_INVALID',
           failedCriterion: 'C1',
-          message:         `standpoint must be null or a non-negative integer PositionRef; got '${intent.standpoint}'`,
+          message:         `standpoint must be null or a non-negative integer PositionRef; got '${String(intent.standpoint)}'`,
         },
       }
     }
   }
 
-  // C2: focus.kind ∈ {identity, identity-role, density}.
-  if (!intent.focus || !VALID_FOCUS_KINDS.has(intent.focus.kind)) {
+  // C2: camera is a well-formed CameraSetting ([R9]).
+  //   { mode: 'derived' }  OR  { mode: 'set', anchor: <well-formed IdentityRef> }
+  const cam = intent.camera
+  if (cam === null || typeof cam !== 'object' || (cam.mode !== 'derived' && cam.mode !== 'set')) {
     return {
       ok: false,
       error: {
         code:            'PRESENT_INTENT_INVALID',
         failedCriterion: 'C2',
-        message:         `focus.kind '${intent.focus?.kind}' is not a valid FocusSelector kind`,
+        message:         `camera must be { mode: 'derived' } or { mode: 'set', anchor }; got '${JSON.stringify(cam)}'`,
       },
     }
   }
-
-  // C3: focus arm-specific field checks.
-  const c3Error = validateFocusArm(intent.focus)
-  if (c3Error) {
-    return {
-      ok: false,
-      error: {
-        code:            'PRESENT_INTENT_INVALID',
-        failedCriterion: 'C3',
-        message:         c3Error,
-      },
-    }
-  }
-
-  // C4: ordering.axis ∈ {weight, temporal, categorical, relational}.
-  if (!intent.ordering || !VALID_ORDERING_AXES.has(intent.ordering.axis)) {
-    return {
-      ok: false,
-      error: {
-        code:            'PRESENT_INTENT_INVALID',
-        failedCriterion: 'C4',
-        message:         `ordering.axis '${intent.ordering?.axis}' is not a valid ordering axis`,
-      },
-    }
-  }
-
-  // C5: ordering.direction, if present, ∈ {forward, backward}.
-  if (
-    intent.ordering.direction !== undefined &&
-    intent.ordering.direction !== 'forward' &&
-    intent.ordering.direction !== 'backward'
-  ) {
-    return {
-      ok: false,
-      error: {
-        code:            'PRESENT_INTENT_INVALID',
-        failedCriterion: 'C5',
-        message:         `ordering.direction '${intent.ordering.direction}' must be 'forward' or 'backward' when present`,
-      },
-    }
-  }
-
-  // C6: density focus rule, if present, ∈ {identity-density, position-density}.
-  if (intent.focus.kind === 'density') {
-    const rule = intent.focus.rule
-    if (rule !== undefined && rule !== 'identity-density' && rule !== 'position-density') {
+  if (cam.mode === 'set') {
+    if (typeof cam.anchor !== 'string' || cam.anchor.length === 0) {
       return {
         ok: false,
         error: {
           code:            'PRESENT_INTENT_INVALID',
-          failedCriterion: 'C6',
-          message:         `focus.rule '${rule}' must be 'identity-density' or 'position-density' when present`,
+          failedCriterion: 'C2',
+          message:         `camera.anchor must be a well-formed IdentityRef when mode='set'; got '${String(cam.anchor)}'`,
         },
       }
     }
   }
 
-  return { ok: true, data: intent }
-}
-
-// ── C3 arm-specific field checks ──────────────────────────────────────────────
-
-function validateFocusArm(focus: FocusSelector): string | null {
-  switch (focus.kind) {
-    case 'identity': {
-      if (!focus.identity || typeof focus.identity !== 'string') {
-        return `focus.identity is required for focus kind 'identity'`
-      }
-      return null
+  // C3: temporal is a well-formed TemporalSetting ([R10]/[R11]).
+  //   { depth: 'surface' }  OR  { depth: 'span', from?, to? }
+  const tmp = intent.temporal
+  if (tmp === null || typeof tmp !== 'object' || (tmp.depth !== 'surface' && tmp.depth !== 'span')) {
+    return {
+      ok: false,
+      error: {
+        code:            'PRESENT_INTENT_INVALID',
+        failedCriterion: 'C3',
+        message:         `temporal must be { depth: 'surface' } or { depth: 'span', ... }; got '${JSON.stringify(tmp)}'`,
+      },
     }
-    case 'identity-role': {
-      if (!focus.identity || typeof focus.identity !== 'string') {
-        return `focus.identity is required for focus kind 'identity-role'`
-      }
-      if (!focus.role || typeof focus.role !== 'string') {
-        return `focus.role is required for focus kind 'identity-role'`
-      }
-      return null
-    }
-    case 'density':
-      // no required fields beyond kind; rule optional (C6 checks membership)
-      return null
   }
+  if (tmp.depth === 'span') {
+    for (const k of ['from', 'to'] as const) {
+      const v = tmp[k]
+      if (v !== undefined && (typeof v !== 'number' || !Number.isInteger(v) || v < 0)) {
+        return {
+          ok: false,
+          error: {
+            code:            'PRESENT_INTENT_INVALID',
+            failedCriterion: 'C3',
+            message:         `temporal.${k} must be a non-negative integer PositionRef when present; got '${String(v)}'`,
+          },
+        }
+      }
+    }
+  }
+
+  return { ok: true, data: intent }
 }

@@ -1,18 +1,19 @@
-// @liv-standard v1.5.2
-// @present-standard v2.0
+// @liv-standard v1.5.2 amended kind-a-v6
+// @present-standard v6.0
 // [app/R4]
 // Built with LIV · livai.dev
 // [src/app/api/present/route.ts]
-// Sprint 2 — Shot 5; present-rederive — Shot 4 (v2.0 contract re-migration)
+// Sprint 2 — Shot 5; present-rederive — Shot 4 (v2.0 contract re-migration); kind-a-v6
 //
 // REST POST handler for /api/present.
 // Mirrors src/app/api/substrate/export/route.ts session pattern.
 // Auth: getPerimeterSession — perimeter-validated at unitary site (src/proxy.ts).
 // userId sourced from session; scopeRef + the three intent dimensions from body.
 //
-// present-rederive-shot-4: body-mapping re-migrated to the v2.0 PresentIntent
-// fields — standpoint / focus / ordering — replacing the v1.0.1 operation /
-// parameter / currentPosition mapping.
+// kind-a-v6: body-mapping migrated to the v6.0 PresentIntent three-control
+// model — camera / temporal / standpoint — replacing the v2.0 focus / ordering /
+// standpoint mapping. route.ts is the external-API path: camera and temporal are
+// body-sourced (v6.0 defaults {mode:'derived'} / {depth:'surface'} on absence).
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession }            from '@/features/F-identity/contract/perimeter-consultation'
@@ -21,8 +22,6 @@ import { generateId }                     from '@/core/types/primitives'
 
 import type {
   PresentIntent,
-  FocusSelector,
-  OrderingSelector,
   FrameworkRef,
   IntentIdRef,
 } from '@/features/F-present/contract/present-contract'
@@ -49,10 +48,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     consumerRef: (body['consumerRef'] ?? 'external') as unknown as FrameworkRef,
     userId:      session.userId,
     scopeRef:    body['scopeRef']   as unknown as ScopeRef,
+    camera:      (body['camera']   ?? { mode: 'derived' })   as PresentIntent['camera'],
+    temporal:    (body['temporal'] ?? { depth: 'surface' })  as PresentIntent['temporal'],
     standpoint:  (body['standpoint'] ?? null) as PositionRef | null,
-    focus:       body['focus']      as FocusSelector,
-    ordering:    body['ordering']   as OrderingSelector,
-    bound:       (body['bound'] as PresentIntent['bound']) ?? { maxNodes: 20, maxThreads: 40, walkBudget: 100 },
+    bound:       (body['bound'] as PresentIntent['bound']) ?? { maxNodes: 20, maxEdges: 40, walkBudget: 100 },
     provenance: {
       consumerSlice: (body['consumerRef'] ?? 'external') as unknown as FrameworkRef,
       stampedAt:     Date.now(),

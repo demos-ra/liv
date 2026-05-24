@@ -7,12 +7,12 @@
   "core_infrastructure": {
     "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
     "modules": [
-      "src/core/db/client.ts        — Postgres pool singleton",
-      "src/core/api/trpc-setup.ts   — tRPC init",
-      "src/core/api/trpc-client.ts  — tRPC React client",
-      "src/core/api/router.ts       — App router assembly",
-      "src/core/types/primitives.ts — Shared types and ID generation",
-      "src/core/types/state-registry.ts — Namespace registry map"
+      "src/core/db/client.ts        \u2014 Postgres pool singleton",
+      "src/core/api/trpc-setup.ts   \u2014 tRPC init",
+      "src/core/api/trpc-client.ts  \u2014 tRPC React client",
+      "src/core/api/router.ts       \u2014 App router assembly",
+      "src/core/types/primitives.ts \u2014 Shared types and ID generation",
+      "src/core/types/state-registry.ts \u2014 Namespace registry map"
     ]
   },
   "completeness": {
@@ -30,8 +30,8 @@
   "slice": {
     "name": "F-present",
     "category": "Tool",
-    "governed_by": "Present Standard v2.0",
-    "description": "Read-time composition Tool. Derives PresentView from substrate state via one parameterized operation present(standpoint, focus, ordering) over the LMA9 read primitives. Emits PresentViewEmission to substrate on each invocation.",
+    "governed_by": "Present Standard v6.0",
+    "description": "Read-time resolution Tool. Resolves the substrate ledger into the PresentFrame \u2014 one connected tree of stacks (every node and every edge an append-only stack of state-changes) \u2014 via one operation present(camera, temporal, standpoint) over the LMA9 read primitives. Operated through three controls (camera, lens, temporal dial); every action opens a Window. Holds the live present, the lens-dial position, the accumulating Window set, and a per-user present archive in the LIV database; projects the structure-carrying PresentView on read. Non-emitter: writes nothing to substrate.",
     "r_tier_exception": null,
     "sprint_introduced": "Sprint 2"
   },

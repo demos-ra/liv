@@ -1,118 +1,221 @@
 // @liv-standard v1.5.2
-// @present-standard v2.0
+// @present-standard v6.0
 // [F-present/R2]
 // Built with LIV · livai.dev
 // [F-present/app/present-service.ts]
-// Sprint 2 — Shot 5; present-rederive — Shot 3 (v2.0 domain re-wire)
+// Sprint 2 — Shot 5; present-rederive — Shot 3; sprint-b3-present-build (v3.0);
+//   b3-v4-reconciliation (v4.0: non-emitter); sprint-b3-present-v5 (v5.0:
+//   hold + archive; scrub-back lookup); sprint-b3-present-v6 — Shots 1-7
+//   (tree of stacks; the three controls; every action opens a Window)
 //
-// R2 — Orchestration layer. Composes PR1→PR8 in sequence per Present Standard v2.0 §3.7.
+// R2 — Orchestration layer. Composes PR1→PR8 per Present Standard v6.0 §3.7.
 //
-// PR1  validateIntent    — J-intent-binding (the three dimensions of PresentIntent)
-// PR2  authorizeIntent   — PS handshake mechanics (userId + scopeRef presence)
-// PR3  deriveAnchor      — AnchorTrace dispatch on focus + standpoint
-// PR4  dispatchRead      — focus/ordering/standpoint dispatch onto LMA9 primitives
-//                          + ContentClass filter + Reading-A asOfPosition ceiling
-// PR5  composeView       — Option C weighting, LMA5 cluster, LMA3 relations
-// PR6  emitView          — PresentViewEmission via writeStateChange (atomic, LMA4)
-// PR7  runGates          — PrG1–PrG8 runtime audit harness
-// PR8  deliverView       — ViewBound enforcement + consumer return
+// PR1  validateIntent  — J-intent-binding (C1 standpoint, C2 camera, C3 temporal)
+// PR2  authorizeIntent — PS handshake mechanics (userId + scopeRef presence)
+// PR3  deriveAnchor    — the CAMERA: a CameraTrace, derived on the user path or
+//                        set on an LLM look ([R9])
+// PR4  dispatchRead    — the LIVE-RESOLVE substrate read, dispatched on camera
+//                        mode; SCRUB-BACK ([R16]) routed to the archive first
+// PR5  composeView     — the dependency walk: the present is a TREE OF STACKS
+//                        ([R3]/[R4]); the granularity cutoff bounds extent ([R20])
+// PR6  hold + archive  — install the present as the held live present, archive
+//                        it, AND open a Window ([R12]) — windows accumulate
+// PR7  runGates        — PrG1,2,4,5,6,7,8 runtime audit harness
+// PR8  deliverView     — project the structure-carrying PresentView ([R19]) +
+//                        ViewBound enforce
 //
-// v2.0 re-derivation:
-//   - The wearer-callable input is PresentIntent (one operation, three dimensions).
-//   - composeView receives the `ordering` dimension directly; perspective IS the
-//     ordering selector (no operation/parameter pair).
-//   - PresentView.provenance.operationApplied is REMOVED (the verb layer collapsed
-//     to one member; the field recorded a dimension with nothing behind it).
-//
-// emittedAt: stamped here (service layer) at the point between PR4 and PR5.
+// v6.0 (sprint-b3-present-v6, §16 + §16-REF):
+//   - The present is one connected TREE OF STACKS ([R3]/[R4]): composeView
+//     resolves each node and edge as a stack; the service holds and projects it.
+//   - EVERY ACTION OPENS A WINDOW ([R12]): each present() call — live resolve
+//     OR scrub-back — opens a Window (the one tree at one camera/lens/temporal/
+//     standpoint setting) and appends it to the accumulating window set. The
+//     window's openedBy is the authorship seam ([R14]).
+//   - The CAMERA ([R9]): PR3 resolves a CameraTrace; on the derived path PR4
+//     crystallizes the anchor; on the set path it is the LLM-located identity.
+//   - SCRUB-BACK ([R16]): a non-null standpoint routes to lookupArchivedPresent;
+//     PR4/PR5 are skipped — the archived present is retrieved, not recomputed.
+//   - resolvedAt is DELETED ([R11]) — standpoint + frameId position a present.
+//     archivedAt (the archival act's time) is stamped at PR6 and passed in.
+//   - F-present is a non-emitter ([R1]): no substrate write anywhere.
 
 import { validateIntent }  from '../domain/validate-intent'
 import { authorizeIntent } from '../domain/authorize-intent'
 import { deriveAnchor }    from '../domain/derive-anchor'
 import { dispatchRead }    from '../domain/dispatch-read'
 import { composeView }     from '../domain/compose-view'
-import { emitView }        from '../domain/emit-view'
 import { runGates }        from '../domain/run-gates'
 import { deliverView }     from '../domain/deliver-view'
+import {
+  holdPresent,
+  archivePresent,
+  lookupArchivedPresent,
+  readDial,
+  appendWindow,
+}                          from '../exec/present-execution'
 import { generateId }      from '@/core/types/primitives'
 
-import type { PresentIntent, PresentView, ViewIdRef } from '../config/present-types'
-import type { PresentResult }                         from '../config/present-errors'
+import type {
+  PresentIntent,
+  PresentView,
+  PresentFrame,
+  Window,
+  ViewIdRef,
+  FrameIdRef,
+  WindowRef,
+  PositionRef,
+  GranularityDial,
+} from '../config/present-types'
+import type { PresentResult } from '../config/present-errors'
 
 export async function presentService(intent: PresentIntent): Promise<PresentResult<PresentView>> {
 
-  // PR1
+  // PR1 — J-intent-binding.
   const v1 = validateIntent(intent)
   if (!v1.ok) return v1
 
-  // PR2
+  // PR2 — PS handshake.
   const v2 = authorizeIntent(v1.data)
   if (!v2.ok) return v2
 
-  // PR3
-  const anchorTrace = deriveAnchor(v2.data)
+  // The lens (granularity dial) — read from stored state; needed for the live
+  // resolve AND to stamp the Window every action opens.
+  const dial: GranularityDial = readDial(v2.data.userId, v2.data.scopeRef)
 
-  // PR4
-  const r4 = await dispatchRead(v2.data, anchorTrace)
+  // ── SCRUB-BACK ROUTING ([R16]) — checked before PR3/PR4 ───────────────────
+  // A non-null standpoint is a past position: retrieve the archived present
+  // from the per-user store and project it. The live-resolve path (PR3-PR6) is
+  // skipped — scrub-back is a LOOKUP, not a recompute.
+  if (v2.data.standpoint !== null) {
+    const archived = lookupArchivedPresent(
+      v2.data.userId,
+      v2.data.scopeRef,
+      v2.data.standpoint,
+    )
+    if (archived === null) {
+      return {
+        ok: false,
+        error: {
+          code:    'PRESENT_READ_FAILED',
+          message: `no archived present at position ${v2.data.standpoint as unknown as number} for this scope ([R16] archive lookup)`,
+        },
+      }
+    }
+    // A scrub-back is still an action — it opens a Window ([R12]).
+    const window = openWindow(v2.data, dial)
+    appendWindow(v2.data.userId, v2.data.scopeRef, window)
+    return projectAndDeliver(archived, v2.data, window.windowId)
+  }
+
+  // ── LIVE RESOLVE — PR3 onward ─────────────────────────────────────────────
+
+  // PR3 — the camera: a CameraTrace ([R9]).
+  const cameraTrace = deriveAnchor(v2.data)
+
+  // PR4 — the live-resolve substrate read, dispatched on camera mode.
+  const r4 = await dispatchRead(v2.data, cameraTrace)
   if (!r4.ok) return r4
 
-  // Stamp emittedAt between PR4 and PR5 (service layer owns temporal stamp per §3.7)
-  const emittedAt = Date.now()
-  const viewId    = generateId('view') as unknown as ViewIdRef
+  const frameId = generateId('frame') as unknown as FrameIdRef
 
-  // PR5 — compose-view receives the ordering dimension; perspective IS the ordering
-  const { composition, weightingTrace } = composeView({
-    records:  r4.data.records,
-    anchor:   r4.data.crystallizedAnchor,
-    ordering: v2.data.ordering,
-    bound:    v2.data.bound,
+  // PR5 — the dependency walk: the present is a tree of stacks ([R3]/[R4]),
+  // bounded by the granularity cutoff ([R20]).
+  const composed = composeView({
+    records: r4.data.records,
+    camera:  r4.data.crystallizedCamera,
+    dial,
+    bound:   v2.data.bound,
   })
 
-  // Assemble PresentView candidate (emission id added to provenance after PR6)
-  let view: PresentView = {
-    viewId,
-    derivedFromIntent: v2.data,
-    emittedAt,
-    composition,
+  // PR6 — resolve the PresentFrame, HOLD it, ARCHIVE it, and open a Window.
+  // No substrate write — F-present is a non-emitter ([R1]).
+  const frame: PresentFrame = {
+    frameId,
+    userId:     v2.data.userId,
+    scopeRef:   v2.data.scopeRef,
+    standpoint: v2.data.standpoint,             // v6.0: no resolvedAt ([R11])
+    root:       composed.frameRoot,
+    nodes:      composed.frameNodes,
+    edges:      composed.frameEdges,
+    weighting:  composed.weightingTrace,
     provenance: {
       sourceStateChangeIds: r4.data.records.map(r => r.id),
       readPrimitivesUsed:   r4.data.traces,
-      anchorDerived:        r4.data.crystallizedAnchor,
-      weightingApplied:     weightingTrace,
+      cameraDerived:        r4.data.crystallizedCamera,
+    },
+  }
+  holdPresent(frame)
+
+  // The archive key's position is the substrate append-index this present was
+  // resolved at — the live edge (the head position; 0 when no records read).
+  const livePosition = (r4.data.records.length as unknown) as PositionRef
+  archivePresent(frame, livePosition, Date.now())   // archivedAt = the archival act's time
+
+  // Every action opens a Window ([R12]) — append it to the accumulating set.
+  const window = openWindow(v2.data, dial)
+  appendWindow(v2.data.userId, v2.data.scopeRef, window)
+
+  // PR7 + PR8 — project, gate, deliver.
+  return projectAndDeliver(frame, v2.data, window.windowId)
+}
+
+// ── openWindow — the unit every present() call yields ([R12]/[R13]) ───────────
+// A window is the one tree at one camera/lens/temporal/standpoint setting.
+// openedBy is the authorship seam: a 'set' camera is an LLM-initiated look, a
+// 'derived' camera is the user-driven path ([R9]/[R14]).
+function openWindow(intent: PresentIntent, dial: GranularityDial): Window {
+  return {
+    windowId:   generateId('window') as unknown as WindowRef,
+    openedBy:   intent.camera.mode === 'set' ? 'llm' : 'user',
+    camera:     intent.camera,
+    lensCutoff: dial.cutoff,
+    temporal:   intent.temporal,
+    standpoint: intent.standpoint,
+    openedAt:   Date.now(),
+  }
+}
+
+// ── projectAndDeliver — PR8 projection + PR7 gates + PR8 ViewBound deliver ────
+// Shared by the live-resolve path and the scrub-back path: both project a
+// PresentView from a PresentFrame, run the gate harness, and deliver with
+// ViewBound enforcement. The PresentView carries the WindowRef of the window
+// this action opened ([R12]).
+
+async function projectAndDeliver(
+  frame:    PresentFrame,
+  intent:   PresentIntent,
+  windowId: WindowRef,
+): Promise<PresentResult<PresentView>> {
+  const viewId = generateId('view') as unknown as ViewIdRef
+
+  // PR8 — project the structure-carrying PresentView FROM the frame ([R19]).
+  // The frame already carries the resolved tree of stacks (compose-view built
+  // it); projection re-shapes nodes/edges into the consumer-renderable atom
+  // without losing the stacks, the connectivity, or authorship.
+  const view: PresentView = {
+    viewId,
+    projectedFromFrame: frame.frameId,
+    derivedFromIntent:  intent,
+    window:             windowId,                // v6.0 ([R12]) — the window this projection is
+    emittedAt:          Date.now(),
+    composition:        projectComposition(frame),
+    provenance: {
+      sourceStateChangeIds: frame.provenance.sourceStateChangeIds,
+      readPrimitivesUsed:   frame.provenance.readPrimitivesUsed,
+      cameraDerived:        frame.provenance.cameraDerived,
+      weightingApplied:     frame.weighting,
     },
     reversibility: {
       appealCourtIs:    'substrate-state-change-table',
-      replayDiscipline: 'invoke F-present with same PresentIntent → equivalent PresentView per PrA8',
+      replayDiscipline: 'invoke F-present with same PresentIntent -> equivalent PresentFrame and PresentView per PrA8',
     },
   }
 
-  // PR6
-  const emission = await emitView({ view, intent: v2.data })
-  if (!emission.ok) return emission
-
-  // Append emission id to provenance (LMA4: the emission is itself a state-change witnessing this view)
-  view = {
-    ...view,
-    provenance: {
-      ...view.provenance,
-      sourceStateChangeIds: [...view.provenance.sourceStateChangeIds, emission.data],
-    },
-  }
-
-  // PR7
+  // PR7 — runtime audit harness (read-side only; F-present is a non-emitter).
   const gates = runGates({
-    intent:               v2.data,
+    intent,
     view,
-    emissionId:           emission.data,
-    emissionChannel:      'internal-derivation',
-    emissionContentClass: 'system-introspection',
-    readsLog:             r4.data.traces,
-    writesLog: [{
-      channel:      'internal-derivation',
-      contentClass: 'system-introspection',
-      userId:       v2.data.userId,
-      scope:        v2.data.scopeRef as string,
-    }],
+    readsLog: frame.provenance.readPrimitivesUsed,
   })
 
   if (!gates.overall) {
@@ -121,12 +224,73 @@ export async function presentService(intent: PresentIntent): Promise<PresentResu
       ok: false,
       error: {
         code:       'PRESENT_GATE_FAILED',
-        failedGate: failed!.id as 'PrG1' | 'PrG2' | 'PrG3' | 'PrG4' | 'PrG5' | 'PrG6' | 'PrG7' | 'PrG8',
+        failedGate: failed!.id as 'PrG1' | 'PrG2' | 'PrG4' | 'PrG5' | 'PrG6' | 'PrG7' | 'PrG8',
         message:    failed!.detail ?? `gate ${failed!.id} failed`,
       },
     }
   }
 
-  // PR8
-  return deliverView({ view, intent: v2.data })
+  // PR8 (cont.) — ViewBound enforcement + consumer return.
+  return deliverView({ view, intent })
+}
+
+// ── projectComposition — the structure-carrying projection ([R19]/[R20]) ──────
+// Projects the frame's FrameNode[]/FrameEdge[] (each stack-carrying) into the
+// PresentView composition: ViewNode[] carrying the node's stack + parent +
+// children, ViewEdge[] carrying the edge's stack, root + camera refs, and
+// extent='granularity-cutoff' ([R20]). The stacks carry authorship ([R14]) —
+// they are copied through, never flattened.
+
+function projectComposition(frame: PresentFrame): PresentView['composition'] {
+  const parentOf   = new Map<string, string>()
+  const childrenOf = new Map<string, string[]>()
+  for (const e of frame.edges) {
+    const p = e.parent as string
+    const c = e.child as string
+    parentOf.set(c, p)
+    const list = childrenOf.get(p) ?? []
+    list.push(c)
+    childrenOf.set(p, list)
+  }
+
+  const nodes = frame.nodes.map(fn => {
+    const id = fn.identity as string
+    const parent = parentOf.get(id)
+    return {
+      identity:         fn.identity,
+      stack:            fn.stack,                // the node's stack — carries authorship ([R14])
+      substituteValues: fn.substituteValues,
+      weight:           fn.weight,
+      parent:           parent !== undefined
+        ? ((parent as unknown) as PresentView['composition']['nodes'][number]['parent'])
+        : null,
+      children:         (childrenOf.get(id) ?? []).map(
+        c => (c as unknown) as PresentView['composition']['nodes'][number]['children'][number],
+      ),
+      sourceCount:      fn.sourceCount,
+    }
+  })
+
+  const edges = frame.edges.map(fe => ({
+    parent:       fe.parent,
+    child:        fe.child,
+    relationType: fe.relationType,
+    stack:        fe.stack,                      // the edge's stack — symmetric with node-stack ([R5])
+    thickness:    fe.thickness,
+  }))
+
+  // the camera ref — the centred identity. The CameraTrace carries the anchor;
+  // it falls back to the root when the trace anchor is empty.
+  const cameraAnchor = frame.provenance.cameraDerived.anchor
+  const cameraRef = ((cameraAnchor && (cameraAnchor as string).length > 0)
+    ? cameraAnchor
+    : frame.root) as unknown as PresentView['composition']['camera']
+
+  return {
+    nodes,
+    edges,
+    root:   frame.root,
+    camera: cameraRef,
+    extent: 'granularity-cutoff',
+  }
 }
