@@ -169,7 +169,7 @@ export async function appendWindowRow(
   if (!PRESENT_STORE_POLICY['window-set'].persisted) return { ok: true, data: undefined }
   try {
     await db.query(
-      `INSERT INTO present_window (window_id, user_id, scope_ref, window, opened_at)
+      `INSERT INTO present_window (window_id, user_id, scope_ref, window_payload, opened_at)
        VALUES ($1, $2, $3, $4::jsonb, $5)
        ON CONFLICT (window_id) DO NOTHING`,
       [
@@ -194,14 +194,14 @@ export async function listWindowRows(
   userId: UserId, scopeRef: ScopeRef,
 ): Promise<PresentStoreResult<Window[]>> {
   try {
-    const r = await db.query<{ window: unknown }>(
-      `SELECT window FROM present_window
+    const r = await db.query<{ window_payload: unknown }>(
+      `SELECT window_payload FROM present_window
        WHERE user_id = $1 AND scope_ref = $2
        ORDER BY opened_at ASC`,
       [userId as string, scopeRef as string],
     )
     const windows = r.rows.map(row => {
-      const raw = row.window
+      const raw = row.window_payload
       return (typeof raw === 'string' ? JSON.parse(raw) : raw) as Window
     })
     return { ok: true, data: windows }

@@ -73,19 +73,19 @@ CREATE TABLE IF NOT EXISTS present_dial (
 -- present_window — store (2c): the accumulating Window set.
 --   Windows ACCUMULATE — they do not replace ([R12]). One row per Window;
 --   the set for a (user_id, scope_ref) is every row, ordered by opened_at.
---   window_id is the per-window unique key; window is the Window JSON whole.
+--   window_id is the per-window unique key; window_payload is the Window JSON whole.
 -- ────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS present_window (
   window_id   TEXT        NOT NULL,
   user_id     TEXT        NOT NULL,
   scope_ref   TEXT        NOT NULL,
-  window      JSONB       NOT NULL,
+  window_payload JSONB    NOT NULL,
   opened_at   BIGINT      NOT NULL,    -- Window.openedAt (epoch ms) — orders the look-trail
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   CONSTRAINT present_window_pkey PRIMARY KEY (window_id),
   CONSTRAINT present_window_object
-    CHECK (jsonb_typeof(window) = 'object')
+    CHECK (jsonb_typeof(window_payload) = 'object')
 );
 
 -- Look-trail read: every window for a (user_id, scope_ref), opened-order.
