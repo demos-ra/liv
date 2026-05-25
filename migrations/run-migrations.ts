@@ -64,6 +64,13 @@ const MIGRATION_FILES = [
   // lm-v2-2-shot5: A4 Postgres artifact store — Phase 9 closure of the
   // Phase 5.5 placeholder (memory-artifact-store.ts).
   '015-artifact-store.sql',
+  // item-1-storage: F-present per-user store backing — durable disk tables
+  // for the four F-present stores (held / dial / window-set / archive).
+  // NOTE: 016-020 are not listed in this array — they ran via other deploy
+  // paths (manual psql) at HEAD, as the 006-014 note above records. 021 is
+  // idempotent; if this runner is the deploy path it applies cleanly, and if
+  // 021 is applied by manual psql alongside 016-020 it is equally safe.
+  '021-present-stores.sql',
 ]
 
 function getMigrationUrl(): string {

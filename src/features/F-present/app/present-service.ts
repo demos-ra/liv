@@ -6,7 +6,10 @@
 // Sprint 2 — Shot 5; present-rederive — Shot 3; sprint-b3-present-build (v3.0);
 //   b3-v4-reconciliation (v4.0: non-emitter); sprint-b3-present-v5 (v5.0:
 //   hold + archive; scrub-back lookup); sprint-b3-present-v6 — Shots 1-7
-//   (tree of stacks; the three controls; every action opens a Window)
+//   (tree of stacks; the three controls; every action opens a Window);
+//   item-1-storage (the store functions are now async — durable disk backing;
+//   six call sites await: readDial / lookupArchivedPresent / appendWindow x2 /
+//   holdPresent / archivePresent)
 //
 // R2 — Orchestration layer. Composes PR1→PR8 per Present Standard v6.0 §3.7.
 //
@@ -80,14 +83,14 @@ export async function presentService(intent: PresentIntent): Promise<PresentResu
 
   // The lens (granularity dial) — read from stored state; needed for the live
   // resolve AND to stamp the Window every action opens.
-  const dial: GranularityDial = readDial(v2.data.userId, v2.data.scopeRef)
+  const dial: GranularityDial = await readDial(v2.data.userId, v2.data.scopeRef)
 
   // ── SCRUB-BACK ROUTING ([R16]) — checked before PR3/PR4 ───────────────────
   // A non-null standpoint is a past position: retrieve the archived present
   // from the per-user store and project it. The live-resolve path (PR3-PR6) is
   // skipped — scrub-back is a LOOKUP, not a recompute.
   if (v2.data.standpoint !== null) {
-    const archived = lookupArchivedPresent(
+    const archived = await lookupArchivedPresent(
       v2.data.userId,
       v2.data.scopeRef,
       v2.data.standpoint,
@@ -103,7 +106,7 @@ export async function presentService(intent: PresentIntent): Promise<PresentResu
     }
     // A scrub-back is still an action — it opens a Window ([R12]).
     const window = openWindow(v2.data, dial)
-    appendWindow(v2.data.userId, v2.data.scopeRef, window)
+    await appendWindow(v2.data.userId, v2.data.scopeRef, window)
     return projectAndDeliver(archived, v2.data, window.windowId)
   }
 
@@ -144,16 +147,16 @@ export async function presentService(intent: PresentIntent): Promise<PresentResu
       cameraDerived:        r4.data.crystallizedCamera,
     },
   }
-  holdPresent(frame)
+  await holdPresent(frame)
 
   // The archive key's position is the substrate append-index this present was
   // resolved at — the live edge (the head position; 0 when no records read).
   const livePosition = (r4.data.records.length as unknown) as PositionRef
-  archivePresent(frame, livePosition, Date.now())   // archivedAt = the archival act's time
+  await archivePresent(frame, livePosition, Date.now())   // archivedAt = the archival act's time
 
   // Every action opens a Window ([R12]) — append it to the accumulating set.
   const window = openWindow(v2.data, dial)
-  appendWindow(v2.data.userId, v2.data.scopeRef, window)
+  await appendWindow(v2.data.userId, v2.data.scopeRef, window)
 
   // PR7 + PR8 — project, gate, deliver.
   return projectAndDeliver(frame, v2.data, window.windowId)
