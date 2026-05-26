@@ -6,8 +6,12 @@
 // standard:   LIV-Standard v1.5.1
 // amended:    phase4-page-transitions, phase5-remediation, phase-5.4,
 //             sprint-beta-addon-shot-2 (engine picker completed: the active-provider
-//               selection now persists to /api/profile/models as { provider }, and the
-//               picker loads the saved selection on open; auto-select is display-only)
+//               selection now persists to /api/profile/models as { provider }),
+//             sprint-beta-fixround (F5: engine state collapsed to single-source —
+//               activeProvider is observed from useEngineSelection, not asserted;
+//               the loadSelection and auto-select effects are deleted; saveModelSelection
+//               consumes the PUT response honestly (422/409/500/network surface);
+//               removeKey no longer writes engine state)
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -59,6 +63,7 @@
 import { useState, useEffect } from 'react'
 import { PROVIDER_ORDER, PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
 import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
+import { useEngineSelection } from './user-profile-hook'
 import {
   InputContainer,
   ButtonText,
@@ -101,7 +106,17 @@ export function AccountPage({
   const [keySaving, setKeySaving] = useState<Record<ProviderId, boolean>>(() =>
     Object.fromEntries(PROVIDER_ORDER.map(p => [p, false])) as Record<ProviderId, boolean>
   )
-  const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null)
+  // sprint-beta-fixround (F5): the engine selection is OBSERVED from the single
+  // shared resolver — account-page does not hold or assert it. `activeProvider`
+  // is derived purely from the server-persisted selection; there is no
+  // auto-select, no display-default, no optimistic local copy. A pick writes to
+  // the server, then refreshes the observation. `selectError` is the honest
+  // surface of a failed PUT — the selection does NOT appear active unless the
+  // server confirmed it.
+  const engine          = useEngineSelection(visible)
+  const activeProvider  = engine.selection?.provider ?? null
+  const [selectError, setSelectError]   = useState<string | null>(null)
+  const [selecting, setSelecting]       = useState<ProviderId | null>(null)
   const [feedbackText, setFeedbackText]     = useState('')
   const [feedbackSending, setFeedbackSending] = useState(false)
   const [feedbackSent, setFeedbackSent]       = useState(false)
@@ -120,38 +135,8 @@ export function AccountPage({
     })
   }, [visible])
 
-  // ── Fetch the persisted engine selection when page becomes visible ──────
-  // sprint-beta-addon-shot-2: /api/profile/models returns the wearer's saved
-  // ModelPreferences { provider, model } (or null if none saved). The picker
-  // reflects the persisted provider. If none is saved, activeProvider is left
-  // for the display-only auto-select below — auto-select highlights a default
-  // but does NOT persist; only an explicit pick writes.
-  useEffect(() => {
-    if (!visible) return
-    let cancelled = false
-    async function loadSelection() {
-      try {
-        const res = await fetch('/api/profile/models')
-        if (!res.ok) return
-        const body = await res.json()
-        const saved = body?.data
-        if (!cancelled && saved && typeof saved.provider === 'string') {
-          setActiveProvider(saved.provider as ProviderId)
-        }
-      } catch {}
-    }
-    loadSelection()
-    return () => { cancelled = true }
-  }, [visible])
-
-  // ── Auto-select first active provider ───────────────────────────────────
-  // Display-only default: highlights the first key'd provider when nothing is
-  // persisted. Does not write — persistence fires only on an explicit pick.
-  useEffect(() => {
-    if (activeProvider && keySet[activeProvider]) return
-    const first = PROVIDER_ORDER.find(p => keySet[p]) ?? null
-    setActiveProvider(first)
-  }, [keySet, activeProvider])
+  // (F5: the former loadSelection effect and auto-select effect are deleted —
+  // engine state is now observed via useEngineSelection, not asserted here.)
 
   // ── Escape key → close ─────────────────────────────────────────────────
   useEffect(() => {
@@ -206,29 +191,43 @@ export function AccountPage({
         body:    JSON.stringify({ provider }),
       })
       setKeySet(prev => ({ ...prev, [provider]: false }))
-      if (activeProvider === provider) {
-        const next = PROVIDER_ORDER.find(p => p !== provider && keySet[p]) ?? null
-        setActiveProvider(next)
-      }
+      // sprint-beta-fixround (F5): removeKey does NOT write engine state.
+      // activeProvider is observed from the persisted selection, not asserted
+      // here. If the removed provider was the persisted selection, that is a
+      // server-state concern; the displayed state follows the next observation.
     } catch {}
   }
 
-  // ── Persist the wearer's engine selection ────────────────────────────────
-  // sprint-beta-addon-shot-2: the picker writes the picked provider to
-  // /api/profile/models. The route resolves the provider's model via
-  // PROVIDER_DEFAULT_MODEL and stores ModelPreferences = { provider, model }.
-  // Body is { provider } — provider-granularity selection; the model layer is
-  // resolved server-side. Persistence fires only on an explicit pick (the radio
-  // onChange below), never from the display-only auto-select default.
+  // ── Persist the wearer's engine selection — observed, not asserted (F5) ──
+  // sprint-beta-fixround (F5): saveModelSelection writes to the server and
+  // OBSERVES the result. It does not optimistically set local state. On res.ok
+  // the selection is refreshed from the server (becoming the new observed
+  // truth); on any non-ok (422 no key, 409 no profile row, 500, network) the
+  // error surfaces honestly and the displayed selection is unchanged — it
+  // never silently appears active without server confirmation.
   const saveModelSelection = async (provider: ProviderId) => {
-    setActiveProvider(provider)
+    setSelecting(provider)
+    setSelectError(null)
     try {
-      await fetch('/api/profile/models', {
+      const res = await fetch('/api/profile/models', {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ provider }),
       })
-    } catch { /* network error — selection stays in UI; wearer can re-pick */ }
+      if (res.ok) {
+        engine.refresh()   // re-observe — the server confirmed; the new truth flows in
+      } else if (res.status === 422) {
+        setSelectError(`Add a ${provider} API key before selecting it.`)
+      } else if (res.status === 409) {
+        setSelectError('Your profile is not ready yet — try again in a moment.')
+      } else {
+        setSelectError('Could not save that selection. Please try again.')
+      }
+    } catch {
+      setSelectError('Network error — selection not saved.')
+    } finally {
+      setSelecting(null)
+    }
   }
 
   // ── Feedback ─────────────────────────────────────────────────────────────
@@ -331,6 +330,7 @@ export function AccountPage({
                         name="active-provider"
                         value={provider}
                         checked={activeProvider === provider}
+                        disabled={selecting !== null}
                         onChange={() => saveModelSelection(provider)}
                         className="sr-only"
                       />
@@ -341,10 +341,17 @@ export function AccountPage({
                         color:      activeProvider === provider ? 'var(--text)' : 'var(--text-sec)',
                       }}>
                         {PROVIDERS[provider].label}
+                        {selecting === provider && ' …'}
                       </span>
                     </label>
                   ))}
                 </div>
+                {/* sprint-beta-fixround (F5): a failed PUT surfaces here — the
+                    selection never silently appears active without server
+                    confirmation. */}
+                {selectError && (
+                  <Text role="error">{selectError}</Text>
+                )}
               </fieldset>
             </div>
           )}

@@ -26,8 +26,15 @@
 //   R3  ./chat-hook
 //   R3  @/features/F-design-system/contract/primitives
 //   R3  @/features/F-user-profile/config/provider-keys-config
+//   R3  @/features/F-user-profile/contract/user-profile-hook  (sprint-beta-fixround F5: useEngineSelection — the shared single-source engine resolver)
 //   R5  react
 // validated: pending
+//
+// sprint-beta-fixround (F5):
+//   The local resolvedModelId state + loadEngine fetch effect are deleted. The
+//   engine selection is observed via useEngineSelection — the single shared
+//   resolver in F-user-profile R3, the same source account-page observes. The
+//   two surfaces can no longer diverge: one observation, one source.
 //
 // phase2-account-extraction (A1):
 //   AccountPanel deleted — extracted to F-user-profile/contract/account-page.tsx.
@@ -65,6 +72,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useChatStream, useViewportKeyboard } from './chat-hook'
 import { PROVIDER_ORDER } from '@/features/F-user-profile/config/provider-keys-config'
+import { useEngineSelection } from '@/features/F-user-profile/contract/user-profile-hook'
 import type { ChatError } from '../config/chat-config'
 import {
   InputContainer,
@@ -123,11 +131,13 @@ export function ChatUI({
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
   const [hasAnyKey, setHasAnyKey]     = useState<boolean | null>(null)
-  // sprint-beta-addon-shot-1: the wearer's saved chat-engine model id, fetched
-  // from /api/profile/models on mount. null = not yet fetched, OR no saved
-  // preference for the chat tier. The chat surface holds no hard-coded model
-  // id; this — the wearer's settings selection — is the single model-id origin.
-  const [resolvedModelId, setResolvedModelId] = useState<string | null>(null)
+  // sprint-beta-fixround (F5): the chat surface OBSERVES the wearer's engine
+  // selection from the single shared resolver — the same source the settings
+  // surface observes. It does not fetch and resolve independently. The resolved
+  // model id is engine.selection?.model; null means no saved selection, which
+  // handleSend routes to the existing key-prompt state. No hard-coded fallback.
+  const engine          = useEngineSelection()
+  const resolvedModelId = engine.selection?.model ?? null
 
   const asstIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -164,35 +174,8 @@ export function ChatUI({
     return () => { mounted = false }
   }, [])
 
-  // ── Fetch the wearer's saved engine selection on mount ──────────────────
-  // sprint-beta-addon-shot-1: the chat surface holds no hard-coded model id —
-  // the wearer's saved preference is the only origin.
-  // /api/profile/models returns { ok, data: ModelPreferences } where
-  // ModelPreferences is the wearer's single engine selection { provider, model }
-  // (the per-tier structure was struck by L0 ruling). data is null when the
-  // wearer has saved no engine selection; resolvedModelId stays null and
-  // handleSend routes to the key-prompt state (no hard-coded fallback —
-  // single-source discipline).
-  useEffect(() => {
-    let mounted = true
-    async function loadEngine() {
-      try {
-        const res  = await fetch('/api/profile/models')
-        if (!res.ok) { if (mounted) setResolvedModelId(null); return }
-        const body = await res.json()
-        const selection = body?.data
-        if (mounted) {
-          setResolvedModelId(
-            selection && typeof selection.model === 'string' ? selection.model : null,
-          )
-        }
-      } catch {
-        if (mounted) setResolvedModelId(null)
-      }
-    }
-    loadEngine()
-    return () => { mounted = false }
-  }, [])
+  // (F5: the former loadEngine effect is deleted — the engine selection is now
+  // observed via useEngineSelection, the single shared resolution site.)
 
   const handleChunk = useCallback((chunk: string) => {
     const id = asstIdRef.current
