@@ -3,13 +3,11 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed)
+// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed), fixround-context-channel (LIV_ANCHOR/LIV_SPEC prepend deleted — the hardcoded pre-substrate context channel; messages now carry the present + the wearer's turn only, or the turn alone when the present is empty; dead isFirstMessage removed)
 // slice:      F-chat
 // category:   Modality
 // layer:      R2
 // wires-in:
-//   W-ATOM    LIV_ANCHOR       F-chat/R0
-//   W-ATOM    LIV_SPEC         F-chat/R0
 //   W-INJECT  persistMessage   F-chat/R4 (chat-db)
 //   W-INJECT  getMessages      F-chat/R4 (chat-db)
 //   W-HOOK   streamAIResponse F-ai-adapter/R3
@@ -43,7 +41,6 @@
 //   directly at the post-stream callback, replacing the deleted lmTraverseWrite.
 //   Surviving flow: AI streaming + chat-db persistence (both unchanged).
 
-import { LIV_ANCHOR, LIV_SPEC } from '../config/chat-config'
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
@@ -109,21 +106,21 @@ export async function* sendMessage(input: SendMessageInput): AsyncGenerator<stri
     state.lmSessionId = crypto.randomUUID()
     state.messageGaps = []
   }
-  const isFirstMessage = state.messageGaps.length === 0
   updateSessionState(state)
   const lmSessionId = state.lmSessionId
 
-  // Assemble system prompt
-  const systemParts: string[] = [LIV_ANCHOR]
-  if (isFirstMessage) systemParts.push(LIV_SPEC)
-  if (systemContext) systemParts.push(systemContext)
-
-  const systemPrompt = systemParts.join('\n\n')
-
-  const messages = [
-    { role: 'system' as const, content: systemPrompt },
-    { role: 'user'   as const, content },
-  ]
+  // Assemble the LLM messages. The substrate is the only context channel:
+  // systemContext IS the present (F-present's resolution of the accumulated
+  // ledger). When the present is non-empty it is the system message; when it
+  // is empty the call carries the wearer's turn alone — no empty system message.
+  const messages = systemContext
+    ? [
+        { role: 'system' as const, content: systemContext },
+        { role: 'user'   as const, content },
+      ]
+    : [
+        { role: 'user'   as const, content },
+      ]
 
   // Load per-user API key
   const provider = providerForModel(modelId)
