@@ -11,6 +11,7 @@
 //   W-FN    getPerimeterSession()  ←  F-identity/R3 (perimeter-consultation; replaces validateSession+SESSION_COOKIE_NAME pattern per Sprint 6 Shot 3)
 //   W-ATOM  Surface, Button, ButtonText, Text, Heading, Label, Divider, Toast
 //                                  ←  F-design-system/R3 (primitives)
+//   W-ATOM  PROVIDER_DEFAULT_MODEL ←  F-ai-adapter/R0 (ai-adapter-config; PUT /api/profile/models resolves provider→model — sprint-beta-addon-shot-2)
 
 // ─── Outbound (exported from this slice) ───────────────────────────────────────
 //   W-FN    getApiKey()            →  F-chat/R2 (chat-workflow), F-builder/R3 (builder-contract)

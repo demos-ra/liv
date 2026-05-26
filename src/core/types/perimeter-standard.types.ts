@@ -161,6 +161,9 @@ export type DispositionKind = 'act' | 'reference'
  * - 'integration-event': external system integration event (webhook, etc.)
  * - 'scheduled-trigger': time-scheduled internal trigger
  * - 'internal-derivation': framework-derived signal (cross-framework consultation)
+ * - 'external-agent': non-wearer agent authenticated by a wearer-delegated token
+ *   (sprint-beta-shot-3 — the connector door; the agent crosses as the wearer
+ *   by delegation, so its permitted authority equals the wearer's)
  *
  * The trailing `string` admits open-vocabulary extension; G-PS-Cn2 at v1.0
  * accepts any string per declared baseline (gate may tighten in future amendments).
@@ -173,6 +176,7 @@ export type ChannelKind =
   | 'integration-event'
   | 'scheduled-trigger'
   | 'internal-derivation'
+  | 'external-agent'
   | (string & { readonly _channelOpenVocab?: never })
 
 /**

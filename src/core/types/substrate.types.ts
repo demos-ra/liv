@@ -104,6 +104,7 @@ export type SourceChannel =
   | 'integration-event'
   | 'internal-derivation'
   | 'system-l0'           // Manual Part II L180 — distinct channel origin for System-L0 initiated writes
+  | 'external-agent'      // sprint-beta-shot-3 — connector door; wearer-delegated agent. Content is the wearer's own (agent acts as wearer) → derives 'wearer-life'.
 
 // ─── Content class (substrate v1.8.3 A-24: closed two-value classification) ────
 // ContentClass: classifies the content of a recorded state-change as either
@@ -151,6 +152,9 @@ export function deriveContentClassFromChannel(channel: SourceChannel): ContentCl
     case 'wearer':
     case 'ai':
     case 'integration-event':
+    case 'external-agent':
+      // sprint-beta-shot-3: external-agent crossings are the wearer's own
+      // content produced through a delegated agent — wearer-life, like 'wearer'.
       return 'wearer-life'
     case 'cron':
     case 'system-l0':

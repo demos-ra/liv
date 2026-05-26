@@ -137,7 +137,7 @@ export async function dbGetModelPreferences(
 
 // ── dbSetModelPreferences (step4b2-phase-d, corrective-2: Result<T>) ──────────
 // Writes user_profiles.model_preferences jsonb.
-// Caller (R3) is responsible for validating tier/provider integrity before write.
+// Caller (R3) is responsible for validating provider/model integrity before write.
 
 export async function dbSetModelPreferences(
   userId: string,

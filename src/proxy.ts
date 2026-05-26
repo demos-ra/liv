@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1 b1-final-shot-2 sprint-b1.5-shot-2 sprint-b2-shot-2
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-b1-shot-2 sprint-13b-shot-1 b1-final-shot-2 sprint-b1.5-shot-2 sprint-b2-shot-2 sprint-beta-shot-3
 // @perimeter-standard v1.0
 // [perimeter site — unitary per PA-I]
 // Built with LIV · livai.dev
@@ -11,6 +11,16 @@
 //   emitEvent imported from F-event-system/contract (R3-level caller — A2 compliant).
 //   realEventBus adapter declared inline: implements IEventBus, wraps emitEvent, drops eventKind.
 //   createAuthDeps call updated to pass realEventBus as third arg.
+// @manifest-delta sprint-beta-shot-3
+//   Token-auth branch added (the connector door): no session cookie → check
+//   Authorization: Bearer → validate via lookupSession → on success stamp the
+//   'external-agent' channel; on failure 401 JSON (not redirect). The existing
+//   cookie path is behavior-unchanged. The post-validation stamp block was
+//   lifted verbatim into buildStampedResponse(), channel- and validationBasis-
+//   parameterized; both credential branches call it (cookie path with
+//   'wearer-message', token path with 'external-agent'). Authority stamp added:
+//   permittedAuthorityByChannel consulted, the channel's AuthorityAssertion[]
+//   stamped as PERIMETER_HEADER_AUTHORITY — the capability mechanism made live.
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-b1-shot-1 (boundary stamp: crossingId, crossedAt, resolvedChannel; session cookie refresh)
@@ -18,11 +28,13 @@
 //             b1-final-shot-2 (PA-IR1..4 closed via ambiguous-pending outcome; PA-Co1 self-correlation; PA-A1..6 authorityEnforced record)
 //             sprint-b1.5-shot-2 (middleware→proxy rename; runtime export removed; closes F-NEXT-PROXY-1)
 //             sprint-b2-shot-2 (Part 2a: 10 missing PS v1.2.1 fields landed; Part 2b: resolvedIdentities via threadQuery)
+//             sprint-beta-shot-3 (token-auth branch + buildStampedResponse extraction + authority stamp; external-agent channel)
 // placement:  src/proxy.ts (Next.js proxy; self-declared per inverted PL-A1, Sprint 9 Shot 1; renamed sprint-b1.5-shot-2)
 // wires-in:
 //   W-ATOM    SESSION_COOKIE_NAME           @/features/F-identity/contract/auth-contract
 //   W-FN      validateAndRefreshSession     @/features/F-identity/app/auth-workflow
 //   W-FN      createAuthDeps               @/features/F-identity/app/auth-workflow
+//   W-FN      lookupSession                @/features/F-identity/app/auth-workflow  (sprint-beta-shot-3: token-auth validation)
 //   W-FN      createAuthDb                 @/features/F-identity/exec/auth-db  (F-5 fix: declared)
 //   W-FN      emitEvent                    @/features/F-event-system/contract/event-bus
 //   W-FN      writeStateChange              @/features/F-memory/contract/substrate-contract
@@ -33,6 +45,7 @@
 //   W-ATOM    PERIMETER_HEADER_CHANNEL      @/core/constants/perimeter-headers
 //   W-ATOM    PERIMETER_HEADER_CROSSED_AT   @/core/constants/perimeter-headers
 //   W-ATOM    PERIMETER_HEADER_DISPOSITION  @/core/constants/perimeter-headers
+//   W-ATOM    PERIMETER_HEADER_AUTHORITY    @/core/constants/perimeter-headers  (sprint-beta-shot-3: authority stamp)
 //   W-ATOM    CrossingId                    @/core/types/perimeter-standard.types
 //   W-ATOM    EpochMs                       @/core/types/perimeter-standard.types
 //   W-ATOM    ChannelKind                   @/core/types/perimeter-standard.types
@@ -44,6 +57,7 @@
 //   W-ATOM    AuditStatus                   @/core/types/perimeter-standard.types
 //   W-ATOM    ReversibilityFlag             @/core/types/perimeter-standard.types
 //   W-ATOM    FOUR_CELL_GOVERNANCE_MAP      @/core/constants/perimeter-standard
+//   W-ATOM    DEFAULT_PERIMETER_BINDING     @/core/constants/perimeter-standard  (sprint-beta-shot-3: permittedAuthorityByChannel consultation)
 //   W-ATOM    SubstrateWriteInput           @/core/types/substrate.types
 // wires-out:
 //   W-HEADER  x-perimeter-user-id           → all distributed R3 contracts via getPerimeterSession
@@ -51,6 +65,7 @@
 //   W-HEADER  x-perimeter-channel           → all distributed R3 contracts via getPerimeterSession
 //   W-HEADER  x-perimeter-crossed-at        → all distributed R3 contracts via getPerimeterSession
 //   W-HEADER  x-perimeter-disposition       → all distributed R3 contracts via getPerimeterSession
+//   W-HEADER  x-perimeter-authority         → all distributed R3 contracts via getPerimeterSession  (sprint-beta-shot-3)
 // validated:  pending
 //
 // Perimeter Standard v1.0 — Unitary Site (PA-I)
@@ -75,7 +90,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE_NAME } from '@/features/F-identity/contract/auth-contract'
-import { validateAndRefreshSession, createAuthDeps } from '@/features/F-identity/app/auth-workflow'
+import { validateAndRefreshSession, createAuthDeps, lookupSession } from '@/features/F-identity/app/auth-workflow'
 import { writeStateChange, threadQuery } from '@/features/F-memory/contract/substrate-contract'
 import { generateId } from '@/core/types/primitives'
 import { db, taggedDb } from '@/core/db/client'
@@ -87,9 +102,10 @@ import {
   PERIMETER_HEADER_CHANNEL,
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
+  PERIMETER_HEADER_AUTHORITY,
 } from '@/core/constants/perimeter-headers'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
-import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF } from '@/core/constants/perimeter-standard'
+import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
 import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 
@@ -144,6 +160,12 @@ function toSourceChannel(channel: ChannelKind): SourceChannel {
       return 'integration-event'
     case 'internal-derivation':
       return 'internal-derivation'
+    case 'external-agent':
+      // sprint-beta-shot-3: the connector channel maps to its own substrate
+      // SourceChannel value — the crossing record stamps 'external-agent', not
+      // the default 'wearer'. deriveContentClassFromChannel maps it to
+      // 'wearer-life' (the agent produces the wearer's own content).
+      return 'external-agent'
     default:
       // Open-vocabulary fallback: unknown channel kinds map to 'wearer' as conservative default.
       return 'wearer'
@@ -190,69 +212,40 @@ function resolveDisposition(pathname: string, method: string): DispositionKind {
   return 'reference'
 }
 
-// ─── Proxy ────────────────────────────────────────────────────────────────────
 
-export async function proxy(req: NextRequest): Promise<NextResponse> {
-  const { pathname } = req.nextUrl
-
-  // Public routes — pass through without auth or stamp.
-  const isPublic = PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
-  if (isPublic) {
-    return NextResponse.next()
-  }
-
-  // Read session token from cookie.
-  const rawToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
-
-  if (!rawToken) {
-    // No session — redirect to auth.
-    const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // ── Part A + Part B: use validateAndRefreshSession to get refresh signal ──
-  // validateSession (auth-contract) is a thin lookup without refresh.
-  // We need validateAndRefreshSession here to detect refresh for cookie re-set.
-  // This is the unitary site — one call per crossing, here only.
-  const authDb   = createAuthDb(taggedDb(db))
-  const realEventBus = {
-    async emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void> {
-      await emitEvent({ type: event.type, payload: event.payload })
-    },
-  }
-  const authDeps = createAuthDeps('middleware', authDb, realEventBus)
-
-  const sessionResult = await validateAndRefreshSession(rawToken, authDeps)
-
-  if (!sessionResult.success) {
-    // Invalid or expired session — redirect to auth.
-    const loginUrl = req.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
-    const response = NextResponse.redirect(loginUrl)
-    // Clear stale cookie.
-    response.headers.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE_NAME, '', {
-      maxAge:   0,
-      httpOnly: true,
-      secure:   IS_PROD,
-      sameSite: 'lax',
-      path:     '/',
-    }))
-    return response
-  }
-
-  const { user, session, sessionRefreshed, newToken } = sessionResult.data
-
+// ─── buildStampedResponse — the boundary stamp-and-respond routine ────────────
+// sprint-beta-shot-3: extracted verbatim from proxy()'s post-validation block
+// (a pure, behavior-preserving lift — inlining this back into the cookie path
+// yields the original code instruction-for-instruction). Channel-parameterized
+// on `resolvedChannel` and provenance-parameterized on `validationBasis` — the
+// two values that genuinely differ between a cookie crossing and a token
+// crossing; everything else is identical. Both credential branches in proxy()
+// call this: the cookie path with resolvedChannel='wearer-message', the
+// token-auth path with resolvedChannel='external-agent'.
+//
+// Inputs are the minimal surface the block consumes: the wearer's userId and
+// the sessionId (the cookie path passes user.id / session.sessionId; the token
+// path passes lookupSession's { userId, sessionId }), plus the cookie-refresh
+// signals (sessionRefreshed/newToken — only the cookie path sets them; the
+// token path passes false/undefined and the cookie re-set is correctly skipped).
+async function buildStampedResponse(args: {
+  req:              NextRequest
+  userId:           string
+  sessionId:        string
+  resolvedChannel:  ChannelKind
+  validationBasis:  string
+  sessionRefreshed: boolean
+  newToken?:        string
+}): Promise<NextResponse> {
   // ── Part B — Boundary stamp ───────────────────────────────────────────────
-  // Fields determinable at crossing time: crossingId, crossedAt, resolvedChannel,
+  // Fields determinable at crossing time: crossingId, crossedAt, args.resolvedChannel,
   // resolvedDisposition, cellGovernance (Shot 2).
   // Browser session = wearer-message channel per Perimeter Standard CHANNEL_KIND_ENUM.
   const crossingId: CrossingId       = generateId('cx') as CrossingId
   const crossedAt: EpochMs           = Date.now() as EpochMs
-  const resolvedChannel: ChannelKind = 'wearer-message'
 
   // Decision-D-INTAKE-DIRECTION: all middleware crossings are intake direction.
-  const resolvedDisposition: DispositionKind = resolveDisposition(req.nextUrl.pathname, req.method)
+  const resolvedDisposition: DispositionKind = resolveDisposition(args.req.nextUrl.pathname, args.req.method)
   const cellKey = `${resolvedDisposition}-intake` as CellKind
   const cellEntry = FOUR_CELL_GOVERNANCE_MAP[cellKey]
   // cellGovernance: full 5-field record built as deferred-field scaffold.
@@ -271,7 +264,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   // PA-IR1..PA-IR4 closure (b1-final-shot-2 → sprint-b2-shot-2 upgrade):
   // Part 2b: threadQuery now available at crossing. resolveIdentity attempts
-  // surface-form-to-Ref matching on user.id via identity-recurrence thread kind.
+  // surface-form-to-Ref matching on args.userId via identity-recurrence thread kind.
   // G-PS-IR2 invariant: ambiguous → ref===null + ambiguityDetail non-empty.
   // bound-to-existing-Ref or new-Ref-created → ref!==null.
 
@@ -321,7 +314,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  const identityResolution = await resolveIdentity(user.id, user.id as ScopeRef)
+  const identityResolution = await resolveIdentity(args.userId, args.userId as ScopeRef)
 
   // PA-Co1 closure: crossingId self-correlates (no upstream MI correlation at v1.0).
   // PA-A1..PA-A6 closure: authority validated at session check above; record constructed here.
@@ -330,7 +323,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     authorityClaimed:      { level: 'L0', actor: 'wearer', source: null },
     authorityValidated:    true,   // session validation passed — we reached this point
     authorityScopeMatch:   true,   // userId scope matches session.userId
-    validationBasis:       'session-cookie-validated-by-middleware',
+    validationBasis:       args.validationBasis,
   }
 
   const arrivalRef = generateId('ar') as unknown as IdentityRef
@@ -339,12 +332,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // Write crossing record to substrate (HR-PS-LM1).
   // Fire-and-forget: write failure must not block the request.
   const crossingWrite: SubstrateWriteInput = {
-    userId: user.id,
+    userId: args.userId,
     content: {
       identities: [
-        user.id                              as IdentityRef,
+        args.userId                              as IdentityRef,
         crossingId                           as unknown as IdentityRef,
-        session.sessionId                    as IdentityRef,
+        args.sessionId                    as IdentityRef,
         resolvedDisposition                  as IdentityRef,
         cellGovernance.governanceLevel       as IdentityRef,
         selfCorrelationRef                   as unknown as IdentityRef,
@@ -356,7 +349,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         'intake'                             as IdentityRef,
         authorityAssertion,
         'true'                               as IdentityRef,
-        'session-cookie-validated-by-middleware' as IdentityRef,
+        args.validationBasis as IdentityRef,
         LIV_INSTANCE_PERIMETER_SITE_REF       as IdentityRef,
         ...(identityResolution.ref !== null ? [identityResolution.ref] : []),
       ],
@@ -365,7 +358,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
           type:                'boundary-crossing' as IdentityRef,
           modality:            'declarative',
           identitiesWithRoles: [
-            { identity: user.id as IdentityRef,                        role: 'agent'                    as RoleRef },
+            { identity: args.userId as IdentityRef,                        role: 'agent'                    as RoleRef },
             { identity: crossingId as unknown as IdentityRef,          role: 'crossing'                 as RoleRef },
             { identity: resolvedDisposition as IdentityRef,            role: 'disposition'              as RoleRef },
             { identity: selfCorrelationRef as unknown as IdentityRef,  role: 'correlation'              as RoleRef },
@@ -378,7 +371,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             { identity: authorityAssertion,                            role: 'authority-claimed'        as RoleRef },
             { identity: 'true' as IdentityRef,                         role: 'authority-validated-flag' as RoleRef },
             { identity: 'true' as IdentityRef,                         role: 'authority-scope-match'    as RoleRef },
-            { identity: 'session-cookie-validated-by-middleware' as IdentityRef,
+            { identity: args.validationBasis as IdentityRef,
                                                                         role: 'validation-basis'         as RoleRef },
             { identity: cellGovernance.cell as unknown as IdentityRef, role: 'cell'                     as RoleRef },
             { identity: cellGovernance.confirmationStatus as IdentityRef,
@@ -403,11 +396,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       // deriveContentClassFromChannel(channel). proxy.ts is the canonical
       // Path A Boundary stamping site for intake.
       source: (() => {
-        const ch = toSourceChannel(resolvedChannel)
+        const ch = toSourceChannel(args.resolvedChannel)
         return {
           channel:      ch,
           contentClass: deriveContentClassFromChannel(ch),
-          scope:        user.id as ScopeRef,
+          scope:        args.userId as ScopeRef,
         }
       })(),
     },
@@ -422,19 +415,33 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const response = NextResponse.next()
 
   // Existing headers (PA-A1 enforcement surface for downstream contracts).
-  response.headers.set(PERIMETER_HEADER_USER_ID,    user.id)
-  response.headers.set(PERIMETER_HEADER_SESSION_ID, session.sessionId)
+  response.headers.set(PERIMETER_HEADER_USER_ID,    args.userId)
+  response.headers.set(PERIMETER_HEADER_SESSION_ID, args.sessionId)
 
   // New headers — sprint-b1-shot-1 (Part B).
-  response.headers.set(PERIMETER_HEADER_CHANNEL,    resolvedChannel)
+  response.headers.set(PERIMETER_HEADER_CHANNEL,    args.resolvedChannel)
   response.headers.set(PERIMETER_HEADER_CROSSED_AT, String(crossedAt))
   // sprint-b1-shot-2.
   response.headers.set(PERIMETER_HEADER_DISPOSITION, resolvedDisposition)
 
+  // sprint-beta-shot-3 — authority stamp. Resolve the requesting channel's
+  // PermittedAuthoritySet (AuthorityAssertion[]) from the PerimeterBinding and
+  // stamp it as a perimeter header. This is the capability mechanism made live:
+  // permittedAuthorityByChannel was declared but consulted nowhere — proxy.ts
+  // now resolves it once, here, and stamps it. Downstream contracts read via
+  // getPerimeterSession; they do not re-resolve (PA-I unitary discipline).
+  // Open-vocabulary channels with no binding entry resolve to [] (no admitted
+  // authority) — conservative.
+  const permittedAuthority =
+    DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel[
+      args.resolvedChannel as keyof typeof DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel
+    ] ?? []
+  response.headers.set(PERIMETER_HEADER_AUTHORITY, JSON.stringify(permittedAuthority))
+
   // Part A — re-set cookie if session was refreshed in DB.
   // Same token string; new Max-Age anchors browser expiry to DB expiry.
-  if (sessionRefreshed && newToken) {
-    response.headers.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE_NAME, newToken, {
+  if (args.sessionRefreshed && args.newToken) {
+    response.headers.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE_NAME, args.newToken, {
       maxAge:   MAX_AGE,
       httpOnly: true,
       secure:   IS_PROD,
@@ -444,6 +451,118 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   return response
+}
+
+// ─── Proxy ────────────────────────────────────────────────────────────────────
+
+export async function proxy(req: NextRequest): Promise<NextResponse> {
+  const { pathname } = req.nextUrl
+
+  // Public routes — pass through without auth or stamp.
+  const isPublic = PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
+  if (isPublic) {
+    return NextResponse.next()
+  }
+
+  // Read session token from cookie.
+  const rawToken = req.cookies.get(SESSION_COOKIE_NAME)?.value
+
+  if (!rawToken) {
+    // ── sprint-beta-shot-3 — token-auth branch (the connector door) ─────────
+    // No session cookie. Before redirecting (browser-no-cookie behavior), check
+    // for a wearer-delegated bearer token — an external agent cannot present a
+    // cookie. This branch is additive: a request with neither cookie nor bearer
+    // token redirects exactly as before; only a bearer-bearing request takes
+    // the new path. Token validation reuses lookupSession (auth-workflow) — the
+    // delegated agent token is a session row issued under the wearer's userId,
+    // so the existing session machinery validates it; findSession filters
+    // expired rows at the SQL layer, so an expired token yields null here.
+    const authHeader  = req.headers.get('authorization')
+    const bearerToken =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null
+
+    if (!bearerToken) {
+      // No cookie and no bearer token — redirect to auth (unchanged behavior).
+      const loginUrl = req.nextUrl.clone()
+      loginUrl.pathname = '/auth/login'
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // Validate the delegated token via lookupSession (reuses session machinery).
+    const tokenAuthDb = createAuthDb(taggedDb(db))
+    const validated   = await lookupSession(bearerToken, tokenAuthDb)
+
+    if (!validated) {
+      // Token-path failure returns 401 JSON, not a redirect — an external agent
+      // cannot follow a browser redirect (sprint-beta-shot-3 compliance item 3).
+      return new NextResponse(
+        JSON.stringify({ error: { code: 'UNAUTHENTICATED', message: 'invalid or expired agent token' } }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Valid delegated token. Stamp the crossing on the external-agent channel.
+    // The agent crosses as the wearer by delegation — userId is the wearer's,
+    // sourced from the token's session row. No cookie refresh on the token path.
+    return buildStampedResponse({
+      req,
+      userId:           validated.userId,
+      sessionId:        validated.sessionId,
+      resolvedChannel:  'external-agent',
+      validationBasis:  'session-token-validated-by-middleware',
+      sessionRefreshed: false,
+      newToken:         undefined,
+    })
+  }
+
+  // ── Part A + Part B: use validateAndRefreshSession to get refresh signal ──
+  // validateSession (auth-contract) is a thin lookup without refresh.
+  // We need validateAndRefreshSession here to detect refresh for cookie re-set.
+  // This is the unitary site — one call per crossing, here only.
+  const authDb   = createAuthDb(taggedDb(db))
+  const realEventBus = {
+    async emit(event: { type: string; payload: Record<string, unknown>; eventKind?: string }): Promise<void> {
+      await emitEvent({ type: event.type, payload: event.payload })
+    },
+  }
+  const authDeps = createAuthDeps('middleware', authDb, realEventBus)
+
+  const sessionResult = await validateAndRefreshSession(rawToken, authDeps)
+
+  if (!sessionResult.success) {
+    // Invalid or expired session — redirect to auth.
+    const loginUrl = req.nextUrl.clone()
+    loginUrl.pathname = '/auth/login'
+    const response = NextResponse.redirect(loginUrl)
+    // Clear stale cookie.
+    response.headers.append('Set-Cookie', buildSetCookieHeader(SESSION_COOKIE_NAME, '', {
+      maxAge:   0,
+      httpOnly: true,
+      secure:   IS_PROD,
+      sameSite: 'lax',
+      path:     '/',
+    }))
+    return response
+  }
+
+  const { user, session, sessionRefreshed, newToken } = sessionResult.data
+
+  // ── Boundary stamp + response — sprint-beta-shot-3 ────────────────────────
+  // The cookie path delegates to buildStampedResponse, the routine extracted
+  // verbatim from the former inline block. resolvedChannel='wearer-message',
+  // validationBasis the cookie-validation string — the wearer crossing behaves
+  // identically to before the extraction (pure, behavior-preserving lift).
+  return buildStampedResponse({
+    req,
+    userId:           user.id,
+    sessionId:        session.sessionId,
+    resolvedChannel:  'wearer-message',
+    validationBasis:  'session-cookie-validated-by-middleware',
+    sessionRefreshed,
+    newToken,
+  })
 }
 
 // ─── Matcher ─────────────────────────────────────────────────────────────────

@@ -160,6 +160,7 @@ export const CHANNEL_KIND_ENUM = [
   'integration-event',
   'scheduled-trigger',
   'internal-derivation',
+  'external-agent',   // sprint-beta-shot-3 — connector door; wearer-delegated agent
 ] as const
 
 // ─── DirectionKind enum (§3.3 PA1) ──────────────────────────────────────────
@@ -351,6 +352,16 @@ export const DEFAULT_PERIMETER_BINDING = {
     'internal-derivation': [
       { level: 'L0', actor: 'system' },
       { level: 'L0', actor: 'wearer' }, // framework-derived signal may carry wearer-scope downstream
+    ],
+
+    // sprint-beta-shot-3 — the connector channel. A non-wearer agent crosses on
+    // a wearer-delegated token (issued under the wearer's own userId — a
+    // Wearer-L0 admission act). The agent IS the wearer by delegation, so its
+    // permitted authority is identical to 'wearer-message': [{ L0, wearer }].
+    // No export-grant, no program-invoke — those were never authority values;
+    // present-export is structurally absent and the program loop is post-beta.
+    'external-agent': [
+      { level: 'L0', actor: 'wearer' },
     ],
   },
 

@@ -4,19 +4,20 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    sprint-beta-addon-shot-2 (PROVIDER_DEFAULT_MODEL added — canonical model per provider)
 // slice:      F-ai-adapter
 // layer:      R0
 // wires-in:
 //   W-ATOM  ProviderId  @/features/F-user-profile/config/provider-keys-config  (canonical owner)
 // wires-out:
-//   W-ATOM  AI_ADAPTER_CONFIG  →  F-ai-adapter/R4
-//   W-ATOM  ModelConfig        →  F-ai-adapter/R4, F-ai-adapter/R1
-//   W-ATOM  MODELS             →  F-ai-adapter/R4, F-ai-adapter/R1
-//   W-ATOM  providerForModel   →  F-ai-adapter/R4, F-planner/R3
-//   W-ATOM  ChatMessage        →  F-ai-adapter/R4, F-planner/R4
-//   W-ATOM  StreamChunk        →  F-ai-adapter/R4
-//   W-ATOM  CompletionResult   →  F-ai-adapter/R4
+//   W-ATOM  AI_ADAPTER_CONFIG     →  F-ai-adapter/R4
+//   W-ATOM  ModelConfig           →  F-ai-adapter/R4, F-ai-adapter/R1
+//   W-ATOM  MODELS                →  F-ai-adapter/R4, F-ai-adapter/R1
+//   W-ATOM  providerForModel      →  F-ai-adapter/R4, F-planner/R3
+//   W-ATOM  PROVIDER_DEFAULT_MODEL →  F-user-profile/R3  (sprint-beta-addon-shot-2)
+//   W-ATOM  ChatMessage           →  F-ai-adapter/R4, F-planner/R4
+//   W-ATOM  StreamChunk           →  F-ai-adapter/R4
+//   W-ATOM  CompletionResult      →  F-ai-adapter/R4
 // deps:
 //   R0  @/features/F-user-profile/config/provider-keys-config
 // validated:  2026-03-12
@@ -75,6 +76,24 @@ export const MODELS: Record<string, ModelConfig> = {
 // R1-safe pure helper — derives from MODELS, never a separate map
 export function providerForModel(modelId: string): ProviderId {
   return (MODELS[modelId]?.provider ?? 'anthropic') as ProviderId
+}
+
+// ── PROVIDER_DEFAULT_MODEL — the canonical model per provider ─────────────────
+// sprint-beta-addon-shot-2: provider-granularity engine selection. The wearer
+// picks a provider; this declares which MODELS entry that provider resolves to.
+// One model per provider — the declared answer to "the provider's model" (MODELS
+// itself holds several models for some providers; this names the canonical one).
+//
+// Consumed read-only by F-user-profile's PUT /api/profile/models to write a
+// real model id into ModelPreferences. Each value MUST be a live MODELS key.
+//
+// Forward-modular: when multi-model selection ships, a model sub-picker lets the
+// wearer override this per-provider default; this constant stays as the default,
+// the picker writes `model` directly. The { provider, model } atom is unchanged.
+export const PROVIDER_DEFAULT_MODEL: Record<ProviderId, string> = {
+  anthropic: 'claude-sonnet-4-6',
+  deepseek:  'deepseek-chat',
+  openai:    'gpt-4o',
 }
 
 export type ChatMessage = {

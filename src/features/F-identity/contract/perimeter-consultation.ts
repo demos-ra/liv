@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1 boundary-symmetry-shot
+// @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1 boundary-symmetry-shot sprint-beta-shot-3
 // @perimeter-standard v1.3
 // [F-identity/R3]
 // Built with LIV · livai.dev
@@ -9,6 +9,7 @@
 //             sprint-13c-shot-1 (dispatchCrossing added: dispatch-direction BoundaryCrossingRecord → substrate)
 //             b1-final-shot-2 (PA-A1..6 authorityEnforced identity added to dispatch write; PA-Co1 correlationRef already present)
 //             boundary-symmetry-shot (dispatchCrossing extended to full 17-field landing parallel to proxy.ts intake; closes Manual v13.4 §IV.4 directional symmetry; LIV_INSTANCE_PERIMETER_SITE_REF imported from canonical constant — local shadow dissolved per S1)
+//             sprint-beta-shot-3 (PerimeterSession extended: resolvedAuthority; PERIMETER_HEADER_AUTHORITY read via toPermittedAuthority parse helper)
 // slice:      F-identity
 // layer:      R3
 // wires-in:
@@ -76,6 +77,7 @@ import {
   PERIMETER_HEADER_CHANNEL,
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
+  PERIMETER_HEADER_AUTHORITY,
 } from '@/core/constants/perimeter-headers'
 import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM, LIV_INSTANCE_PERIMETER_SITE_REF, FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
@@ -134,6 +136,41 @@ function toDispositionKind(raw: string | null, fallback: DispositionKind): Dispo
   return fallback
 }
 
+// sprint-beta-shot-3: parse the authority stamp. proxy.ts JSON-serializes the
+// channel's PermittedAuthoritySet (AuthorityAssertion[]) into PERIMETER_HEADER_
+// AUTHORITY. The reader parses it back; an absent header, malformed JSON, or a
+// non-array payload all yield [] — conservative (no admitted authority rather
+// than a false grant). Entries are shape-checked: each must have string-valued
+// level and actor; entries failing the shape are dropped.
+function toPermittedAuthority(
+  raw: string | null,
+): ReadonlyArray<{ level: string; actor: string; source?: string | null }> {
+  if (!raw) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
+  if (!Array.isArray(parsed)) return []
+  const out: Array<{ level: string; actor: string; source?: string | null }> = []
+  for (const entry of parsed) {
+    if (
+      entry && typeof entry === 'object' &&
+      typeof (entry as Record<string, unknown>).level === 'string' &&
+      typeof (entry as Record<string, unknown>).actor === 'string'
+    ) {
+      const e = entry as Record<string, unknown>
+      out.push({
+        level:  e.level as string,
+        actor:  e.actor as string,
+        source: typeof e.source === 'string' ? e.source : null,
+      })
+    }
+  }
+  return out
+}
+
 /**
  * PerimeterSession — extended session surface carrying boundary-stamped fields.
  *
@@ -148,6 +185,12 @@ export interface PerimeterSession {
   resolvedChannel:     ChannelKind
   crossedAt:           number
   resolvedDisposition: DispositionKind
+  // sprint-beta-shot-3: the channel's resolved PermittedAuthoritySet, stamped
+  // at proxy.ts from PerimeterBinding.permittedAuthorityByChannel. Each entry
+  // is an AuthorityAssertion ({ level, actor, source? }). Empty array when the
+  // channel has no binding entry or the stamp is absent/malformed —
+  // conservative (no admitted authority rather than a false grant).
+  resolvedAuthority:   ReadonlyArray<{ level: string; actor: string; source?: string | null }>
 }
 
 /**
@@ -180,12 +223,16 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   const channelRaw     = req.headers.get(PERIMETER_HEADER_CHANNEL)
   const crossedAtRaw   = req.headers.get(PERIMETER_HEADER_CROSSED_AT)
   const dispositionRaw = req.headers.get(PERIMETER_HEADER_DISPOSITION)
+  const authorityRaw   = req.headers.get(PERIMETER_HEADER_AUTHORITY)
 
   const resolvedChannel: ChannelKind         = toChannelKind(channelRaw, 'wearer-message')
   const crossedAt: number                    = crossedAtRaw ? Number(crossedAtRaw) : 0
   // Default 'act': conservative — over-governs (triggers confirmation/audit) rather than
   // under-governs (skips governance) when stamp is absent.
   const resolvedDisposition: DispositionKind = toDispositionKind(dispositionRaw, 'act')
+  // sprint-beta-shot-3: the channel's permitted-authority set, parsed from the
+  // stamp. Absent/malformed → [] (no admitted authority — conservative).
+  const resolvedAuthority                    = toPermittedAuthority(authorityRaw)
 
   return {
     userId,
@@ -193,6 +240,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
     resolvedChannel,
     crossedAt,
     resolvedDisposition,
+    resolvedAuthority,
   }
 }
 

@@ -9,7 +9,13 @@
 //   (tree of stacks; the three controls; every action opens a Window);
 //   item-1-storage (the store functions are now async — durable disk backing;
 //   six call sites await: readDial / lookupArchivedPresent / appendWindow x2 /
-//   holdPresent / archivePresent)
+//   holdPresent / archivePresent);
+//   sprint-beta-shot-2 (Item-2 Part A: four R2 navigation orchestration
+//     wrappers — navigateSetDial / navigateReadDial / navigateListWindows /
+//     navigateScrubBack — each the R2 leg of the slice's R3→R2→R4 route path,
+//     wrapping an existing v6.0 R4 exec primitive; no new exec, no new
+//     capability. listArchivedPositions / appendWindow deliberately not
+//     wrapped — no enumeration surface, no consumer-driven window append.)
 //
 // R2 — Orchestration layer. Composes PR1→PR8 per Present Standard v6.0 §3.7.
 //
@@ -54,7 +60,9 @@ import {
   archivePresent,
   lookupArchivedPresent,
   readDial,
+  setDial,
   appendWindow,
+  listWindows,
 }                          from '../exec/present-execution'
 import { generateId }      from '@/core/types/primitives'
 
@@ -68,6 +76,8 @@ import type {
   WindowRef,
   PositionRef,
   GranularityDial,
+  UserId,
+  ScopeRef,
 } from '../config/present-types'
 import type { PresentResult } from '../config/present-errors'
 
@@ -160,6 +170,132 @@ export async function presentService(intent: PresentIntent): Promise<PresentResu
 
   // PR7 + PR8 — project, gate, deliver.
   return projectAndDeliver(frame, v2.data, window.windowId)
+}
+
+// ── R2 navigation orchestration — sprint-beta-shot-2 (Item-2 Part A) ──────────
+// The navigation operations exposed at the R3 boundary (present-trpc.ts). Each
+// is the slice's standard R3→R2→R4 path — the R3 route calls one of these R2
+// functions, which awaits an existing v6.0 R4 exec primitive. No new exec
+// function, no new capability: these are pass-throughs that wrap an exec call
+// (or, for scrubBack, the existing presentService scrub-back path) into a
+// PresentResult, exactly as `read` wraps presentService.
+//
+// Scope (brief Item-2 Part A): these are NAVIGATION primitives — a consumer
+// moving through its OWN live present (change the lens, read the lens, list its
+// look-trail, scrub to a past position it already knows). They are NOT a
+// bulk-extraction surface. `listArchivedPositions` (the archive ENUMERATION
+// primitive) and `appendWindow` (an internal effect of present()) are
+// deliberately NOT exposed — without an enumeration route there is no
+// iterate-then-dump surface; the present-archive is not exportable ([R15] is
+// F-present's own store, present-data export is granted to no channel).
+
+/**
+ * navigateSetDial — persist a new lens (granularity) position for
+ * (userId, scopeRef). Wraps the R4 setDial exec primitive ([R10]). Does NOT
+ * recompute the held present — turning the lens is a stored-state change.
+ */
+export async function navigateSetDial(
+  userId:   UserId,
+  scopeRef: ScopeRef,
+  dial:     GranularityDial,
+): Promise<PresentResult<{ ok: true }>> {
+  try {
+    await setDial(userId, scopeRef, dial)
+    return { ok: true, data: { ok: true } }
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code:       'PRESENT_READ_FAILED',
+        message:    `navigateSetDial: ${err instanceof Error ? err.message : 'dial store failed'}`,
+        underlying: err,
+      },
+    }
+  }
+}
+
+/**
+ * navigateReadDial — the current lens (granularity dial) for (userId, scopeRef).
+ * Wraps the R4 readDial exec primitive ([R10]); returns the default dial when
+ * none has been set. Pure read.
+ */
+export async function navigateReadDial(
+  userId:   UserId,
+  scopeRef: ScopeRef,
+): Promise<PresentResult<GranularityDial>> {
+  try {
+    const dial = await readDial(userId, scopeRef)
+    return { ok: true, data: dial }
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code:       'PRESENT_READ_FAILED',
+        message:    `navigateReadDial: ${err instanceof Error ? err.message : 'dial read failed'}`,
+        underlying: err,
+      },
+    }
+  }
+}
+
+/**
+ * navigateListWindows — the accumulated Window set for (userId, scopeRef), in
+ * the order opened — the session's look-trail ([R12]/[R13]). Wraps the R4
+ * listWindows exec primitive. Pure read. `appendWindow` is NOT exposed: a
+ * Window is opened by present() itself (PR6), never by a direct consumer call.
+ */
+export async function navigateListWindows(
+  userId:   UserId,
+  scopeRef: ScopeRef,
+): Promise<PresentResult<Window[]>> {
+  try {
+    const windows = await listWindows(userId, scopeRef)
+    return { ok: true, data: windows }
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code:       'PRESENT_READ_FAILED',
+        message:    `navigateListWindows: ${err instanceof Error ? err.message : 'window list failed'}`,
+        underlying: err,
+      },
+    }
+  }
+}
+
+/**
+ * navigateScrubBack — resolve the present as it was at a past position
+ * ([R16]). Scrub-back IS a present() call with a non-null standpoint: this
+ * builds the PresentIntent and delegates to presentService, which routes a
+ * non-null standpoint to the archive lookup, opens a Window for the action,
+ * gates, and projects. No new path — it reuses presentService's existing
+ * scrub-back routing. The camera is 'derived' (the consumer is navigating its
+ * own present, not the LLM placing a look) and temporal is 'surface' (a still
+ * at that position). `position` is a standpoint the consumer already holds —
+ * from a prior PresentView; this is interactive navigation, not enumeration.
+ */
+export async function navigateScrubBack(
+  userId:      UserId,
+  scopeRef:    ScopeRef,
+  consumerRef: string,
+  position:    PositionRef,
+  bound:       PresentIntent['bound'],
+): Promise<PresentResult<PresentView>> {
+  const intent: PresentIntent = {
+    intentId:    generateId('intent') as unknown as PresentIntent['intentId'],
+    consumerRef: consumerRef as unknown as PresentIntent['consumerRef'],
+    userId,
+    scopeRef,
+    camera:      { mode: 'derived' },
+    temporal:    { depth: 'surface' },
+    standpoint:  position,
+    bound,
+    provenance: {
+      consumerSlice: consumerRef as unknown as PresentIntent['provenance']['consumerSlice'],
+      stampedAt:     Date.now(),
+    },
+  }
+  return presentService(intent)
 }
 
 // ── openWindow — the unit every present() call yields ([R12]/[R13]) ───────────

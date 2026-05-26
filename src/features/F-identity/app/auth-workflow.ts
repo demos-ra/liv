@@ -1,6 +1,12 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1 sprint-beta-shot-3
 // [F-identity/R2]
 // Built with LIV · livai.dev
+// @manifest-delta sprint-beta-shot-3
+//   issueDelegatedAgentToken added: an authenticated wearer mints a delegated
+//   agent token under their own userId by reusing deps.db.createSession — the
+//   token is an ordinary session row, not a new credential kind. The connector
+//   door's agent-side credential; validated at proxy.ts via the existing
+//   lookupSession path. No parallel token table, no agent identity.
 // @manifest-delta sprint-13b-shot-1
 //   createAuthDeps: third param `eventBus: IEventBus` added (injected by R3 callers).
 //   noopEventBus stub removed — A2 compliance: R2 no longer self-wires the event bus.
@@ -396,6 +402,53 @@ export async function lookupSession(rawToken: string, authDb: IAuthDb): Promise<
   return {
     sessionId: result.data.id,
     userId:    result.data.userId,
+  }
+}
+
+// ─── Delegated agent token issuance (sprint-beta-shot-3 — the connector door) ─
+// An authenticated wearer mints a token for an external agent to drive LIV on
+// their behalf. The token is NOT a new kind of credential — it is an ordinary
+// session row created under the WEARER'S OWN userId (a Wearer-L0 admission
+// act). That is what makes "identity by delegation" real: the agent presenting
+// this token at proxy.ts is validated by the same lookupSession/findSession
+// path as any session, resolves to the wearer's userId, and is stamped on the
+// 'external-agent' channel. No agent identity, no parallel token table — the
+// delegated token IS a wearer session, just held by the agent rather than a
+// browser cookie.
+//
+// Caller contract: `wearerUserId` MUST be an already-authenticated wearer's id
+// (the issuance entry point sits behind the wearer's own cookie-auth at the
+// perimeter — issuance is not self-serve for an unauthenticated caller). This
+// function does not re-authenticate; it mints under the id it is given.
+//
+// Returns the raw token string (the agent stores it; after this point the raw
+// token exists only in the agent's possession — only its hash is in the DB,
+// per createSession discipline). On a store failure, returns null.
+export async function issueDelegatedAgentToken(
+  wearerUserId: string,
+  authDb:       IAuthDb,
+): Promise<{ rawToken: string; sessionId: string; expiresAt: Date } | null> {
+  try {
+    const expiresAt     = sessionExpiresAt()
+    const sessionResult = await authDb.createSession(wearerUserId, expiresAt)
+    if (!sessionResult.success) {
+      log('error', 'auth.delegated-token.issue.session-error',
+        toErrorLog(sessionResult.error, 'issueDelegatedAgentToken'))
+      return null
+    }
+    const session = sessionResult.data
+    // createSession returns the RAW token in the tokenHash field (intentional —
+    // same contract verifyMagicLink relies on; the raw token is never persisted).
+    log('info', 'auth.delegated-token.issued', { userId: wearerUserId, sessionId: session.id })
+    return {
+      rawToken:  session.tokenHash,
+      sessionId: session.id,
+      expiresAt,
+    }
+  } catch (err) {
+    const error = AuthErrors.unknown(err)
+    log('error', 'auth.delegated-token.issue.unexpected', toErrorLog(error, 'issueDelegatedAgentToken'))
+    return null
   }
 }
 

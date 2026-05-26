@@ -4,7 +4,11 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase2-account-extraction, phase5-focus, w2-item-13b, phase-5.3
+// amended:    phase2-account-extraction, phase5-focus, w2-item-13b, phase-5.3,
+//             sprint-beta-addon-shot-1 (hard-coded MODEL_ID deleted; chat surface
+//               fetches the wearer's saved ModelPreferences via /api/profile/models
+//               on mount and sends the selected model id; no-engine-resolvable
+//               routes to the existing key-prompt state — single model-id origin)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -69,7 +73,6 @@ import {
 } from '@/features/F-design-system/contract/primitives'
 
 const PROJECT_ID = 'demo'
-const MODEL_ID   = 'deepseek-chat'
 
 const LIV_OPENING: Msg = {
   id:      'liv-opening',
@@ -120,6 +123,11 @@ export function ChatUI({
   const [messages, setMessages]       = useState<Msg[]>([LIV_OPENING])
   const [input, setInput]             = useState('')
   const [hasAnyKey, setHasAnyKey]     = useState<boolean | null>(null)
+  // sprint-beta-addon-shot-1: the wearer's saved chat-engine model id, fetched
+  // from /api/profile/models on mount. null = not yet fetched, OR no saved
+  // preference for the chat tier. The chat surface holds no hard-coded model
+  // id; this — the wearer's settings selection — is the single model-id origin.
+  const [resolvedModelId, setResolvedModelId] = useState<string | null>(null)
 
   const asstIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -153,6 +161,36 @@ export function ChatUI({
       }
     }
     checkKeys()
+    return () => { mounted = false }
+  }, [])
+
+  // ── Fetch the wearer's saved engine selection on mount ──────────────────
+  // sprint-beta-addon-shot-1: the chat surface holds no hard-coded model id —
+  // the wearer's saved preference is the only origin.
+  // /api/profile/models returns { ok, data: ModelPreferences } where
+  // ModelPreferences is the wearer's single engine selection { provider, model }
+  // (the per-tier structure was struck by L0 ruling). data is null when the
+  // wearer has saved no engine selection; resolvedModelId stays null and
+  // handleSend routes to the key-prompt state (no hard-coded fallback —
+  // single-source discipline).
+  useEffect(() => {
+    let mounted = true
+    async function loadEngine() {
+      try {
+        const res  = await fetch('/api/profile/models')
+        if (!res.ok) { if (mounted) setResolvedModelId(null); return }
+        const body = await res.json()
+        const selection = body?.data
+        if (mounted) {
+          setResolvedModelId(
+            selection && typeof selection.model === 'string' ? selection.model : null,
+          )
+        }
+      } catch {
+        if (mounted) setResolvedModelId(null)
+      }
+    }
+    loadEngine()
     return () => { mounted = false }
   }, [])
 
@@ -210,7 +248,14 @@ export function ChatUI({
 
     const userMsg: Msg = { id: crypto.randomUUID(), role: 'user', content }
 
-    if (hasAnyKey === false) {
+    // sprint-beta-addon-shot-1: no-engine-resolvable → existing key-prompt
+    // state. The engine is unresolvable when the wearer has no key (hasAnyKey
+    // === false) OR no saved chat-engine preference (resolvedModelId === null).
+    // Both route to the same existing key-prompt path — there is no hard-coded
+    // fallback model. resolvedModelId === null also covers the not-yet-fetched
+    // window; a send before the mount fetch resolves correctly defers to the
+    // key prompt rather than sending an unknown engine.
+    if (hasAnyKey === false || resolvedModelId === null) {
       setMessages(prev => [...prev, userMsg, { ...LIV_KEY_PROMPT, id: crypto.randomUUID() }])
       onOpenAccount()
       return
@@ -220,8 +265,8 @@ export function ChatUI({
     const asstMsg: Msg = { id: newAsstId, role: 'assistant', content: '', streaming: true }
     asstIdRef.current  = newAsstId
     setMessages(prev => [...prev, userMsg, asstMsg])
-    await send(content, MODEL_ID)
-  }, [input, streaming, send, hasAnyKey, onSetActiveProgram, onOpenAccount])
+    await send(content, resolvedModelId)
+  }, [input, streaming, send, hasAnyKey, resolvedModelId, onSetActiveProgram, onOpenAccount])
 
   const isLastInBlock = (i: number) =>
     i === messages.length - 1 || messages[i].role !== messages[i + 1].role

@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6 sprint-beta-shot-1 sprint-beta-shot-2
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -16,6 +16,9 @@
 //             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
 //             present-rederive-shot-4 (present() call re-migrated to v2.0 PresentIntent contract: focus/standpoint/ordering)
 //             kind-a-v6 (present() call migrated to v6.0 PresentIntent: camera/temporal/standpoint three-control model; view-read uses ViewNode.stack surface, dominantSurfaceForm deleted)
+//             sprint-beta-shot-1 (race fix: wearer writeStateChange awaited so the turn's intent commits before present() derives its camera anchor; .catch retained — write failure stays non-fatal; AI-side write unchanged)
+//             sprint-beta-shot-2 (Item-2 Part B: present un-flattened at the F-chat boundary — serializePresentView replaces the lines.join('\n') surface-form collapse; the LLM receives the composed tree-of-stacks structure with depth + authorship, carried as structured text in systemContext)
+//             sprint-beta-fixround (F2: channelKindToSourceChannel gains the 'external-agent' case — connector-door chat-turn substrate writes now stamp source.channel='external-agent', agreeing with the Boundary crossing record)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -67,7 +70,9 @@
 //   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
 //   CA2 — present() assembles context before LLM call (lines ~591–625; sprint-2-shot-6 migration)
 //   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
-//   CA4 — stream and write are independent; write failure non-fatal to stream (.catch pattern)
+//   CA4 — stream and write are independent; write failure non-fatal to stream (.catch pattern).
+//         sprint-beta-shot-1: wearer write is awaited (ordering before present() read) but
+//         failure stays non-fatal (.catch retained). AI-side write unchanged — fire-and-forget.
 //   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
 //
 // sprint-8-shot-3a (F-codec dissolved):
@@ -134,7 +139,7 @@ import { createRateLimiter }                     from '@/core/domain/rate-limite
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { writeStateChange }                       from '@/features/F-memory/contract/substrate-contract'
 import { present }                                from '@/features/F-present/contract/present-contract'
-import type { PresentView, PresentIntent, IntentIdRef, FrameworkRef } from '@/features/F-present/contract/present-contract'
+import type { PresentView, PresentIntent, IntentIdRef, FrameworkRef, ViewNode, ViewEdge, StackEntry } from '@/features/F-present/contract/present-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
@@ -415,7 +420,13 @@ async function dispatchToProgram(
 // ChannelKind (perimeter-standard.types) is the PS-level channel classification.
 // SourceChannel (substrate.types) is the substrate write enum.
 // These are distinct vocabularies at different abstraction layers.
-// sprint-b1-shot-1: explicit map; mirrors toSourceChannel() in src/middleware.ts.
+// sprint-b1-shot-1: explicit map; mirrors toSourceChannel() in src/proxy.ts.
+// sprint-beta-fixround (F2): 'external-agent' case added — Beta Shot 3 added the
+//   external-agent channel and updated proxy.ts toSourceChannel, but this
+//   second mapper drifted. Without the case, a connector-door chat-turn write
+//   hit default:'wearer' and mis-stamped channel provenance. The case mirrors
+//   proxy.ts toSourceChannel exactly so the Boundary crossing record and the
+//   chat-turn substrate write agree on 'external-agent'.
 function channelKindToSourceChannel(channel: ChannelKind): SourceChannel {
   switch (channel) {
     case 'wearer-message':
@@ -430,6 +441,8 @@ function channelKindToSourceChannel(channel: ChannelKind): SourceChannel {
       return 'integration-event'
     case 'internal-derivation':
       return 'internal-derivation'
+    case 'external-agent':
+      return 'external-agent'
     default:
       return 'wearer'
   }
@@ -440,6 +453,103 @@ let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
 function getChatLimiter() {
   if (!chatLimiter) chatLimiter = createRateLimiter()
   return chatLimiter
+}
+
+// ── PresentView → structure-preserving context — sprint-beta-shot-2 (Item-2 B) ─
+// Part B of Item-2: the present is un-flattened at the F-chat boundary.
+//
+// The defect this replaces: chat-contract.ts collapsed the PresentView to
+// `composition.nodes.map(stack[last].surfaceForm).join('\n')` — surface form of
+// each node only. The tree (parent/child structure), the stacks (every node is
+// an append-only stack of state-changes — only the last entry survived), the
+// depth, and the authorship ('user' vs 'llm' per StackEntry) were all dropped.
+// The LLM received a flat list of strings — a shadow of the composed present.
+//
+// `systemContext` (chat-workflow.SendMessageInput) is typed `string` — the LLM
+// API is text-in. "Un-flatten" therefore does NOT mean passing the PresentView
+// object (it cannot); it means the TEXT the LLM receives must CARRY the
+// structure rather than discard it. This serializer walks the composition tree
+// from `composition.root`, indents by depth (depth = tree structure preserved),
+// and for each node renders its full stack with per-entry authorship (stacks +
+// authorship preserved). Directed parent→child edges with their relation type
+// are appended (connectivity preserved). The result is a structured text block
+// — the composed present, not a flattened shadow.
+//
+// Pure function: no I/O, no throw on well-formed input. A malformed/cyclic tree
+// is bounded by the visited-set guard — it cannot loop. Bound is already
+// enforced upstream (ViewBound at present()); this only renders what it is given.
+
+function serializePresentView(view: PresentView): string {
+  const { nodes, edges, root, camera } = view.composition
+
+  const nodeById = new Map<string, ViewNode>()
+  for (const n of nodes) nodeById.set(n.identity as unknown as string, n)
+
+  // One stack rendered as: surfaceForm tagged with authorship, oldest→newest.
+  // The last entry is the current surface; earlier entries are the history the
+  // v5.0 flat projection used to discard.
+  const renderStack = (stack: StackEntry[]): string => {
+    if (stack.length === 0) return '(empty stack)'
+    return stack
+      .map((e: StackEntry, i: number) => {
+        const isSurface = i === stack.length - 1
+        const mark = isSurface ? '*' : ' '   // * = current surface
+        return `${mark}[${e.authorship}] ${e.surfaceForm}`
+      })
+      .join(' <- ')
+  }
+
+  // Depth-first walk from root; visited-set guards against a malformed cycle.
+  const visited = new Set<string>()
+  const lines: string[] = []
+
+  const walk = (id: string, depth: number): void => {
+    if (visited.has(id)) {
+      lines.push(`${'  '.repeat(depth)}- ${id} (already shown)`)
+      return
+    }
+    visited.add(id)
+    const node = nodeById.get(id)
+    const indent = '  '.repeat(depth)
+    if (!node) {
+      lines.push(`${indent}- ${id} (not in resolved extent)`)
+      return
+    }
+    const cameraMark = (id === (camera as unknown as string)) ? ' <- camera' : ''
+    lines.push(
+      `${indent}- ${id} (weight ${node.weight.toFixed(2)}, ${node.sourceCount} source${node.sourceCount === 1 ? '' : 's'})${cameraMark}`,
+    )
+    lines.push(`${indent}  stack: ${renderStack(node.stack)}`)
+    for (const childRef of node.children) {
+      walk(childRef as unknown as string, depth + 1)
+    }
+  }
+
+  walk(root as unknown as string, 0)
+
+  // Any node not reached from root (a disconnected fragment within the extent)
+  // is still shown — the present is what present() resolved, shown whole.
+  for (const n of nodes) {
+    const id = n.identity as unknown as string
+    if (!visited.has(id)) walk(id, 0)
+  }
+
+  // Edges — directed parent→child with relation type. The node walk shows the
+  // tree; this names the relations on it.
+  const edgeLines: string[] = edges.map((e: ViewEdge) => {
+    const rel = e.relationType as unknown as string
+    return `  ${e.parent as unknown as string} --[${rel}]--> ${e.child as unknown as string}`
+  })
+
+  const parts = [
+    'PRESENT (composed structure — tree of stacks, granularity-cutoff extent):',
+    ...lines,
+  ]
+  if (edgeLines.length > 0) {
+    parts.push('RELATIONS:')
+    parts.push(...edgeLines)
+  }
+  return parts.join('\n')
 }
 
 // ── POST /api/chat/[projectId]/message ────────────────────────────────────────
@@ -513,7 +623,16 @@ export async function POST_message(
   // CA3: wearer-side write (turnId shared with ai-side write below)
   // Generate turnId once per exchange; shared with ai-side write below.
   // Decision-D mapping applied: identities anchor userId + projectId + turnId.
-  // Fire-and-forget: CA4 independence — write failure must not affect response path.
+  //
+  // sprint-beta-shot-1 (race fix):
+  //   The wearer write is awaited so the current turn's intent is durably in
+  //   the substrate before present() (below) derives its camera anchor — the
+  //   "latest state-change". Previously fire-and-forget; nothing guaranteed the
+  //   write committed before the read, so present() could lag one turn.
+  //   Failure semantics preserved: the .catch() still swallows a write failure
+  //   to a log, so a substrate write failure does not abort the response path
+  //   (Chat Standard §5.6 spirit). The await adds ordering only — not fatality.
+  //   AI-side write (below) stays fire-and-forget — correct per CA4, unchanged.
   const turnId    = generateId('turn')
   const arrivedAt = Date.now()
 
@@ -551,7 +670,9 @@ export async function POST_message(
     },
   }
 
-  writeStateChange(wearerWrite).catch((err: unknown) => {
+  // sprint-beta-shot-1: awaited — sequences the commit before the present() read.
+  // .catch() retained — write failure remains non-fatal to the response path.
+  await writeStateChange(wearerWrite).catch((err: unknown) => {
     console.error('[chat] wearer substrate write failed', err instanceof Error ? err.message : err)
   })
 
@@ -619,14 +740,14 @@ export async function POST_message(
     const viewResult = await present(presentIntent)
     if (viewResult.ok && viewResult.data.composition.nodes.length > 0) {
       contextRef   = viewResult.data
-      // System prompt assembly from PresentView: v6.0 ViewNode carries a `stack`
-      // of StackEntry; the surface form is the stack's last entry (kind-a-v6 —
-      // v6.0 deleted ViewNode.dominantSurfaceForm). Identity string as fallback.
-      const lines  = viewResult.data.composition.nodes.map(n => {
-        const surface = n.stack[n.stack.length - 1]
-        return (surface && surface.surfaceForm) || n.identity
-      })
-      systemPrompt = lines.join('\n')
+      // sprint-beta-shot-2 (Item-2 Part B): un-flatten the present at the
+      // F-chat boundary. Previously the PresentView was collapsed to
+      // `nodes.map(stack[last].surfaceForm).join('\n')` — tree, stacks, depth,
+      // and authorship dropped. serializePresentView walks the composition tree
+      // and renders the structure as text: the LLM receives the composed
+      // present, not a flattened shadow. systemContext is typed `string` (the
+      // LLM API is text-in) — the structure is carried IN the text.
+      systemPrompt = serializePresentView(viewResult.data)
     }
   } catch (err) {
     // §5.6: substrate read failure — proceed with empty system prompt.

@@ -4,14 +4,14 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-2
+// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider })
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
 //   W-ATOM  ProviderId        ../config/provider-keys-config
 //   W-ATOM  PROVIDERS         ../config/provider-keys-config
 //   W-ATOM  ModelPreferences  ../types/profile-types
-//   W-ATOM  ModelTierPreference ../types/profile-types
+//   W-ATOM  PROVIDER_DEFAULT_MODEL  @/features/F-ai-adapter/config/ai-adapter-config  (sprint-beta-addon-shot-2: PUT /api/profile/models resolves provider→model)
 //   W-FN    getPerimeterSession  F-identity/contract/perimeter-consultation
 // wires-out:
 //   W-HOOK  useUserProfile       →  F-chat/R3, F-dashboard/R3
@@ -49,7 +49,8 @@ import { setApiKey, deleteApiKey, getApiKey, hasApiKey }    from '../exec/api-ke
 import { dbGetModelPreferences, dbSetModelPreferences }     from '../exec/user-profile-db'
 import { PROVIDERS }                                        from '../config/provider-keys-config'
 import type { ProviderId }                                  from '../config/provider-keys-config'
-import type { ModelPreferences, ModelTierPreference }       from '../types/profile-types'
+import type { ModelPreferences }                            from '../types/profile-types'
+import { PROVIDER_DEFAULT_MODEL }                           from '@/features/F-ai-adapter/config/ai-adapter-config'
 
 // ── Session helper ─────────────────────────────────────────────────────────────
 // Sprint 6 Shot 3: perimeter validates at unitary site (src/middleware.ts);
@@ -153,9 +154,12 @@ export async function GET_modelPreferences(req: NextRequest): Promise<NextRespon
 }
 
 // ── PUT /api/profile/models ───────────────────────────────────────────────────
-// Body: ModelPreferences — { largest, medium, smallest } each ModelTierPreference | null.
-// Validates: non-null tier must reference a provider the user has a key for.
-// Model string must be non-empty.
+// sprint-beta-addon-shot-1 (L0 ruling): the per-tier body is struck.
+// sprint-beta-addon-shot-2: provider-granularity selection. Body carries the
+// wearer's picked provider — { provider }. The route resolves the provider's
+// canonical model from F-ai-adapter's PROVIDER_DEFAULT_MODEL and writes the full
+// ModelPreferences = { provider, model } with a real model id (never null).
+// Validates: the provider is registered and the wearer holds a key for it.
 export async function PUT_modelPreferences(req: NextRequest): Promise<NextResponse> {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
@@ -164,65 +168,44 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
   try { body = await req.json() }
   catch { return NextResponse.json({ error: 'invalid_body' }, { status: 400 }) }
 
-  // Shape validation
+  // Shape validation — body carries the picked provider.
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
 
   const b = body as Record<string, unknown>
-  const tiers = ['largest', 'medium', 'smallest'] as const
-  const validated: ModelPreferences = { largest: null, medium: null, smallest: null }
-
-  for (const tier of tiers) {
-    const raw = b[tier]
-    if (raw === null || raw === undefined) {
-      validated[tier] = null
-      continue
-    }
-
-    if (typeof raw !== 'object' || Array.isArray(raw)) {
-      return NextResponse.json(
-        { error: 'invalid_body', message: `${tier} must be null or { provider, model }` },
-        { status: 400 }
-      )
-    }
-
-    const t = raw as Record<string, unknown>
-    if (typeof t.provider !== 'string' || typeof t.model !== 'string') {
-      return NextResponse.json(
-        { error: 'invalid_body', message: `${tier}.provider and ${tier}.model must be strings` },
-        { status: 400 }
-      )
-    }
-
-    if (!(t.provider in PROVIDERS)) {
-      return NextResponse.json(
-        { error: 'unknown_provider', message: `${tier}.provider '${t.provider}' is not a registered provider` },
-        { status: 400 }
-      )
-    }
-
-    if (!t.model.trim()) {
-      return NextResponse.json(
-        { error: 'invalid_body', message: `${tier}.model must not be empty` },
-        { status: 400 }
-      )
-    }
-
-    // Validate user actually has a key for this provider
-    const hasKeyResult = await hasApiKey(session.userId, t.provider as ProviderId)
-    if (!hasKeyResult.ok) {
-      return NextResponse.json({ error: hasKeyResult.error.message }, { status: 500 })
-    }
-    if (!hasKeyResult.data) {
-      return NextResponse.json(
-        { error: 'no_key_for_provider', message: `No API key saved for ${t.provider}. Add the key before setting a model preference.` },
-        { status: 422 }
-      )
-    }
-
-    validated[tier] = { provider: t.provider as ProviderId, model: t.model.trim() } satisfies ModelTierPreference
+  if (typeof b.provider !== 'string') {
+    return NextResponse.json(
+      { error: 'invalid_body', message: 'body must be { provider } with a string provider' },
+      { status: 400 }
+    )
   }
+
+  if (!(b.provider in PROVIDERS)) {
+    return NextResponse.json(
+      { error: 'unknown_provider', message: `provider '${b.provider}' is not a registered provider` },
+      { status: 400 }
+    )
+  }
+  const provider = b.provider as ProviderId
+
+  // Validate the wearer actually holds a key for this provider.
+  const hasKeyResult = await hasApiKey(session.userId, provider)
+  if (!hasKeyResult.ok) {
+    return NextResponse.json({ error: hasKeyResult.error.message }, { status: 500 })
+  }
+  if (!hasKeyResult.data) {
+    return NextResponse.json(
+      { error: 'no_key_for_provider', message: `No API key saved for ${provider}. Add the key before selecting this engine.` },
+      { status: 422 }
+    )
+  }
+
+  // Resolve the provider's canonical model — provider-granularity selection.
+  // PROVIDER_DEFAULT_MODEL declares one model per provider.
+  const model = PROVIDER_DEFAULT_MODEL[provider]
+
+  const validated: ModelPreferences = { provider, model }
 
   const setResult = await dbSetModelPreferences(session.userId, validated)
   if (!setResult.ok) return NextResponse.json({ error: setResult.error }, { status: 500 })

@@ -4,7 +4,10 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    phase4-page-transitions, phase5-remediation, phase-5.4
+// amended:    phase4-page-transitions, phase5-remediation, phase-5.4,
+//             sprint-beta-addon-shot-2 (engine picker completed: the active-provider
+//               selection now persists to /api/profile/models as { provider }, and the
+//               picker loads the saved selection on open; auto-select is display-only)
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -117,7 +120,33 @@ export function AccountPage({
     })
   }, [visible])
 
+  // ── Fetch the persisted engine selection when page becomes visible ──────
+  // sprint-beta-addon-shot-2: /api/profile/models returns the wearer's saved
+  // ModelPreferences { provider, model } (or null if none saved). The picker
+  // reflects the persisted provider. If none is saved, activeProvider is left
+  // for the display-only auto-select below — auto-select highlights a default
+  // but does NOT persist; only an explicit pick writes.
+  useEffect(() => {
+    if (!visible) return
+    let cancelled = false
+    async function loadSelection() {
+      try {
+        const res = await fetch('/api/profile/models')
+        if (!res.ok) return
+        const body = await res.json()
+        const saved = body?.data
+        if (!cancelled && saved && typeof saved.provider === 'string') {
+          setActiveProvider(saved.provider as ProviderId)
+        }
+      } catch {}
+    }
+    loadSelection()
+    return () => { cancelled = true }
+  }, [visible])
+
   // ── Auto-select first active provider ───────────────────────────────────
+  // Display-only default: highlights the first key'd provider when nothing is
+  // persisted. Does not write — persistence fires only on an explicit pick.
   useEffect(() => {
     if (activeProvider && keySet[activeProvider]) return
     const first = PROVIDER_ORDER.find(p => keySet[p]) ?? null
@@ -182,6 +211,24 @@ export function AccountPage({
         setActiveProvider(next)
       }
     } catch {}
+  }
+
+  // ── Persist the wearer's engine selection ────────────────────────────────
+  // sprint-beta-addon-shot-2: the picker writes the picked provider to
+  // /api/profile/models. The route resolves the provider's model via
+  // PROVIDER_DEFAULT_MODEL and stores ModelPreferences = { provider, model }.
+  // Body is { provider } — provider-granularity selection; the model layer is
+  // resolved server-side. Persistence fires only on an explicit pick (the radio
+  // onChange below), never from the display-only auto-select default.
+  const saveModelSelection = async (provider: ProviderId) => {
+    setActiveProvider(provider)
+    try {
+      await fetch('/api/profile/models', {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ provider }),
+      })
+    } catch { /* network error — selection stays in UI; wearer can re-pick */ }
   }
 
   // ── Feedback ─────────────────────────────────────────────────────────────
@@ -284,7 +331,7 @@ export function AccountPage({
                         name="active-provider"
                         value={provider}
                         checked={activeProvider === provider}
-                        onChange={() => setActiveProvider(provider)}
+                        onChange={() => saveModelSelection(provider)}
                         className="sr-only"
                       />
                       <StatusDot status={activeProvider === provider ? 'accent' : 'dis'} />
