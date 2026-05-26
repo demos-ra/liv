@@ -435,7 +435,11 @@ export async function advanceStage(
       slice:   'F-plan',
       payload: { jobId: input.jobId, projectId: job.projectId, userId: job.userId, featureIntent: job.ifContract?.featureIntent ?? null, outcome: job.pipelineReport?.outcome ?? null } satisfies PipelineCompletedPayload,
     })
-    writeStateChange({
+    // fixround-substrate-write (F6): inspect-and-log — pipeline-completed is a
+    // side-record; the pipeline already finished, so losing the record must
+    // not fail it, but the failure must not be silent. awaited so the record
+    // is durable before return; .catch() dropped (writeStateChange never throws).
+    const pipelineWriteResult = await writeStateChange({
       userId: job.userId,
       content: {
         identities: [
@@ -473,10 +477,11 @@ export async function advanceStage(
         // Ratifies Shot 1 Phase A provisional 'system-introspection' stamp.
         source: { channel: 'internal-derivation', contentClass: 'system-introspection', scope: job.projectId as ScopeRef },
       },
-    }).catch((err: unknown) => {
-      console.error('[F-plan] pipeline-completed substrate write failed',
-        err instanceof Error ? err.message : err)
     })
+    if (!pipelineWriteResult.ok) {
+      console.error('[F-plan] pipeline-completed substrate write failed',
+        pipelineWriteResult.error.message)
+    }
     return doneResult
   }
 

@@ -132,7 +132,7 @@ async function readDiscoverContext(userId: string, projectId: string): Promise<s
   return ''
 }
 
-function writeResearchOutput(userId: string, turnId: string, projectId: string): void {
+async function writeResearchOutput(userId: string, turnId: string, projectId: string): Promise<void> {
   const write: SubstrateWriteInput = {
     userId,
     content: {
@@ -165,9 +165,11 @@ function writeResearchOutput(userId: string, turnId: string, projectId: string):
       source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
-  writeStateChange(write).catch((err: unknown) => {
-    console.error('[F-discover] writeStateChange failed', err instanceof Error ? err.message : err)
-  })
+  // fixround-substrate-write (F6): inspect-and-log — slice-completion side-record.
+  const r = await writeStateChange(write)
+  if (!r.ok) {
+    console.error('[F-discover] writeStateChange failed', r.error.message)
+  }
 }
 
 // ─── executeResearchFromInput — primary programmatic entry ───────────────────

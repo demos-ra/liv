@@ -155,7 +155,7 @@ async function readPlanContext(userId: string, projectId: string): Promise<strin
   return ''
 }
 
-function writePlanOutput(userId: string, projectId: string, planRef: string): void {
+async function writePlanOutput(userId: string, projectId: string, planRef: string): Promise<void> {
   const write: SubstrateWriteInput = {
     userId,
     content: {
@@ -189,9 +189,11 @@ function writePlanOutput(userId: string, projectId: string, planRef: string): vo
       source: { channel: 'internal-derivation', contentClass: 'wearer-life', scope: projectId as ScopeRef },
     },
   }
-  writeStateChange(write).catch((err: unknown) => {
-    console.error('[F-plan] writeStateChange failed', err instanceof Error ? err.message : err)
-  })
+  // fixround-substrate-write (F6): inspect-and-log — slice-completion side-record.
+  const r = await writeStateChange(write)
+  if (!r.ok) {
+    console.error('[F-plan] writeStateChange failed', r.error.message)
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

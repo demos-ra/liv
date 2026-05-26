@@ -258,7 +258,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
 
 const PERIMETER_FRAMEWORK_VERSION = '1.0.0'
 
-export function dispatchCrossing(request: BoundaryDispatchRequest): void {
+export async function dispatchCrossing(request: BoundaryDispatchRequest): Promise<void> {
   const crossingId: CrossingId = generateId('cx') as CrossingId
   const crossedAt: EpochMs     = Date.now() as EpochMs
 
@@ -361,8 +361,13 @@ export function dispatchCrossing(request: BoundaryDispatchRequest): void {
     },
   }
 
-  writeStateChange(crossingWrite).catch((err: unknown) => {
-    console.error('[perimeter] dispatch crossing substrate write failed',
-      err instanceof Error ? err.message : err)
-  })
+  // fixround-substrate-write (F6): inspect-and-log — the Boundary crossing
+  // write is a side-record. Ruled non-fatal: making a perimeter crossing fail
+  // on a substrate-write error is a heavier security-boundary change, out of
+  // this round's scope (flagged for L0 as a possible separate round). For F6
+  // the failure must be observed, not silent.
+  const r = await writeStateChange(crossingWrite)
+  if (!r.ok) {
+    console.error('[perimeter] dispatch crossing substrate write failed', r.error.message)
+  }
 }

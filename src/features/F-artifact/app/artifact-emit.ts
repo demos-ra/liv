@@ -272,8 +272,17 @@ async function runS3(
     },
   }
 
+  // fixround-substrate-write (F6): writeStateChange returns Result — it does
+  // NOT throw. The prior `try { await … } catch` caught an exception that
+  // never comes, so an {ok:false} sailed straight through to `return {ok:true}`
+  // — artifact emission reported success on a failed substrate write. Inspect
+  // the Result: on !ok, propagate it as this function's own !ok. The try/catch
+  // is kept only for a genuine unexpected throw.
   try {
-    await writeStateChange(write)
+    const r = await writeStateChange(write)
+    if (!r.ok) {
+      return { ok: false, error: emissionRejectedError(r.error.message) }
+    }
     return { ok: true }
   } catch (err) {
     return { ok: false, error: emissionRejectedError(err instanceof Error ? err.message : String(err)) }

@@ -111,25 +111,19 @@ export async function commitStateChange(
   // brand: locally minted — id generated for this commit
 
   try {
-    // Get a dedicated client to run a transaction.
-    // db.query is a pool helper — use the pool client directly for tx.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Pool } = require('pg') as typeof import('pg')
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-    const client = await pool.connect()
-
-    try {
-      await client.query('BEGIN')
-
+    // fixround-substrate-write: run nextPosition + INSERT inside one
+    // transaction on the shared singleton pool (db.transaction). No ad-hoc
+    // second pool — the prior new Pool() per write was the write-path break.
+    const record = await db.transaction(async (tx) => {
       // Position assignment inside the transaction (LMA10 monotonic guarantee
       // under serializable isolation; for read-committed we rely on row-level
       // locking via the SELECT FOR UPDATE pattern, but with a single-writer
       // insert path the SELECT MAX inside BEGIN is sufficient at this load).
       const position = (validated.position as number) > 0
         ? (validated.position as number)
-        : await nextPosition(client)
+        : await nextPosition(tx)
 
-      await client.query(
+      await tx.query(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
            (id, position, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
@@ -146,9 +140,7 @@ export async function commitStateChange(
         ],
       )
 
-      await client.query('COMMIT')
-
-      const record: StateChangeRecord = {
+      const built: StateChangeRecord = {
         id,
         userId:  validated.userId,
         content: {
@@ -161,15 +153,10 @@ export async function commitStateChange(
           position: position as PositionRef,
         },
       }
+      return built
+    })
 
-      return { ok: true, data: record }
-    } catch (err) {
-      await client.query('ROLLBACK').catch(() => { /* ignore rollback failure */ })
-      throw err
-    } finally {
-      client.release()
-      await pool.end().catch(() => { /* pool close best-effort */ })
-    }
+    return { ok: true, data: record }
   } catch (err) {
     return {
       ok: false,

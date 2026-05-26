@@ -42,7 +42,7 @@ import type {
 
 export type BuilderDeps = BuilderPipelineDeps
 
-function writeBuildEmission(emission: BuildEmission): void {
+async function writeBuildEmission(emission: BuildEmission): Promise<void> {
   const write: SubstrateWriteInput = {
     userId: emission.userId,
     content: {
@@ -78,14 +78,16 @@ function writeBuildEmission(emission: BuildEmission): void {
       source: { channel: 'internal-derivation', contentClass: 'system-introspection', scope: emission.projectId as ScopeRef },
     },
   }
-  writeStateChange(write).catch((err: unknown) => {
+  // fixround-substrate-write (F6): inspect-and-log — BuildEmission side-record.
+  const r = await writeStateChange(write)
+  if (!r.ok) {
     console.error(JSON.stringify({
       level:   'error',
       event:   'builder.emission.write-failed',
       jobId:   emission.jobId,
-      message: err instanceof Error ? err.message : String(err),
+      message: r.error.message,
     }))
-  })
+  }
 }
 
 // ─── runBuild() ───────────────────────────────────────────────────────────────

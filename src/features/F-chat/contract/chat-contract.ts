@@ -16,9 +16,10 @@
 //             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
 //             present-rederive-shot-4 (present() call re-migrated to v2.0 PresentIntent contract: focus/standpoint/ordering)
 //             kind-a-v6 (present() call migrated to v6.0 PresentIntent: camera/temporal/standpoint three-control model; view-read uses ViewNode.stack surface, dominantSurfaceForm deleted)
-//             sprint-beta-shot-1 (race fix: wearer writeStateChange awaited so the turn's intent commits before present() derives its camera anchor; .catch retained — write failure stays non-fatal; AI-side write unchanged)
+//             sprint-beta-shot-1 (race fix: wearer writeStateChange awaited so the turn's intent commits before present() derives its camera anchor)
 //             sprint-beta-shot-2 (Item-2 Part B: present un-flattened at the F-chat boundary — serializePresentView replaces the lines.join('\n') surface-form collapse; the LLM receives the composed tree-of-stacks structure with depth + authorship, carried as structured text in systemContext)
 //             sprint-beta-fixround (F2: channelKindToSourceChannel gains the 'external-agent' case — connector-door chat-turn substrate writes now stamp source.channel='external-agent', agreeing with the Boundary crossing record)
+//             fixround-substrate-write (F6: both substrate writes inspect the Result and are fatal — wearer write !ok → POST_message returns 500, the turn does not proceed; AI write !ok → terminal turn_failed event, done withheld, completion crossing suppressed; writeStateChange returns Result, never throws — no .catch())
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -70,9 +71,9 @@
 //   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
 //   CA2 — present() assembles context before LLM call (lines ~591–625; sprint-2-shot-6 migration)
 //   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
-//   CA4 — stream and write are independent; write failure non-fatal to stream (.catch pattern).
-//         sprint-beta-shot-1: wearer write is awaited (ordering before present() read) but
-//         failure stays non-fatal (.catch retained). AI-side write unchanged — fire-and-forget.
+//   CA4 — both substrate writes inspect the Result and are fatal (F6 fixround):
+//         wearer write awaited before present(); !ok → POST_message 500, turn stops.
+//         AI write awaited after stream; !ok → terminal turn_failed event, done withheld.
 //   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
 //
 // sprint-8-shot-3a (F-codec dissolved):
@@ -101,9 +102,9 @@
 //     Shared turnId ensures both writes address same exchange position.
 //     contextRef (ThreadResult | null) carried from assembly; used in system prompt
 //     construction; not stored into SubstrateWriteInput (type has no meta field).
-//   CA4 independence: wearer write fire-and-forget (no await at call site);
-//     ai write fire-and-forget after send({ done: true }), before controller.close().
-//     Stream error sends error chunk and attempts partial-content write — neither suppresses other.
+//   CA4 (F6 fixround): both writes are awaited and inspected — wearer write
+//     before the pipeline guard, ai write before the completion crossing.
+//     A !ok on either fails the turn; neither is fire-and-forget.
 //   F-router: REGISTRY_EMPTY and NO_MATCH both treated as fallthrough (Chat Standard CA5).
 //
 // sprint-11-shot-6 (permission gate rationale):
@@ -221,7 +222,9 @@ function programResultStream(result: unknown, encoder: TextEncoder, dispatchCtx:
       send({ result })
       send({ done: true })
       // Dispatch crossing — reference disposition (rendering accumulated content to wearer).
-      // dispatchCrossing is fire-and-forget internally (returns void; substrate write is .catch'd inside).
+      // dispatchCrossing is async (returns Promise<void>); its internal substrate
+      // write inspects the Result and logs on !ok (F6 fixround). Called as a
+      // bare statement — fire-and-forget at this call site by design.
       dispatchCrossing({
         dispatchId:       generateId('dx') as DispatchId,
         source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
@@ -624,15 +627,15 @@ export async function POST_message(
   // Generate turnId once per exchange; shared with ai-side write below.
   // Decision-D mapping applied: identities anchor userId + projectId + turnId.
   //
-  // sprint-beta-shot-1 (race fix):
+  // sprint-beta-shot-1 (race fix) + F6 fixround (fatality):
   //   The wearer write is awaited so the current turn's intent is durably in
   //   the substrate before present() (below) derives its camera anchor — the
-  //   "latest state-change". Previously fire-and-forget; nothing guaranteed the
-  //   write committed before the read, so present() could lag one turn.
-  //   Failure semantics preserved: the .catch() still swallows a write failure
-  //   to a log, so a substrate write failure does not abort the response path
-  //   (Chat Standard §5.6 spirit). The await adds ordering only — not fatality.
-  //   AI-side write (below) stays fire-and-forget — correct per CA4, unchanged.
+  //   "latest state-change". F6 fixround: the Result is inspected and the write
+  //   is fatal — on !ok, POST_message returns 500 and the turn does not
+  //   proceed. A turn whose intent was not recorded must not stream a response
+  //   against a substrate that never saw it. The ai-side write (below) is
+  //   likewise awaited, inspected, and fatal — symmetric, the two halves of
+  //   one turn share fatality.
   const turnId    = generateId('turn')
   const arrivedAt = Date.now()
 
@@ -671,10 +674,16 @@ export async function POST_message(
   }
 
   // sprint-beta-shot-1: awaited — sequences the commit before the present() read.
-  // .catch() retained — write failure remains non-fatal to the response path.
-  await writeStateChange(wearerWrite).catch((err: unknown) => {
-    console.error('[chat] wearer substrate write failed', err instanceof Error ? err.message : err)
-  })
+  // fixround-substrate-write (F6): the wearer write is the turn's purpose — if
+  // it did not land, the turn is a lie (the present would omit it). L0-ruled
+  // fatal: inspect the Result, and on !ok fail the turn visibly rather than
+  // proceeding to stream a response against a substrate that never recorded the
+  // wearer's message.
+  const wearerWriteResult = await writeStateChange(wearerWrite)
+  if (!wearerWriteResult.ok) {
+    console.error('[chat] wearer substrate write failed', wearerWriteResult.error.message)
+    return new Response('Could not record your message — please try again.', { status: 500 })
+  }
 
   // ── Pipeline guard — read-only R3 query ────────────────────────────────────
   const pipelineState = await isPipelineActive(projectId)
@@ -798,7 +807,8 @@ export async function POST_message(
       const send = (data: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
 
-      // Accumulate full response for ai-side substrate write (CA4: fire-and-forget after stream).
+      // Accumulate full response for the ai-side substrate write (F6 fixround:
+      // the write is awaited, inspected, and fatal — see below).
       let fullResponse = ''
       let streamErr:   string | null = null
 
@@ -813,7 +823,9 @@ export async function POST_message(
           fullResponse += chunk
           send({ chunk })
         }
-        send({ done: true })
+        // fixround-substrate-write (F6): `done` is NOT sent here — it is sent
+        // after the ai-side substrate write is confirmed below. The turn is
+        // "done" only once the response is durably recorded.
       } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown_error'
         streamErr = message
@@ -822,10 +834,14 @@ export async function POST_message(
       }
 
       // ── Ai-side substrate write — sprint-11-shot-2 ─────────────────────────
-      // CA3: ai-side write (turnId matches wearer-side write above)
-      // Fires after stream completes (full or partial on error).
-      // CA4: fire-and-forget — write failure must not suppress already-streamed chunks.
-      // Same turnId as wearer write; source.channel='ai'.
+      // CA3: ai-side write (turnId matches wearer-side write above).
+      // fixround-substrate-write (F6): the AI response is Path B of the SAME
+      // turn as the wearer write (Path A, fatal). If Path B is lost, the loop
+      // half-writes — wearer message recorded, response not — and the next
+      // turn's present is corrupt (a question with no answer). L0-ruled
+      // symmetry: Path B is fatal too. The write is inspected; the `done`
+      // event is sent only on ok; on !ok an error event is streamed so the
+      // turn is visibly marked failed, not silently half-written.
       const aiWrite: SubstrateWriteInput = {
         userId: session.userId,
         content: {
@@ -854,29 +870,50 @@ export async function POST_message(
         },
       }
 
-      writeStateChange(aiWrite).catch((err: unknown) => {
+      const aiWriteResult = await writeStateChange(aiWrite)
+      // fixround-substrate-write (F6, Item 1): the AI write is Path B of the
+      // same turn as the wearer write (Path A, fatal) — ruled fatal, symmetric.
+      // The response has already streamed; "fatal" cannot un-send it, so fatal
+      // here means: the turn does not report success. On !ok a terminal
+      // turn_failed event is sent (not an advisory one), `done` is withheld,
+      // and the completion crossing is NOT dispatched — a turn that failed to
+      // record its response did not complete, and emitting a normal
+      // 'reference' crossing would re-assert success the turn does not have.
+      const aiWriteFailed = !aiWriteResult.ok
+      if (!aiWriteResult.ok) {
         console.error(
           '[chat] ai substrate write failed',
-          err instanceof Error ? err.message : err,
-          streamErr ? { partial: true } : {}
+          aiWriteResult.error.message,
+          streamErr ? { partial: true } : {},
         )
-      })
+        if (!streamErr) {
+          // Terminal failure — the turn failed, the stream closes on it.
+          send({ error: 'turn_failed', reason: 'response_not_recorded' })
+        }
+      } else if (!streamErr) {
+        // Response streamed AND durably recorded — the turn is genuinely done.
+        send({ done: true })
+      }
 
-      // Dispatch crossing — reference disposition (LLM response rendered to wearer).
-      // Sprint-13c-shot-1: dispatch direction, memory loop complete.
-      // dispatchCrossing is fire-and-forget internally (returns void).
-      dispatchCrossing({
-        dispatchId:       generateId('dx') as DispatchId,
-        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
-        payload:          { responseLength: fullResponse.length },
-        channelTarget:    'wearer-message',
-        dispositionClaim: 'reference',
-        scopeContext:     projectId,
-        authorityContext: { level: 'L0', actor: 'wearer', source: null },
-        correlationRef:   null,
-        reversibility:    'n/a',
-        requestedAt:      Date.now() as EpochMs,
-      })
+      // Dispatch crossing — reference disposition (LLM response rendered to
+      // wearer). Sprint-13c-shot-1: dispatch direction, memory loop complete.
+      // fixround-substrate-write (F6, Item 1): suppressed when the AI write
+      // failed — the crossing records a completed dispatch; a turn whose
+      // response was not recorded did not complete.
+      if (!aiWriteFailed) {
+        dispatchCrossing({
+          dispatchId:       generateId('dx') as DispatchId,
+          source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+          payload:          { responseLength: fullResponse.length },
+          channelTarget:    'wearer-message',
+          dispositionClaim: 'reference',
+          scopeContext:     projectId,
+          authorityContext: { level: 'L0', actor: 'wearer', source: null },
+          correlationRef:   null,
+          reversibility:    'n/a',
+          requestedAt:      Date.now() as EpochMs,
+        })
+      }
 
       controller.close()
     },

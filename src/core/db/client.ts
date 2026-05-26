@@ -11,8 +11,18 @@ function getDbUrl(): string {
   return url
 }
 
+// A transactional connection handle — query() runs on one pooled connection.
+interface TxClient {
+  query<R = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: R[] }>
+}
+
 interface DbPool {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>
+  // Run fn inside a single BEGIN/COMMIT transaction on one pooled connection
+  // from the shared singleton pool. On any throw: ROLLBACK and rethrow. The
+  // connection is always released. fn receives a tx handle whose query() runs
+  // on that one connection — so BEGIN, the work, and COMMIT share it.
+  transaction<T>(fn: (tx: TxClient) => Promise<T>): Promise<T>
   end(): Promise<void>
 }
 
@@ -45,6 +55,30 @@ function getClient(): DbPool {
     async query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: T[] }> {
       const result = await pool.query(sql, params)
       return { rows: result.rows as T[] }
+    },
+    async transaction<T>(
+      fn: (tx: TxClient) => Promise<T>,
+    ): Promise<T> {
+      // One connection from the existing singleton pool — BEGIN, the work, and
+      // COMMIT all share it. No second pool.
+      const client = await pool.connect()
+      const tx: TxClient = {
+        async query<R = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<{ rows: R[] }> {
+          const result = await client.query(sql, params)
+          return { rows: result.rows as R[] }
+        },
+      }
+      try {
+        await client.query('BEGIN')
+        const out = await fn(tx)
+        await client.query('COMMIT')
+        return out
+      } catch (err) {
+        await client.query('ROLLBACK')
+        throw err
+      } finally {
+        client.release()
+      }
     },
     async end(): Promise<void> {
       await pool.end()

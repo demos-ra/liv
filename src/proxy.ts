@@ -406,10 +406,14 @@ async function buildStampedResponse(args: {
     },
   }
 
-  writeStateChange(crossingWrite).catch((err: unknown) => {
+  // fixround-substrate-write (F6): inspect-and-log — Boundary crossing write,
+  // a side-record. Ruled non-fatal (same basis as the perimeter-consultation
+  // crossing write); the failure must be observed, not silent.
+  const crossingWriteResult = await writeStateChange(crossingWrite)
+  if (!crossingWriteResult.ok) {
     console.error('[middleware] boundary crossing substrate write failed',
-      err instanceof Error ? err.message : err)
-  })
+      crossingWriteResult.error.message)
+  }
 
   // ── Build response with perimeter headers ─────────────────────────────────
   const response = NextResponse.next()
