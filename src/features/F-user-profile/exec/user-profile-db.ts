@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-2
+// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (ModelPreferences flat type carried), sprint-beta-fixround (F3: dbSetModelPreferences returns PROFILE_NOT_FOUND on zero-row UPDATE instead of silent ok)
 // slice:      F-user-profile
 // layer:      R4
 // wires-in:
@@ -138,19 +138,42 @@ export async function dbGetModelPreferences(
 // ── dbSetModelPreferences (step4b2-phase-d, corrective-2: Result<T>) ──────────
 // Writes user_profiles.model_preferences jsonb.
 // Caller (R3) is responsible for validating provider/model integrity before write.
+//
+// sprint-beta-fixround (F3): this is an UPDATE, not an upsert — dbSetModelPreferences
+// is a preference setter, not a profile creator. profile-row creation has a single
+// owner (persistProfile, ON CONFLICT DO NOTHING). If no row exists, the UPDATE
+// matches zero rows; rather than silently returning ok (the F3 defect — a 200 the
+// settings UI shows as "saved" while nothing persisted), it returns a typed
+// PROFILE_NOT_FOUND error so the caller and the wearer see the real failure.
+// After F4 the profile always exists by the time settings are reachable; this
+// error path is the backstop that surfaces any future profile-creation gap loudly
+// instead of hiding it.
 
 export async function dbSetModelPreferences(
   userId: string,
   prefs:  ModelPreferences
 ): Promise<ProfileResult<void>> {
   try {
-    await db.query(
+    // db.query exposes { rows } only (no rowCount) — RETURNING user_id makes the
+    // matched-row count observable: an UPDATE matching no row returns zero rows.
+    const result = await db.query<{ user_id: string }>(
       `UPDATE user_profiles
        SET model_preferences = $2::jsonb,
            updated_at        = now()
-       WHERE user_id = $1`,
+       WHERE user_id = $1
+       RETURNING user_id`,
       [userId, JSON.stringify(prefs)]
     )
+    if (result.rows.length === 0) {
+      return {
+        ok: false,
+        error: {
+          code:    'PROFILE_NOT_FOUND',
+          message: 'No user_profiles row for this user — preference not persisted',
+          context: { userId },
+        },
+      }
+    }
     return { ok: true, data: undefined }
   } catch (e) {
     return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to set model preferences', context: { cause: String(e) } } }

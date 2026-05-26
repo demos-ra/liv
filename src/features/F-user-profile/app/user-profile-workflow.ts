@@ -8,7 +8,7 @@
 import { buildProfile, updatePreferredModel, updateDisplayName } from '../domain/user-profile-logic'
 import { persistProfile, updateProfile, getProfileByUserId } from '../exec/user-profile-db'
 
-// ── Bootstrap — called by event-subscriptions on identity.user-signed-in ─────
+// ── Bootstrap — called by event-subscriptions on identity.user-authenticated ─
 
 export async function upsertProfileForUser(
   userId: string,

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    D5a, phase-b-item2, phase-5.1-r1, phase-5-audit
+// amended:    D5a, phase-b-item2, phase-5.1-r1, phase-5-audit, sprint-beta-fixround (F4: three identity subscriptions retargeted USER_SIGNED_IN→USER_AUTHENTICATED — the event the auth path actually emits on sign-in)
 // slice:      F-event-system
 // category:   Tool
 // layer:      R2
@@ -61,7 +61,7 @@ import type { LivEvent } from '@/core/types/primitives'
 
 import { destroySessionForUser } from '@/features/F-identity/contract/auth-contract'
 
-subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (_event: LivEvent) => {
+subscribeToEvent(EVENTS.IDENTITY.USER_AUTHENTICATED, async (_event: LivEvent) => {
   // no-op: session row already created by verifyMagicLink (F-identity R4).
   // Subscription kept as explicit lifecycle signal.
 })
@@ -80,7 +80,7 @@ subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED, async (event: LivEvent) => {
 
 import { assignDefaultRole } from '@/features/F-permissions/contract/permissions-contract'
 
-subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
+subscribeToEvent(EVENTS.IDENTITY.USER_AUTHENTICATED, async (event: LivEvent) => {
   const { userId } = event.payload as { userId: string }
   await assignDefaultRole(userId)
 })
@@ -89,7 +89,7 @@ subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
 
 import { upsertProfileForUser } from '@/features/F-user-profile/contract/user-profile-contract'
 
-subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_IN, async (event: LivEvent) => {
+subscribeToEvent(EVENTS.IDENTITY.USER_AUTHENTICATED, async (event: LivEvent) => {
   const { userId, email } = event.payload as { userId: string; email: string }
   await upsertProfileForUser(userId, email)
 })

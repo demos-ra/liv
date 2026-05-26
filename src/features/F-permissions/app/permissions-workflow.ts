@@ -36,7 +36,7 @@ import { emitEvent } from '@/features/F-event-system/contract/event-bus'
 import { EVENTS } from '@/features/F-event-system/config/event-schema'
 
 // ─── Event-subscription hooks ─────────────────────────────────────────────────
-// Called by event-subscriptions.ts on identity.user-signed-in
+// Called by event-subscriptions.ts on identity.user-authenticated
 // and project.project-created events.
 
 export async function assignDefaultRole(userId: string): Promise<void> {

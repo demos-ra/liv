@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider })
+// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider }), sprint-beta-fixround (F3: PUT maps PROFILE_NOT_FOUND to 409)
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -208,7 +208,14 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
   const validated: ModelPreferences = { provider, model }
 
   const setResult = await dbSetModelPreferences(session.userId, validated)
-  if (!setResult.ok) return NextResponse.json({ error: setResult.error }, { status: 500 })
+  if (!setResult.ok) {
+    // sprint-beta-fixround (F3): PROFILE_NOT_FOUND is a missing-prerequisite
+    // state (no user_profiles row), not a server fault — surface it as 409 so
+    // the wearer sees an honest error rather than a false "saved" (the F3
+    // defect) or a misleading 500. A genuine DB error stays 500.
+    const status = setResult.error.code === 'PROFILE_NOT_FOUND' ? 409 : 500
+    return NextResponse.json({ error: setResult.error }, { status })
+  }
   return NextResponse.json({ ok: true, data: validated })
 }
 
