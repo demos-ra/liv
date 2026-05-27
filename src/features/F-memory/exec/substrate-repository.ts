@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022), fixround-core-loop-read-restore (F10: exportByScope renamed readScopeRows — the canonical scope-ordered read, wrapped by R2 readScope)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -18,7 +18,7 @@
 //   W-CONST   SUBSTRATE_TABLE_NAME    F-memory/R0 substrate-config
 //   W-INJECT  db                      core/R5
 // wires-out:  none (consumed by R2 substrate-service)
-//   W-FN      exportByScope           →  F-memory/R2 substrate-service (sprint-b2-shot-3)
+//   W-FN      readScopeRows           →  F-memory/R2 substrate-service (F10: readScope wrapper)
 // deps:
 //   R0  ../config/substrate-config
 //   R5  @/core/db/client
@@ -436,12 +436,16 @@ export async function readAdjacency(
   }
 }
 
-// ─── Export by scope (§3.11 userId index scan) ────────────────────────────────
-// exportByScope: returns all StateChangeRecords for a given userId, ordered by
-// position ASC. Uses the userId index declared at LM v3.1 §3.11 (scope → positions).
-// R4 I/O only — zero domain logic. Additive: no existing primitive signature changed.
+// ─── Scope-ordered read (§3.11 userId index scan) ─────────────────────────────
+// readScopeRows: the canonical substrate read — every StateChangeRecord for a
+// userId, position ASC. Uses the userId index declared at LM v3.1 §3.11
+// (scope → positions). userId-scoped: the substrate isolation floor.
+// R4 I/O only — zero domain logic. The R2 service wraps this as readScope();
+// both the core-loop read and the export route consume it through R2/R3.
+// (F10: was exportByScope, R4-direct-wired for the export path only. The read
+// is not export-specific — it is THE scope read; promoted to first-class.)
 
-export async function exportByScope(
+export async function readScopeRows(
   userId: string,
 ): Promise<Result<StateChangeRecord[]>> {
   try {

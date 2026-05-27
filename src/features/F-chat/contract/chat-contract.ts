@@ -13,13 +13,10 @@
 //             sprint-13-shot-1 (dispatch wire: routeResult.ok branch dispatches to cycle program contract entries)
 //             sprint-b1-shot-1 (wearer write channel: 'wearer' → Decision-D-CHANNEL mapped from session.resolvedChannel)
 //             sprint-13c-shot-1 (dispatchCrossing: fire-and-forget at all F-chat outbound emission sites; memory loop dispatch direction live)
-//             sprint-2-shot-6 (context assembly migrated: threadQuery → present(); contextRef ThreadResult → PresentView)
-//             present-rederive-shot-4 (present() call re-migrated to v2.0 PresentIntent contract: focus/standpoint/ordering)
-//             kind-a-v6 (present() call migrated to v6.0 PresentIntent: camera/temporal/standpoint three-control model; view-read uses ViewNode.stack surface, dominantSurfaceForm deleted)
-//             sprint-beta-shot-1 (race fix: wearer writeStateChange awaited so the turn's intent commits before present() derives its camera anchor)
-//             sprint-beta-shot-2 (Item-2 Part B: present un-flattened at the F-chat boundary — serializePresentView replaces the lines.join('\n') surface-form collapse; the LLM receives the composed tree-of-stacks structure with depth + authorship, carried as structured text in systemContext)
+//             sprint-beta-shot-1 (race fix: wearer writeStateChange awaited so the turn's intent commits before the substrate read derives the context)
 //             sprint-beta-fixround (F2: channelKindToSourceChannel gains the 'external-agent' case — connector-door chat-turn substrate writes now stamp source.channel='external-agent', agreeing with the Boundary crossing record)
 //             fixround-substrate-write (F6: both substrate writes inspect the Result and are fatal — wearer write !ok → POST_message returns 500, the turn does not proceed; AI write !ok → terminal turn_failed event, done withheld, completion crossing suppressed; writeStateChange returns Result, never throws — no .catch())
+//             fixround-core-loop-read-restore (F10: the core-loop read step reverted from present() to a direct substrate read — readScope(userId), serialized as a flat ordered transcript; present()/PresentView/serializePresentView removed from the core loop; F-present is an add-on surface, out of the loop)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -30,12 +27,12 @@
 //   W-ATOM  CHAT_RATE_LIMIT      ../config/chat-config
 //   W-HOOK  isPipelineActive     F-plan/contract/plan-contract  (R3→R3, read-only query)
 //   W-FN    writeStateChange     F-memory/contract/substrate-contract  (HR-LM1 write surface)
-//   W-FN    present              F-present/contract/present-contract   (sprint-2-shot-6: replaces threadQuery at context assembly)
+//   W-FN    readScope            F-memory/contract/substrate-contract  (F10: core-loop read step — replaces present())
 //   W-FN    route                F-router/contract/router-contract     (message routing)
 //   W-FN    generateId           core/types/primitives                 (turnId generation)
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
-//   W-ATOM  PresentView          F-present/contract/present-contract   (sprint-2-shot-6: replaces ThreadResult as contextRef type)
-//   W-ATOM  PresentIntent        F-present/contract/present-contract   (present-rederive-shot-4: v2.0 contract — replaces PresentReadIntent)
+//   W-ATOM  StateChangeRecord    F-memory/contract/substrate-contract  (F10: substrate read record — serializeTranscript input)
+//   W-ATOM  Relation             F-memory/contract/substrate-contract  (F10: transcript serialization)
 //   W-ATOM  ChannelKind          core/types/perimeter-standard.types  (sprint-b1-shot-1: Decision-D-CHANNEL mapping)
 //   W-ATOM  RouterMessage        F-router/config/router-types
 //   W-ATOM  RouterSessionContext F-router/config/router-types
@@ -69,10 +66,10 @@
 //
 // Chat Standard v1.0 alignment:
 //   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
-//   CA2 — present() assembles context before LLM call (lines ~591–625; sprint-2-shot-6 migration)
+//   CA2 — the substrate read assembles context before the LLM call (readScope, F10)
 //   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
 //   CA4 — both substrate writes inspect the Result and are fatal (F6 fixround):
-//         wearer write awaited before present(); !ok → POST_message 500, turn stops.
+//         wearer write awaited before the substrate read; !ok → POST_message 500, turn stops.
 //         AI write awaited after stream; !ok → terminal turn_failed event, done withheld.
 //   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
 //
@@ -100,8 +97,8 @@
 //       identitiesWithRoles: [{ identity: modelId, role: 'agent' }], negation: false }],
 //       source.channel='ai', scope=userId.
 //     Shared turnId ensures both writes address same exchange position.
-//     contextRef (ThreadResult | null) carried from assembly; used in system prompt
-//     construction; not stored into SubstrateWriteInput (type has no meta field).
+//     The substrate read (readScope) is serialized directly into systemPrompt;
+//     the context carried to the LLM is that string, not stored into SubstrateWriteInput.
 //   CA4 (F6 fixround): both writes are awaited and inspected — wearer write
 //     before the pipeline guard, ai write before the completion crossing.
 //     A !ok on either fails the turn; neither is fire-and-forget.
@@ -138,9 +135,8 @@ import { validateMessageContent }                from '../domain/chat-logic'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
-import { writeStateChange }                       from '@/features/F-memory/contract/substrate-contract'
-import { present }                                from '@/features/F-present/contract/present-contract'
-import type { PresentView, PresentIntent, IntentIdRef, FrameworkRef, ViewNode, ViewEdge, StackEntry } from '@/features/F-present/contract/present-contract'
+import { writeStateChange, readScope }            from '@/features/F-memory/contract/substrate-contract'
+import type { StateChangeRecord, Relation }       from '@/features/F-memory/contract/substrate-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
@@ -458,101 +454,39 @@ function getChatLimiter() {
   return chatLimiter
 }
 
-// ── PresentView → structure-preserving context — sprint-beta-shot-2 (Item-2 B) ─
-// Part B of Item-2: the present is un-flattened at the F-chat boundary.
+// ── StateChangeRecord[] → flat transcript — F10 ────────────────────────────
+// The core loop reads the substrate (readScope) and renders its records as a
+// plain ordered transcript for the LLM. The substrate is a flat ledger; this
+// is a flat ordered rendering of it — each record in position order, tagged by
+// source channel (wearer vs ai), showing its content (identities + relations).
+// No tree, no stacks: that was F-present's PresentView shape. This renders the
+// substrate's own records — fields are fields, not a borrowed structure.
 //
-// The defect this replaces: chat-contract.ts collapsed the PresentView to
-// `composition.nodes.map(stack[last].surfaceForm).join('\n')` — surface form of
-// each node only. The tree (parent/child structure), the stacks (every node is
-// an append-only stack of state-changes — only the last entry survived), the
-// depth, and the authorship ('user' vs 'llm' per StackEntry) were all dropped.
-// The LLM received a flat list of strings — a shadow of the composed present.
+// systemContext (chat-workflow.SendMessageInput) is typed `string` — the LLM
+// API is text-in; the transcript is carried as text.
 //
-// `systemContext` (chat-workflow.SendMessageInput) is typed `string` — the LLM
-// API is text-in. "Un-flatten" therefore does NOT mean passing the PresentView
-// object (it cannot); it means the TEXT the LLM receives must CARRY the
-// structure rather than discard it. This serializer walks the composition tree
-// from `composition.root`, indents by depth (depth = tree structure preserved),
-// and for each node renders its full stack with per-entry authorship (stacks +
-// authorship preserved). Directed parent→child edges with their relation type
-// are appended (connectivity preserved). The result is a structured text block
-// — the composed present, not a flattened shadow.
-//
-// Pure function: no I/O, no throw on well-formed input. A malformed/cyclic tree
-// is bounded by the visited-set guard — it cannot loop. Bound is already
-// enforced upstream (ViewBound at present()); this only renders what it is given.
+// Pure function: no I/O, no throw on well-formed input.
 
-function serializePresentView(view: PresentView): string {
-  const { nodes, edges, root, camera } = view.composition
-
-  const nodeById = new Map<string, ViewNode>()
-  for (const n of nodes) nodeById.set(n.identity as unknown as string, n)
-
-  // One stack rendered as: surfaceForm tagged with authorship, oldest→newest.
-  // The last entry is the current surface; earlier entries are the history the
-  // v5.0 flat projection used to discard.
-  const renderStack = (stack: StackEntry[]): string => {
-    if (stack.length === 0) return '(empty stack)'
-    return stack
-      .map((e: StackEntry, i: number) => {
-        const isSurface = i === stack.length - 1
-        const mark = isSurface ? '*' : ' '   // * = current surface
-        return `${mark}[${e.authorship}] ${e.surfaceForm}`
-      })
-      .join(' <- ')
+function serializeTranscript(records: StateChangeRecord[]): string {
+  const renderRelation = (r: Relation): string => {
+    const roles = r.identitiesWithRoles
+      .map(ir => `${ir.role}:${ir.identity}`)
+      .join(', ')
+    const neg = r.negation ? 'NOT ' : ''
+    return `${neg}${r.type}[${r.modality}](${roles})`
   }
 
-  // Depth-first walk from root; visited-set guards against a malformed cycle.
-  const visited = new Set<string>()
-  const lines: string[] = []
-
-  const walk = (id: string, depth: number): void => {
-    if (visited.has(id)) {
-      lines.push(`${'  '.repeat(depth)}- ${id} (already shown)`)
-      return
-    }
-    visited.add(id)
-    const node = nodeById.get(id)
-    const indent = '  '.repeat(depth)
-    if (!node) {
-      lines.push(`${indent}- ${id} (not in resolved extent)`)
-      return
-    }
-    const cameraMark = (id === (camera as unknown as string)) ? ' <- camera' : ''
-    lines.push(
-      `${indent}- ${id} (weight ${node.weight.toFixed(2)}, ${node.sourceCount} source${node.sourceCount === 1 ? '' : 's'})${cameraMark}`,
-    )
-    lines.push(`${indent}  stack: ${renderStack(node.stack)}`)
-    for (const childRef of node.children) {
-      walk(childRef as unknown as string, depth + 1)
-    }
-  }
-
-  walk(root as unknown as string, 0)
-
-  // Any node not reached from root (a disconnected fragment within the extent)
-  // is still shown — the present is what present() resolved, shown whole.
-  for (const n of nodes) {
-    const id = n.identity as unknown as string
-    if (!visited.has(id)) walk(id, 0)
-  }
-
-  // Edges — directed parent→child with relation type. The node walk shows the
-  // tree; this names the relations on it.
-  const edgeLines: string[] = edges.map((e: ViewEdge) => {
-    const rel = e.relationType as unknown as string
-    return `  ${e.parent as unknown as string} --[${rel}]--> ${e.child as unknown as string}`
+  const lines: string[] = records.map((rec) => {
+    // source.channel distinguishes wearer turns from ai turns.
+    const who = rec.metadata.source.channel === 'ai' ? 'ai' : 'wearer'
+    const identities = rec.content.identities.join(', ')
+    const relations  = rec.content.relations.length > 0
+      ? rec.content.relations.map(renderRelation).join('; ')
+      : '(none)'
+    return `[${rec.metadata.position}] (${who}) identities: ${identities} | relations: ${relations}`
   })
 
-  const parts = [
-    'PRESENT (composed structure — tree of stacks, granularity-cutoff extent):',
-    ...lines,
-  ]
-  if (edgeLines.length > 0) {
-    parts.push('RELATIONS:')
-    parts.push(...edgeLines)
-  }
-  return parts.join('\n')
+  return ['SUBSTRATE (accumulated state-changes, position order):', ...lines].join('\n')
 }
 
 // ── POST /api/chat/[projectId]/message ────────────────────────────────────────
@@ -629,8 +563,8 @@ export async function POST_message(
   //
   // sprint-beta-shot-1 (race fix) + F6 fixround (fatality):
   //   The wearer write is awaited so the current turn's intent is durably in
-  //   the substrate before present() (below) derives its camera anchor — the
-  //   "latest state-change". F6 fixround: the Result is inspected and the write
+  //   the substrate before the substrate read (below) assembles the context —
+  //   the read must see this turn. F6 fixround: the Result is inspected and the write
   //   is fatal — on !ok, POST_message returns 500 and the turn does not
   //   proceed. A turn whose intent was not recorded must not stream a response
   //   against a substrate that never saw it. The ai-side write (below) is
@@ -673,9 +607,9 @@ export async function POST_message(
     },
   }
 
-  // sprint-beta-shot-1: awaited — sequences the commit before the present() read.
+  // sprint-beta-shot-1: awaited — sequences the commit before the substrate read.
   // fixround-substrate-write (F6): the wearer write is the turn's purpose — if
-  // it did not land, the turn is a lie (the present would omit it). L0-ruled
+  // it did not land, the turn is a lie (the substrate read would omit it). L0-ruled
   // fatal: inspect the Result, and on !ok fail the turn visibly rather than
   // proceeding to stream a response against a substrate that never recorded the
   // wearer's message.
@@ -720,47 +654,28 @@ export async function POST_message(
     })
   }
 
-  // ── F-present context assembly — sprint-2-shot-6 / present-rederive-shot-4 / kind-a-v6 ──
-  // Migrated from direct threadQuery (sprint-11-shot-2) to present() service call.
-  // kind-a-v6: migrated to the v6.0 PresentIntent contract — the three-control model.
-  //   F-chat is the user-driven path, so:
-  //   camera: { mode: 'derived' } — F-present derives the anchor (the user's
-  //     latest state-change); F-chat states no identity.
-  //   temporal: { depth: 'surface' } — the still, the present moment.
-  //   standpoint: null — the live present (no scrub-back to a past position).
-  //   camera derived + temporal surface + standpoint null = the live present.
-  // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call not suppressed.
-  // bound: maxNodes=20, maxEdges=40, walkBudget=100 (conservative starting values per spec §7 note 2).
-  let contextRef: PresentView | null = null
+  // ── Core-loop read step — substrate read (F10) ─────────────────────────────
+  // The core loop reads the substrate directly. F-present is an add-on surface,
+  // not the loop's read step — sprint-2-shot-6 had hardwired present() in here,
+  // which meant the LLM saw an empty PresentView and lost all prior turns.
+  // readScope returns the substrate's own typed records (StateChangeRecord[]),
+  // position-ascending, userId-scoped (the substrate isolation floor — not
+  // projectId, not iterateAxis). The flat ledger is rendered as a flat ordered
+  // transcript at this F-chat boundary — no tree, no stacks (that was
+  // F-present's PresentView shape; this reads substrate records and renders
+  // them).
+  // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call
+  // not suppressed.
   let systemPrompt = ''
 
   try {
-    const presentIntent: PresentIntent = {
-      intentId:    generateId('intent') as unknown as IntentIdRef,
-      consumerRef: 'F-chat' as unknown as FrameworkRef,
-      userId:      session.userId,
-      scopeRef:    projectId as unknown as ScopeRef,
-      camera:      { mode: 'derived' },
-      temporal:    { depth: 'surface' },
-      standpoint:  null,
-      bound:       { maxNodes: 20, maxEdges: 40, walkBudget: 100 },
-      provenance:  { consumerSlice: 'F-chat' as unknown as FrameworkRef, stampedAt: Date.now() },
-    }
-    const viewResult = await present(presentIntent)
-    if (viewResult.ok && viewResult.data.composition.nodes.length > 0) {
-      contextRef   = viewResult.data
-      // sprint-beta-shot-2 (Item-2 Part B): un-flatten the present at the
-      // F-chat boundary. Previously the PresentView was collapsed to
-      // `nodes.map(stack[last].surfaceForm).join('\n')` — tree, stacks, depth,
-      // and authorship dropped. serializePresentView walks the composition tree
-      // and renders the structure as text: the LLM receives the composed
-      // present, not a flattened shadow. systemContext is typed `string` (the
-      // LLM API is text-in) — the structure is carried IN the text.
-      systemPrompt = serializePresentView(viewResult.data)
+    const scopeResult = await readScope(session.userId)
+    if (scopeResult.ok && scopeResult.data.length > 0) {
+      systemPrompt = serializeTranscript(scopeResult.data)
     }
   } catch (err) {
     // §5.6: substrate read failure — proceed with empty system prompt.
-    console.error('[chat] present() context assembly failed', err instanceof Error ? err.message : err)
+    console.error('[chat] substrate read context assembly failed', err instanceof Error ? err.message : err)
   }
 
   // ── F-router dispatch — sprint-11-shot-2 / sprint-13-shot-1 ─────────────────

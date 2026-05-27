@@ -9,7 +9,7 @@
 // layer:      R5
 // wires-in:
 //   W-FN      getPerimeterSession   @/features/F-identity/contract/perimeter-consultation
-//   W-FN      exportByScope         @/features/F-memory/contract/substrate-contract
+//   W-FN      readScope             @/features/F-memory/contract/substrate-contract  (F10: was exportByScope)
 //   W-ATOM    NextRequest           next/server
 //   W-ATOM    NextResponse          next/server
 // wires-out:
@@ -36,7 +36,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
-import { exportByScope } from '@/features/F-memory/contract/substrate-contract'
+import { readScope } from '@/features/F-memory/contract/substrate-contract'
 
 const EXPORT_SCHEMA    = 'liv-substrate-export'
 const EXPORT_VERSION   = '1.0'
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Execute export.
-  const result = await exportByScope(session.userId)
+  const result = await readScope(session.userId)
   if (!result.ok) {
     return NextResponse.json(
       { error: 'export_failed', detail: result.error.message },

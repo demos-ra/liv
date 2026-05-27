@@ -90,6 +90,7 @@ import {
   commitRevocation,
   readByPosition,
   iterateAxisRows,
+  readScopeRows,
   readIdentityRecurrence,
   readRolePattern,
   readAdjacency,
@@ -574,6 +575,16 @@ export async function iterateAxis(
   count: number,
 ): Promise<Result<StateChangeRecord[]>> {
   return iterateAxisRows(start, direction, count)
+}
+
+// readScope: the canonical scope-ordered substrate read — every
+// StateChangeRecord for a userId, position ASC. First-class (F10): the core
+// loop's read step and the export route both consume it. userId-scoped — the
+// substrate isolation floor; never iterateAxis (unscoped).
+export async function readScope(
+  userId: string,
+): Promise<Result<StateChangeRecord[]>> {
+  return readScopeRows(userId)
 }
 
 export async function identityRecurrence(
