@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through), present-rederive-shot-1 (LM v3.4/v3.5: TQ3 threads contentClass? + asOfPosition? to repository reads; identityRecurrence/rolePattern/adjacency wrappers gain the optional parameters)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through), present-rederive-shot-1 (LM v3.4/v3.5: TQ3 threads contentClass? + asOfPosition? to repository reads; identityRecurrence/rolePattern/adjacency wrappers gain the optional parameters), fixround-position-sequence (sw1Validate position:0 sentinel removed — position is DB-owned, assigned at INSERT in R4)
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -104,8 +104,9 @@ import { SUBSTRATE_EVENTS } from '../config/substrate-events'
 //   - identities array non-empty
 //   - each Relation has all four components (type, modality, identitiesWithRoles, negation)
 //   - each Relation.identitiesWithRoles has ≥ 1 entry
-// Assigns position (delegated to R4 inside the commit transaction; here we
-// pass position=0 as sentinel meaning "assign at commit time").
+// fixround-position-sequence: SW1 no longer carries position — position is
+// owned by the database (state_change_position_seq) and assigned at INSERT in
+// R4. SW1 validates shape and stamps time only.
 // Stamps time as write-time (already provided by perimeter; preserved here).
 
 function sw1Validate(input: SubstrateWriteInput): Result<SubstrateWriteValidated> {
@@ -209,7 +210,6 @@ function sw1Validate(input: SubstrateWriteInput): Result<SubstrateWriteValidated
       relations:  content.relations,
       time:       typeof metadata.time === 'number' ? metadata.time : Date.now(),
       source:     metadata.source,
-      position:   0 as PositionRef,   // sentinel: R4 assigns within tx
     },
   }
 }
@@ -258,7 +258,8 @@ function sw2Gates(validated: SubstrateWriteValidated): SubstrateGateResult[] {
     ...(lma3Reason ? { reason: lma3Reason } : {}),
   })
 
-  // LMA10 — two-axis. Position monotonicity is enforced at R4 (nextPosition).
+  // LMA10 — two-axis. Position monotonicity is owned by the database
+  // (state_change_position_seq, migration 022) — assigned at INSERT in R4.
   results.push({ axiom: 'LMA10', passed: true })
 
   // LMA11 — modality stored as recorded; no execution-time binding here.

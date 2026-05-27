@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -90,19 +90,12 @@ function rowToRecord(row: StateChangeRow): StateChangeRecord {
 // Read inside the same transaction as insert to avoid race against concurrent
 // writers. SELECT MAX returns NULL on empty table → 0 → next position 1.
 
-async function nextPosition(client: {
-  query: (sql: string, params?: unknown[]) => Promise<{ rows: { max: number | null }[] }>
-}): Promise<number> {
-  const result = await client.query(
-    `SELECT MAX(position) AS max FROM ${SUBSTRATE_TABLE_NAME}`,
-  )
-  const max = result.rows[0]?.max
-  return (typeof max === 'number' ? max : 0) + 1
-}
-
 // ─── Write (LMA1 + LMA4: forward-additive, atomic commit) ─────────────────────
 // commitStateChange — inserts a single state-change row inside one transaction.
-// Position is assigned within the transaction. Returns the persisted record.
+// fixround-position-sequence: position is assigned by the database via the
+// state_change_position_seq DEFAULT (migration 022). The INSERT omits position;
+// RETURNING position reads back the value the DB assigned. No app-side position
+// logic — nextval is intrinsic to the INSERT, atomic, no read-then-write race.
 
 export async function commitStateChange(
   validated: SubstrateWriteValidated,
@@ -111,25 +104,20 @@ export async function commitStateChange(
   // brand: locally minted — id generated for this commit
 
   try {
-    // fixround-substrate-write: run nextPosition + INSERT inside one
-    // transaction on the shared singleton pool (db.transaction). No ad-hoc
-    // second pool — the prior new Pool() per write was the write-path break.
+    // fixround-substrate-write: run the INSERT inside one transaction on the
+    // shared singleton pool (db.transaction). No ad-hoc second pool.
     const record = await db.transaction(async (tx) => {
-      // Position assignment inside the transaction (LMA10 monotonic guarantee
-      // under serializable isolation; for read-committed we rely on row-level
-      // locking via the SELECT FOR UPDATE pattern, but with a single-writer
-      // insert path the SELECT MAX inside BEGIN is sufficient at this load).
-      const position = (validated.position as number) > 0
-        ? (validated.position as number)
-        : await nextPosition(tx)
-
-      await tx.query(
+      // fixround-position-sequence: position is omitted from the INSERT — the
+      // database assigns it via the state_change_position_seq DEFAULT (nextval,
+      // migration 022). RETURNING position reads back the assigned value. No
+      // app-side position computation, no read-then-write race.
+      const inserted = await tx.query<{ position: number }>(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
-           (id, position, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
+           (id, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
+         RETURNING position`,
         [
           id,
-          position,
           String(validated.time),
           validated.source.channel,
           validated.source.contentClass,  // v1.8.3 A-24: stamped at construction site
@@ -139,6 +127,14 @@ export async function commitStateChange(
           JSON.stringify(validated.relations),
         ],
       )
+
+      const position = inserted.rows[0]?.position
+      if (typeof position !== 'number') {
+        // RETURNING always yields the inserted row's position; a missing value
+        // means the INSERT did not land — surface it rather than build a record
+        // with an unknown coordinate.
+        throw new Error('INSERT returned no position')
+      }
 
       const built: StateChangeRecord = {
         id,

@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields)
+// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields), fixround-position-sequence (SubstrateWriteValidated.position sentinel field removed — position is DB-owned via state_change_position_seq, assigned at INSERT)
 // slice:      F-memory
 // layer:      R0
 // wires-in:
@@ -62,7 +62,10 @@ export type StateChangeRow = {
 }
 
 // ─── SW1 validation output (post-shape-check, pre-gate) ───────────────────────
-// SubstrateWriteValidated: SW1 has assigned position + time, validated shape.
+// SubstrateWriteValidated: SW1 has validated shape + assigned time.
+// fixround-position-sequence: no position field — position is owned by the
+// database (state_change_position_seq, migration 022) and assigned at INSERT.
+// Nothing app-side assigns or reads position pre-INSERT.
 // Carries the inbound write through the procedure.
 
 export type SubstrateWriteValidated = {
@@ -71,7 +74,6 @@ export type SubstrateWriteValidated = {
   relations:  Relation[]
   time:       number
   source:     SubstrateSourceRef
-  position:   PositionRef
 }
 
 // ─── SW2 gate output ──────────────────────────────────────────────────────────

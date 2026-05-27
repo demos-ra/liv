@@ -1,10 +1,10 @@
-// @liv-standard v1.5.1
+// @liv-standard v1.5.2
 // [migrations/run-migrations.ts]
 // Built with LIV · livai.dev
 
 // @manifest
-// standard:   LIV-Standard v1.5.1
-// amended:    lm-v2-2-shot5
+// standard:   LIV-Standard v1.5.2
+// amended:    lm-v2-2-shot5, fixround-migration-runner (F7: directory scan + schema_migrations tracking + backfill — MIGRATION_FILES array deleted)
 // slice:      core
 // layer:      R4
 // wires-in:   none
@@ -18,65 +18,90 @@
 // R4: I/O only. Migration runner — deploy-time, never imported at runtime.
 // A4: owns the migration connection lifecycle. No logic outside this file.
 // A1: sole owner of migration execution path.
-// Phase 3: moved from src/exec/migrations/ to project root migrations/
 //
 // pool.query(sql) executes each file as a single string — never split on ';'.
 // Splitting breaks partial indexes and CHECK constraints. node-postgres simple
 // query protocol handles multi-statement DDL strings natively.
 //
-// lm-v2-2-shot5: MIGRATION_FILES extended to cover 006-015. Pre-flight
-// surfaced that the v1.3 array stopped at 003-output.sql; migrations
-// 006-014 ran via other deploy mechanisms (manual psql, separate boot
-// path) at HEAD. 015-artifact-store.sql lands here for runner inclusion;
-// preceding migrations added in chronological order so a clean re-run
-// applies the full chain idempotently. All migrations 006-015 use IF NOT
-// EXISTS / IF EXISTS / EXCEPTION-WHEN-duplicate-object guards, so re-running
-// over an already-migrated DB is safe.
+// -- STANDING CONTRACT: migration-file transactions (F7 re-open) -------------
+// Migration files do NOT carry their own BEGIN/COMMIT. The runner owns the
+// transaction: it wraps each migration's SQL and its schema_migrations record
+// in ONE transaction, so apply-and-record commit together or not at all —
+// exactly-once is a guarantee, not a happy-path hope. A migration file is pure
+// statements.
+// Exception: a migration that must use a statement which cannot run inside a
+// transaction block (CREATE INDEX CONCURRENTLY, VACUUM, REINDEX, ...) declares
+// the header line  -- liv-migration: no-transaction  ; the runner then runs it
+// unwrapped and
+// that migration owns its own atomicity. Use only when genuinely required — it
+// forfeits the runner's exactly-once guarantee for that file. Migrations
+// 000-022 carry no such statement (verified) and no marker.
 //
-// **BUILDER FLAG (lm-v2-2-shot5):** the hardcoded array at HEAD shipped
-// before 006-014 landed in the codebase, leaving the runtime runner stale.
-// Two readings considered: (a) extend array (chosen — minimal scope,
-// preserves v1.3 architecture); (b) replace with directory scan (broader
-// rewrite, expanded scope). Manager call welcome on whether (b) modernization
-// is preferred for Sprint 3+.
+// -- fixround-migration-runner (F7) ------------------------------------------
+// Structural close. The prior runner had two coupled defects:
+//   (a) a hardcoded MIGRATION_FILES array, chronically stale -- it shipped
+//       missing 004/005 (never existed) AND 016-020 (its own comments admitted
+//       these "ran via other deploy paths"); a stale array silently skips
+//       migrations.
+//   (b) no applied-tracking -- every file re-ran on every deploy. Idempotent
+//       guards made that survivable, but 022's TRUNCATE is not guardable that
+//       way: a re-run would wipe the substrate. The untracked runner is itself
+//       the defect, not 022.
+// Both collapse at the class:
+//   - The MIGRATION_FILES array is DELETED and replaced by a directory scan of
+//     migrations/, sorted by numeric prefix. What runs is derived from the
+//     filesystem -- nothing hardcoded, nothing to go stale.
+//   - A schema_migrations table tracks applied filenames. Each migration runs
+//     exactly once, ever. Re-run safety no longer depends on per-statement
+//     guards -- it is structural.
+//   - Backfill: the live DB already has 000-021 applied but untracked. The
+//     first tracked run, on a non-fresh DB, registers 000-021 as already-
+//     applied in the same transaction that creates schema_migrations, so
+//     history is not re-executed. See TRACKING_INTRODUCED_AT below.
 
-import { readFileSync } from 'fs'
-import { join }         from 'path'
-import { Pool }         from 'pg'
+import { readdirSync, readFileSync } from 'fs'
+import { join }                     from 'path'
+import { Pool }                     from 'pg'
 
-const MIGRATION_FILES = [
-  '000-schema.sql',
-  '001-memory.sql',
-  '002-planner.sql',
-  '003-output.sql',
-  // lm-v2-2-shot5: chronological inclusion of 006-014 (previously unrun by
-  // this runner; ran via other deploy paths at HEAD). All idempotent.
-  '006-pipeline-foundation.sql',
-  '007-error-recovery.sql',
-  '008-model-preferences.sql',
-  '009-flow-library.sql',
-  '010-build-versions.sql',
-  '010-living-memory-v1.sql',
-  '011-add-project-description.sql',
-  '012-fix-embedding-dimension.sql',
-  '013-memory-v1.1.sql',
-  '014-project-snapshot.sql',
-  // lm-v2-2-shot5: A4 Postgres artifact store — Phase 9 closure of the
-  // Phase 5.5 placeholder (memory-artifact-store.ts).
-  '015-artifact-store.sql',
-  // item-1-storage: F-present per-user store backing — durable disk tables
-  // for the four F-present stores (held / dial / window-set / archive).
-  // NOTE: 016-020 are not listed in this array — they ran via other deploy
-  // paths (manual psql) at HEAD, as the 006-014 note above records. 021 is
-  // idempotent; if this runner is the deploy path it applies cleanly, and if
-  // 021 is applied by manual psql alongside 016-020 it is equally safe.
-  '021-present-stores.sql',
-]
+// The migration that introduced applied-tracking -- a one-time historical
+// watermark, NOT a recurring threshold. On the first tracked run against an
+// existing (non-fresh) DB, every migration ordered before this one is backfilled
+// as already-applied (the live DB ran them via prior deploy paths). This value
+// never changes: it records a fact about when tracking began. Future migrations
+// do not touch it -- they are simply tracked normally from here on.
+const TRACKING_INTRODUCED_AT = '022-position-sequence.sql'
+
+// A table created by the very first migration (000-schema.sql). Its presence
+// distinguishes an existing DB (needs backfill) from a fresh one (needs none).
+const FRESH_DB_PROBE_TABLE = 'liv_events'
 
 function getMigrationUrl(): string {
   const url = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL
   if (!url) throw new Error('[migrations] MIGRATION_DATABASE_URL is not set.')
   return url
+}
+
+// Leading integer of a migration filename, e.g. '019_dissolve_art_tables.sql'
+// and '019-foo.sql' both -> 19. Files share a prefix only by accident of
+// numbering (two 010- files exist); ties break by full filename for a total,
+// deterministic order.
+function numericPrefix(filename: string): number {
+  const m = filename.match(/^(\d+)/)
+  return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER
+}
+
+function migrationOrder(a: string, b: string): number {
+  const pa = numericPrefix(a)
+  const pb = numericPrefix(b)
+  return pa !== pb ? pa - pb : a.localeCompare(b)
+}
+
+// All migration files on disk, in apply order. The directory IS the source of
+// truth -- no hardcoded list.
+function discoverMigrations(dir: string): string[] {
+  return readdirSync(dir)
+    .filter(f => f.endsWith('.sql'))
+    .sort(migrationOrder)
 }
 
 export async function runMigrations(): Promise<void> {
@@ -88,13 +113,140 @@ export async function runMigrations(): Promise<void> {
   })
 
   try {
-    // Phase 3: migrations live at project root /migrations/, not src/exec/migrations/
-    const dir = join(process.cwd(), 'migrations')
+    const dir        = join(process.cwd(), 'migrations')
+    const migrations = discoverMigrations(dir)
 
-    for (const file of MIGRATION_FILES) {
-      const sql = readFileSync(join(dir, file), 'utf-8')
+    // -- Tracking bootstrap ---------------------------------------------------
+    // Create schema_migrations if absent. If this is the first time it is
+    // created AND the DB already carries application schema (an existing DB),
+    // backfill every migration ordered before TRACKING_INTRODUCED_AT as
+    // already-applied -- in the same transaction -- so the first tracked run
+    // does not re-execute history. A fresh DB skips the backfill: nothing has
+    // run, so the loop below applies everything.
+    const tableExisted = await pool.query<{ exists: boolean }>(
+      `SELECT to_regclass('public.schema_migrations') IS NOT NULL AS exists`,
+    )
+    const trackingTablePreexisted = tableExisted.rows[0]?.exists === true
 
-      await pool.query(sql)
+    if (!trackingTablePreexisted) {
+      const probe = await pool.query<{ exists: boolean }>(
+        `SELECT to_regclass($1) IS NOT NULL AS exists`,
+        [`public.${FRESH_DB_PROBE_TABLE}`],
+      )
+      const existingDb = probe.rows[0]?.exists === true
+
+      // Create the table and (for an existing DB) backfill history atomically.
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        await client.query(
+          `CREATE TABLE IF NOT EXISTS schema_migrations (
+             filename   TEXT PRIMARY KEY,
+             applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+           )`,
+        )
+        if (existingDb) {
+          const backfill = migrations.filter(
+            f => migrationOrder(f, TRACKING_INTRODUCED_AT) < 0,
+          )
+          for (const file of backfill) {
+            await client.query(
+              `INSERT INTO schema_migrations (filename) VALUES ($1)
+               ON CONFLICT (filename) DO NOTHING`,
+              [file],
+            )
+          }
+          console.log(JSON.stringify({
+            level:         'info',
+            event:         'migrations.backfilled',
+            count:         backfill.length,
+            throughBefore: TRACKING_INTRODUCED_AT,
+            timestamp:     new Date().toISOString(),
+          }))
+        }
+        await client.query('COMMIT')
+      } catch (err) {
+        await client.query('ROLLBACK')
+        throw err
+      } finally {
+        client.release()
+      }
+    }
+
+    // -- Apply pending migrations ---------------------------------------------
+    // Run each migration not already in schema_migrations, exactly once. Apply
+    // and record commit TOGETHER, in one runner-owned transaction per migration:
+    // BEGIN -> migration SQL -> INSERT INTO schema_migrations -> COMMIT. There is
+    // no window in which a migration is committed but unrecorded — a crash or
+    // throw between the two ROLLs BACK both. This is what makes exactly-once a
+    // guarantee and not a happy-path hope (F7 re-open: the prior loop committed
+    // the SQL body, then recorded separately — a crash between left 022 applied
+    // but untracked, re-running its destructive TRUNCATE on the next deploy).
+    //
+    // Non-transactional statements: a migration containing a statement that
+    // cannot run inside a transaction block (CREATE INDEX CONCURRENTLY, VACUUM,
+    // REINDEX, etc.) must declare `-- liv-migration: no-transaction` in its
+    // header. The runner
+    // runs such a file WITHOUT the wrapping transaction and records it in a
+    // separate statement — that migration owns its own atomicity (it cannot get
+    // the runner's guarantee, by Postgres constraint). Migrations 000-022 carry
+    // no such statement (verified) and no marker; all get the atomic path.
+    const applied = await pool.query<{ filename: string }>(
+      `SELECT filename FROM schema_migrations`,
+    )
+    const appliedSet = new Set(applied.rows.map(r => r.filename))
+
+    for (const file of migrations) {
+      if (appliedSet.has(file)) {
+        console.log(JSON.stringify({
+          level:     'info',
+          event:     'migration.skipped',
+          file,
+          reason:    'already-applied',
+          timestamp: new Date().toISOString(),
+        }))
+        continue
+      }
+
+      const sql            = readFileSync(join(dir, file), 'utf-8')
+      const noTransaction  = /^\s*--\s*liv-migration:\s*no-transaction\b/m.test(sql)
+      const recordSql      =
+        `INSERT INTO schema_migrations (filename) VALUES ($1)
+         ON CONFLICT (filename) DO NOTHING`
+
+      if (noTransaction) {
+        // Opt-out: the migration carries a non-transactional statement. Run it
+        // unwrapped, then record. This file's atomicity is its own concern —
+        // the runner cannot wrap it (Postgres rejects such statements inside a
+        // transaction block).
+        await pool.query(sql)
+        await pool.query(recordSql, [file])
+        console.log(JSON.stringify({
+          level:     'info',
+          event:     'migration.applied',
+          file,
+          mode:      'no-transaction',
+          timestamp: new Date().toISOString(),
+        }))
+        continue
+      }
+
+      // Atomic path: apply and record in one transaction. The migration file is
+      // pure statements (no internal BEGIN/COMMIT — the runner owns the
+      // transaction). Either both the schema change and its tracking row commit,
+      // or neither does.
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        await client.query(sql)
+        await client.query(recordSql, [file])
+        await client.query('COMMIT')
+      } catch (err) {
+        await client.query('ROLLBACK')
+        throw err
+      } finally {
+        client.release()
+      }
 
       console.log(JSON.stringify({
         level:     'info',
