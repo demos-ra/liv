@@ -51,7 +51,7 @@ import type {
 
 export type StateChangeRow = {
   id:                  string
-  position:            number
+  position:            string                          // bigint serialized as string
   time_ms:             string                          // bigint serialized as string
   source_channel:      string
   source_content_class: string                         // v1.8.3 A-24: ContentClass column on state_change

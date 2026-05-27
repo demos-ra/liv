@@ -80,7 +80,7 @@ function rowToRecord(row: StateChangeRow): StateChangeRecord {
         contentClass: row.source_content_class as SubstrateSourceRef['contentClass'],  // v1.8.3 A-24
         scope:        row.source_scope as ScopeRef,    // brand: external origin
       },
-      position: row.position as PositionRef,           // brand: external origin (number)
+      position: Number(row.position) as PositionRef,   // bigint string → number (mirrors time_ms)
     },
   }
 }
@@ -111,11 +111,11 @@ export async function commitStateChange(
       // database assigns it via the state_change_position_seq DEFAULT (nextval,
       // migration 022). RETURNING position reads back the assigned value. No
       // app-side position computation, no read-then-write race.
-      const inserted = await tx.query<{ position: number }>(
+      const inserted = await tx.query<{ position: string }>(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
            (id, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
-         RETURNING position`,
+         RETURNING position::text AS position`,
         [
           id,
           String(validated.time),
@@ -128,11 +128,11 @@ export async function commitStateChange(
         ],
       )
 
-      const position = inserted.rows[0]?.position
-      if (typeof position !== 'number') {
-        // RETURNING always yields the inserted row's position; a missing value
-        // means the INSERT did not land — surface it rather than build a record
-        // with an unknown coordinate.
+      const position = Number(inserted.rows[0]?.position)
+      if (!Number.isFinite(position)) {
+        // RETURNING always yields the inserted row's position; a missing or
+        // non-numeric value means the INSERT did not land — surface it rather
+        // than build a record with an unknown coordinate.
         throw new Error('INSERT returned no position')
       }
 
@@ -181,16 +181,24 @@ export async function commitRevocation(
   try {
     // Single statement = atomic at the DB level. Returning clause gives us
     // the position for emission (so callers can emit the revoked event).
-    const result = await db.query<{ position: number }>(
-      `DELETE FROM ${SUBSTRATE_TABLE_NAME} WHERE id = $1 RETURNING position`,
+    const result = await db.query<{ position: string }>(
+      `DELETE FROM ${SUBSTRATE_TABLE_NAME} WHERE id = $1 RETURNING position::text AS position`,
       [targetId],
     )
     const row = result.rows[0]
+    // F9: position is BIGINT → arrives as string. Number()-cast; a deleted row
+    // yields a finite position, no row yields null. A row present but
+    // non-finite is a genuine anomaly — treat as null rather than emit NaN.
+    let revokedPosition: PositionRef | null = null
+    if (row) {
+      const p = Number(row.position)
+      revokedPosition = Number.isFinite(p) ? (p as PositionRef) : null
+    }
     return {
       ok: true,
       data: {
         revokedId: targetId,
-        revokedPosition: row ? (row.position as PositionRef) : null,
+        revokedPosition,
       },
     }
   } catch (err) {
@@ -211,7 +219,7 @@ export async function readByPosition(
 ): Promise<Result<StateChangeRecord | null>> {
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
+      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position = $1`,
@@ -246,7 +254,7 @@ export async function iterateAxisRows(
 
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
+      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position ${op} $1
@@ -315,7 +323,7 @@ export async function readIdentityRecurrence(
     }
 
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
+      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE identities @> $1::jsonb${scopeClause}${contentClassClause}${asOfClause}
@@ -409,7 +417,7 @@ export async function readAdjacency(
     }
 
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
+      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}${contentClassClause}${asOfClause}
@@ -438,7 +446,7 @@ export async function exportByScope(
 ): Promise<Result<StateChangeRecord[]>> {
   try {
     const result = await db.query<StateChangeRow>(
-      `SELECT id, position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
+      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE user_id = $1
@@ -464,13 +472,19 @@ export async function exportByScope(
 
 export async function getLastPosition(): Promise<Result<PositionRef | null>> {
   try {
-    const result = await db.query<{ max: number | null }>(
-      `SELECT MAX(position) AS max FROM ${SUBSTRATE_TABLE_NAME}`,
+    // F9: MAX(position) over a BIGINT column returns a string (pg BIGINT
+    // serialization). Cast ::text explicitly and Number() it — mirroring the
+    // time_ms standard. The prior code typed max as number and checked
+    // `typeof max === 'number'`, which a BIGINT string never satisfies — so
+    // getLastPosition always returned null. NULL (empty table) stays null.
+    const result = await db.query<{ max: string | null }>(
+      `SELECT MAX(position)::text AS max FROM ${SUBSTRATE_TABLE_NAME}`,
     )
-    const max = result.rows[0]?.max
+    const raw = result.rows[0]?.max
+    const max = raw === null || raw === undefined ? NaN : Number(raw)
     return {
       ok: true,
-      data: typeof max === 'number' ? (max as PositionRef) : null,
+      data: Number.isFinite(max) ? (max as PositionRef) : null,
     }
   } catch (err) {
     return {
