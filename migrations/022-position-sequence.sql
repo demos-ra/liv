@@ -51,14 +51,6 @@ CREATE SEQUENCE IF NOT EXISTS state_change_position_seq
   OWNED BY state_change.position;
 
 -- ────────────────────────────────────────────────────────────────────────────
--- Step 3: setval to 0 so the first nextval() — the first real write — yields 1.
--- (is_called = true means the next nextval returns last_value + 1 = 1.)
--- Axis-1 monotonic from 1, per LMA10.
--- ────────────────────────────────────────────────────────────────────────────
-
-SELECT setval('state_change_position_seq', 0, true);
-
--- ────────────────────────────────────────────────────────────────────────────
 -- Step 4: The column takes its value from the sequence by DEFAULT. The INSERT
 -- omits position entirely; the DB assigns it. position stays BIGINT NOT NULL —
 -- the default always supplies a value, so NOT NULL is never violated.
