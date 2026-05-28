@@ -581,10 +581,17 @@ export async function iterateAxis(
 // StateChangeRecord for a userId, position ASC. First-class (F10): the core
 // loop's read step and the export route both consume it. userId-scoped — the
 // substrate isolation floor; never iterateAxis (unscoped).
+//
+// contentclass-coreloop: optional contentClass filter, threaded to
+// readScopeRows. Mirrors the TQ3 contentClass filter on the thread primitives
+// (identityRecurrence / rolePattern / adjacency). Omitted → all classes
+// (backward-compatible; the export route relies on this). The core-loop read
+// passes 'wearer-life' to filter apparatus crossing-records out of cognition.
 export async function readScope(
   userId: string,
+  contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
-  return readScopeRows(userId)
+  return readScopeRows(userId, contentClass)
 }
 
 export async function identityRecurrence(

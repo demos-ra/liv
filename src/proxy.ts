@@ -107,7 +107,6 @@ import {
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
-import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 
 // ─── Public route prefixes ────────────────────────────────────────────────────
 // Requests matching these prefixes bypass auth. Order is significant — checked
@@ -391,15 +390,17 @@ async function buildStampedResponse(args: {
     },
     metadata: {
       time:   crossedAt,
-      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24
-      // default-derivation rule applied at runtime via
-      // deriveContentClassFromChannel(channel). proxy.ts is the canonical
-      // Path A Boundary stamping site for intake.
+      // contentclass-coreloop: the crossing record is an apparatus trace
+      // (Manual L139/L145) — its contentClass is declared at the Boundary that
+      // owns it ('system-introspection'), not derived from channel. proxy.ts is
+      // the canonical Path A Boundary stamping site for intake. (Channel is
+      // still resolved via toSourceChannel for the channel field; only the
+      // class stamp is no longer channel-derived.)
       source: (() => {
         const ch = toSourceChannel(args.resolvedChannel)
         return {
           channel:      ch,
-          contentClass: deriveContentClassFromChannel(ch),
+          contentClass: 'system-introspection',   // crossing record is an apparatus trace (Manual L139/L145); class declared at the Boundary that owns it, not derived from channel
           scope:        args.userId as ScopeRef,
         }
       })(),

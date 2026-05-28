@@ -685,7 +685,10 @@ export async function POST_message(
   let systemPrompt = ''
 
   try {
-    const scopeResult = await readScope(session.userId)
+    // contentclass-coreloop: the core-loop read filters to 'wearer-life' —
+    // cognition only. Apparatus crossing-records (now 'system-introspection',
+    // declared at the Boundary) are excluded from the LLM's working context.
+    const scopeResult = await readScope(session.userId, 'wearer-life')
     if (scopeResult.ok && scopeResult.data.length > 0) {
       systemPrompt = serializeTranscript(scopeResult.data)
     }

@@ -89,7 +89,6 @@ import type {
 } from '@/core/types/perimeter-standard.types'
 import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
-import { deriveContentClassFromChannel } from '@/core/types/substrate.types'
 import { generateId } from '@/core/types/primitives'
 
 // ─── ChannelKind → SourceChannel mapping (dispatch direction) ─────────────────
@@ -350,11 +349,12 @@ export async function dispatchCrossing(request: BoundaryDispatchRequest): Promis
     metadata: {
       time:   crossedAt,
       // Boundary stamping site — dispatch direction (B-direction crossing of the Boundary).
-      // ContentClass derived from channel per substrate v1.8.3 A-24.
+      // contentclass-coreloop: ContentClass declared at the Boundary that owns it
+      // ('system-introspection' — apparatus trace), not derived from channel.
       source: (() => {
         return {
           channel:      resolvedChannel,
-          contentClass: deriveContentClassFromChannel(resolvedChannel),
+          contentClass: 'system-introspection',   // crossing record is an apparatus trace (Manual L139/L145); class declared at the Boundary that owns it, not derived from channel
           scope:        request.scopeContext as ScopeRef,
         }
       })(),

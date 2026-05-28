@@ -447,15 +447,27 @@ export async function readAdjacency(
 
 export async function readScopeRows(
   userId: string,
+  contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
   try {
+    // contentclass-coreloop: optional class filter. Identical pattern to the
+    // TQ3 contentClass conjunct on the thread primitives (readIdentityRecurrence
+    // / readAdjacency above). Omitted → no class predicate (all classes,
+    // backward-compatible — the export route relies on this). Present →
+    // `AND source_content_class = $n`.
+    const params: unknown[] = [userId]
+    let contentClassClause = ''
+    if (contentClass !== undefined) {
+      params.push(contentClass)
+      contentClassClause = ` AND source_content_class = $${params.length}`
+    }
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE user_id = $1
+        WHERE user_id = $1${contentClassClause}
         ORDER BY position ASC`,
-      [userId],
+      params,
     )
     return { ok: true, data: result.rows.map(rowToRecord) }
   } catch (err) {
