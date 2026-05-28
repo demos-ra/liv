@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6 sprint-beta-shot-1 sprint-beta-shot-2
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6 sprint-beta-shot-1 sprint-beta-shot-2 sweep-capture-gate
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -17,6 +17,7 @@
 //             sprint-beta-fixround (F2: channelKindToSourceChannel gains the 'external-agent' case — connector-door chat-turn substrate writes now stamp source.channel='external-agent', agreeing with the Boundary crossing record)
 //             fixround-substrate-write (F6: both substrate writes inspect the Result and are fatal — wearer write !ok → POST_message returns 500, the turn does not proceed; AI write !ok → terminal turn_failed event, done withheld, completion crossing suppressed; writeStateChange returns Result, never throws — no .catch())
 //             fixround-core-loop-read-restore (F10: the core-loop read step reverted from present() to a direct substrate read — readScope(userId), serialized as a flat ordered transcript; present()/PresentView/serializePresentView removed from the core loop; F-present is an add-on surface, out of the loop)
+//             sweep-capture-gate (substrate content gate, completed-structure.md v1.1: both substrate writes carry actual words via recognize() — the recognition floor (§5). Wearer write PRESERVED, content shape refined from envelope to neighbourhood. Envelope residue cleared — no 'chat-turn'/'chat-response' relation types, no 'agent' role, no userId/projectId/turnId/modelId in content.identities. serializeTranscript reauthored to word content. §2 finding closed: the wearer's meaning is no longer dropped.)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -65,13 +66,15 @@
 // validated:  pending
 //
 // Chat Standard v1.0 alignment:
-//   CA1 — arrival validated at perimeter (shape + rate-limit gate, lines ~113–150)
+//   CA1 — arrival validated at perimeter (auth ~498, rate-limit ~517, shape ~551)
 //   CA2 — the substrate read assembles context before the LLM call (readScope, F10)
-//   CA3 — dual write: wearer side (line ~162) + AI side (line ~312); same turnId variable
+//   CA3 — dual write: wearer side (recognize+write ~582–615) + AI side (~759–773); same turnId variable
 //   CA4 — both substrate writes inspect the Result and are fatal (F6 fixround):
 //         wearer write awaited before the substrate read; !ok → POST_message 500, turn stops.
 //         AI write awaited after stream; !ok → terminal turn_failed event, done withheld.
-//   CA5 — F-router consulted; fallthrough to LLM on no-match (lines ~240–280, REGISTRY_EMPTY/NO_MATCH)
+//         (sweep-capture-gate: empty-response AI write is skipped — null result,
+//          not a failure; streamErr owns the failed turn, crossing suppressed.)
+//   CA5 — F-router consulted; fallthrough to LLM on no-match (route ~693, REGISTRY_EMPTY/NO_MATCH ~682–708)
 //
 // sprint-8-shot-3a (F-codec dissolved):
 //   Removed:
@@ -86,17 +89,32 @@
 //     3. If running → block with informational message
 //     4. Default: streamed AI chat (no system context block at this shot)
 //
-// sprint-11-shot-2 (substrate + router wired):
-//   Decision-D: ChatStateChange → SubstrateWriteInput mapping.
-//     Wearer write: identities=[userId, projectId, turnId], relations=[{
-//       type: 'chat-turn', modality: 'declarative',
-//       identitiesWithRoles: [{ identity: userId, role: 'agent' }], negation: false }],
-//       source.channel='wearer', scope=userId.
-//     Ai write: identities=[userId, projectId, turnId, modelId], relations=[{
-//       type: 'chat-response', modality: 'declarative',
-//       identitiesWithRoles: [{ identity: modelId, role: 'agent' }], negation: false }],
-//       source.channel='ai', scope=userId.
-//     Shared turnId ensures both writes address same exchange position.
+// sprint-11-shot-2 (substrate + router wired) — SUPERSEDED by sweep-capture-gate:
+//   The original Decision-D mapping wrote envelope content (handles-only
+//   identities + a hardcoded fixed-string relation type + 'agent' role) on
+//   both sides. completed-structure.md v1.1 §6 verified this as identity-by-
+//   itself: the substrate recorded that a turn crossed, not what was said.
+//   That mapping is obsolete. The structural commitment it carried (dual
+//   write, shared turnId addressing one exchange) is preserved.
+//
+// sweep-capture-gate (substrate content gate) — recognize()-based mapping:
+//   Both writes carry actual words via recognize() (the recognition floor, §5).
+//     Wearer write: content = recognize(content) — words become identities,
+//       case-preserved, punctuation attached; one 'co-occurrence' relation
+//       carries the within-utterance neighbourhood (IWRs = same words, role
+//       'token'; modality 'declarative'; negation false). Empty arrival → 400
+//       before the write. source.channel='wearer' (Decision-D-CHANNEL mapping,
+//       unchanged), scope=projectId.
+//     Ai write: content = recognize(fullResponse) — symmetric. Empty response
+//       (stream errored, no text) → no write (null result), streamErr owns the
+//       failed turn. source.channel='ai', contentClass='wearer-life',
+//       scope=projectId (unchanged).
+//     Routing/scoping (userId, projectId, turnId, modelId) is NOT in content —
+//       it lives on first-class fields (SubstrateWriteInput.userId,
+//       metadata.source.scope) and turn-local variables (turnId for dispatch
+//       crossings; modelId for sendMessage / dispatch payload). The content
+//       stream is pure content — no routing metadata in identity-recurrence reads.
+//     Shared turnId still ensures both writes address the same exchange position.
 //     The substrate read (readScope) is serialized directly into systemPrompt;
 //     the context carried to the LLM is that string, not stored into SubstrateWriteInput.
 //   CA4 (F6 fixround): both writes are awaited and inspected — wearer write
@@ -132,20 +150,19 @@ import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/con
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
+import { recognize }                             from '../domain/recognize'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { writeStateChange, readScope }            from '@/features/F-memory/contract/substrate-contract'
-import type { StateChangeRecord, Relation }       from '@/features/F-memory/contract/substrate-contract'
+import type { StateChangeRecord }                 from '@/features/F-memory/contract/substrate-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
 import type { ChannelKind }                      from '@/core/types/perimeter-standard.types'
 import type {
   SubstrateWriteInput,
-  IdentityRef,
   ScopeRef,
-  RoleRef,
   SourceChannel,
 }                                                from '@/core/types/substrate.types'
 import { deriveContentClassFromChannel }         from '@/core/types/substrate.types'
@@ -468,25 +485,22 @@ function getChatLimiter() {
 // Pure function: no I/O, no throw on well-formed input.
 
 function serializeTranscript(records: StateChangeRecord[]): string {
-  const renderRelation = (r: Relation): string => {
-    const roles = r.identitiesWithRoles
-      .map(ir => `${ir.role}:${ir.identity}`)
-      .join(', ')
-    const neg = r.negation ? 'NOT ' : ''
-    return `${neg}${r.type}[${r.modality}](${roles})`
-  }
-
+  // sweep-capture-gate (§7.4): renderer reauthored for word content. Under
+  // the one-co-occurrence-per-write floor, content.identities IS the
+  // neighbourhood — the words said, in composition order. Relation rendering
+  // is elided: the single co-occurrence relation's IWRs duplicate identities
+  // verbatim, so the words list is the neighbourhood. This is the layer-1
+  // (core loop) render — the LLM reads the conversation in order with both
+  // sides' actual words visible. Anchor-derivation does not run at layer-1
+  // (future-sprint scope, §10).
   const lines: string[] = records.map((rec) => {
     // source.channel distinguishes wearer turns from ai turns.
-    const who = rec.metadata.source.channel === 'ai' ? 'ai' : 'wearer'
-    const identities = rec.content.identities.join(', ')
-    const relations  = rec.content.relations.length > 0
-      ? rec.content.relations.map(renderRelation).join('; ')
-      : '(none)'
-    return `[${rec.metadata.position}] (${who}) identities: ${identities} | relations: ${relations}`
+    const who   = rec.metadata.source.channel === 'ai' ? 'ai' : 'wearer'
+    const words = rec.content.identities.join(' ')
+    return `[${rec.metadata.position}] (${who}): ${words}`
   })
 
-  return ['SUBSTRATE (accumulated state-changes, position order):', ...lines].join('\n')
+  return ['SUBSTRATE (turns in position order):', ...lines].join('\n')
 }
 
 // ── POST /api/chat/[projectId]/message ────────────────────────────────────────
@@ -573,25 +587,27 @@ export async function POST_message(
   const turnId    = generateId('turn')
   const arrivedAt = Date.now()
 
+  // sweep-capture-gate (§7.2): wearer write is PRESERVED — the wearer is an
+  // authoring channel into the substrate equal in standing to the LLM. What
+  // changes is content shape. The envelope ([userId, projectId, turnId] +
+  // hardcoded 'chat-turn' relation) is replaced with recognize(content) —
+  // the wearer's actual words, captured at highest fidelity, with one
+  // co-occurrence relation carrying the within-utterance neighbourhood.
+  // Routing/scoping (userId, projectId, turnId) is NOT in content: it lives
+  // on first-class fields (SubstrateWriteInput.userId, metadata.source.scope)
+  // and turn-local variables (turnId for dispatch crossings).
+  const wearerContent = recognize(content)
+
+  // SW1 rejects empty-identity writes; the caller handles it honestly. An
+  // empty wearer arrival is a 400 before any write — recognize() does not
+  // synthesize content where none was said.
+  if (wearerContent.identities.length === 0) {
+    return new Response('Empty message', { status: 400 })
+  }
+
   const wearerWrite: SubstrateWriteInput = {
     userId: session.userId,
-    content: {
-      identities: [
-        session.userId as IdentityRef,
-        projectId      as IdentityRef,
-        turnId         as IdentityRef,
-      ],
-      relations: [
-        {
-          type:                'chat-turn' as IdentityRef,
-          modality:            'declarative',
-          identitiesWithRoles: [
-            { identity: session.userId as IdentityRef, role: 'agent' as RoleRef },
-          ],
-          negation: false,
-        },
-      ],
-    },
+    content: wearerContent,
     metadata: {
       time:   arrivedAt,
       // Decision-D-CHANNEL (sprint-b1-shot-1): ChannelKind (PS-level) ≠ SourceChannel (substrate-level).
@@ -757,35 +773,32 @@ export async function POST_message(
       // symmetry: Path B is fatal too. The write is inspected; the `done`
       // event is sent only on ok; on !ok an error event is streamed so the
       // turn is visibly marked failed, not silently half-written.
-      const aiWrite: SubstrateWriteInput = {
+      const aiContent = recognize(fullResponse)
+
+      // sweep-capture-gate (§7.3): symmetric to the wearer write. The envelope
+      // ([userId, projectId, turnId, modelId] + hardcoded 'chat-response'
+      // relation) is replaced with recognize(fullResponse) — the LLM's actual
+      // response words, with one co-occurrence relation carrying the
+      // within-response neighbourhood. modelId is NOT in content (it is write
+      // metadata, tracked via dispatch crossings' programVersion); turnId,
+      // userId, projectId likewise live on first-class fields / turn-locals.
+      //
+      // Empty-response case (stream errored before any chunk, or no accumulated
+      // text): no write. The existing streamErr path handles the failed turn.
+      // The substrate never receives empty content — honest non-write for a
+      // non-response. SW1 would reject it regardless.
+      const aiWriteResult = aiContent.identities.length === 0
+        ? null
+        : await writeStateChange({
         userId: session.userId,
-        content: {
-          identities: [
-            session.userId as IdentityRef,
-            projectId      as IdentityRef,
-            turnId         as IdentityRef,
-            modelId        as IdentityRef,
-          ],
-          relations: [
-            {
-              type:                'chat-response' as IdentityRef,
-              modality:            'declarative',
-              identitiesWithRoles: [
-                { identity: modelId as IdentityRef, role: 'agent' as RoleRef },
-              ],
-              negation: false,
-            },
-          ],
-        },
+        content: aiContent,
         metadata: {
           time:   Date.now(),
           // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24.
           // 'ai' channel deterministically → 'wearer-life' per default-derivation rule.
           source: { channel: 'ai', contentClass: 'wearer-life', scope: projectId as ScopeRef },
         },
-      }
-
-      const aiWriteResult = await writeStateChange(aiWrite)
+      })
       // fixround-substrate-write (F6, Item 1): the AI write is Path B of the
       // same turn as the wearer write (Path A, fatal) — ruled fatal, symmetric.
       // The response has already streamed; "fatal" cannot un-send it, so fatal
@@ -794,8 +807,13 @@ export async function POST_message(
       // and the completion crossing is NOT dispatched — a turn that failed to
       // record its response did not complete, and emitting a normal
       // 'reference' crossing would re-assert success the turn does not have.
-      const aiWriteFailed = !aiWriteResult.ok
-      if (!aiWriteResult.ok) {
+      // aiWriteResult is null in the empty-response case (no write attempted —
+      // the stream errored before any text, streamErr owns the failed turn).
+      // A null result is NOT a write failure: it is an honest non-write. The
+      // dispatch crossing is still suppressed (no response completed), and no
+      // turn_failed is emitted here — streamErr already streamed its error.
+      const aiWriteFailed = aiWriteResult !== null && !aiWriteResult.ok
+      if (aiWriteResult !== null && !aiWriteResult.ok) {
         console.error(
           '[chat] ai substrate write failed',
           aiWriteResult.error.message,
@@ -805,7 +823,7 @@ export async function POST_message(
           // Terminal failure — the turn failed, the stream closes on it.
           send({ error: 'turn_failed', reason: 'response_not_recorded' })
         }
-      } else if (!streamErr) {
+      } else if (aiWriteResult !== null && !streamErr) {
         // Response streamed AND durably recorded — the turn is genuinely done.
         send({ done: true })
       }
@@ -813,9 +831,10 @@ export async function POST_message(
       // Dispatch crossing — reference disposition (LLM response rendered to
       // wearer). Sprint-13c-shot-1: dispatch direction, memory loop complete.
       // fixround-substrate-write (F6, Item 1): suppressed when the AI write
-      // failed — the crossing records a completed dispatch; a turn whose
-      // response was not recorded did not complete.
-      if (!aiWriteFailed) {
+      // failed OR was skipped (empty response) — the crossing records a
+      // completed dispatch; a turn whose response was not recorded did not
+      // complete.
+      if (!aiWriteFailed && aiWriteResult !== null) {
         dispatchCrossing({
           dispatchId:       generateId('dx') as DispatchId,
           source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
