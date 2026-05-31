@@ -150,22 +150,17 @@ import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/con
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
-import { recognize }                             from '../domain/recognize'
+import { writeRawTurn, tokenize }               from '@/features/F-memory/exec/raw-turn-write'
+import { readTranscript }                        from '@/features/F-memory/exec/transcript-read'
+import { getReplyComposer, getContextReader }    from '@/core/domain/cognition-seam'
+import type { CognitionResult }                  from '@/core/domain/cognition-seam'
+import type { RawTurn }                          from '@/core/types/substrate-raw.types'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
-import { writeStateChange, readScope }            from '@/features/F-memory/contract/substrate-contract'
-import type { StateChangeRecord }                 from '@/features/F-memory/contract/substrate-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
-import type { ChannelKind }                      from '@/core/types/perimeter-standard.types'
-import type {
-  SubstrateWriteInput,
-  ScopeRef,
-  SourceChannel,
-}                                                from '@/core/types/substrate.types'
-import { deriveContentClassFromChannel }         from '@/core/types/substrate.types'
 import type {
   RouterMessage,
   RouterSessionContext,
@@ -432,38 +427,6 @@ async function dispatchToProgram(
   }
 }
 
-// ── Decision-D-CHANNEL: ChannelKind → SourceChannel mapping ──────────────────
-// ChannelKind (perimeter-standard.types) is the PS-level channel classification.
-// SourceChannel (substrate.types) is the substrate write enum.
-// These are distinct vocabularies at different abstraction layers.
-// sprint-b1-shot-1: explicit map; mirrors toSourceChannel() in src/proxy.ts.
-// sprint-beta-fixround (F2): 'external-agent' case added — Beta Shot 3 added the
-//   external-agent channel and updated proxy.ts toSourceChannel, but this
-//   second mapper drifted. Without the case, a connector-door chat-turn write
-//   hit default:'wearer' and mis-stamped channel provenance. The case mirrors
-//   proxy.ts toSourceChannel exactly so the Boundary crossing record and the
-//   chat-turn substrate write agree on 'external-agent'.
-function channelKindToSourceChannel(channel: ChannelKind): SourceChannel {
-  switch (channel) {
-    case 'wearer-message':
-    case 'wearer-query':
-      return 'wearer'
-    case 'ai-reply':
-      return 'ai'
-    case 'system-trigger':
-    case 'scheduled-trigger':
-      return 'cron'
-    case 'integration-event':
-      return 'integration-event'
-    case 'internal-derivation':
-      return 'internal-derivation'
-    case 'external-agent':
-      return 'external-agent'
-    default:
-      return 'wearer'
-  }
-}
-
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
 let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
 function getChatLimiter() {
@@ -484,20 +447,14 @@ function getChatLimiter() {
 //
 // Pure function: no I/O, no throw on well-formed input.
 
-function serializeTranscript(records: StateChangeRecord[]): string {
-  // sweep-capture-gate (§7.4): renderer reauthored for word content. Under
-  // the one-co-occurrence-per-write floor, content.identities IS the
-  // neighbourhood — the words said, in composition order. Relation rendering
-  // is elided: the single co-occurrence relation's IWRs duplicate identities
-  // verbatim, so the words list is the neighbourhood. This is the layer-1
-  // (core loop) render — the LLM reads the conversation in order with both
-  // sides' actual words visible. Anchor-derivation does not run at layer-1
-  // (future-sprint scope, §10).
-  const lines: string[] = records.map((rec) => {
-    // source.channel distinguishes wearer turns from ai turns.
-    const who   = rec.metadata.source.channel === 'ai' ? 'ai' : 'wearer'
-    const words = rec.content.identities.join(' ')
-    return `[${rec.metadata.position}] (${who}): ${words}`
+function serializeTranscript(turns: RawTurn[]): string {
+  // COIN core-loop render: the cognition transcript as raw words in position order,
+  // both sides visible. The substrate carries words only (structure is F-present
+  // marks, not rendered into the loop's working context). Anchor/geometry derivation
+  // does not run at this layer (that is coin-read, the F-present add-on surface).
+  const lines = turns.map((t) => {
+    const words = t.words.map(w => w.word).join(' ')
+    return `[${t.sc}] (${t.who}): ${words}`
   })
 
   return ['SUBSTRATE (turns in position order):', ...lines].join('\n')
@@ -585,53 +542,32 @@ export async function POST_message(
   //   likewise awaited, inspected, and fatal — symmetric, the two halves of
   //   one turn share fatality.
   const turnId    = generateId('turn')
-  const arrivedAt = Date.now()
 
-  // sweep-capture-gate (§7.2): wearer write is PRESERVED — the wearer is an
-  // authoring channel into the substrate equal in standing to the LLM. What
-  // changes is content shape. The envelope ([userId, projectId, turnId] +
-  // hardcoded 'chat-turn' relation) is replaced with recognize(content) —
-  // the wearer's actual words, captured at highest fidelity, with one
-  // co-occurrence relation carrying the within-utterance neighbourhood.
-  // Routing/scoping (userId, projectId, turnId) is NOT in content: it lives
-  // on first-class fields (SubstrateWriteInput.userId, metadata.source.scope)
-  // and turn-local variables (turnId for dispatch crossings).
-  const wearerContent = recognize(content)
+  // COIN cognition rail (R2a): the wearer is a raw-word authoring channel. Their
+  // message becomes a RawTurn — tokenize() → positioned verbatim words ('buidl' stays
+  // 'buidl') — written by the core-owned raw-word write. No marks at the wearer turn:
+  // marks are the LLM's structural reading, placed on its turn (and may point back at
+  // these words). Structure → F-present, never the substrate. Authorship is NOT
+  // hardcoded here — it is inherited from session.who (resolved once at the perimeter
+  // from the channel), so the external-agent intake path authors as 'program', not
+  // 'wearer'.
+  const wearerWords = tokenize(content as string)
 
-  // SW1 rejects empty-identity writes; the caller handles it honestly. An
-  // empty wearer arrival is a 400 before any write — recognize() does not
-  // synthesize content where none was said.
-  if (wearerContent.identities.length === 0) {
+  // An empty wearer arrival is a 400 before any write — tokenize() synthesizes no
+  // words where none were said.
+  if (wearerWords.length === 0) {
     return new Response('Empty message', { status: 400 })
   }
 
-  const wearerWrite: SubstrateWriteInput = {
-    userId: session.userId,
-    content: wearerContent,
-    metadata: {
-      time:   arrivedAt,
-      // Decision-D-CHANNEL (sprint-b1-shot-1): ChannelKind (PS-level) ≠ SourceChannel (substrate-level).
-      // session.resolvedChannel is ChannelKind ('wearer-message'); SubstrateWriteInput.source.channel
-      // expects SourceChannel. Explicit map: 'wearer-message' → 'wearer'. Not a silent coerce.
-      // Mapping mirrors src/middleware.ts toSourceChannel(). AI write remains 'ai' — correct, unaffected.
-      // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24 default-derivation
-      // rule applied at runtime via deriveContentClassFromChannel(channel).
-      source: (() => {
-        const ch = channelKindToSourceChannel(session.resolvedChannel)
-        return { channel: ch, contentClass: deriveContentClassFromChannel(ch), scope: projectId as ScopeRef }
-      })(),
-    },
-  }
-
   // sprint-beta-shot-1: awaited — sequences the commit before the substrate read.
-  // fixround-substrate-write (F6): the wearer write is the turn's purpose — if
-  // it did not land, the turn is a lie (the substrate read would omit it). L0-ruled
-  // fatal: inspect the Result, and on !ok fail the turn visibly rather than
-  // proceeding to stream a response against a substrate that never recorded the
-  // wearer's message.
-  const wearerWriteResult = await writeStateChange(wearerWrite)
-  if (!wearerWriteResult.ok) {
-    console.error('[chat] wearer substrate write failed', wearerWriteResult.error.message)
+  // F6: the intake write is the turn's purpose — if it did not land, the turn is a
+  // lie (the transcript read would omit it). writeRawTurn throws only on a genuine
+  // write failure (no assigned coordinate); fail the turn visibly rather than stream
+  // a response against a substrate that never recorded the message.
+  try {
+    await writeRawTurn({ who: session.who, words: wearerWords, userId: session.userId, scope: projectId })
+  } catch (err) {
+    console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
   }
 
@@ -670,30 +606,26 @@ export async function POST_message(
     })
   }
 
-  // ── Core-loop read step — substrate read (F10) ─────────────────────────────
-  // The core loop reads the substrate directly. F-present is an add-on surface,
-  // not the loop's read step — sprint-2-shot-6 had hardwired present() in here,
-  // which meant the LLM saw an empty PresentView and lost all prior turns.
-  // readScope returns the substrate's own typed records (StateChangeRecord[]),
-  // position-ascending, userId-scoped (the substrate isolation floor — not
-  // projectId, not iterateAxis). The flat ledger is rendered as a flat ordered
-  // transcript at this F-chat boundary — no tree, no stacks (that was
-  // F-present's PresentView shape; this reads substrate records and renders
-  // them).
-  // Chat Standard §5.6: substrate read failure → empty system prompt; LLM call
-  // not suppressed.
+  // ── Core-loop read step — the read-front SEAM (I1) ─────────────────────────
+  // BASELINE (F-present absent): read the words-bearing rows for this wearer as a
+  // flat ordered transcript — userId-scoped (the substrate isolation floor), no tree,
+  // no F-present. This is core-only and closes the loop on its own.
+  // UPGRADE (F-present registered): the registered ContextReader supplies the
+  // structured present (coin-read) as context instead. Resolved from the core seam —
+  // chat-contract imports no F-present to do this.
+  // Chat Standard §5.6: read failure → empty system prompt; LLM call not suppressed.
   let systemPrompt = ''
 
   try {
-    // contentclass-coreloop: the core-loop read filters to 'wearer-life' —
-    // cognition only. Apparatus crossing-records (now 'system-introspection',
-    // declared at the Boundary) are excluded from the LLM's working context.
-    const scopeResult = await readScope(session.userId, 'wearer-life')
-    if (scopeResult.ok && scopeResult.data.length > 0) {
-      systemPrompt = serializeTranscript(scopeResult.data)
+    const reader = getContextReader()
+    if (reader) {
+      systemPrompt = await reader(session.userId)
+    } else {
+      const scopeTurns = await readTranscript(session.userId)
+      if (scopeTurns.length > 0) systemPrompt = serializeTranscript(scopeTurns)
     }
   } catch (err) {
-    // §5.6: substrate read failure — proceed with empty system prompt.
+    // §5.6: read failure — proceed with empty system prompt.
     console.error('[chat] substrate read context assembly failed', err instanceof Error ? err.message : err)
   }
 
@@ -741,107 +673,79 @@ export async function POST_message(
       const send = (data: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
 
-      // Accumulate full response for the ai-side substrate write (F6 fixround:
-      // the write is awaited, inspected, and fatal — see below).
-      let fullResponse = ''
-      let streamErr:   string | null = null
+      // ── Cognition write — the write-compose SEAM (I1) ─────────────────────
+      // BASELINE (F-present absent): get a plain reply (sendMessage), token-stream it
+      // to the UI, and write it as raw words via R2a — words only, no marks. Core-only;
+      // closes the loop on its own.
+      // UPGRADE (F-present registered): the registered ReplyComposer runs the
+      // structured emit → split → places marks → R2a and returns the same shape; its
+      // reply is delivered on completion (the ratified Shot 1 stream:false consequence;
+      // incremental surfacing deferred). Resolved from the core seam — chat-contract
+      // imports no F-present. Either way the LLM response authors as 'llm' (the one
+      // response-authorship site).
+      let aiResult: CognitionResult | null = null
+      let streamErr: string | null = null
 
       try {
-        for await (const chunk of sendMessage({
-          projectId,
-          content,
-          modelId,
-          userId:       session.userId,
-          systemContext: systemPrompt || undefined,
-        })) {
-          fullResponse += chunk
-          send({ chunk })
+        const composer = getReplyComposer()
+        if (composer) {
+          aiResult = await composer({
+            systemPrompt: systemPrompt || null,
+            userContent:  content as string,
+            modelId,
+            who:          'llm',
+            userId:       session.userId,
+            scope:        projectId,
+          })
+          // upgrade path: not token-streamed — deliver the rendered reply once.
+          if (aiResult.text.length > 0) send({ chunk: aiResult.text })
+        } else {
+          // baseline path: token-stream the plain reply, accumulate, then write R2a.
+          let reply = ''
+          for await (const chunk of sendMessage({
+            projectId,
+            content,
+            modelId,
+            userId:        session.userId,
+            systemContext: systemPrompt || undefined,
+          })) {
+            reply += chunk
+            send({ chunk })
+          }
+          const replyWords = tokenize(reply)
+          const sc = replyWords.length > 0
+            ? await writeRawTurn({ who: 'llm', words: replyWords, userId: session.userId, scope: projectId })
+            : 0
+          aiResult = { sc, markCount: 0, text: reply }
         }
-        // fixround-substrate-write (F6): `done` is NOT sent here — it is sent
-        // after the ai-side substrate write is confirmed below. The turn is
-        // "done" only once the response is durably recorded.
       } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown_error'
         streamErr = message
-        console.error('[chat] stream error', message)
+        console.error('[chat] cognition write error', message)
         send({ error: message })
       }
 
-      // ── Ai-side substrate write — sprint-11-shot-2 ─────────────────────────
-      // CA3: ai-side write (turnId matches wearer-side write above).
-      // fixround-substrate-write (F6): the AI response is Path B of the SAME
-      // turn as the wearer write (Path A, fatal). If Path B is lost, the loop
-      // half-writes — wearer message recorded, response not — and the next
-      // turn's present is corrupt (a question with no answer). L0-ruled
-      // symmetry: Path B is fatal too. The write is inspected; the `done`
-      // event is sent only on ok; on !ok an error event is streamed so the
-      // turn is visibly marked failed, not silently half-written.
-      const aiContent = recognize(fullResponse)
-
-      // sweep-capture-gate (§7.3): symmetric to the wearer write. The envelope
-      // ([userId, projectId, turnId, modelId] + hardcoded 'chat-response'
-      // relation) is replaced with recognize(fullResponse) — the LLM's actual
-      // response words, with one co-occurrence relation carrying the
-      // within-response neighbourhood. modelId is NOT in content (it is write
-      // metadata, tracked via dispatch crossings' programVersion); turnId,
-      // userId, projectId likewise live on first-class fields / turn-locals.
-      //
-      // Empty-response case (stream errored before any chunk, or no accumulated
-      // text): no write. The existing streamErr path handles the failed turn.
-      // The substrate never receives empty content — honest non-write for a
-      // non-response. SW1 would reject it regardless.
-      const aiWriteResult = aiContent.identities.length === 0
-        ? null
-        : await writeStateChange({
-        userId: session.userId,
-        content: aiContent,
-        metadata: {
-          time:   Date.now(),
-          // Side-Quest Shot 1 (Phase A): contentClass per substrate v1.8.3 A-24.
-          // 'ai' channel deterministically → 'wearer-life' per default-derivation rule.
-          source: { channel: 'ai', contentClass: 'wearer-life', scope: projectId as ScopeRef },
-        },
-      })
-      // fixround-substrate-write (F6, Item 1): the AI write is Path B of the
-      // same turn as the wearer write (Path A, fatal) — ruled fatal, symmetric.
-      // The response has already streamed; "fatal" cannot un-send it, so fatal
-      // here means: the turn does not report success. On !ok a terminal
-      // turn_failed event is sent (not an advisory one), `done` is withheld,
-      // and the completion crossing is NOT dispatched — a turn that failed to
-      // record its response did not complete, and emitting a normal
-      // 'reference' crossing would re-assert success the turn does not have.
-      // aiWriteResult is null in the empty-response case (no write attempted —
-      // the stream errored before any text, streamErr owns the failed turn).
-      // A null result is NOT a write failure: it is an honest non-write. The
-      // dispatch crossing is still suppressed (no response completed), and no
-      // turn_failed is emitted here — streamErr already streamed its error.
-      const aiWriteFailed = aiWriteResult !== null && !aiWriteResult.ok
-      if (aiWriteResult !== null && !aiWriteResult.ok) {
-        console.error(
-          '[chat] ai substrate write failed',
-          aiWriteResult.error.message,
-          streamErr ? { partial: true } : {},
-        )
-        if (!streamErr) {
-          // Terminal failure — the turn failed, the stream closes on it.
-          send({ error: 'turn_failed', reason: 'response_not_recorded' })
-        }
-      } else if (aiWriteResult !== null && !streamErr) {
-        // Response streamed AND durably recorded — the turn is genuinely done.
+      // F6 symmetry: the write (R2a, plus marks on the upgrade path) is inside the
+      // composer/baseline above. A throw = the turn did not record its response →
+      // terminal failure (done withheld, crossing suppressed). An empty-text result is
+      // an honest non-write (no done, no crossing). Success with text → done + crossing.
+      const aiCompleted = streamErr === null && aiResult !== null && aiResult.text.length > 0
+      if (streamErr === null && aiResult !== null && aiResult.text.length === 0) {
+        // honest non-write: nothing recorded, streamErr did not fire — no done.
+      } else if (aiCompleted) {
+        // Response delivered AND durably recorded (words + marks) — turn done.
         send({ done: true })
       }
 
-      // Dispatch crossing — reference disposition (LLM response rendered to
-      // wearer). Sprint-13c-shot-1: dispatch direction, memory loop complete.
-      // fixround-substrate-write (F6, Item 1): suppressed when the AI write
-      // failed OR was skipped (empty response) — the crossing records a
-      // completed dispatch; a turn whose response was not recorded did not
-      // complete.
-      if (!aiWriteFailed && aiWriteResult !== null) {
+      // Dispatch crossing — reference disposition (LLM response rendered to wearer).
+      // Sprint-13c-shot-1: dispatch direction, memory loop complete. This is a
+      // GOVERNANCE / system-introspection crossing — untouched by the cognition flip.
+      // Suppressed when the turn did not complete (failed or empty).
+      if (aiCompleted) {
         dispatchCrossing({
           dispatchId:       generateId('dx') as DispatchId,
           source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
-          payload:          { responseLength: fullResponse.length },
+          payload:          { responseLength: aiResult?.text.length ?? 0 },
           channelTarget:    'wearer-message',
           dispositionClaim: 'reference',
           scopeContext:     projectId,

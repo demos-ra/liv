@@ -5,6 +5,7 @@
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    sprint-beta-addon-shot-2 (PROVIDER_DEFAULT_MODEL added — canonical model per provider)
+// amended:    sprint-COIN-shot-1 (JsonSchema + StructuredEmitConfig added — structured-emit transport vocabulary)
 // slice:      F-ai-adapter
 // layer:      R0
 // wires-in:
@@ -18,6 +19,8 @@
 //   W-ATOM  ChatMessage           →  F-ai-adapter/R4, F-planner/R4
 //   W-ATOM  StreamChunk           →  F-ai-adapter/R4
 //   W-ATOM  CompletionResult      →  F-ai-adapter/R4
+//   W-ATOM  JsonSchema            →  F-ai-adapter/R4, F-present/R1  (sprint-COIN-shot-1)
+//   W-ATOM  StructuredEmitConfig  →  F-ai-adapter/R4, F-present/R1  (sprint-COIN-shot-1)
 // deps:
 //   R0  @/features/F-user-profile/config/provider-keys-config
 // validated:  2026-03-12
@@ -111,4 +114,39 @@ export type CompletionResult = {
   content:     string
   totalTokens: number
   modelId:     string
+}
+
+// ── Structured-emit transport types (COIN write-side — sprint-COIN-shot-1) ────
+// The structured transport (exec/structured-stream.ts) sends a schema and parses
+// a structured return. These types are the schema vocabulary + call config. They
+// are generic and F-ai-adapter-owned; the COIN schema that rides them
+// (SCORE_SCHEMA / SCORE_EMIT_CONFIG) stays F-present-owned.
+
+// JsonSchema: the documented subset of JSON-Schema callers compose for structured
+// output. Recursive. Exactly the shape coin-score's COORD/SCORE_SCHEMA build
+// (object/array/scalar + properties/items/required/enum/additionalProperties) —
+// not a full JSON-Schema implementation.
+export type JsonSchemaType =
+  | 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
+
+export type JsonSchema = {
+  type?:                 JsonSchemaType
+  properties?:           Record<string, JsonSchema>
+  items?:                JsonSchema
+  required?:             string[]
+  enum?:                 readonly (string | number)[]
+  additionalProperties?: boolean
+  anyOf?:                JsonSchema[]
+  description?:          string
+}
+
+// StructuredEmitConfig: a schema + optional streaming descriptors. `schema` is the
+// shape the provider must return. `streamArray`/`streamField` name the top-level
+// array and the per-item field for incremental field surfacing — forward-modular
+// descriptors; the Shot 1 transport parses the complete object at end-of-call
+// (see structured-stream.ts design note), so they are advisory today.
+export type StructuredEmitConfig = {
+  schema:       JsonSchema
+  streamArray?: string
+  streamField?: string
 }

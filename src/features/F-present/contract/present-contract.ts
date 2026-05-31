@@ -70,3 +70,9 @@ export type {
 // Shot 5: callable surface + tRPC router
 export { presentService as present } from '../app/present-service'
 export { presentRouter }             from './present-trpc'
+
+// sprint-COIN-I1: the cognition composition wire. F-event-system bootstrap() calls
+// this once to register F-present's write-compose + read-front upgraders into the
+// core cognition seam (mirroring registerDomainPrograms). It is the single removable
+// wire: drop the bootstrap call + this slice and the core loop runs its baseline.
+export { registerCognitionUpgrades } from '../app/cognition-orchestrator'

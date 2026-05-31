@@ -81,6 +81,7 @@ import {
 } from '@/core/constants/perimeter-headers'
 import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM, LIV_INSTANCE_PERIMETER_SITE_REF, FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
+import type { Who } from '@/core/types/substrate-raw.types'
 import type {
   BoundaryDispatchRequest,
   CrossingId,
@@ -182,6 +183,12 @@ export interface PerimeterSession {
   userId:              string
   sessionId:           string
   resolvedChannel:     ChannelKind
+  // COIN authorship axis (`who`), resolved ONCE here from resolvedChannel — the
+  // single site, co-located with the channel, mirroring resolvedAuthority/
+  // resolvedDisposition. Cognition writes inherit session.who rather than hardcode
+  // it. (The LLM-response write stamps 'llm' directly — the one response-authorship
+  // site, not a session channel.)
+  who:                 Who
   crossedAt:           number
   resolvedDisposition: DispositionKind
   // sprint-beta-shot-3: the channel's resolved PermittedAuthoritySet, stamped
@@ -211,6 +218,25 @@ export interface PerimeterSession {
  *   resolvedDisposition: read from PERIMETER_HEADER_DISPOSITION; defaults to 'act' if absent
  *   (conservative — over-governs rather than under-governs on missing stamp).
  */
+// Authorship (`who`) as a pure function of the channel — the single resolution,
+// mirroring the old ChannelKind→SourceChannel mapping but onto the COIN authorship
+// axis. RESTORES the external-agent cognition-turn case: a connector-door turn
+// authors as 'program', not 'wearer'. Defaults to 'wearer' only for the
+// wearer-message family; every automated/external channel authors as 'program'.
+function resolveWhoFromChannel(channel: ChannelKind): Who {
+  switch (channel) {
+    case 'wearer-message':
+    case 'wearer-query':
+      return 'wearer'
+    case 'ai-reply':
+      return 'llm'
+    default:
+      // external-agent, system-trigger, scheduled-trigger, integration-event,
+      // internal-derivation → automated / external authorship.
+      return 'program'
+  }
+}
+
 export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   const userId    = req.headers.get(PERIMETER_HEADER_USER_ID)
   const sessionId = req.headers.get(PERIMETER_HEADER_SESSION_ID)
@@ -225,6 +251,8 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   const authorityRaw   = req.headers.get(PERIMETER_HEADER_AUTHORITY)
 
   const resolvedChannel: ChannelKind         = toChannelKind(channelRaw, 'wearer-message')
+  // Authorship resolved here, once, from the channel (the single site).
+  const who: Who                             = resolveWhoFromChannel(resolvedChannel)
   const crossedAt: number                    = crossedAtRaw ? Number(crossedAtRaw) : 0
   // Default 'act': conservative — over-governs (triggers confirmation/audit) rather than
   // under-governs (skips governance) when stamp is absent.
@@ -237,6 +265,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
     userId,
     sessionId,
     resolvedChannel,
+    who,
     crossedAt,
     resolvedDisposition,
     resolvedAuthority,

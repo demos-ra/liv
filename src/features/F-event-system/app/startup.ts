@@ -51,6 +51,7 @@ import { registerAllSubscriptions }   from './event-subscriptions'
 import { onBoot as substrateOnBoot }  from '@/features/F-memory/contract/substrate-contract'
 import { onBoot as routerOnBoot }     from '@/features/F-router/contract/router-contract'
 import { registerDomainPrograms }     from '@/features/F-router/contract/router-contract'
+import { registerCognitionUpgrades }  from '@/features/F-present/contract/present-contract'
 
 let _bootstrapped = false
 let _dispatchInterval: ReturnType<typeof setInterval> | null = null
@@ -113,6 +114,27 @@ export async function bootstrap(): Promise<void> {
       timestamp: new Date().toISOString(),
     }))
     // Non-fatal — CA5 fallthrough preserves default chat path
+  }
+
+  // 1.6. (sprint-COIN-I1) Compose F-present onto the cognition seams — THE SINGLE
+  // REMOVABLE WIRE. registerCognitionUpgrades() registers F-present's write-compose
+  // (composeAndWrite) and read-front (presentContext) upgraders into the core
+  // cognition seam (core/domain/cognition-seam), mirroring registerDomainPrograms().
+  // Non-fatal — if it fails (or this call + F-present are deleted), the registry stays
+  // empty and chat-contract runs its BASELINE (plain reply + R2a, flat transcript
+  // read). That is what makes "delete F-present, the cognition loop stands" true:
+  // remove this one wire and the dir, and the core loop is unchanged.
+  try {
+    registerCognitionUpgrades()
+    log('startup.cognition.upgrades-registered')
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'startup.cognition.register-failed',
+      error: err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    }))
+    // Non-fatal — baseline cognition loop runs without the upgraders.
   }
 
   // 2. (b1-final-shot-3) art_* tables dissolved — hydrateArtifactStore removed.
