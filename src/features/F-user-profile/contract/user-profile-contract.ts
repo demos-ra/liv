@@ -5,6 +5,9 @@
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider }), sprint-beta-fixround (F3: PUT maps PROFILE_NOT_FOUND to 409)
+//             chain-b-provider-fact (GET reads from resolveActiveProvider + forward-derives model;
+//               PUT writes preferred_provider via savePreferredProvider, not model_preferences jsonb;
+//               resolveActiveProvider exported at R3 for chat-contract consumption)
 // slice:      F-user-profile
 // layer:      R3
 // wires-in:
@@ -43,7 +46,7 @@
 //   Axiom cite: A1 — F-user-profile owns model preferences. A5 — sole export path.
 
 import { NextRequest, NextResponse }                         from 'next/server'
-import { loadProfile, setPreferredModel, setDisplayName }   from '../app/user-profile-workflow'
+import { loadProfile, setPreferredModel, setDisplayName, resolveActiveProvider, savePreferredProvider } from '../app/user-profile-workflow'
 import { getPerimeterSession }                              from '@/features/F-identity/contract/perimeter-consultation'
 import { setApiKey, deleteApiKey, getApiKey, hasApiKey }    from '../exec/api-key-db'
 import { dbGetModelPreferences, dbSetModelPreferences }     from '../exec/user-profile-db'
@@ -143,23 +146,25 @@ export async function DELETE_apiKey(req: NextRequest): Promise<NextResponse> {
 }
 
 // ── GET /api/profile/models ───────────────────────────────────────────────────
-// Returns current model preferences, or null if never set (caller uses defaults).
+// chain-b-provider-fact: reads preferred_provider (the stored fact) and derives
+// model forward via PROVIDER_DEFAULT_MODEL. Returns { provider, model } or null
+// if no selection is saved. useEngineSelection hook observes this shape unchanged.
 export async function GET_modelPreferences(req: NextRequest): Promise<NextResponse> {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const result = await dbGetModelPreferences(session.userId)
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 })
-  return NextResponse.json({ ok: true, data: result.data })
+  const provider = await resolveActiveProvider(session.userId)
+  if (!provider) {
+    return NextResponse.json({ ok: true, data: null })
+  }
+  const model = PROVIDER_DEFAULT_MODEL[provider]
+  return NextResponse.json({ ok: true, data: { provider, model } })
 }
 
 // ── PUT /api/profile/models ───────────────────────────────────────────────────
-// sprint-beta-addon-shot-1 (L0 ruling): the per-tier body is struck.
-// sprint-beta-addon-shot-2: provider-granularity selection. Body carries the
-// wearer's picked provider — { provider }. The route resolves the provider's
-// canonical model from F-ai-adapter's PROVIDER_DEFAULT_MODEL and writes the full
-// ModelPreferences = { provider, model } with a real model id (never null).
-// Validates: the provider is registered and the wearer holds a key for it.
+// chain-b-provider-fact: stores only preferred_provider (the fact); model is
+// derived forward at read time via PROVIDER_DEFAULT_MODEL — never stored.
+// Body: { provider }. Validates key presence as before.
 export async function PUT_modelPreferences(req: NextRequest): Promise<NextResponse> {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
@@ -168,7 +173,6 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
   try { body = await req.json() }
   catch { return NextResponse.json({ error: 'invalid_body' }, { status: 400 }) }
 
-  // Shape validation — body carries the picked provider.
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
   }
@@ -189,7 +193,7 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
   }
   const provider = b.provider as ProviderId
 
-  // Validate the wearer actually holds a key for this provider.
+  // Validate the wearer holds a key for this provider.
   const hasKeyResult = await hasApiKey(session.userId, provider)
   if (!hasKeyResult.ok) {
     return NextResponse.json({ error: hasKeyResult.error.message }, { status: 500 })
@@ -201,28 +205,28 @@ export async function PUT_modelPreferences(req: NextRequest): Promise<NextRespon
     )
   }
 
-  // Resolve the provider's canonical model — provider-granularity selection.
-  // PROVIDER_DEFAULT_MODEL declares one model per provider.
-  const model = PROVIDER_DEFAULT_MODEL[provider]
-
-  const validated: ModelPreferences = { provider, model }
-
-  const setResult = await dbSetModelPreferences(session.userId, validated)
+  // Write preferred_provider (the fact). Model is derived forward at read time.
+  const setResult = await savePreferredProvider(session.userId, provider)
   if (!setResult.ok) {
-    // sprint-beta-fixround (F3): PROFILE_NOT_FOUND is a missing-prerequisite
-    // state (no user_profiles row), not a server fault — surface it as 409 so
-    // the wearer sees an honest error rather than a false "saved" (the F3
-    // defect) or a misleading 500. A genuine DB error stays 500.
     const status = setResult.error.code === 'PROFILE_NOT_FOUND' ? 409 : 500
     return NextResponse.json({ error: setResult.error }, { status })
   }
-  return NextResponse.json({ ok: true, data: validated })
+
+  // Return { provider, model } so the client observes the resolved pair.
+  const model = PROVIDER_DEFAULT_MODEL[provider]
+  return NextResponse.json({ ok: true, data: { provider, model } })
 }
 
 // ── Cross-slice exports (A5) ──────────────────────────────────────────────────
 export { useUserProfile }      from './user-profile-hook'
 export { upsertProfileForUser } from '../app/user-profile-workflow'
 export { getApiKey, hasApiKey } from '../exec/api-key-db'
+
+// chain-b-provider-fact: resolveActiveProvider is the server-side resolver for
+// which provider (and via PROVIDER_DEFAULT_MODEL, which model) to use per turn.
+// Consumed by chat-contract at the composer call site (replacing backward
+// providerForModel derivation).
+export { resolveActiveProvider } from '../app/user-profile-workflow'
 
 // step4b2-phase-d: model preferences exported for cross-slice reads (F-planner reads
 // preferences via its own R4, but these are available for future consumers).

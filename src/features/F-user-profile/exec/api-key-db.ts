@@ -6,6 +6,8 @@
 // A4: all encryption/decryption happens here — never leaks raw key outside this file.
 // Modular: swap encryption algorithm by changing encryptKey/decryptKey only.
 // Schema: user_api_keys (user_id, provider, encrypted_key) — PK: (user_id, provider)
+// amended: chain-b-provider-fact (providersWithKeys added — all providers with a stored
+//          key for a user; used by resolveActiveProvider for key-aware default resolution)
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import { db } from '@/core/db/client'
@@ -132,6 +134,27 @@ export async function hasApiKey(
       [userId, provider]
     )
     return { ok: true, data: result.rows[0]?.exists ?? false }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: { code: 'USER_PROFILE_DB_QUERY_FAILED', message } }
+  }
+}
+
+// ── All providers with a stored key for this user ─────────────────────────────
+// Returns the list of ProviderId values for which the wearer has a key stored.
+// Used by resolveActiveProvider to pick the key-aware default without decrypting.
+// Order is DB order (non-deterministic) — caller applies PROVIDER_ORDER for
+// deterministic selection.
+
+export async function providersWithKeys(
+  userId: string,
+): Promise<Result<ProviderId[]>> {
+  try {
+    const result = await db.query<{ provider: string }>(
+      `SELECT provider FROM user_api_keys WHERE user_id = $1`,
+      [userId]
+    )
+    return { ok: true, data: result.rows.map(r => r.provider as ProviderId) }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return { ok: false, error: { code: 'USER_PROFILE_DB_QUERY_FAILED', message } }

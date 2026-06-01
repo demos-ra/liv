@@ -20,6 +20,10 @@
 //             sweep-capture-gate (substrate content gate, completed-structure.md v1.1: both substrate writes carry actual words via recognize() — the recognition floor (§5). Wearer write PRESERVED, content shape refined from envelope to neighbourhood. Envelope residue cleared — no 'chat-turn'/'chat-response' relation types, no 'agent' role, no userId/projectId/turnId/modelId in content.identities. serializeTranscript reauthored to word content. §2 finding closed: the wearer's meaning is no longer dropped.)
 //             registration-guard-ordering (W-HOOK resolve-at-read: registerCognitionUpgrades imported from F-present R3; ensureCognitionOnRequest() called at head of POST_message — mirrors route()→ensureDomainPrograms(); markCognitionEnsured from seam prevents double-registration when bootstrap also ran)
 //             key-source-symmetry (providerForModel + getApiKey resolved at composer call site; apiKey threaded into CognitionInput → composeAndWrite → streamStructuredEmit; mirrors baseline chat-workflow key resolution; env fallback unchanged)
+//             chain-b-provider-fact (resolveActiveProvider replaces backward providerForModel;
+//               modelId forward-derived from PROVIDER_DEFAULT_MODEL[resolvedProvider];
+//               both baseline and cognition paths unified on same resolved modelId;
+//               NO_PROVIDER_KEY 422 when no key stored; MODELS body-validation removed)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -47,9 +51,11 @@
 //   W-ATOM  DispatchId                   core/types/perimeter-standard.types          (sprint-13c-shot-1)
 //   W-ATOM  EpochMs                      core/types/perimeter-standard.types          (sprint-13c-shot-1)
 //   W-HOOK  registerCognitionUpgrades    F-present/contract/present-contract          (registration-guard-ordering: resolve-at-read, CC.01)
-//   W-FN    providerForModel             F-ai-adapter/config/ai-adapter-config        (key-source-symmetry: model→provider resolution)
+//   W-FN    providerForModel             F-ai-adapter/config/ai-adapter-config        (retained for unrelated callers; no longer used in engine resolution)
+//   W-ATOM  PROVIDER_DEFAULT_MODEL       F-ai-adapter/config/ai-adapter-config        (chain-b: forward-derive modelId from resolved provider)
 //   W-ATOM  ProviderId                   F-user-profile/config/provider-keys-config   (key-source-symmetry)
 //   W-HOOK  getApiKey                    F-user-profile/contract/user-profile-contract (key-source-symmetry: wearer stored key, same source as baseline)
+//   W-HOOK  resolveActiveProvider        F-user-profile/contract/user-profile-contract (chain-b: server-side key-aware provider+model resolution)
 // wires-out:
 //   W-FN    executePlan              F-plan/contract/plan-contract          (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
@@ -163,9 +169,9 @@ import { readTranscript }                        from '@/features/F-memory/exec/
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
-import { MODELS, providerForModel }               from '@/features/F-ai-adapter/config/ai-adapter-config'
+import { MODELS, providerForModel, PROVIDER_DEFAULT_MODEL } from '@/features/F-ai-adapter/config/ai-adapter-config'
 import type { ProviderId }                         from '@/features/F-user-profile/config/provider-keys-config'
-import { getApiKey }                               from '@/features/F-user-profile/contract/user-profile-contract'
+import { getApiKey, resolveActiveProvider }              from '@/features/F-user-profile/contract/user-profile-contract'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
@@ -543,10 +549,23 @@ export async function POST_message(
 
   const { projectId } = params
   const body = await req.json()
-  const { content, modelId } = body
-  if (!content || !modelId) return new Response('Missing params', { status: 400 })
+  const { content } = body
+  if (!content) return new Response('Missing params', { status: 400 })
 
-  if (!MODELS[modelId]) return new Response('Invalid model', { status: 400 })
+  // ── Engine resolution — forward-derive (chain-b-provider-fact) ──────────────
+  // Server resolves provider from stored preference + key presence via
+  // resolveActiveProvider (no backward providerForModel). Model is derived
+  // forward from provider via PROVIDER_DEFAULT_MODEL — never from the request body.
+  // Both the baseline and cognition paths use the same resolved modelId so they
+  // cannot diverge. null = no key stored → prompt the wearer to add a key.
+  const resolvedProvider = await resolveActiveProvider(session.userId)
+  if (!resolvedProvider) {
+    return new Response(
+      JSON.stringify({ error: { code: 'NO_PROVIDER_KEY', message: 'No API key found. Add a key in settings to start chatting.' } }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  const modelId = PROVIDER_DEFAULT_MODEL[resolvedProvider]
 
   const validation = validateMessageContent(content)
   if (!validation.valid) return new Response(validation.error, { status: 400 })
@@ -723,14 +742,10 @@ export async function POST_message(
       try {
         const composer = getReplyComposer()
         if (composer) {
-          // Resolve wearer's stored provider key — mirrors chat-workflow's baseline key
-          // resolution (providerForModel → getApiKey(userId, provider)). Same per-wearer,
-          // per-provider DB source; reflects keys added/removed/changed automatically.
-          // Passed as apiKey? on CognitionInput → composeAndWrite → streamStructuredEmit
-          // 4th arg → resolveKey prefers it over the env fallback. If resolution fails,
-          // apiKey stays undefined and transport falls back to env as today (graceful).
-          const _provider = providerForModel(modelId) as ProviderId
-          const _keyResult = await getApiKey(session.userId, _provider)
+          // Resolve wearer's stored provider key — provider already resolved forward
+          // (chain-b-provider-fact: resolveActiveProvider above). No backward
+          // providerForModel derivation. apiKey threaded to streamStructuredEmit.
+          const _keyResult = await getApiKey(session.userId, resolvedProvider)
           const _apiKey = (_keyResult.ok && _keyResult.data) ? _keyResult.data : undefined
 
           aiResult = await composer({

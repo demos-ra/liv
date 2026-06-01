@@ -12,7 +12,7 @@ export type UserProfile = {
   userId:           string
   displayName:      string | null   // user-set, null until explicitly named
   email:            string | null   // from auth at sign-in
-  preferredModelId: string          // default: claude-sonnet-4-6
+  preferredModelId: string | null   // vestigial (chain-b: preferred_provider is the stored fact); null-honest
   createdAt:        number          // epoch ms
   updatedAt:        number          // epoch ms
 }

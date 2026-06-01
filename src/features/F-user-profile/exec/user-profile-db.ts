@@ -5,17 +5,22 @@
 // @manifest
 // standard:   LIV-Standard v1.3
 // amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (ModelPreferences flat type carried), sprint-beta-fixround (F3: dbSetModelPreferences returns PROFILE_NOT_FOUND on zero-row UPDATE instead of silent ok)
+//             chain-b-provider-fact (getPreferredProvider/setPreferredProvider added;
+//               getProfileByUserId hardcoded 'claude-sonnet-4-6' default removed —
+//               null propagated honestly; preferred_provider is the new stored fact)
 // slice:      F-user-profile
 // layer:      R4
 // wires-in:
 //   W-ATOM  UserProfile      ../config/user-profile-config
 //   W-ATOM  ModelPreferences ../types/profile-types
 // wires-out:
-//   W-FN  persistProfile       →  F-user-profile/R2 (user-profile-workflow)
-//   W-FN  updateProfile        →  F-user-profile/R2 (user-profile-workflow)
-//   W-FN  getProfileByUserId   →  F-user-profile/R2 (user-profile-workflow)
-//   W-FN  dbGetModelPreferences →  F-user-profile/R3 (user-profile-contract)
-//   W-FN  dbSetModelPreferences →  F-user-profile/R3 (user-profile-contract)
+//   W-FN  persistProfile          →  F-user-profile/R2 (user-profile-workflow)
+//   W-FN  updateProfile           →  F-user-profile/R2 (user-profile-workflow)
+//   W-FN  getProfileByUserId      →  F-user-profile/R2 (user-profile-workflow)
+//   W-FN  dbGetModelPreferences   →  F-user-profile/R3 (user-profile-contract)
+//   W-FN  dbSetModelPreferences   →  F-user-profile/R3 (user-profile-contract)
+//   W-FN  getPreferredProvider    →  F-user-profile/R2 (user-profile-workflow)
+//   W-FN  setPreferredProvider    →  F-user-profile/R2 (user-profile-workflow)
 // deps:
 //   R0  ../config/user-profile-config
 //   R0  ../types/profile-types
@@ -77,12 +82,13 @@ export async function updateProfile(profile: UserProfile): Promise<void> {
 // ── Read ──────────────────────────────────────────────────────────────────────
 
 type UserProfileRow = {
-  user_id:           string
-  display_name:      string | null
-  email:             string | null
+  user_id:            string
+  display_name:       string | null
+  email:              string | null
   preferred_model_id: string | null
-  created_at:        string
-  updated_at:        string
+  preferred_provider: string | null
+  created_at:         string
+  updated_at:         string
 }
 
 export async function getProfileByUserId(userId: string): Promise<UserProfile | null> {
@@ -96,10 +102,60 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
     userId:           r.user_id,
     displayName:      r.display_name,
     email:            r.email,
-    // A3: null coerced to default at DB boundary — never propagate null for modelId
-    preferredModelId: r.preferred_model_id ?? 'claude-sonnet-4-6',
+    // preferred_model_id is vestigial — chain-b-provider-fact: preferred_provider
+    // is the stored fact; model is derived forward at the call site.
+    // Null propagated honestly; callers that still use this field must not rely on it.
+    preferredModelId: r.preferred_model_id ?? null,
     createdAt:        Number(new Date(r.created_at)),
     updatedAt:        Number(new Date(r.updated_at)),
+  }
+}
+
+// ── preferred_provider read/write (chain-b-provider-fact) ─────────────────────
+// Provider is the stored fact; model is forward-derived at the call site via
+// PROVIDER_DEFAULT_MODEL. null = wearer has not saved a selection.
+
+export async function getPreferredProvider(
+  userId: string,
+): Promise<ProfileResult<string | null>> {
+  try {
+    const result = await db.query<{ preferred_provider: string | null }>(
+      `SELECT preferred_provider FROM user_profiles WHERE user_id = $1`,
+      [userId]
+    )
+    if (!result.rows[0]) return { ok: true, data: null }
+    return { ok: true, data: result.rows[0].preferred_provider ?? null }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to get preferred provider', context: { cause: String(e) } } }
+  }
+}
+
+export async function setPreferredProvider(
+  userId: string,
+  provider: string,
+): Promise<ProfileResult<void>> {
+  try {
+    const result = await db.query<{ user_id: string }>(
+      `UPDATE user_profiles
+       SET preferred_provider = $2,
+           updated_at         = now()
+       WHERE user_id = $1
+       RETURNING user_id`,
+      [userId, provider]
+    )
+    if (result.rows.length === 0) {
+      return {
+        ok: false,
+        error: {
+          code:    'PROFILE_NOT_FOUND',
+          message: 'No user_profiles row for this user — preference not persisted',
+          context: { userId },
+        },
+      }
+    }
+    return { ok: true, data: undefined }
+  } catch (e) {
+    return { ok: false, error: { code: 'DB_ERROR', message: 'Failed to set preferred provider', context: { cause: String(e) } } }
   }
 }
 
