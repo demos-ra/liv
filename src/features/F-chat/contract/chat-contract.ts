@@ -18,6 +18,7 @@
 //             fixround-substrate-write (F6: both substrate writes inspect the Result and are fatal — wearer write !ok → POST_message returns 500, the turn does not proceed; AI write !ok → terminal turn_failed event, done withheld, completion crossing suppressed; writeStateChange returns Result, never throws — no .catch())
 //             fixround-core-loop-read-restore (F10: the core-loop read step reverted from present() to a direct substrate read — readScope(userId), serialized as a flat ordered transcript; present()/PresentView/serializePresentView removed from the core loop; F-present is an add-on surface, out of the loop)
 //             sweep-capture-gate (substrate content gate, completed-structure.md v1.1: both substrate writes carry actual words via recognize() — the recognition floor (§5). Wearer write PRESERVED, content shape refined from envelope to neighbourhood. Envelope residue cleared — no 'chat-turn'/'chat-response' relation types, no 'agent' role, no userId/projectId/turnId/modelId in content.identities. serializeTranscript reauthored to word content. §2 finding closed: the wearer's meaning is no longer dropped.)
+//             registration-guard-ordering (W-HOOK resolve-at-read: registerCognitionUpgrades imported from F-present R3; ensureCognitionOnRequest() called at head of POST_message — mirrors route()→ensureDomainPrograms(); markCognitionEnsured from seam prevents double-registration when bootstrap also ran)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -44,6 +45,7 @@
 //   W-FN    dispatchCrossing             F-identity/contract/perimeter-consultation  (sprint-13c-shot-1)
 //   W-ATOM  DispatchId                   core/types/perimeter-standard.types          (sprint-13c-shot-1)
 //   W-ATOM  EpochMs                      core/types/perimeter-standard.types          (sprint-13c-shot-1)
+//   W-HOOK  registerCognitionUpgrades    F-present/contract/present-contract          (registration-guard-ordering: resolve-at-read, CC.01)
 // wires-out:
 //   W-FN    executePlan              F-plan/contract/plan-contract          (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
@@ -59,6 +61,7 @@
 //   R3  @/features/F-plan/contract/plan-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R3  @/features/F-router/contract/router-contract
+//   R3  @/features/F-present/contract/present-contract  (W-HOOK registerCognitionUpgrades)
 //   R3  @/features/F-discover/contract/discover-contract  (sprint-13-shot-1)
 //   R3  @/features/F-verify/contract/verify-contract      (sprint-13-shot-1)
 //   R5  core/types/primitives
@@ -152,13 +155,14 @@ import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
 import { writeRawTurn, tokenize }               from '@/features/F-memory/exec/raw-turn-write'
 import { readTranscript }                        from '@/features/F-memory/exec/transcript-read'
-import { getReplyComposer, getContextReader }    from '@/core/domain/cognition-seam'
+import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
 import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
+import { registerCognitionUpgrades }             from '@/features/F-present/contract/present-contract'
 import { generateId }                            from '@/core/types/primitives'
 import type { Semver, NodeId }                   from '@/core/types/primitives'
 import type {
@@ -427,6 +431,21 @@ async function dispatchToProgram(
   }
 }
 
+// ── Cognition ensure — resolve-at-read (registration-lifetime contract) ────────
+// Chat-contract is the consumer of both F-router (route → ensureDomainPrograms)
+// and F-present (registerCognitionUpgrades). Both registries follow the same
+// ensure-on-read pattern: the consumer calls the provider's registration function
+// once per module instance, before the first read. _cognitionEnsured is module-
+// local (guards the call in this graph); markCognitionEnsured updates the seam's
+// _ensureDone so duplicate calls from bootstrap in the same instance are no-ops.
+let _cognitionEnsured = false
+function ensureCognitionOnRequest(): void {
+  if (_cognitionEnsured) return
+  registerCognitionUpgrades()
+  markCognitionEnsured()
+  _cognitionEnsured = true
+}
+
 // ── Rate limiter (lazy init — Turbopack rule) ─────────────────────────────────
 let chatLimiter: ReturnType<typeof createRateLimiter> | null = null
 function getChatLimiter() {
@@ -524,6 +543,14 @@ export async function POST_message(
 
   const validation = validateMessageContent(content)
   if (!validation.valid) return new Response(validation.error, { status: 400 })
+
+  // ── Cognition registration — resolve-at-read (W-HOOK, F-present R3) ────────
+  // Ensures F-present's upgraders are registered in this module instance regardless
+  // of whether bootstrap() ran here. _cognitionEnsured is module-local; the seam's
+  // markCognitionEnsured sets _ensureDone to prevent duplicate registration if
+  // bootstrap already ran in this instance. I1 intact: F-present absent → import
+  // absent → call never reached → baseline. Mirror of route() → ensureDomainPrograms().
+  ensureCognitionOnRequest()
 
   const encoder = new TextEncoder()
 

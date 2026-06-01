@@ -11,6 +11,12 @@
 //               read-front upgrader presentContext added; registerCognitionUpgrades()
 //               — the single wire F-event-system bootstrap() calls to compose F-present
 //               onto the two core seams, mirroring registerDomainPrograms())
+//             registration-lifetime-unification (registerEnsureHook wired in
+//               registerCognitionUpgrades — ensure slot filled at boot so request-time
+//               reads trigger registration in any module instance)
+//             registration-guard-ordering (registerEnsureHook removed — hook-slot
+//               superseded by R3-import pattern; chat-contract calls registerCognitionUpgrades
+//               directly via F-present R3 W-HOOK)
 // slice:      F-present
 // layer:      R2
 // wires-in:
@@ -50,7 +56,7 @@ import { derive }                                        from '@/features/F-pres
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { writeRawTurn }                                  from '@/features/F-memory/exec/raw-turn-write'
 import { readTranscript }                                from '@/features/F-memory/exec/transcript-read'
-import { registerReplyComposer, registerContextReader }  from '@/core/domain/cognition-seam'
+import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
 import type { ReplyComposer, ContextReader }             from '@/core/domain/cognition-seam'
 
 // ── Write-compose upgrader (R2b) — conforms to the core ReplyComposer ──────────
@@ -116,9 +122,12 @@ export const presentContext: ContextReader = async (userId) => {
 }
 
 // ── The single composition wire ────────────────────────────────────────────────
-// Called once from F-event-system bootstrap() — mirrors registerDomainPrograms().
-// Registers both upgraders into the core seam. Deleting F-present means deleting this
-// call (and the dir); the registry stays empty and the core loop runs its baseline.
+// Called from F-event-system bootstrap() (warm start) AND from chat-contract at
+// request time via F-present's R3 W-HOOK (resolve-at-read). Registers both
+// upgraders into the core seam. The seam's _ensureDone guard prevents duplicate
+// registration when both paths fire in the same module instance.
+// Deleting F-present: remove this call + the slice; registry stays empty;
+// markCognitionEnsured never fires; core loop runs its baseline.
 export function registerCognitionUpgrades(): void {
   registerReplyComposer(composeAndWrite)
   registerContextReader(presentContext)

@@ -7,6 +7,8 @@
 // amended:    sprint-11-shot-3 (initial authoring — domain program registrations); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2)
 //             sprint-11-shot-5 (F-builder registration added; priority 90 — highest)
 //             sprint-11-shot-6a (S11-C3: stale deferred comment updated; all four destinations confirmed active)
+//             registration-lifetime-unification (ensureDomainPrograms added — idempotent ensure-on-read guard)
+//             registration-guard-ordering (ensureDomainPrograms: _ensureDone set after registerDomainPrograms() — throw must not latch done-and-empty)
 // slice:      F-router
 // category:   Tool
 // layer:      R4  (I/O at startup; populates in-memory registry)
@@ -17,6 +19,7 @@
 //   W-ATOM  RouterSessionContext     F-router/config/router-types
 // wires-out:
 //   W-FN    registerDomainPrograms  →  F-event-system/R2 startup  (called at boot after onBoot)
+//   W-FN    ensureDomainPrograms    →  F-router/R2 router-service  (called at head of route())
 // deps:
 //   R3  ../contract/router-contract
 //   R0  ../config/router-types
@@ -190,6 +193,38 @@ export function registerDomainPrograms(): void {
       }))
     }
   }
+}
+
+// ─── ensureDomainPrograms() — ensure-on-read, idempotent ─────────────────────
+// Registration is boot-call-based (registerDomainPrograms wired into bootstrap()).
+// Bootstrap runs in one module instance; request handlers resolve a different
+// instance where bootstrap never ran → registry reads empty at request time.
+//
+// Fix: ensure-on-read. route() calls this at its head; subsequent calls are
+// no-ops (guard flag). Guard ordering: _ensureDone is set AFTER
+// registerDomainPrograms() returns, not before. A throw inside
+// registerDomainPrograms() leaves _ensureDone false so the next call retries —
+// a failed registration must not permanently mark the registry as done-and-empty.
+// Re-entry is safe: if registerDomainPrograms() throws, the partial state is
+// whatever registerDestination managed to apply before the throw; the retry
+// on next call re-runs the full REGISTRATIONS loop (non-fatal per-entry logging,
+// registry.set is idempotent for the same key only if key is stable — keys
+// include generateId('rule') so a retry produces new keys; acceptable: the
+// retry path is the throw-recovery path, not the normal path).
+// The boolean guard prevents double-registration on the normal (non-throw) path.
+//
+// Layer note: ensureDomainPrograms is declared in R4 (exec — where the
+// REGISTRATIONS table lives) and imported directly by route() in R2 (app).
+// R2→R4 same-slice is the mirror of the established R3→R4 same-slice pattern
+// (router-contract imports router-registrations). flagged here for apparatus
+// record; no cross-slice boundary is crossed.
+
+let _ensureDone = false
+
+export function ensureDomainPrograms(): void {
+  if (_ensureDone) return
+  registerDomainPrograms()
+  _ensureDone = true
 }
 
 // ─── End ──────────────────────────────────────────────────────────────────────

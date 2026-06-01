@@ -3,6 +3,12 @@
 // [core/domain]
 // Built with LIV · livai.dev
 // [src/core/domain/cognition-seam.ts]
+// amended: registration-lifetime-unification (ensure-on-read; registerEnsureHook added;
+//          getReplyComposer/getContextReader call ensureCognitionUpgrades at head;
+//          resetCognitionSeam clears _ensureFn/_ensureDone)
+//          registration-guard-ordering (hook-slot bridge superseded by R3-import pattern;
+//          _ensureFn/_ensureFn removed; markCognitionEnsured added; get fns simplified —
+//          registration is chat-contract's responsibility via F-present R3 W-HOOK)
 //
 // The cognition composition seam — I1's modular boundary.
 //
@@ -52,10 +58,35 @@ let _reader:   ContextReader | null = null
 export function registerReplyComposer(fn: ReplyComposer): void { _composer = fn }
 export function registerContextReader(fn: ContextReader): void { _reader = fn }
 
+// ── Ensure-on-read (registration-lifetime contract) ───────────────────────────
+// Registration is W-HOOK-called at boot (F-present's registerCognitionUpgrades()
+// wired into bootstrap()). Bootstrap runs in one module instance; request handlers
+// resolve a different instance where bootstrap never ran → registry reads empty.
+//
+// Fix (resolve-at-read via R3 hook): chat-contract imports registerCognitionUpgrades
+// from F-present's R3 contract and calls it at the head of the request handler,
+// before getReplyComposer()/getContextReader(). This puts F-present's registration
+// in the chat request graph. The seam's _ensureDone guard prevents duplicate
+// registration when bootstrap already ran in the same instance.
+//
+// I1 preserved: F-present absent → its R3 export absent → chat-contract's import
+// absent → registerCognitionUpgrades never called → _composer/_reader stay null →
+// getReplyComposer() returns null → baseline. The seam carries no F-present import.
+let _ensureDone = false
+
+// Called by chat-contract at request time (and by bootstrap at boot) to mark
+// registration as done for this module instance. The seam never calls this itself —
+// it only reads _ensureDone to short-circuit re-registration.
+export function markCognitionEnsured(): void { _ensureDone = true }
+
 // Null when no upgrader is registered (F-present absent) → caller uses its baseline.
 export function getReplyComposer(): ReplyComposer | null { return _composer }
 export function getContextReader(): ContextReader | null { return _reader }
 
 // Test/boot hygiene — clear the registry (e.g. the delete-F-present smoke asserts
 // the loop closes with this empty).
-export function resetCognitionSeam(): void { _composer = null; _reader = null }
+export function resetCognitionSeam(): void {
+  _composer   = null
+  _reader     = null
+  _ensureDone = false
+}
