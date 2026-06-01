@@ -7,11 +7,14 @@
 // standard:   LIV-Standard v1.3
 // amended:    sprint-COIN-shot-1 (structured-emit transport — net-new; was the
 //             false "KEEP structured-stream.ts unchanged" in MANIFEST §B — C2)
+//             dispatch-fix (structured-output mode as declared per-provider property —
+//             StructuredMode imported; emitOpenAICompatible branches on declared mode)
 // slice:      F-ai-adapter
 // layer:      R4
 // wires-in:
 //   W-ATOM  PROVIDERS             @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  ProviderId            @/features/F-user-profile/config/provider-keys-config
+//   W-ATOM  StructuredMode        @/features/F-user-profile/config/provider-keys-config
 //   W-ATOM  providerForModel      @/features/F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  ChatMessage           @/features/F-ai-adapter/config/ai-adapter-config
 //   W-ATOM  StructuredEmitConfig  @/features/F-ai-adapter/config/ai-adapter-config
@@ -56,7 +59,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { PROVIDERS }                                          from '@/features/F-user-profile/config/provider-keys-config'
-import type { ProviderId }                                    from '@/features/F-user-profile/config/provider-keys-config'
+import type { ProviderId, StructuredMode }                    from '@/features/F-user-profile/config/provider-keys-config'
 import { providerForModel }                                   from '@/features/F-ai-adapter/config/ai-adapter-config'
 import type { ChatMessage, StructuredEmitConfig }             from '@/features/F-ai-adapter/config/ai-adapter-config'
 
@@ -91,19 +94,45 @@ function parseLoose(content: unknown): unknown {
 
 // ── OpenAI / DeepSeek (/chat/completions) ─────────────────────────────────────
 // Base request identical to ai-io.ts streamFromOpenAI / streamFromDeepSeek (minus
-// stream). Structured param is the deploy-verify design decision.
+// stream). Structured param branches on the declared structuredMode:
+//   json_schema  → response_format json_schema (OpenAI; provider-enforced)
+//   json_object  → response_format json_object + schema injected into system message
+//                  (DeepSeek: rejects json_schema; requires "json" in prompt;
+//                   no provider-side schema enforcement — emissionFromStructured
+//                   narrower handles malformed → graceful empty)
+// VERIFY AT DEPLOY against live provider docs per mechanical-verification rule.
 async function emitOpenAICompatible(
-  baseUrl: string, messages: ChatMessage[], modelId: string, apiKey: string, config: StructuredEmitConfig,
+  baseUrl: string, messages: ChatMessage[], modelId: string, apiKey: string,
+  config: StructuredEmitConfig, mode: StructuredMode,
 ): Promise<unknown> {
+  // For json_object mode: inject schema + "json" into system message so the
+  // provider (a) doesn't error on missing "json" keyword and (b) has the schema
+  // as a prompt-side constraint (no provider enforcement assumed).
+  const augmentedMessages: ChatMessage[] = mode === 'json_object'
+    ? (() => {
+        const schemaInstruction = `Respond ONLY with valid json matching this schema:\n${JSON.stringify(config.schema, null, 2)}`
+        const existingSystem = messages.find(m => m.role === 'system')
+        const otherMessages  = messages.filter(m => m.role !== 'system')
+        const systemContent  = existingSystem
+          ? `${existingSystem.content}\n\n${schemaInstruction}`
+          : schemaInstruction
+        return [{ role: 'system' as const, content: systemContent }, ...otherMessages]
+      })()
+    : messages
+
+  const structuredParam = mode === 'json_schema'
+    ? { response_format: { type: 'json_schema', json_schema: { name: 'emit', schema: config.schema, strict: true } } }
+    : { response_format: { type: 'json_object' } }
+
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       model:    modelId,
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      messages: augmentedMessages.map(m => ({ role: m.role, content: m.content })),
       stream:   false,
-      // DESIGN DECISION (verify at deploy): chat/completions structured-output param.
-      response_format: { type: 'json_schema', json_schema: { name: 'emit', schema: config.schema, strict: true } },
+      // DESIGN DECISION (verify at deploy): structured param varies by declared mode.
+      ...structuredParam,
     }),
   })
   if (!res.ok) throw new Error(`structured ${res.status}: ${await res.text()}`)
@@ -147,12 +176,23 @@ async function emitAnthropic(
 }
 
 // ── Dispatch map — PROVIDERS-driven, no switch (mirrors ai-io.ts A1) ───────────
+// Handler signature carries mode for openai-compatible providers; emitAnthropic
+// ignores it (its mechanism — forced tool — is fixed and already correct).
 type StructuredHandler = (
-  baseUrl: string, messages: ChatMessage[], modelId: string, apiKey: string, config: StructuredEmitConfig,
+  baseUrl: string, messages: ChatMessage[], modelId: string, apiKey: string,
+  config: StructuredEmitConfig, mode: StructuredMode,
 ) => Promise<unknown>
 
+// emitAnthropic has a fixed mechanism — wrap it to satisfy the shared signature.
+function wrapAnthropic(
+  baseUrl: string, messages: ChatMessage[], modelId: string, apiKey: string,
+  config: StructuredEmitConfig, _mode: StructuredMode,
+): Promise<unknown> {
+  return emitAnthropic(baseUrl, messages, modelId, apiKey, config)
+}
+
 const STRUCTURED_HANDLERS: Partial<Record<ProviderId, StructuredHandler>> = {
-  anthropic: emitAnthropic,
+  anthropic: wrapAnthropic,
   openai:    emitOpenAICompatible,
   deepseek:  emitOpenAICompatible,
 }
@@ -177,6 +217,7 @@ export async function* streamStructuredEmit(
   }
 
   const baseUrl    = PROVIDERS[provider].baseUrl
-  const structured = await handler(baseUrl, messages, modelId, resolvedKey, config)
+  const mode       = PROVIDERS[provider].structuredMode
+  const structured = await handler(baseUrl, messages, modelId, resolvedKey, config, mode)
   yield { type: 'final', structured, done: true }
 }
