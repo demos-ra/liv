@@ -5,7 +5,7 @@
 // A7: removed githubLogin + avatarUrl — fields had no schema backing and no active use.
 // Will be re-introduced when F-git-connector is built.
 
-import { UserProfile, USER_PROFILE_DEFAULTS } from '../config/user-profile-config'
+import { UserProfile } from '../config/user-profile-config'
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ export function buildProfile(
     userId,
     displayName:      null,   // null until user sets manually
     email,
-    preferredModelId: USER_PROFILE_DEFAULTS.preferredModelId,
+    preferredModelId: null,
     createdAt:        now,
     updatedAt:        now,
   }

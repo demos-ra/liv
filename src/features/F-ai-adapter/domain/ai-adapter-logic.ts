@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    scope-b-cleanup (getDefaultModel removed — dead; no live caller; wires-out updated)
 // slice:      F-ai-adapter
 // layer:      R1
 // wires-in:
@@ -15,7 +15,6 @@
 //   W-ATOM  AI_ADAPTER_CONFIG @/features/F-ai-adapter/config/ai-adapter-config
 // wires-out:
 //   W-ATOM  resolveModel         →  F-ai-adapter/R3
-//   W-ATOM  getDefaultModel      →  F-ai-adapter/R3
 //   W-ATOM  getAvailableModels   →  F-ai-adapter/R3
 //   W-ATOM  supportsStreaming     →  F-ai-adapter/R3
 //   W-ATOM  formatMessagesForAnthropic →  F-ai-adapter/R4
@@ -44,10 +43,6 @@ export function resolveModel(modelId: string): ModelConfig {
   const model = MODELS[modelId]
   if (!model) throw new Error(`Unknown model: ${modelId}. Add to MODELS in ai-adapter-config.ts`)
   return model
-}
-
-export function getDefaultModel(): ModelConfig {
-  return resolveModel(AI_ADAPTER_CONFIG.defaultModel)
 }
 
 export function getAvailableModels(): ModelConfig[] {

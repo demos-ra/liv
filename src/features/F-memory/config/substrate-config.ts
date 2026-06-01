@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields), fixround-position-sequence (SubstrateWriteValidated.position sentinel field removed — position is DB-owned via state_change_position_seq, assigned at INSERT)
+// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields), fixround-position-sequence (SubstrateWriteValidated.position sentinel field removed — position is DB-owned via state_change_position_seq, assigned at INSERT), scope-a-027-hydrator (StateChangeRow.identities/relations typed as nullable — mirrors 027 schema change; NULL on post-027 cognition rows)
 // slice:      F-memory
 // layer:      R0
 // wires-in:
@@ -57,8 +57,8 @@ export type StateChangeRow = {
   source_content_class: string                         // v1.8.3 A-24: ContentClass column on state_change
   source_scope:        string
   user_id:             string                          // v3.2: authentication identity of writer
-  identities:          string[]                        // JSONB array of IdentityRef strings
-  relations:           unknown                          // JSONB array of Relation objects (validated at R4 → typed)
+  identities:          string[] | null                 // JSONB array of IdentityRef strings; NULL on post-027 cognition rows
+  relations:           unknown | null                   // JSONB array of Relation objects; NULL on post-027 cognition rows
 }
 
 // ─── SW1 validation output (post-shape-check, pre-gate) ───────────────────────

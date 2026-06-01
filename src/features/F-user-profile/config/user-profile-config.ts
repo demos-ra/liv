@@ -18,7 +18,6 @@ export type UserProfile = {
 }
 
 export const USER_PROFILE_DEFAULTS = {
-  preferredModelId: 'claude-sonnet-4-6',
 } as const
 
 // ── Update input types ────────────────────────────────────────────────────────

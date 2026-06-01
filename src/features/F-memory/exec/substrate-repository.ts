@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022), fixround-core-loop-read-restore (F10: exportByScope renamed readScopeRows — the canonical scope-ordered read, wrapped by R2 readScope)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022), fixround-core-loop-read-restore (F10: exportByScope renamed readScopeRows — the canonical scope-ordered read, wrapped by R2 readScope), scope-a-027-hydrator (rowToRecord: NULL identities/relations from post-027 cognition rows represented as empty arrays — read-side mirror of write; single seam fix, all readers inherit)
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -66,8 +66,15 @@ import { SUBSTRATE_TABLE_NAME } from '../config/substrate-config'
 
 function rowToRecord(row: StateChangeRow): StateChangeRecord {
   // brand: external origin — DB strings cast to branded substrate refs
-  const identities = (row.identities as string[]).map(s => s as IdentityRef)
-  const relations  = (row.relations as Relation[])   // brand: external origin (validated at write)
+  // 027-nullable: cognition rows carry NULL identities/relations post-027; represent as
+  // empty arrays — the read-side mirror of the write (which omits the columns entirely).
+  // All readers inherit this via the single hydration seam; no per-caller patch needed.
+  const identities = row.identities != null
+    ? (row.identities as string[]).map(s => s as IdentityRef)
+    : ([] as IdentityRef[])
+  const relations  = row.relations != null
+    ? (row.relations as Relation[])   // brand: external origin (validated at write)
+    : ([] as Relation[])
 
   return {
     id:       row.id as StateChangeId,                 // brand: external origin

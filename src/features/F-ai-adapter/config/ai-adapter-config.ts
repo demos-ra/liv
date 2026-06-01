@@ -6,6 +6,7 @@
 // standard:   LIV-Standard v1.3
 // amended:    sprint-beta-addon-shot-2 (PROVIDER_DEFAULT_MODEL added — canonical model per provider)
 // amended:    sprint-COIN-shot-1 (JsonSchema + StructuredEmitConfig added — structured-emit transport vocabulary)
+// amended:    scope-b-cleanup (AI_ADAPTER_CONFIG.defaultModel removed — only consumer was dead getDefaultModel)
 // slice:      F-ai-adapter
 // layer:      R0
 // wires-in:
@@ -35,7 +36,6 @@ import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-
 export type { ProviderId }
 
 export const AI_ADAPTER_CONFIG = {
-  defaultModel:   'claude-sonnet-4-6',
   streamTimeout:  60_000,
   maxRetries:     2,
   retryDelayMs:   1000,

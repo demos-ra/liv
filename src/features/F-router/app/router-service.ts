@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    sprint-8-shot-2 (F-router authoring); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2)
+// amended:    sprint-8-shot-2 (F-router authoring); sprint-b2-unified-close (category tag set to Tool; "infrastructure" residue swept per Manual v13.3 reclassification); sprint-b2-unified-close-fix-round (LIV-Standard pin sweep v1.5.1 → v1.5.2); scope-b-cleanup (stale Sprint 8/9 comment on route() corrected to ground-truth: ensure-on-read pattern)
 // slice:      F-router
 // category:   Tool
 // layer:      R2
@@ -67,9 +67,11 @@ const registry = new Map<RouterRegistrationKey, RouterRule>()
 let registrationOrderCounter = 0  // tiebreaker for sortRulesByPriority stability
 
 // ─── route() — primary R3 surface ─────────────────────────────────────────────
-// Sprint 8 Shot 2: registry empty at boot; every route() call returns
-// REGISTRY_EMPTY until Sprint 9 wires domain registrations. NO_MATCH is
-// returned only if registry is non-empty and no rule matches.
+// Ensure-on-read: domain registrations are loaded lazily via ensureDomainPrograms()
+// (declared in R4 router-registrations, called at head of the consumer's request
+// handler — chat-contract mirrors this pattern). REGISTRY_EMPTY is returned only
+// when the ensure has not yet run or produced no entries. NO_MATCH is returned
+// when the registry is non-empty and no rule matches.
 //
 // Input validation per Decision-D-S2-7:
 //   - message.text must be a string (may be empty)

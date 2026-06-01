@@ -7,7 +7,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ModelConfig, AI_ADAPTER_CONFIG } from '../config/ai-adapter-config'
+import { ModelConfig, PROVIDER_DEFAULT_MODEL } from '../config/ai-adapter-config'
 import { getAvailableModels, resolveModel } from '../domain/ai-adapter-logic'
 
 export function useAvailableModels(): ModelConfig[] {
@@ -16,7 +16,7 @@ export function useAvailableModels(): ModelConfig[] {
 
 export function useModelSelector(initialModelId?: string) {
   const [selectedModelId, setSelectedModelId] = useState(
-    initialModelId ?? AI_ADAPTER_CONFIG.defaultModel
+    initialModelId ?? PROVIDER_DEFAULT_MODEL['anthropic']
   )
 
   const selectedModel = resolveModel(selectedModelId)
