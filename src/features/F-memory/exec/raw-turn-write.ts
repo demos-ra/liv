@@ -33,11 +33,12 @@
 // traceless property hold at the WRITE seam, and lets the core loop build with the
 // F-present directory absent.
 //
-// TRANSITIONAL (Condition 1 — mirrors migration 024's note at the slice tier): the
-// cognition row writes `identities = []`, `relations = []` (structure → marks) and
+// FOUNDATION-CLEAN (migration 027): the cognition row writes ONLY `words` and
+// leaves `identities`/`relations` NULL (structure → F-present marks). The columns
+// are nullable post-027; the content invariant accepts the row on its words branch.
 // reuses the existing `wearer-life` content_class (no third class). System-
-// introspection rows keep `identities`/`relations`; that path is untouched this
-// build and collapses to words+marks in the named next derivation.
+// introspection and program rows keep `identities`/`relations` populated; that
+// legacy path is untouched here — separable, retired on its own later.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { db }            from '@/core/db/client'
@@ -78,8 +79,8 @@ export async function writeRawTurn(input: {
   const id = generateId('sc')
   const inserted = await db.query<{ position: string }>(
     `INSERT INTO ${SUBSTRATE_TABLE}
-       (id, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations, words)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb)
+       (id, time_ms, source_channel, source_content_class, source_scope, user_id, words)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
      RETURNING position::text AS position`,
     [
       id,
@@ -88,9 +89,9 @@ export async function writeRawTurn(input: {
       'wearer-life',                 // existing class reused — no third class (manager §8.9)
       input.scope,
       input.userId,
-      '[]',                          // identities empty — content is in `words`
-      '[]',                          // relations empty — structure is in F-present marks
-      JSON.stringify(input.words),
+      JSON.stringify(input.words),   // cognition content is words; identities/relations
+                                     // omitted → NULL (migration 027 made them nullable).
+                                     // Structure lives in F-present marks, not here.
     ],
   )
   const position = Number(inserted.rows[0]?.position)
