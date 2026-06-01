@@ -9,6 +9,9 @@
 //          registration-guard-ordering (hook-slot bridge superseded by R3-import pattern;
 //          _ensureFn/_ensureFn removed; markCognitionEnsured added; get fns simplified —
 //          registration is chat-contract's responsibility via F-present R3 W-HOOK)
+//          key-source-symmetry (CognitionInput.apiKey? added — wearer's resolved provider
+//          key threaded from chat-contract through to streamStructuredEmit; env fallback
+//          unchanged as last resort)
 //
 // The cognition composition seam — I1's modular boundary.
 //
@@ -41,6 +44,7 @@ export type CognitionInput = {
   who:          Who
   userId:       string
   scope:        string
+  apiKey?:      string  // wearer's resolved provider key; undefined → transport falls back to env
 }
 
 // What a composer returns: the substrate position, the placed-mark count (0 for the

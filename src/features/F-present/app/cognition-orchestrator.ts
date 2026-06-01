@@ -17,6 +17,8 @@
 //             registration-guard-ordering (registerEnsureHook removed — hook-slot
 //               superseded by R3-import pattern; chat-contract calls registerCognitionUpgrades
 //               directly via F-present R3 W-HOOK)
+//             key-source-symmetry (input.apiKey threaded to streamStructuredEmit 4th arg —
+//               wearer key resolves over env fallback; mirrors baseline streamAIResponse call)
 // slice:      F-present
 // layer:      R2
 // wires-in:
@@ -71,8 +73,10 @@ export const composeAndWrite: ReplyComposer = async (input) => {
   ]
 
   // 1. structured emit — one structured request; the final chunk carries the object.
+  // apiKey: wearer's resolved provider key from CognitionInput (threaded from chat-contract).
+  // resolveKey in the transport prefers a passed key over the env fallback — baseline symmetry.
   let structured: unknown = null
-  for await (const chunk of streamStructuredEmit(messages, input.modelId, SCORE_EMIT_CONFIG)) {
+  for await (const chunk of streamStructuredEmit(messages, input.modelId, SCORE_EMIT_CONFIG, input.apiKey)) {
     if (chunk.type === 'final') structured = chunk.structured
   }
 

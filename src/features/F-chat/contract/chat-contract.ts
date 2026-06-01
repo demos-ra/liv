@@ -19,6 +19,7 @@
 //             fixround-core-loop-read-restore (F10: the core-loop read step reverted from present() to a direct substrate read — readScope(userId), serialized as a flat ordered transcript; present()/PresentView/serializePresentView removed from the core loop; F-present is an add-on surface, out of the loop)
 //             sweep-capture-gate (substrate content gate, completed-structure.md v1.1: both substrate writes carry actual words via recognize() — the recognition floor (§5). Wearer write PRESERVED, content shape refined from envelope to neighbourhood. Envelope residue cleared — no 'chat-turn'/'chat-response' relation types, no 'agent' role, no userId/projectId/turnId/modelId in content.identities. serializeTranscript reauthored to word content. §2 finding closed: the wearer's meaning is no longer dropped.)
 //             registration-guard-ordering (W-HOOK resolve-at-read: registerCognitionUpgrades imported from F-present R3; ensureCognitionOnRequest() called at head of POST_message — mirrors route()→ensureDomainPrograms(); markCognitionEnsured from seam prevents double-registration when bootstrap also ran)
+//             key-source-symmetry (providerForModel + getApiKey resolved at composer call site; apiKey threaded into CognitionInput → composeAndWrite → streamStructuredEmit; mirrors baseline chat-workflow key resolution; env fallback unchanged)
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -46,6 +47,9 @@
 //   W-ATOM  DispatchId                   core/types/perimeter-standard.types          (sprint-13c-shot-1)
 //   W-ATOM  EpochMs                      core/types/perimeter-standard.types          (sprint-13c-shot-1)
 //   W-HOOK  registerCognitionUpgrades    F-present/contract/present-contract          (registration-guard-ordering: resolve-at-read, CC.01)
+//   W-FN    providerForModel             F-ai-adapter/config/ai-adapter-config        (key-source-symmetry: model→provider resolution)
+//   W-ATOM  ProviderId                   F-user-profile/config/provider-keys-config   (key-source-symmetry)
+//   W-HOOK  getApiKey                    F-user-profile/contract/user-profile-contract (key-source-symmetry: wearer stored key, same source as baseline)
 // wires-out:
 //   W-FN    executePlan              F-plan/contract/plan-contract          (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
@@ -62,6 +66,7 @@
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R3  @/features/F-router/contract/router-contract
 //   R3  @/features/F-present/contract/present-contract  (W-HOOK registerCognitionUpgrades)
+//   R3  @/features/F-user-profile/contract/user-profile-contract  (W-HOOK getApiKey — key-source-symmetry)
 //   R3  @/features/F-discover/contract/discover-contract  (sprint-13-shot-1)
 //   R3  @/features/F-verify/contract/verify-contract      (sprint-13-shot-1)
 //   R5  core/types/primitives
@@ -158,7 +163,9 @@ import { readTranscript }                        from '@/features/F-memory/exec/
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
-import { MODELS }                                from '@/features/F-ai-adapter/config/ai-adapter-config'
+import { MODELS, providerForModel }               from '@/features/F-ai-adapter/config/ai-adapter-config'
+import type { ProviderId }                         from '@/features/F-user-profile/config/provider-keys-config'
+import { getApiKey }                               from '@/features/F-user-profile/contract/user-profile-contract'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
 import { route, ROUTER_ERROR_CODES }             from '@/features/F-router/contract/router-contract'
@@ -716,6 +723,16 @@ export async function POST_message(
       try {
         const composer = getReplyComposer()
         if (composer) {
+          // Resolve wearer's stored provider key — mirrors chat-workflow's baseline key
+          // resolution (providerForModel → getApiKey(userId, provider)). Same per-wearer,
+          // per-provider DB source; reflects keys added/removed/changed automatically.
+          // Passed as apiKey? on CognitionInput → composeAndWrite → streamStructuredEmit
+          // 4th arg → resolveKey prefers it over the env fallback. If resolution fails,
+          // apiKey stays undefined and transport falls back to env as today (graceful).
+          const _provider = providerForModel(modelId) as ProviderId
+          const _keyResult = await getApiKey(session.userId, _provider)
+          const _apiKey = (_keyResult.ok && _keyResult.data) ? _keyResult.data : undefined
+
           aiResult = await composer({
             systemPrompt: systemPrompt || null,
             userContent:  content as string,
@@ -723,6 +740,7 @@ export async function POST_message(
             who:          'llm',
             userId:       session.userId,
             scope:        projectId,
+            apiKey:       _apiKey,
           })
           // upgrade path: not token-streamed — deliver the rendered reply once.
           if (aiResult.text.length > 0) send({ chunk: aiResult.text })
