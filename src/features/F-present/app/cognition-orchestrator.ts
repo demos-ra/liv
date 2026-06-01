@@ -19,12 +19,14 @@
 //               directly via F-present R3 W-HOOK)
 //             key-source-symmetry (input.apiKey threaded to streamStructuredEmit 4th arg —
 //               wearer key resolves over env fallback; mirrors baseline streamAIResponse call)
+//             coin-scoring-prompt (COIN_SCORING_PROMPT prepended to system message —
+//               instruction first, present second; compose instruction always present)
 // slice:      F-present
 // layer:      R2
 // wires-in:
 //   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/exec/structured-stream
 //   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/config/ai-adapter-config
-//   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured/splitEmission   ../domain/coin-score
+//   W-FN    SCORE_EMIT_CONFIG/COIN_SCORING_PROMPT/emissionFromStructured/splitEmission   ../domain/coin-score
 //   W-FN    derive                                       ../domain/coin-read
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
 //   W-FN    writeRawTurn                                 @/features/F-memory/exec/raw-turn-write   (F-present -> core)
@@ -53,7 +55,7 @@
 
 import { streamStructuredEmit }                          from '@/features/F-ai-adapter/exec/structured-stream'
 import type { ChatMessage }                              from '@/features/F-ai-adapter/config/ai-adapter-config'
-import { SCORE_EMIT_CONFIG, emissionFromStructured, splitEmission } from '@/features/F-present/domain/coin-score'
+import { SCORE_EMIT_CONFIG, COIN_SCORING_PROMPT, emissionFromStructured, splitEmission } from '@/features/F-present/domain/coin-score'
 import { derive }                                        from '@/features/F-present/domain/coin-read'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { writeRawTurn }                                  from '@/features/F-memory/exec/raw-turn-write'
@@ -67,8 +69,16 @@ import type { ReplyComposer, ContextReader }             from '@/core/domain/cog
 export const composeAndWrite: ReplyComposer = async (input) => {
   // core hands a CognitionInput (systemPrompt + userContent); map to the provider
   // message shape HERE — that mapping is F-present's concern, kept out of core.
+  // System message: COIN_SCORING_PROMPT first (compose instruction), then the present
+  // (input.systemPrompt, if any). Instruction first so the "below" in the prompt
+  // is true — the present follows it. DeepSeek json_object path appends the schema
+  // instruction after this system content (structured-stream.ts:117) — order:
+  // instruction → present → schema. No conflict.
+  const systemContent = input.systemPrompt
+    ? `${COIN_SCORING_PROMPT}\n\n${input.systemPrompt}`
+    : COIN_SCORING_PROMPT
   const messages: ChatMessage[] = [
-    ...(input.systemPrompt ? [{ role: 'system' as const, content: input.systemPrompt }] : []),
+    { role: 'system' as const, content: systemContent },
     { role: 'user' as const, content: input.userContent },
   ]
 

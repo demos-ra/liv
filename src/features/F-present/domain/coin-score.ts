@@ -3,6 +3,8 @@
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/coin-score.ts]
+// amended: coin-scoring-prompt (COIN_SCORING_PROMPT const added — compose instruction
+//          prepended to system message in composeAndWrite; test calibration form)
 // COIN scoring write-path. The LLM emits scored positions (word + its marks) via
 // the F-ai-adapter structured transport (the COIN schema rides it — reusable).
 // splitEmission ROUTES the emission: raw words → the wearer's substrate (a
@@ -46,7 +48,38 @@ export const SCORE_SCHEMA: JsonSchema = {
 }
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamArray: 'positions', streamField: 'word' }
 
-// narrow the transport's `unknown` → ScoredEmission (malformed → empty positions)
+// ── Scoring system prompt (compose instruction) ───────────────────────────────
+// Prepended to the system message by composeAndWrite (before the present).
+// Tells the LLM to compose its own reply and return it as scored positions.
+// Intentionally explanatory — test calibration form; mechanical version is future work.
+export const COIN_SCORING_PROMPT =
+`You are talking with a person. Do two things in one pass: compose your natural reply to them, then return that reply as scored positions.
+
+Your memory of the conversation so far is given below as PRESENT (things and relations that have come up) and TRANSCRIPT (every turn in order; "(—)" = the person, "(llm)" = you). Use it as what you know. Refer only to things already in it or that you introduce in this reply.
+
+Compose your reply as you normally would. Then output it as a list of positions: one word per position, in order, every word kept — these words ARE your reply. Reply with YOUR words, never a copy of theirs.
+
+Each position: { "pos": <n from 1>, "word": "<exact word>", "marks": [...] }. Split your reply into words the natural way; keep punctuation with its word. Every word gets a position, including small words like "the", "is", "and" — give each whatever marks it performs, or an empty list if none. Mark fully, not just the highlights.
+
+The four marks (the whole set):
+
+- identity — names a thing (person, place, object, idea): { "op": "identity" }
+- RELATE — links 2+ things into a connection: { "op": "RELATE", "peers": [A, B] }
+- QUALIFY — colors/modifies one target (quality, degree, negation, or claim-status like "asked"/"commanded"): { "op": "QUALIFY", "coloring": "<word or sense>", "target": T }. One coloring per mark; never combine.
+- IDENTIFY — this word is the same thing as one already mentioned (co-reference or typo fix): { "op": "IDENTIFY", "target": T }
+
+A target/peer (A, B, T) is: a thing's name ("budget"), a position number in this reply (3), or a past word as { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } using the sc numbers in the TRANSCRIPT. A word may carry several marks at once.
+
+Worked example — your reply "Sam owns the budget":
+[
+ {"pos":1,"word":"Sam","marks":[{"op":"identity"}]},
+ {"pos":2,"word":"owns","marks":[{"op":"RELATE","peers":["Sam","budget"]}]},
+ {"pos":3,"word":"the","marks":[{"op":"QUALIFY","coloring":"the","target":"budget"}]},
+ {"pos":4,"word":"budget","marks":[{"op":"identity"}]}
+]
+If they had said "budget" in an earlier turn, position 4 would also carry {"op":"IDENTIFY","target":{"who":"wearer","sc":<that turn>,"pos":<that word>}} to tie it to the same thing.
+
+Return only the JSON object: { "positions": [ ... ] }.`
 export function emissionFromStructured(structured: unknown): ScoredEmission {
   if (structured === null || typeof structured !== 'object') return { positions: [] }
   const arr = (structured as { positions?: unknown }).positions
