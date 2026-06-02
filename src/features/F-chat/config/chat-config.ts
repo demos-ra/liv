@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    w2-item-12, w2-item-13b, fixround-context-channel (LIV_ANCHOR + LIV_SPEC deleted — discarded test artifact; the substrate is the sole context channel)
+// amended:    w2-item-12, w2-item-13b, fixround-context-channel (LIV_ANCHOR + LIV_SPEC deleted — discarded test artifact; the substrate is the sole context channel), foundation-group3b (buildCursor/parseCursor relocated from R1 domain to R0 — R4 may now import downward)
 // slice:      F-chat
 // category:   Modality
 // layer:      R0
@@ -90,4 +90,24 @@ export type ChatErrorCode =
 export type ChatError = {
   code:    ChatErrorCode
   message: string
+}
+
+// ─── Cursor helpers (foundation-group3b) ──────────────────────────────────────
+// buildCursor/parseCursor were at R1 (chat-logic), but R4 (chat-db) imported them —
+// an upward R4→R1 violation (A2). Relocated to R0 so both R1 and R4 import downward.
+// Pure functions: no I/O, no side effects.
+
+export function buildCursor(message: ChatMessage): string {
+  return Buffer.from(`${message.createdAt}::${message.messageId}`).toString('base64')
+}
+
+export function parseCursor(cursor: string): { createdAt: number; messageId: string } | null {
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf-8')
+    const [createdAt, messageId] = decoded.split('::')
+    if (!createdAt || !messageId) return null
+    return { createdAt: Number(createdAt), messageId }
+  } catch {
+    return null
+  }
 }

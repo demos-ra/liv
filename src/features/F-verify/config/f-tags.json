@@ -31,10 +31,11 @@
       "app"
     ],
     "exceptions": {
-      "F-design-system": "Pure token/component library. No app/ or exec/ \u2014 no server ops, no DB, no events.",
-      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events \u2014 no exec/ needed. Orchestrates F-plan, F-output hooks. providers.tsx lives here.",
+      "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events.",
+      "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events — no exec/ needed. Orchestrates F-plan, F-output hooks. providers.tsx lives here.",
       "F-output": "Client hook + server contracts delegated to output-workflow. exec/ lives in workflow/.",
-      "F-builder": "pipeline execution shell; owns runPipeline + emitPlanForContract post-F-planner dissolution (sprint-12-shot-3)"
+      "F-builder": "pipeline execution shell; owns runPipeline + emitPlanForContract post-F-planner dissolution (sprint-12-shot-3)",
+      "F-memory": "Store-category mechanical accumulator. Append-only typed state-change store. No R1 business logic exists or belongs here — all write/read logic is R2 orchestration (substrate-service) over R4 I/O. foundation-group3c."
     },
     "description": "A complete feature slice requires domain logic, contract boundary, and execution/I/O."
   },

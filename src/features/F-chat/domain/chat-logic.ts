@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    foundation-group3b (buildCursor/parseCursor relocated to R0 chat-config; R1 cursor section replaced with redirect comment)
 // slice:      F-chat
 // category:   Modality
 // layer:      R1
@@ -15,8 +15,8 @@
 //   W-ATOM  buildAssistantMessage     →  F-chat/R1 (internal)
 //   W-ATOM  completeAssistantMessage  →  F-chat/R1 (internal)
 //   W-ATOM  validateMessageContent    →  F-chat/R3
-//   W-ATOM  buildCursor               →  F-chat/R4
-//   W-ATOM  parseCursor               →  F-chat/R4
+//   W-ATOM  buildCursor               →  R0 chat-config (foundation-group3b: relocated)
+//   W-ATOM  parseCursor               →  R0 chat-config (foundation-group3b: relocated)
 // deps:
 //   R0  ../config/chat-config
 //   R5  crypto
@@ -98,19 +98,6 @@ export function validateMessageContent(content: unknown): { valid: boolean; erro
   return { valid: true }
 }
 
-// --- Cursor pagination ---
-
-export function buildCursor(message: ChatMessage): string {
-  return Buffer.from(`${message.createdAt}::${message.messageId}`).toString('base64')
-}
-
-export function parseCursor(cursor: string): { createdAt: number; messageId: string } | null {
-  try {
-    const decoded = Buffer.from(cursor, 'base64').toString('utf-8')
-    const [createdAt, messageId] = decoded.split('::')
-    if (!createdAt || !messageId) return null
-    return { createdAt: Number(createdAt), messageId }
-  } catch {
-    return null
-  }
-}
+// --- Cursor pagination moved to R0 (chat-config) — foundation-group3b ---
+// buildCursor and parseCursor are at R0 (chat-config) so R4 (chat-db) can import
+// downward without an A2 violation. Import from '../config/chat-config'.

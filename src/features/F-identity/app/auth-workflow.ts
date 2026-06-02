@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1 sprint-beta-shot-3
+// @liv-standard v1.5.1 amended sprint-b1-shot-1 sprint-13b-shot-1 sprint-beta-shot-3 foundation-group3a
 // [F-identity/R2]
 // Built with LIV · livai.dev
 // @manifest-delta sprint-beta-shot-3
@@ -55,6 +55,7 @@ import {
 } from '../domain/auth-session';
 import { AuthErrors, toErrorLog } from '../domain/auth-errors';
 import type { IAuthDb, IEmailService } from '../exec/auth-db';
+import { readAuthEnv } from '../exec/auth-env';
 
 
 // ─── Structured Logger (O5) ───────────────────────────────────────────────────
@@ -476,11 +477,13 @@ export async function destroySessionForUser(userId: string, sessionId: string, a
 // R2 never imports from F-event-system directly (A2).
 
 export function createAuthDeps(ipAddress: string, authDb: IAuthDb, eventBus: IEventBus): AuthWorkflowDeps {
+  // foundation-group3a: env resolved at R4 (readAuthEnv) and injected here — A4.
+  const env = readAuthEnv()
   return {
     db:             authDb,
-    email:          IS_DEV ? devEmailServiceStub : createProductionEmailService(),
+    email:          env.isDev ? devEmailServiceStub : createProductionEmailService(env),
     eventBus,
-    baseUrl:        process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000',
+    baseUrl:        env.baseUrl,
     checkRateLimit: async (_type, _value, _action) => ({
       allowed: true,
       remainingAttempts: 99,
@@ -490,8 +493,6 @@ export function createAuthDeps(ipAddress: string, authDb: IAuthDb, eventBus: IEv
 }
 
 // ─── Stubs (IEmailService wire contract — Amendment 1: return shape must match exactly) ─
-
-const IS_DEV = process.env.NODE_ENV !== 'production'
 
 const devEmailServiceStub: IEmailService = {
   async sendMagicLink(to: string, content: MagicLinkEmailContent): Promise<AuthResult<void>> {
@@ -507,10 +508,10 @@ const devEmailServiceStub: IEmailService = {
 }
 
 
-function createProductionEmailService(): IEmailService {
-  const apiKey      = process.env.EMAIL_API_KEY
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev'
-  const fromName    = process.env.EMAIL_FROM_NAME ?? 'LIV'
+function createProductionEmailService(env: ReturnType<typeof readAuthEnv>): IEmailService {
+  const apiKey      = env.emailApiKey
+  const fromAddress = env.emailFrom
+  const fromName    = env.emailFromName
   return {
     async sendMagicLink(to: string, content: MagicLinkEmailContent): Promise<AuthResult<void>> {
       if (!apiKey) return devEmailServiceStub.sendMagicLink(to, content)

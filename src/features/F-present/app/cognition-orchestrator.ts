@@ -6,7 +6,7 @@
 //
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    sprint-COIN-shot-4 (R2b cognition write orchestrator)
+// amended:    sprint-COIN-shot-4 (R2b cognition write orchestrator), foundation-group1 (exec imports → R3 surfaces: F-ai-adapter/R3 + F-memory/R3)
 //             sprint-COIN-I1 (composeAndWrite conformed to the core ReplyComposer;
 //               read-front upgrader presentContext added; registerCognitionUpgrades()
 //               — the single wire F-event-system bootstrap() calls to compose F-present
@@ -24,21 +24,20 @@
 // slice:      F-present
 // layer:      R2
 // wires-in:
-//   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/exec/structured-stream
-//   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/config/ai-adapter-config
+//   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/contract/ai-contract       (Group 1: R3 surface)
+//   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/contract/ai-contract       (Group 2: R3 surface)
 //   W-FN    SCORE_EMIT_CONFIG/COIN_SCORING_PROMPT/emissionFromStructured/splitEmission   ../domain/coin-score
 //   W-FN    derive                                       ../domain/coin-read
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
-//   W-FN    writeRawTurn                                 @/features/F-memory/exec/raw-turn-write   (F-present -> core)
-//   W-FN    readTranscript                               @/features/F-memory/exec/transcript-read  (F-present -> core)
-//   W-FN    registerReplyComposer/registerContextReader  @/core/domain/cognition-seam              (F-present -> core)
+//   W-FN    writeRawTurn                                 @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
+//   W-FN    readTranscript                               @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
+//   W-FN    registerReplyComposer/registerContextReader  @/core/domain/cognition-seam                      (F-present -> core)
 // deps:
-//   R4  @/features/F-ai-adapter/exec/structured-stream
+//   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R1  ../domain/coin-score
 //   R1  ../domain/coin-read
 //   R4  ../exec/present-mark-store-db
-//   R4  @/features/F-memory/exec/raw-turn-write
-//   R4  @/features/F-memory/exec/transcript-read
+//   R3  @/features/F-memory/contract/substrate-contract
 //   core @/core/domain/cognition-seam
 //
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,13 +52,13 @@
 // the bootstrap registration wire and F-present is gone with no core change.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { streamStructuredEmit }                          from '@/features/F-ai-adapter/exec/structured-stream'
-import type { ChatMessage }                              from '@/features/F-ai-adapter/config/ai-adapter-config'
+import { streamStructuredEmit }                          from '@/features/F-ai-adapter/contract/ai-contract'
+import type { ChatMessage }                              from '@/features/F-ai-adapter/contract/ai-contract'
 import { SCORE_EMIT_CONFIG, COIN_SCORING_PROMPT, emissionFromStructured, splitEmission } from '@/features/F-present/domain/coin-score'
 import { derive }                                        from '@/features/F-present/domain/coin-read'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
-import { writeRawTurn }                                  from '@/features/F-memory/exec/raw-turn-write'
-import { readTranscript }                                from '@/features/F-memory/exec/transcript-read'
+import { writeRawTurn }                                  from '@/features/F-memory/contract/substrate-contract'
+import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
 import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
 import type { ReplyComposer, ContextReader }             from '@/core/domain/cognition-seam'
 

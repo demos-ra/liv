@@ -4,7 +4,8 @@
 // Built with LIV · livai.dev
 // [F-present/domain/coin-score.ts]
 // amended: coin-scoring-prompt (COIN_SCORING_PROMPT const added — compose instruction
-//          prepended to system message in composeAndWrite; test calibration form)
+//          prepended to system message in composeAndWrite; test calibration form),
+//          foundation-group2 (JsonSchema/StructuredEmitConfig imported from F-ai-adapter/R3 not config)
 // COIN scoring write-path. The LLM emits scored positions (word + its marks) via
 // the F-ai-adapter structured transport (the COIN schema rides it — reusable).
 // splitEmission ROUTES the emission: raw words → the wearer's substrate (a
@@ -14,7 +15,7 @@
 
 import type { Who, RawTurn, Coord } from '@/core/types/substrate-raw.types'
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
-import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/config/ai-adapter-config'
+import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
 
 // The emission shape the LLM fills (structured output).
 export type ScoredPosition = { pos: number; word: string; marks: Mark[] }

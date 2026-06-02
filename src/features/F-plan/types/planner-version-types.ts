@@ -1,17 +1,17 @@
 // @liv-standard v1.3
-// [F-planner/types/planner-version-types.ts]
+// [F-plan/types/planner-version-types.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step5e
-// slice:      F-planner
+// amended:    step5e, foundation-group4 (slice: F-planner → F-plan; compliance stamp corrected)
+// slice:      F-plan
 // layer:      R0
 // wires-in:   none
 // wires-out:
-//   W-ATOM  SemVer        →  F-planner/R1, F-planner/R4
-//   W-ATOM  VersionBump   →  F-planner/R1
-//   W-ATOM  BuildVersion  →  F-planner/R1, F-planner/R2, F-planner/R3, F-planner/R4
+//   W-ATOM  SemVer        →  F-plan/R1, F-plan/R4
+//   W-ATOM  VersionBump   →  F-plan/R1
+//   W-ATOM  BuildVersion  →  F-plan/R1, F-plan/R2, F-plan/R3, F-plan/R4
 // deps:       none
 // validated:  pending
 //

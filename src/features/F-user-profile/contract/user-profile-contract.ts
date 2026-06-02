@@ -4,7 +4,7 @@
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider }), sprint-beta-fixround (F3: PUT maps PROFILE_NOT_FOUND to 409)
+// amended:    step4b2-corrective-2, sprint-beta-addon-shot-1 (PUT body de-tiered to flat selection), sprint-beta-addon-shot-2 (PUT resolves provider→model via PROVIDER_DEFAULT_MODEL; body is { provider }), sprint-beta-fixround (F3: PUT maps PROFILE_NOT_FOUND to 409), foundation-group2 (ProviderId/PROVIDERS republished at R3 — spine imports R3 not config)
 //             chain-b-provider-fact (GET reads from resolveActiveProvider + forward-derives model;
 //               PUT writes preferred_provider via savePreferredProvider, not model_preferences jsonb;
 //               resolveActiveProvider exported at R3 for chat-contract consumption)
@@ -231,3 +231,9 @@ export { resolveActiveProvider } from '../app/user-profile-workflow'
 // step4b2-phase-d: model preferences exported for cross-slice reads (F-planner reads
 // preferences via its own R4, but these are available for future consumers).
 export { dbGetModelPreferences as getModelPreferences } from '../exec/user-profile-db'
+
+// ─── Group 2 — foundation-group2 ────────────────────────────────────────────
+// ProviderId and PROVIDERS were consumed directly from F-user-profile/config by
+// the spine (chat-workflow, chat-contract). Republished here so spine imports R3.
+export type { ProviderId } from '../config/provider-keys-config'
+export { PROVIDERS }       from '../config/provider-keys-config'

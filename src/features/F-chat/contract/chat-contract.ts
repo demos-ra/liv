@@ -1,4 +1,4 @@
-// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6 sprint-beta-shot-1 sprint-beta-shot-2 sweep-capture-gate
+// @liv-standard v1.5.1 amended sprint-11-shot-2 sprint-11-shot-6 sprint-11-shot-6a sprint-11-shot-6b sprint-12-shot-2 sprint-12-shot-4 sprint-13-shot-1 sprint-b1-shot-1 sprint-13c-shot-1  sprint-2-shot-6 present-rederive-shot-4 kind-a-v6 sprint-beta-shot-1 sprint-beta-shot-2 sweep-capture-gate foundation-group1
 // [F-chat/R3]
 // Built with LIV · livai.dev
 
@@ -35,15 +35,18 @@
 //   W-HOOK  isPipelineActive     F-plan/contract/plan-contract  (R3→R3, read-only query)
 //   W-FN    writeStateChange     F-memory/contract/substrate-contract  (HR-LM1 write surface)
 //   W-FN    readScope            F-memory/contract/substrate-contract  (F10: core-loop read step — replaces present())
+//   W-FN    writeRawTurn         F-memory/contract/substrate-contract  (Group 1: cognition rail — R3 surface)
+//   W-FN    tokenize             F-memory/contract/substrate-contract  (Group 1: R3 surface)
+//   W-FN    readTranscript       F-memory/contract/substrate-contract  (Group 1: R3 surface)
 //   W-FN    route                F-router/contract/router-contract     (message routing)
 //   W-FN    generateId           core/types/primitives                 (turnId generation)
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
 //   W-ATOM  StateChangeRecord    F-memory/contract/substrate-contract  (F10: substrate read record — serializeTranscript input)
 //   W-ATOM  Relation             F-memory/contract/substrate-contract  (F10: transcript serialization)
 //   W-ATOM  ChannelKind          core/types/perimeter-standard.types  (sprint-b1-shot-1: Decision-D-CHANNEL mapping)
-//   W-ATOM  RouterMessage        F-router/config/router-types
-//   W-ATOM  RouterSessionContext F-router/config/router-types
-//   W-ATOM  ROUTER_ERROR_CODES   F-router/config/router-types
+//   W-ATOM  RouterMessage        F-router/contract/router-contract  (Group 2: R3 surface)
+//   W-ATOM  RouterSessionContext F-router/contract/router-contract  (Group 2: R3 surface)
+//   W-ATOM  ROUTER_ERROR_CODES   F-router/contract/router-contract  (Group 2: R3 surface)
 //   W-FN    executePlan          F-plan/contract/plan-contract         (sprint-13-shot-1 dispatch)
 //   W-FN    executeResearchFromInput   F-discover/contract/discover-contract  (sprint-13-shot-1 dispatch)
 //   W-FN    executeVerificationFromInput F-verify/contract/verify-contract    (sprint-13-shot-1 dispatch)
@@ -164,13 +167,13 @@ import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/con
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
-import { writeRawTurn, tokenize }               from '@/features/F-memory/exec/raw-turn-write'
-import { readTranscript }                        from '@/features/F-memory/exec/transcript-read'
+import { writeRawTurn, tokenize }               from '@/features/F-memory/contract/substrate-contract'
+import { readTranscript }                        from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
-import { MODELS, providerForModel, PROVIDER_DEFAULT_MODEL } from '@/features/F-ai-adapter/config/ai-adapter-config'
-import type { ProviderId }                         from '@/features/F-user-profile/config/provider-keys-config'
+import { MODELS, providerForModel, PROVIDER_DEFAULT_MODEL } from '@/features/F-ai-adapter/contract/ai-contract'
+import type { ProviderId }                         from '@/features/F-user-profile/contract/user-profile-contract'
 import { getApiKey, resolveActiveProvider }              from '@/features/F-user-profile/contract/user-profile-contract'
 import { createRateLimiter }                     from '@/core/domain/rate-limiter'
 import { isPipelineActive }                      from '@/features/F-plan/contract/plan-contract'
@@ -189,7 +192,7 @@ import { executeResearchFromInput }              from '@/features/F-discover/con
 import { executeVerificationFromInput }          from '@/features/F-verify/contract/verify-contract'
 import type { ResearchExecuteInput }             from '@/features/F-discover/contract/discover-contract'
 import type { VerificationExecuteInput }         from '@/features/F-verify/contract/verify-contract'
-import type { Destination }                      from '@/features/F-router/config/router-types'
+import type { Destination }                      from '@/features/F-router/contract/router-contract'
 // Sub-types for smoke input construction — imported from core/R5 per A2
 // (F-chat R3 → core R5 is permitted; R0 re-exports these from the same source)
 import type {

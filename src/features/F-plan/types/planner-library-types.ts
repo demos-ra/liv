@@ -1,18 +1,18 @@
 // @liv-standard v1.3
-// [F-planner/types/planner-library-types.ts]
+// [F-plan/types/planner-library-types.ts]
 // Built with LIV · livai.dev
 
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    step4d-phase1
-// slice:      F-planner
+// amended:    step4d-phase1, foundation-group4 (slice: F-planner → F-plan; compliance stamp corrected)
+// slice:      F-plan
 // layer:      R0
 // wires-in:
 //   W-ATOM  FlowId  @/core/constants/liv-standard.types
 // wires-out:
-//   W-ATOM  FlowLibraryEntry      →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  LibraryMatchType      →  F-planner/R1, F-planner/R2, F-planner/R4
-//   W-ATOM  LibraryLookupResult   →  F-planner/R2, F-planner/R4
+//   W-ATOM  FlowLibraryEntry      →  F-plan/R1, F-plan/R2, F-plan/R4
+//   W-ATOM  LibraryMatchType      →  F-plan/R1, F-plan/R2, F-plan/R4
+//   W-ATOM  LibraryLookupResult   →  F-plan/R2, F-plan/R4
 // deps:
 //   R0  @/core/constants/liv-standard.types  (FlowId — A1, canonical)
 // validated:  pending

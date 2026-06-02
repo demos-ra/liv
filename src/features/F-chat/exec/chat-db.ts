@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.3
-// amended:    none
+// amended:    foundation-group3b (parseCursor/buildCursor imported from R0 chat-config not R1 — A2 fix)
 // slice:      F-chat
 // category:   Modality
 // layer:      R4
@@ -11,8 +11,8 @@
 //   W-FN    db                core/db/client
 //   W-ATOM  ChatMessage       F-chat/R0 (chat-config)
 //   W-ATOM  ChatThread        F-chat/R0 (chat-config)
-//   W-FN    parseCursor       F-chat/R1 (chat-logic)
-//   W-FN    buildCursor       F-chat/R1 (chat-logic)
+//   W-FN    parseCursor       F-chat/R0 (chat-config — relocated from R1, foundation-group3b)
+//   W-FN    buildCursor       F-chat/R0 (chat-config — relocated from R1, foundation-group3b)
 // wires-out:
 //   W-FN    persistMessage    →  F-chat/R2 (chat-workflow)
 //   W-FN    updateMessage     →  F-chat/R2 (chat-workflow)
@@ -20,7 +20,6 @@
 //   W-FN    getMessages       →  F-chat/R2 (chat-workflow)
 // deps:
 //   R0  ../config/chat-config
-//   R1  ../domain/chat-logic
 //   R5  @/core/db/client
 // validated:  pending
 // [F-chat/R4/C2] Chat database I/O
@@ -29,7 +28,7 @@
 import { db } from '@/core/db/client'
 import type { Result } from '@/core/types/primitives'
 import { ChatMessage, ChatThread } from '../config/chat-config'
-import { parseCursor, buildCursor } from '../domain/chat-logic'
+import { parseCursor, buildCursor } from '../config/chat-config'
 
 export async function persistMessage(message: ChatMessage): Promise<Result<void>> {
   try {

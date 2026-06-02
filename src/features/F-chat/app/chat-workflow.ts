@@ -3,7 +3,7 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed), fixround-context-channel (LIV_ANCHOR/LIV_SPEC prepend deleted — the hardcoded pre-substrate context channel; messages now carry the present + the wearer's turn only, or the turn alone when the present is empty; dead isFirstMessage removed)
+// amended:    lm-v1.1-wire-fix, phase-b-item2, phase-5.1-r1, phase-5-audit, lm-v2-2-shot2, lm-v2-2-shot3, sprint-8-shot-3a (codec pipeline removed), sprint-8-shot-3b (LM v2.x reads + write removed), fixround-context-channel (LIV_ANCHOR/LIV_SPEC prepend deleted — the hardcoded pre-substrate context channel; messages now carry the present + the wearer's turn only, or the turn alone when the present is empty; dead isFirstMessage removed), foundation-group2 (config imports → R3: providerForModel from F-ai-adapter/R3, PROVIDERS/ProviderId from F-user-profile/R3)
 // slice:      F-chat
 // category:   Modality
 // layer:      R2
@@ -25,8 +25,8 @@
 //   R4  ../exec/chat-db
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
-//   R0  @/features/F-ai-adapter/config/ai-adapter-config
-//   R0  @/features/F-user-profile/config/provider-keys-config
+//   R3  @/features/F-ai-adapter/contract/ai-contract
+//   R3  @/features/F-user-profile/contract/user-profile-contract
 //   R5  @/core/types/primitives
 // validated:  pending
 //
@@ -44,9 +44,9 @@
 import { persistMessage, getMessages as dbGetMessages } from '../exec/chat-db'
 import { streamAIResponse } from '@/features/F-ai-adapter/contract/ai-contract'
 import { getApiKey } from '@/features/F-user-profile/contract/user-profile-contract'
-import { providerForModel } from '@/features/F-ai-adapter/config/ai-adapter-config'
-import { PROVIDERS } from '@/features/F-user-profile/config/provider-keys-config'
-import type { ProviderId } from '@/features/F-user-profile/config/provider-keys-config'
+import { providerForModel } from '@/features/F-ai-adapter/contract/ai-contract'
+import { PROVIDERS } from '@/features/F-user-profile/contract/user-profile-contract'
+import type { ProviderId } from '@/features/F-user-profile/contract/user-profile-contract'
 import { generateId } from '@/core/types/primitives'
 
 // ── Session state ─────────────────────────────────────────────────────────────
