@@ -1,68 +1,28 @@
-// @liv-standard v1.5.2 amended kind-a-v6
-// @present-standard v6.0
+// @liv-standard v1.5.2
+// @governing-spec COIN v1.0 (read-engine)
 // [app/R4]
 // Built with LIV · livai.dev
 // [src/app/api/present/route.ts]
-// Sprint 2 — Shot 5; present-rederive — Shot 4 (v2.0 contract re-migration); kind-a-v6
+// Sprint 2 — Shot 5; read-engine (repointed to the read surface).
 //
-// REST POST handler for /api/present.
-// Mirrors src/app/api/substrate/export/route.ts session pattern.
-// Auth: getPerimeterSession — perimeter-validated at unitary site (src/proxy.ts).
-// userId sourced from session; scopeRef + the three intent dimensions from body.
-//
-// kind-a-v6: body-mapping migrated to the v6.0 PresentIntent three-control
-// model — camera / temporal / standpoint — replacing the v2.0 focus / ordering /
-// standpoint mapping. route.ts is the external-API path: camera and temporal are
-// body-sourced (v6.0 defaults {mode:'derived'} / {depth:'surface'} on absence).
+// REST POST handler for /api/present. Auth: getPerimeterSession (perimeter-
+// validated at the unitary site). The read engine resolves the wearer's present
+// from userId alone (per-user wiring later); the v6.0 three-control intent is
+// gone with the lens re-derivation. Route KEPT + repointed to readPresent.
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession }            from '@/features/F-identity/contract/perimeter-consultation'
-import { present }                        from '@/features/F-present/contract/present-contract'
-import { generateId }                     from '@/core/types/primitives'
-
-import type {
-  PresentIntent,
-  FrameworkRef,
-  IntentIdRef,
-} from '@/features/F-present/contract/present-contract'
-
-import type { ScopeRef, PositionRef } from '@/core/types/substrate.types'
+import { readPresent }                    from '@/features/F-present/contract/present-contract'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Auth — perimeter-validated session required.
   const session = getPerimeterSession(req)
   if (!session) {
-    return NextResponse.json({ ok: false, error: { code: 'PRESENT_AUTH_REJECTED', message: 'unauthenticated' } }, { status: 401 })
+    return NextResponse.json(
+      { ok: false, error: { code: 'PRESENT_AUTH_REJECTED', message: 'unauthenticated' } },
+      { status: 401 },
+    )
   }
 
-  let body: Record<string, unknown>
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ ok: false, error: { code: 'PRESENT_INTENT_INVALID', message: 'invalid JSON body' } }, { status: 400 })
-  }
-
-  // scopeRef + the three intent dimensions sourced from body; userId from PS-stamped session.
-  const intent: PresentIntent = {
-    intentId:    generateId('intent') as unknown as IntentIdRef,
-    consumerRef: (body['consumerRef'] ?? 'external') as unknown as FrameworkRef,
-    userId:      session.userId,
-    scopeRef:    body['scopeRef']   as unknown as ScopeRef,
-    camera:      (body['camera']   ?? { mode: 'derived' })   as PresentIntent['camera'],
-    temporal:    (body['temporal'] ?? { depth: 'surface' })  as PresentIntent['temporal'],
-    standpoint:  (body['standpoint'] ?? null) as PositionRef | null,
-    bound:       (body['bound'] as PresentIntent['bound']) ?? { maxNodes: 20, maxEdges: 40, walkBudget: 100 },
-    provenance: {
-      consumerSlice: (body['consumerRef'] ?? 'external') as unknown as FrameworkRef,
-      stampedAt:     Date.now(),
-    },
-  }
-
-  const result = await present(intent)
-
-  if (!result.ok) {
-    return NextResponse.json(result, { status: 422 })
-  }
-
-  return NextResponse.json(result)
+  const present = await readPresent(session.userId)
+  return NextResponse.json({ ok: true, data: { present } })
 }

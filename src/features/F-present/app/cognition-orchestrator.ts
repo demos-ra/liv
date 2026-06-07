@@ -27,7 +27,12 @@
 //   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/contract/ai-contract       (Group 1: R3 surface)
 //   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/contract/ai-contract       (Group 2: R3 surface)
 //   W-FN    SCORE_EMIT_CONFIG/COIN_SCORING_PROMPT/emissionFromStructured/splitEmission   ../domain/coin-score
-//   W-FN    derive                                       ../domain/coin-read
+//   W-FN    buildFactTable                               ../domain/fact-table
+//   W-FN    resolveDimension                             ../domain/resolve-dimension
+//   W-FN    weighDimension                               ../domain/chain-ping
+//   W-FN    pivot                                        ../domain/pivot
+//   W-FN    renderForest/renderSheet                     ../domain/render-present
+//   W-ATOM  DEFAULT_FOREST_CUTOFF/DEFAULT_ANCESTORS_UP/DEFAULT_DESCENDANTS_DOWN   ../config/read-engine-types
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
 //   W-FN    writeRawTurn                                 @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
 //   W-FN    readTranscript                               @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
@@ -35,7 +40,12 @@
 // deps:
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R1  ../domain/coin-score
-//   R1  ../domain/coin-read
+//   R1  ../domain/fact-table
+//   R1  ../domain/resolve-dimension
+//   R1  ../domain/chain-ping
+//   R1  ../domain/pivot
+//   R1  ../domain/render-present
+//   R0  ../config/read-engine-types
 //   R4  ../exec/present-mark-store-db
 //   R3  @/features/F-memory/contract/substrate-contract
 //   core @/core/domain/cognition-seam
@@ -55,7 +65,13 @@
 import { streamStructuredEmit }                          from '@/features/F-ai-adapter/contract/ai-contract'
 import type { ChatMessage }                              from '@/features/F-ai-adapter/contract/ai-contract'
 import { SCORE_EMIT_CONFIG, COIN_SCORING_PROMPT, emissionFromStructured, splitEmission } from '@/features/F-present/domain/coin-score'
-import { derive }                                        from '@/features/F-present/domain/coin-read'
+import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
+import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
+import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
+import { pivot }                                         from '@/features/F-present/domain/pivot'
+import { renderForest, renderSheet }                     from '@/features/F-present/domain/render-present'
+import { DEFAULT_FOREST_CUTOFF, DEFAULT_ANCESTORS_UP, DEFAULT_DESCENDANTS_DOWN } from '@/features/F-present/config/read-engine-types'
+import type { Dimension, ThingId, ForestResult, SheetResult } from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { writeRawTurn }                                  from '@/features/F-memory/contract/substrate-contract'
 import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
@@ -109,29 +125,58 @@ export const composeAndWrite: ReplyComposer = async (input) => {
 }
 
 // ── Read-front upgrader — conforms to the core ContextReader ───────────────────
-// The structured present as the LLM's context: coin-read derives things + relations
-// from the words (substrate) and marks (F-present store). Strict superset of the
-// baseline flat transcript — the transcript is always included for continuity; the
-// structured overlay is added when marks exist (sparse early, richer as it compounds).
+// The wake-default bundle the LLM wakes with: transcript + forest@ALL +
+// sheet@focus@ALL, run through the read engine (buildFactTable -> resolveDimension
+// -> weighDimension -> pivot -> render). The three are a REMOVABLE template layer,
+// not engine structure — drop the bundle and pivot() still answers any explicit
+// PivotConfig. show:{} = ALL mark-types (each op in its own typed sub-section);
+// scoping is on the things (forest by weight, sheet by the focus line), never on
+// mark-types. The defaults are a convenience surface, not a contract.
 export const presentContext: ContextReader = async (userId) => {
   const transcript = await readTranscript(userId)
   const store      = await createDbPresentMarkStore().read(userId)
-  const d          = derive(transcript, store)
+
+  const rows = buildFactTable(transcript, store)
+  const dim  = resolveDimension(rows)
+  weighDimension(dim, rows)
 
   const out: string[] = []
-  if (d.things.size > 0) {
-    out.push('PRESENT — things:')
-    for (const [, t] of d.things)
-      out.push(`  ${t.name}: ${t.stack.map(a => `${a.who === 'wearer' ? '\u2014' : a.who}@sc${a.sc}`).join(', ')}`)
-    if (d.connections.length > 0) {
-      out.push('PRESENT — relations:')
-      for (const c of d.connections) out.push(`  ${c.peers.map(d.nameOf).join(' \u2194 ')} (${c.word})`)
-    }
-  }
+  // 1. transcript — the raw words of the line, always on (not a table call).
   out.push('TRANSCRIPT (turns in position order):')
   for (const tt of transcript)
     out.push(`[${tt.sc}] (${tt.who === 'wearer' ? '\u2014' : tt.who}): ${tt.words.map(w => w.word).join(' ')}`)
+
+  // structure + state appear once marks exist (sparse early, richer as it compounds).
+  if (dim.things.size > 0) {
+    // 2. forest (structure) @ ALL mark-types, brightness-floor = DEFAULT_FOREST_CUTOFF.
+    out.push('')
+    out.push(renderForest(pivot({ view: 'forest', show: {}, weightCutoff: DEFAULT_FOREST_CUTOFF }, dim, rows) as ForestResult))
+    // 3. sheet (state) anchored at the current focus @ ALL mark-types.
+    const focus = currentFocus(dim)
+    if (focus) {
+      out.push('')
+      out.push(renderSheet(pivot(
+        { view: 'sheet', focus, show: {}, ancestorsUp: DEFAULT_ANCESTORS_UP, descendantsDown: DEFAULT_DESCENDANTS_DOWN },
+        dim, rows,
+      ) as SheetResult))
+    }
+  }
   return out.join('\n')
+}
+
+// current focus (a wake-default template knob, not engine logic): the most
+// recently touched thing — highest member sc, then heaviest, then id. Overridable;
+// the LLM re-anchors freely by calling pivot with any focus.
+function currentFocus(dim: Dimension): ThingId | null {
+  let best: ThingId | null = null
+  let bestSc = -Infinity, bestW = -Infinity
+  for (const t of dim.things.values()) {
+    const sc = t.members.length ? t.members[t.members.length - 1].sc : -Infinity
+    if (sc > bestSc || (sc === bestSc && (t.weight > bestW || (t.weight === bestW && (best === null || t.id < best))))) {
+      best = t.id; bestSc = sc; bestW = t.weight
+    }
+  }
+  return best
 }
 
 // ── The single composition wire ────────────────────────────────────────────────
