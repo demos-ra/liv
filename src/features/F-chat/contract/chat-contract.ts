@@ -167,7 +167,7 @@ import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/con
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent }                from '../domain/chat-logic'
-import { writeRawTurn, tokenize }               from '@/features/F-memory/contract/substrate-contract'
+import { writeRawTurn, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { readTranscript }                        from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
@@ -488,7 +488,7 @@ function serializeTranscript(turns: RawTurn[]): string {
   // marks, not rendered into the loop's working context). Anchor/geometry derivation
   // does not run at this layer (that is coin-read, the F-present add-on surface).
   const lines = turns.map((t) => {
-    const words = t.words.map(w => w.word).join(' ')
+    const words = joinCells(t.words)
     return `[${t.sc}] (${t.who}): ${words}`
   })
 
@@ -607,11 +607,11 @@ export async function POST_message(
   // hardcoded here — it is inherited from session.who (resolved once at the perimeter
   // from the channel), so the external-agent intake path authors as 'program', not
   // 'wearer'.
-  const wearerWords = tokenize(content as string)
+  const wearerCells = cutCells(content as string)
 
   // An empty wearer arrival is a 400 before any write — tokenize() synthesizes no
   // words where none were said.
-  if (wearerWords.length === 0) {
+  if (!wearerCells.some(c => isWordCell(c.word))) {
     return new Response('Empty message', { status: 400 })
   }
 
@@ -621,7 +621,7 @@ export async function POST_message(
   // write failure (no assigned coordinate); fail the turn visibly rather than stream
   // a response against a substrate that never recorded the message.
   try {
-    await writeRawTurn({ who: session.who, words: wearerWords, userId: session.userId, scope: projectId })
+    await writeRawTurn({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
   } catch (err) {
     console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
@@ -775,9 +775,9 @@ export async function POST_message(
             reply += chunk
             send({ chunk })
           }
-          const replyWords = tokenize(reply)
-          const sc = replyWords.length > 0
-            ? await writeRawTurn({ who: 'llm', words: replyWords, userId: session.userId, scope: projectId })
+          const replyCells = cutCells(reply)
+          const sc = replyCells.some(c => isWordCell(c.word))
+            ? await writeRawTurn({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
             : 0
           aiResult = { sc, markCount: 0, text: reply }
         }

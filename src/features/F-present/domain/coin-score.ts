@@ -1,118 +1,160 @@
 // @liv-standard v1.5.2
-// @governing-spec COIN v1.0
+// @governing-spec COIN v1.0 (write-finalization)
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/coin-score.ts]
-// amended: coin-scoring-prompt (COIN_SCORING_PROMPT const added — compose instruction
-//          prepended to system message in composeAndWrite; test calibration form),
-//          foundation-group2 (JsonSchema/StructuredEmitConfig imported from F-ai-adapter/R3 not config)
-// COIN scoring write-path. The LLM emits scored positions (word + its marks) via
-// the F-ai-adapter structured transport (the COIN schema rides it — reusable).
-// splitEmission ROUTES the emission: raw words → the wearer's substrate (a
-// RawTurn); marks → F-present's external store (PlacedMarks pointing at
-// coordinates). The substrate receives ONLY raw words; F-present receives ONLY
-// pointers. No overlap.
+// amended: write-finalization M2/M4/M5 (pair-scoring emission + G1 re-key + wired verify);
+//          COIN_SCORING_PROMPT removed → the dated manual is M1 (config/coin-manual.ts).
+//
+// COIN scoring write-path. The model emits scored positions (its reply, word + marks)
+// PLUS priorMarks (marks on the person's already-cut cells, by coordinate) — both turns
+// scored. splitEmission ROUTES the emission: raw words → the wearer's substrate (a
+// RawTurn of CANONICAL cells from G1); marks → F-present's external store (PlacedMarks
+// pointing at coordinates). The substrate receives ONLY raw words; F-present receives
+// ONLY pointers. No overlap. §FORK = A: the model self-cuts its reply coarsely; G1
+// re-cuts canonically and splitEmission re-keys each reply mark word→word-cell (the
+// deterministic head-cell rule). The model never numbers the canonical grid.
 
-import type { Who, RawTurn, Coord } from '@/core/types/substrate-raw.types'
+import type { Who, RawTurn, RawWord, Coord } from '@/core/types/substrate-raw.types'
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
 import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
+import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 
-// The emission shape the LLM fills (structured output).
-export type ScoredPosition = { pos: number; word: string; marks: Mark[] }
-export type ScoredEmission = { positions: ScoredPosition[] }
+// The emission the model fills (structured output) — both turns.
+export type ScoredPosition = { pos: number; word: string; marks: Mark[] }   // the reply (coarse; G1 re-keys)
+export type PriorMark = { home: Coord; marks: Mark[] }                       // marks on the person's existing cells
+export type ScoredEmission = { positions: ScoredPosition[]; priorMarks: PriorMark[] }
 
 // COIN schema (owned here, single-source). A mark is a permissive object {op + the
-// fields that op uses}; the receiver narrows. Targets/peers are coords {who,sc,pos}.
+// fields that op uses}; the receiver narrows. Targets/peers are NAMES or COORDS.
 const COORD: JsonSchema = { type: 'object', properties: { who: { type: 'string', enum: ['wearer', 'llm', 'program'] }, sc: { type: 'number' }, pos: { type: 'number' } }, required: ['who', 'sc', 'pos'], additionalProperties: false }
-// A target/peer is a NAME or a COORD (coin-spec §3/line 48 — name primary, address
-// the disambiguator). A mark's HOME is always a real coord; only what a mark POINTS
-// AT (target/peers) may be a clustering name.
 const REF: JsonSchema = { anyOf: [{ type: 'string' }, COORD] }
+const MARK_ITEM: JsonSchema = {
+  type: 'object',
+  properties: {
+    op: { type: 'string', enum: ['identity', 'RELATE', 'QUALIFY', 'IDENTIFY'] },
+    peers: { type: 'array', items: REF }, coloring: { type: 'string' }, target: REF,
+  },
+  required: ['op'], additionalProperties: false,
+}
 export const SCORE_SCHEMA: JsonSchema = {
   type: 'object',
-  properties: { positions: { type: 'array', items: {
-    type: 'object',
-    properties: {
-      pos: { type: 'number' }, word: { type: 'string' },
-      marks: { type: 'array', items: {
-        type: 'object',
-        properties: {
-          op: { type: 'string', enum: ['identity', 'RELATE', 'QUALIFY', 'IDENTIFY'] },
-          peers: { type: 'array', items: REF }, coloring: { type: 'string' }, target: REF,
-        },
-        required: ['op'], additionalProperties: false,
-      } },
-    },
-    required: ['pos', 'word', 'marks'], additionalProperties: false,
-  } } },
+  properties: {
+    positions: { type: 'array', items: {
+      type: 'object',
+      properties: { pos: { type: 'number' }, word: { type: 'string' }, marks: { type: 'array', items: MARK_ITEM } },
+      required: ['pos', 'word', 'marks'], additionalProperties: false,
+    } },
+    priorMarks: { type: 'array', items: {
+      type: 'object',
+      properties: { home: COORD, marks: { type: 'array', items: MARK_ITEM } },
+      required: ['home', 'marks'], additionalProperties: false,
+    } },
+  },
   required: ['positions'], additionalProperties: false,
 }
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamArray: 'positions', streamField: 'word' }
 
-// ── Scoring system prompt (compose instruction) ───────────────────────────────
-// Prepended to the system message by composeAndWrite (before the present).
-// Tells the LLM to compose its own reply and return it as scored positions.
-// Intentionally explanatory — test calibration form; mechanical version is future work.
-export const COIN_SCORING_PROMPT =
-`You are talking with a person. Do two things in one pass: compose your natural reply to them, then return that reply as scored positions.
-
-Your memory of the conversation so far is given below as PRESENT (things and relations that have come up) and TRANSCRIPT (every turn in order; "(—)" = the person, "(llm)" = you). Use it as what you know. Refer only to things already in it or that you introduce in this reply.
-
-Compose your reply as you normally would. Then output it as a list of positions: one word per position, in order, every word kept — these words ARE your reply. Reply with YOUR words, never a copy of theirs.
-
-Each position: { "pos": <n from 1>, "word": "<exact word>", "marks": [...] }. Split your reply into words the natural way; keep punctuation with its word. Every word gets a position, including small words like "the", "is", "and" — give each whatever marks it performs, or an empty list if none. Mark fully, not just the highlights.
-
-The four marks (the whole set):
-
-- identity — names a thing (person, place, object, idea): { "op": "identity" }
-- RELATE — links 2+ things into a connection: { "op": "RELATE", "peers": [A, B] }
-- QUALIFY — colors/modifies one target (quality, degree, negation, or claim-status like "asked"/"commanded"): { "op": "QUALIFY", "coloring": "<word or sense>", "target": T }. One coloring per mark; never combine.
-- IDENTIFY — this word is the same thing as one already mentioned (co-reference or typo fix): { "op": "IDENTIFY", "target": T }
-
-A target/peer (A, B, T) is: a thing's name ("budget"), a position number in this reply (3), or a past word as { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } using the sc numbers in the TRANSCRIPT. A word may carry several marks at once.
-
-Worked example — your reply "Sam owns the budget":
-[
- {"pos":1,"word":"Sam","marks":[{"op":"identity"}]},
- {"pos":2,"word":"owns","marks":[{"op":"RELATE","peers":["Sam","budget"]}]},
- {"pos":3,"word":"the","marks":[{"op":"QUALIFY","coloring":"the","target":"budget"}]},
- {"pos":4,"word":"budget","marks":[{"op":"identity"}]}
-]
-If they had said "budget" in an earlier turn, position 4 would also carry {"op":"IDENTIFY","target":{"who":"wearer","sc":<that turn>,"pos":<that word>}} to tie it to the same thing.
-
-Return only the JSON object: { "positions": [ ... ] }.`
-export function emissionFromStructured(structured: unknown): ScoredEmission {
-  if (structured === null || typeof structured !== 'object') return { positions: [] }
-  const arr = (structured as { positions?: unknown }).positions
-  if (!Array.isArray(arr)) return { positions: [] }
-  const positions: ScoredPosition[] = []
-  for (const p of arr) {
-    if (!p || typeof p !== 'object') continue
-    const pos = (p as any).pos, word = (p as any).word, marks = (p as any).marks
-    if (typeof pos !== 'number' || typeof word !== 'string') continue
-    positions.push({ pos, word, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
-  }
-  return { positions }
-}
 function isMark(m: unknown): m is Mark {
   if (!m || typeof m !== 'object') return false
-  const op = (m as any).op
+  const op = (m as { op?: unknown }).op
   return op === 'identity' || op === 'RELATE' || op === 'QUALIFY' || op === 'IDENTIFY'
 }
-
-// ROUTE: raw words → substrate (RawTurn); marks → F-present store (PlacedMarks).
-export function splitEmission(emission: ScoredEmission, who: Who, sc: number): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
-  const rawTurn: RawTurn = { sc, who, words: emission.positions.map(p => ({ pos: p.pos, word: p.word })) }
-  const placedMarks: PlacedMark[] = emission.positions.flatMap(p =>
-    p.marks.map(mark => ({ home: { who, sc, pos: p.pos } as Coord, mark })))
-  return { rawTurn, placedMarks }
+function isCoord(c: unknown): c is Coord {
+  if (!c || typeof c !== 'object') return false
+  const o = c as Record<string, unknown>
+  return typeof o.who === 'string' && typeof o.sc === 'number' && typeof o.pos === 'number'
 }
 
-// shared-universe (coin-spec §0/§3): every target/peer resolves to something the
-// reader knows — a coord key (this turn or a prior record) OR a name that clusters
-// across records. Returns the marks that hold; drops danglers. `known` is seeded by
-// the caller with substrate coord-keys AND the (lowercased) names in the universe —
-// the lowercase convention matches coin-read's name clustering.
+export function emissionFromStructured(structured: unknown): ScoredEmission {
+  if (structured === null || typeof structured !== 'object') return { positions: [], priorMarks: [] }
+  const s = structured as { positions?: unknown; priorMarks?: unknown }
+  const positions: ScoredPosition[] = []
+  if (Array.isArray(s.positions)) {
+    for (const p of s.positions) {
+      if (!p || typeof p !== 'object') continue
+      const pos = (p as { pos?: unknown }).pos, word = (p as { word?: unknown }).word, marks = (p as { marks?: unknown }).marks
+      if (typeof pos !== 'number' || typeof word !== 'string') continue
+      positions.push({ pos, word, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
+    }
+  }
+  const priorMarks: PriorMark[] = []
+  if (Array.isArray(s.priorMarks)) {
+    for (const pm of s.priorMarks) {
+      if (!pm || typeof pm !== 'object') continue
+      const home = (pm as { home?: unknown }).home, marks = (pm as { marks?: unknown }).marks
+      if (!isCoord(home)) continue
+      priorMarks.push({ home, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
+    }
+  }
+  return { positions, priorMarks }
+}
+
+// ── §FORK A re-key — the model's coarse reply positions → G1's canonical word-cells ──
+// canonical reply text = the model's words joined by single space; G1 re-cuts; each
+// model word maps to the FIRST word-cell of its char span (deterministic head-cell rule).
+//
+// Alignment is by CHARACTER OFFSET, not array index: each emitted word occupies a known
+// span in the joined text, and we home on the first word-cell overlapping that span. This
+// is fail-closed against a non-conforming emission (M1 says one non-empty whitespace-free
+// token per position; emissionFromStructured does not enforce it): an empty word advances
+// the cursor by its joining space and homes nothing (it has no cell); a word that contains
+// whitespace homes on its head word-cell and never desyncs the words after it. An
+// index-based walk would let an empty word eat the next segment and silently mis-home or
+// drop every subsequent reply mark — offset alignment cannot.
+export function rekeyReply(positions: ScoredPosition[]): { cells: RawWord[]; homeOf: Map<number, number> } {
+  const text = positions.map(p => p.word).join(' ')
+  const cells = cutCells(text)
+  // char span of every canonical cell in `text` (cells partition the text in order)
+  const spans: { start: number; end: number; cell: RawWord }[] = []
+  let at = 0
+  for (const c of cells) { spans.push({ start: at, end: at + c.word.length, cell: c }); at += c.word.length }
+  // walk the model words by their char offset in the single-space join; head-cell of each span
+  const homeOf = new Map<number, number>()
+  let cursor = 0
+  for (const p of positions) {
+    const wStart = cursor
+    const wEnd = cursor + p.word.length
+    cursor = wEnd + 1                                   // +1 for the joining space (holds even when p.word === '')
+    if (p.word.length === 0) continue                   // empty word: no span, nothing to home
+    const head = spans.find(s => isWordCell(s.cell.word) && s.start < wEnd && s.end > wStart)
+    if (head) homeOf.set(p.pos, head.cell.pos)
+  }
+  return { cells, homeOf }
+}
+
+// ROUTE (A + pair): reply words → substrate (CANONICAL cells); marks (both turns) →
+// F-present store. Reply marks re-key to canonical word-cells; priorMarks home on the
+// person's existing coords (already canonical — no re-key).
+export function splitEmission(emission: ScoredEmission, replyWho: Who, replySc: number): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
+  const { cells, homeOf } = rekeyReply(emission.positions)
+  const rawTurn: RawTurn = { sc: replySc, who: replyWho, words: cells }
+  const replyMarks: PlacedMark[] = emission.positions.flatMap(p => {
+    const pos = homeOf.get(p.pos)
+    if (pos === undefined) return []                       // model marked a non-word cell → drop (M4 also catches)
+    return p.marks.map(mark => ({ home: { who: replyWho, sc: replySc, pos } as Coord, mark }))
+  })
+  const priorPlaced: PlacedMark[] = emission.priorMarks.flatMap(pm => pm.marks.map(mark => ({ home: pm.home, mark })))
+  return { rawTurn, placedMarks: [...replyMarks, ...priorPlaced] }
+}
+
+// ── M4 verify ───────────────────────────────────────────────────────────────────
+// Grid: cells numbered once & contiguous 1..N (no gap, no dup).
+export function verifyGrid(cells: RawWord[]): boolean {
+  const seen = new Set<number>()
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i].pos !== i + 1) return false
+    if (seen.has(cells[i].pos)) return false
+    seen.add(cells[i].pos)
+  }
+  return true
+}
+
+// shared-universe (coin-spec §0/§3): every target/peer must POSITIVELY resolve to
+// something the reader knows — a coord key (this turn or a prior record) OR a name
+// that clusters across records. Returns the marks that hold; drops danglers. `known`
+// is seeded by the caller with substrate coord-keys AND the (lowercased) names in the
+// universe — the lowercase convention matches the read's name clustering.
 export function validateSharedUniverse(placedMarks: PlacedMark[], known: Set<string>): PlacedMark[] {
   const refKey = (r: Ref) => typeof r === 'string' ? r.toLowerCase() : `${r.who}:${r.sc}:${r.pos}`
   return placedMarks.filter(pm => {

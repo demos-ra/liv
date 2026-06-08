@@ -54,16 +54,58 @@ const SUBSTRATE_TABLE = 'state_change'
 // existing 'wearer-life' content_class). program is folded for the Who generalization.
 const CHANNEL_OF: Record<Who, string> = { wearer: 'wearer', llm: 'ai', program: 'internal-derivation' }
 
-// Wearer tokenizer (R2 fold: tokenization folds into the raw-word write — this is
-// exactly where a turn's string becomes positioned words). Verbatim: splits on
-// whitespace, 1-based pos, NEVER normalizes ('buidl' stays 'buidl'; the clean form
-// exists only in the lens). The wearer emits words, not scored marks — so the wearer
-// path is R2a alone; the LLM path (R2b) adds the marks.
-export function tokenize(text: string): RawWord[] {
-  return text
-    .split(/\s+/)
-    .filter(w => w.length > 0)
-    .map((word, i) => ({ pos: i + 1, word }))
+// G1 — the canonical cutter (bidirectional: text<->cells). Replaces the coarse
+// `tokenize`. Authoritative for BOTH turns (wearer + reply); the model never cuts
+// its own cells. NEVER normalizes ('buidl' stays 'buidl'; the clean form exists only
+// in the lens). Each cell is one of: a word, a whitespace run, or a punctuation run.
+// Boundary-punct resolution (settled by the §FORK stress test): a punctuation char
+// joins a WORD cell only when flanked by word-chars on both sides (don't, well-known,
+// U.S, 3.14) — so a model's natural word re-keys 1:1 to a word-cell; otherwise
+// punctuation is its own (inert) cell. Whitespace/punctuation cells are inert by
+// default and mark-capable later for free (the cell + position already exist).
+//
+// joinCells is the EXACT inverse: joinCells(cutCells(t)) === t for all t. The cutter
+// owns the cell<->text boundary in BOTH directions — reassembling cells to readable
+// text is G1's inverse, not a per-reader concern (no consumer joins cells ad hoc).
+const isWordChar = (c: string) => /[\p{L}\p{N}]/u.test(c)
+const isSpaceChar = (c: string) => /\s/u.test(c)
+
+export function cutCells(text: string): RawWord[] {
+  const cells: RawWord[] = []
+  let i = 0, pos = 1
+  while (i < text.length) {
+    const c = text[i]
+    if (isSpaceChar(c)) {
+      let j = i; while (j < text.length && isSpaceChar(text[j])) j++
+      cells.push({ pos: pos++, word: text.slice(i, j) }); i = j
+    } else if (isWordChar(c)) {
+      let j = i
+      while (j < text.length) {
+        if (isWordChar(text[j])) { j++; continue }
+        // absorb a single internal punctuation char flanked by word-chars on both sides
+        if (!isSpaceChar(text[j]) && j > i && isWordChar(text[j - 1]) && j + 1 < text.length && isWordChar(text[j + 1])) { j++; continue }
+        break
+      }
+      cells.push({ pos: pos++, word: text.slice(i, j) }); i = j
+    } else {
+      let j = i; while (j < text.length && !isWordChar(text[j]) && !isSpaceChar(text[j])) j++
+      cells.push({ pos: pos++, word: text.slice(i, j) }); i = j
+    }
+  }
+  return cells
+}
+
+// The exact inverse of cutCells — cells carry their literal text (whitespace cells
+// included), so concatenation reproduces the original exactly.
+export function joinCells(cells: RawWord[]): string {
+  return cells.map(c => c.word).join('')
+}
+
+// A cell is a WORD cell iff it begins with a word-char (cutCells partitions cleanly,
+// so the first char determines the class). Marks home only on word cells; punctuation
+// and whitespace cells are inert. Used by the lens re-key (F-present), not by the river.
+export function isWordCell(word: string): boolean {
+  return word.length > 0 && isWordChar(word[0])
 }
 
 // Writes one cognition turn's raw words to the substrate. Returns the DB-assigned

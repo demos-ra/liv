@@ -112,7 +112,7 @@ export type { SubstrateEventType } from '../config/substrate-events'
 // via F-memory/exec/ (A2 violation). Exposed here as the single R3 gate.
 // Same functions, same signatures — one indirection only. I1: this file has
 // zero F-present imports; the core write path still holds no F-present logic.
-export { writeRawTurn, tokenize } from '../exec/raw-turn-write'
+export { writeRawTurn, cutCells, joinCells, isWordCell } from '../exec/raw-turn-write'
 export { readTranscript }         from '../exec/transcript-read'
 
 // Re-export substrate-raw types so spine consumers need not reach into core/R5.
