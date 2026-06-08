@@ -55,15 +55,32 @@ export const SCORE_SCHEMA: JsonSchema = {
 }
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamArray: 'positions', streamField: 'word' }
 
-function isMark(m: unknown): m is Mark {
-  if (!m || typeof m !== 'object') return false
-  const op = (m as { op?: unknown }).op
-  return op === 'identity' || op === 'RELATE' || op === 'QUALIFY' || op === 'IDENTIFY'
-}
 function isCoord(c: unknown): c is Coord {
   if (!c || typeof c !== 'object') return false
   const o = c as Record<string, unknown>
   return typeof o.who === 'string' && typeof o.sc === 'number' && typeof o.pos === 'number'
+}
+// A Ref is a name (string) or a coordinate — the only two pointer shapes (mark-types).
+function isRef(r: unknown): r is Ref {
+  return typeof r === 'string' || isCoord(r)
+}
+// HONEST guard: validates each op's FULL payload, not just the discriminant. A guard that
+// asserts `m is Mark` while checking only `op` is a lie — a RELATE with no `peers`, or a
+// QUALIFY/IDENTIFY with a missing/garbled `target`, would pass typed as valid and crash
+// downstream (`.peers.every`, `.target`, the read engine's `.who`). This is the SOLE mark
+// entry (emissionFromStructured, both positions and priorMarks), so once it is honest every
+// downstream `.peers / .target / .coloring` in write AND read is safe by the type — no
+// per-site re-guards. Fail-closed: a malformed mark is dropped, never placed.
+function isMark(m: unknown): m is Mark {
+  if (!m || typeof m !== 'object') return false
+  const o = m as Record<string, unknown>
+  switch (o.op) {
+    case 'identity': return true
+    case 'RELATE':   return Array.isArray(o.peers) && o.peers.length > 0 && o.peers.every(isRef)
+    case 'QUALIFY':  return typeof o.coloring === 'string' && isRef(o.target)
+    case 'IDENTIFY': return isRef(o.target)
+    default:         return false
+  }
 }
 
 export function emissionFromStructured(structured: unknown): ScoredEmission {
