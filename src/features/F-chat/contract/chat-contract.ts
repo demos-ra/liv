@@ -681,8 +681,21 @@ export async function POST_message(
       if (scopeTurns.length > 0) systemPrompt = serializeTranscript(scopeTurns)
     }
   } catch (err) {
-    // §5.6: read failure — proceed with empty system prompt.
-    console.error('[chat] substrate read context assembly failed', err instanceof Error ? err.message : err)
+    // §5.6: read failure — proceed with empty system prompt; LLM call NOT suppressed.
+    // Behavior is unchanged from the standard's recovery path — the ONLY change is that
+    // the failure is now logged VISIBLY as a structured line. A wake-level reader throw
+    // renders the wearer's whole present dead (empty prompt); the prior bare message was
+    // the silence that hid the read-engine crash (2-A). This line names the degraded wake
+    // so it surfaces in logs instead of vanishing.
+    console.error(JSON.stringify({
+      level:     'error',
+      event:     'present.wake.degraded',
+      reason:    'context-read-failed',
+      user_id:   session.userId,
+      error:     err instanceof Error ? err.message : String(err),
+      timestamp: new Date().toISOString(),
+    }))
+    systemPrompt = ''
   }
 
   // ── F-router dispatch — sprint-11-shot-2 / sprint-13-shot-1 ─────────────────

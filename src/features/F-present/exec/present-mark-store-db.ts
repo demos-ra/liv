@@ -14,10 +14,12 @@
 //   W-ATOM  PlacedMark / PresentStore / Mark   ../config/mark-types
 //   W-ATOM  Who                     @/core/types/substrate-raw.types
 //   W-ATOM  db                      @/core/db/client
+//   W-FN    isMark                  ../domain/mark-gate
 // wires-out:
 //   W-FN    createDbPresentMarkStore →  F-present (wired in Shot 4 as the live store)
 // deps:
 //   R2  ../app/present-store
+//   R1  ../domain/mark-gate
 //   R0  ../config/mark-types
 //   R0  @/core/types/substrate-raw.types
 //   R5  @/core/db/client
@@ -39,9 +41,32 @@ import { db }                              from '@/core/db/client'
 import type { PresentMarkStore }           from '@/features/F-present/app/present-store'
 import type { PlacedMark, PresentStore, Mark } from '@/features/F-present/config/mark-types'
 import type { Who }                        from '@/core/types/substrate-raw.types'
+import { isMark }                          from '@/features/F-present/domain/mark-gate'
 
 // Row shape read back from present_marks (jsonb mark may arrive parsed or as text).
-type MarkRow = { home_who: string; home_sc: number | string; home_pos: number | string; mark: unknown }
+type MarkRow = { seq: number | string; home_who: string; home_sc: number | string; home_pos: number | string; mark: unknown }
+
+// One structured line per rejected row — the read crossing's never-silent contract.
+// `op` is read off the raw payload for triage even when the row failed the gate (it may
+// be absent/garbled — surfaced as-is). Logged, never thrown: a skipped row is not fatal.
+function rejected(userId: string, row: MarkRow, reason: 'gate-rejected' | 'unparseable-jsonb'): void {
+  const op = (() => {
+    try {
+      const m = typeof row.mark === 'string' ? JSON.parse(row.mark) : row.mark
+      return m && typeof m === 'object' ? (m as { op?: unknown }).op ?? null : null
+    } catch { return null }
+  })()
+  console.warn(JSON.stringify({
+    level:     'warn',
+    event:     'mark-gate.rejected',
+    crossing:  'store-read',
+    seq:       Number(row.seq),
+    user_id:   userId,
+    op,
+    reason,
+    timestamp: new Date().toISOString(),
+  }))
+}
 
 export function createDbPresentMarkStore(): PresentMarkStore {
   return {
@@ -63,9 +88,18 @@ export function createDbPresentMarkStore(): PresentMarkStore {
     },
 
     // the wearer's marks (for coin-read). Row-mapping only; coin-read computes geometry.
+    //
+    // PERIMETER GATE (A-isMark, read crossing): every row is narrowed through isMark —
+    // the SAME honest guard the write crossing uses — before it enters the engine. The
+    // store carries pre-gate sediment (bare-number Refs, missing target/peers) that the
+    // read engine cannot survive (keyOf(target).who on a missing target throws and renders
+    // the whole wake dead). A row that fails the gate — or whose jsonb will not parse — is
+    // SKIPPED, never returned, with one structured log line (mark-gate.rejected, row seq +
+    // op). Fail-open at the row, never wake-fatal, never silent: one bad mark drops itself,
+    // the rest of the wearer's lens still renders.
     async read(userId: string): Promise<PresentStore> {
       const r = await db.query<MarkRow>(
-        `SELECT home_who, home_sc, home_pos, mark
+        `SELECT seq, home_who, home_sc, home_pos, mark
            FROM present_marks
           WHERE user_id = $1
           ORDER BY seq ASC`,
@@ -73,10 +107,20 @@ export function createDbPresentMarkStore(): PresentMarkStore {
       )
       const out: PresentStore = []
       for (const row of r.rows) {
-        const mark = (typeof row.mark === 'string' ? JSON.parse(row.mark) : row.mark) as Mark
+        let parsed: unknown
+        try {
+          parsed = typeof row.mark === 'string' ? JSON.parse(row.mark) : row.mark
+        } catch {
+          rejected(userId, row, 'unparseable-jsonb')
+          continue
+        }
+        if (!isMark(parsed)) {
+          rejected(userId, row, 'gate-rejected')
+          continue
+        }
         out.push({
           home: { who: row.home_who as Who, sc: Number(row.home_sc), pos: Number(row.home_pos) },
-          mark,
+          mark: parsed as Mark,
         })
       }
       return out

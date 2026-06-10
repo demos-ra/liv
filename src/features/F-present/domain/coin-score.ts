@@ -3,8 +3,29 @@
 // [F-present/R1]
 // Built with LIV · livai.dev
 // [F-present/domain/coin-score.ts]
-// amended: write-finalization M2/M4/M5 (pair-scoring emission + G1 re-key + wired verify);
-//          COIN_SCORING_PROMPT removed → the dated manual is M1 (config/coin-manual.ts).
+//
+// @manifest
+// standard:   LIV-Standard v1.5.2
+// amended:    write-finalization M2/M4/M5 (pair-scoring emission + G1 re-key + wired verify);
+//             COIN_SCORING_PROMPT removed → the dated manual is M1 (config/coin-manual.ts);
+//             mark-gate-placement (isCoord/isMark moved to ../domain/mark-gate; consumed as a wire)
+// slice:      F-present
+// layer:      R1
+// wires-in:
+//   W-ATOM  Who / RawTurn / RawWord / Coord   @/core/types/substrate-raw.types          (type-only)
+//   W-ATOM  Mark / PlacedMark / Ref           ../config/mark-types                       (type-only)
+//   W-ATOM  JsonSchema / StructuredEmitConfig @/features/F-ai-adapter/contract/ai-contract (type-only)
+//   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
+//   W-FN    isCoord / isMark                  ../domain/mark-gate
+// wires-out:
+//   W-FN    emissionFromStructured / splitEmission / rekeyReply / verifyGrid / validateSharedUniverse  →  ../app/cognition-orchestrator (R2)
+//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / ScoredPosition / PriorMark              →  ../app/cognition-orchestrator (R2)
+// deps:
+//   R0  @/core/types/substrate-raw.types
+//   R0  ../config/mark-types
+//   R3  @/features/F-ai-adapter/contract/ai-contract
+//   R3  @/features/F-memory/contract/substrate-contract
+//   R1  ../domain/mark-gate
 //
 // COIN scoring write-path. The model emits scored positions (its reply, word + marks)
 // PLUS priorMarks (marks on the person's already-cut cells, by coordinate) — both turns
@@ -19,6 +40,7 @@ import type { Who, RawTurn, RawWord, Coord } from '@/core/types/substrate-raw.ty
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
 import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
 import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
+import { isCoord, isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
 
 // The emission the model fills (structured output) — both turns.
 export type ScoredPosition = { pos: number; word: string; marks: Mark[] }   // the reply (coarse; G1 re-keys)
@@ -54,34 +76,6 @@ export const SCORE_SCHEMA: JsonSchema = {
   required: ['positions'], additionalProperties: false,
 }
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamArray: 'positions', streamField: 'word' }
-
-function isCoord(c: unknown): c is Coord {
-  if (!c || typeof c !== 'object') return false
-  const o = c as Record<string, unknown>
-  return typeof o.who === 'string' && typeof o.sc === 'number' && typeof o.pos === 'number'
-}
-// A Ref is a name (string) or a coordinate — the only two pointer shapes (mark-types).
-function isRef(r: unknown): r is Ref {
-  return typeof r === 'string' || isCoord(r)
-}
-// HONEST guard: validates each op's FULL payload, not just the discriminant. A guard that
-// asserts `m is Mark` while checking only `op` is a lie — a RELATE with no `peers`, or a
-// QUALIFY/IDENTIFY with a missing/garbled `target`, would pass typed as valid and crash
-// downstream (`.peers.every`, `.target`, the read engine's `.who`). This is the SOLE mark
-// entry (emissionFromStructured, both positions and priorMarks), so once it is honest every
-// downstream `.peers / .target / .coloring` in write AND read is safe by the type — no
-// per-site re-guards. Fail-closed: a malformed mark is dropped, never placed.
-function isMark(m: unknown): m is Mark {
-  if (!m || typeof m !== 'object') return false
-  const o = m as Record<string, unknown>
-  switch (o.op) {
-    case 'identity': return true
-    case 'RELATE':   return Array.isArray(o.peers) && o.peers.length > 0 && o.peers.every(isRef)
-    case 'QUALIFY':  return typeof o.coloring === 'string' && isRef(o.target)
-    case 'IDENTIFY': return isRef(o.target)
-    default:         return false
-  }
-}
 
 export function emissionFromStructured(structured: unknown): ScoredEmission {
   if (structured === null || typeof structured !== 'object') return { positions: [], priorMarks: [] }

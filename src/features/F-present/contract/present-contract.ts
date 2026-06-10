@@ -11,6 +11,16 @@
 //
 // Public R3 boundary for F-present. External consumers MUST import from this
 // surface only. Do NOT reach into F-present R0/R1/R2/R4 directly.
+//
+// R3 surface (wires-out):
+//   W-FN  readPresent            →  F-mcp (present tool), /api/present (REST)
+//   W-FN  presentRouter          →  F-identity/router (tRPC)
+//   W-FN  registerCognitionUpgrades  →  F-chat, F-event-system/startup
+//   W-FN  isMark                 →  scripts/reconcile-present-marks (the gate, surfaced)
+// re-export deps:
+//   R1  ../domain/mark-gate      (isMark)
+//   R2  ../app/cognition-orchestrator
+//   R3  ./read-surface
 
 // The read surface — the removable lens, rendered to context text.
 export { readPresent, presentRouter } from './read-surface'
@@ -20,3 +30,8 @@ export { readPresent, presentRouter } from './read-surface'
 // cognition seam. The single removable wire: drop the call + this slice and the
 // core loop runs its baseline.
 export { registerCognitionUpgrades } from '../app/cognition-orchestrator'
+
+// The mark gate (R1, pure) surfaced for EXTERNAL consumers that must narrow marks
+// against the SAME isMark the engine uses — e.g. the reconciliation script. External
+// code reaches the gate HERE (the R3 boundary), never via domain/mark-gate directly.
+export { isMark } from '../domain/mark-gate'
