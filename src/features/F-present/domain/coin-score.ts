@@ -18,8 +18,8 @@
 //   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
 //   W-FN    isCoord / isMark                  ../domain/mark-gate
 // wires-out:
-//   W-FN    emissionFromStructured / splitEmission / rekeyReply / verifyGrid / validateSharedUniverse  →  ../app/cognition-orchestrator (R2)
-//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / ScoredPosition / PriorMark              →  ../app/cognition-orchestrator (R2)
+//   W-FN    emissionFromStructured / splitEmission / cutReply / verifyGrid / validateSharedUniverse  →  ../app/cognition-orchestrator (R2)
+//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / ReplyMark / PriorMark                 →  ../app/cognition-orchestrator (R2)
 // deps:
 //   R0  @/core/types/substrate-raw.types
 //   R0  ../config/mark-types
@@ -27,14 +27,20 @@
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R1  ../domain/mark-gate
 //
-// COIN scoring write-path. The model emits scored positions (its reply, word + marks)
-// PLUS priorMarks (marks on the person's already-cut cells, by coordinate) — both turns
-// scored. splitEmission ROUTES the emission: raw words → the wearer's substrate (a
-// RawTurn of CANONICAL cells from G1); marks → F-present's external store (PlacedMarks
-// pointing at coordinates). The substrate receives ONLY raw words; F-present receives
-// ONLY pointers. No overlap. §FORK = A: the model self-cuts its reply coarsely; G1
-// re-cuts canonically and splitEmission re-keys each reply mark word→word-cell (the
-// deterministic head-cell rule). The model never numbers the canonical grid.
+// COIN scoring write-path. The model emits its reply as ONE plain text field
+// (`reply`) PLUS replyMarks (marks on its own reply, keyed by WORD INDEX) and
+// priorMarks (marks on the person's already-cut cells, by coordinate) — both turns
+// scored. splitEmission ROUTES the emission: the reply text → the wearer's substrate
+// (a RawTurn of CANONICAL cells from G1 = cutCells(reply)); marks → F-present's
+// external store (PlacedMarks pointing at coordinates). The substrate receives ONLY
+// raw words; F-present receives ONLY pointers. No overlap.
+//
+// §FORK = A (reassembly-contract fix, 2-B): the reply text is AUTHORITATIVE — G1 cuts
+// it (cutReply) and joinCells renders it byte-identical, so spacing is the model's own,
+// never a re-join. The model never numbers the canonical grid; it references its reply
+// words by 1-based index (the k-th word-cell), which cutReply resolves to the canonical
+// position. The prior shape (positions[].word space-joined, then re-cut) injected a
+// space before any standalone-punctuation token and is GONE — there is no reply join.
 
 import type { Who, RawTurn, RawWord, Coord } from '@/core/types/substrate-raw.types'
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
@@ -43,9 +49,12 @@ import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-con
 import { isCoord, isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
 
 // The emission the model fills (structured output) — both turns.
-export type ScoredPosition = { pos: number; word: string; marks: Mark[] }   // the reply (coarse; G1 re-keys)
+// `reply` is the model's reply as plain text — authoritative for the river grid.
+// `replyMarks` carry marks on the reply, keyed by WORD INDEX (1-based, counting the
+// reply's word-cells left to right); cutReply resolves the index to a canonical pos.
+export type ReplyMark = { word: number; marks: Mark[] }                      // word = 1-based reply word-cell index
 export type PriorMark = { home: Coord; marks: Mark[] }                       // marks on the person's existing cells
-export type ScoredEmission = { positions: ScoredPosition[]; priorMarks: PriorMark[] }
+export type ScoredEmission = { reply: string; replyMarks: ReplyMark[]; priorMarks: PriorMark[] }
 
 // COIN schema (owned here, single-source). A mark is a permissive object {op + the
 // fields that op uses}; the receiver narrows. Targets/peers are NAMES or COORDS.
@@ -62,10 +71,11 @@ const MARK_ITEM: JsonSchema = {
 export const SCORE_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    positions: { type: 'array', items: {
+    reply: { type: 'string' },
+    replyMarks: { type: 'array', items: {
       type: 'object',
-      properties: { pos: { type: 'number' }, word: { type: 'string' }, marks: { type: 'array', items: MARK_ITEM } },
-      required: ['pos', 'word', 'marks'], additionalProperties: false,
+      properties: { word: { type: 'number' }, marks: { type: 'array', items: MARK_ITEM } },
+      required: ['word', 'marks'], additionalProperties: false,
     } },
     priorMarks: { type: 'array', items: {
       type: 'object',
@@ -73,20 +83,23 @@ export const SCORE_SCHEMA: JsonSchema = {
       required: ['home', 'marks'], additionalProperties: false,
     } },
   },
-  required: ['positions'], additionalProperties: false,
+  required: ['reply'], additionalProperties: false,
 }
-export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamArray: 'positions', streamField: 'word' }
+// streamField names the reply text for a later incremental surface; advisory today
+// (the transport parses the whole object — structured-stream.ts).
+export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamField: 'reply' }
 
 export function emissionFromStructured(structured: unknown): ScoredEmission {
-  if (structured === null || typeof structured !== 'object') return { positions: [], priorMarks: [] }
-  const s = structured as { positions?: unknown; priorMarks?: unknown }
-  const positions: ScoredPosition[] = []
-  if (Array.isArray(s.positions)) {
-    for (const p of s.positions) {
-      if (!p || typeof p !== 'object') continue
-      const pos = (p as { pos?: unknown }).pos, word = (p as { word?: unknown }).word, marks = (p as { marks?: unknown }).marks
-      if (typeof pos !== 'number' || typeof word !== 'string') continue
-      positions.push({ pos, word, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
+  if (structured === null || typeof structured !== 'object') return { reply: '', replyMarks: [], priorMarks: [] }
+  const s = structured as { reply?: unknown; replyMarks?: unknown; priorMarks?: unknown }
+  const reply = typeof s.reply === 'string' ? s.reply : ''
+  const replyMarks: ReplyMark[] = []
+  if (Array.isArray(s.replyMarks)) {
+    for (const rm of s.replyMarks) {
+      if (!rm || typeof rm !== 'object') continue
+      const word = (rm as { word?: unknown }).word, marks = (rm as { marks?: unknown }).marks
+      if (typeof word !== 'number' || !Number.isInteger(word) || word < 1) continue   // 1-based word-cell index
+      replyMarks.push({ word, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
     }
   }
   const priorMarks: PriorMark[] = []
@@ -98,52 +111,34 @@ export function emissionFromStructured(structured: unknown): ScoredEmission {
       priorMarks.push({ home, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
     }
   }
-  return { positions, priorMarks }
+  return { reply, replyMarks, priorMarks }
 }
 
-// ── §FORK A re-key — the model's coarse reply positions → G1's canonical word-cells ──
-// canonical reply text = the model's words joined by single space; G1 re-cuts; each
-// model word maps to the FIRST word-cell of its char span (deterministic head-cell rule).
-//
-// Alignment is by CHARACTER OFFSET, not array index: each emitted word occupies a known
-// span in the joined text, and we home on the first word-cell overlapping that span. This
-// is fail-closed against a non-conforming emission (M1 says one non-empty whitespace-free
-// token per position; emissionFromStructured does not enforce it): an empty word advances
-// the cursor by its joining space and homes nothing (it has no cell); a word that contains
-// whitespace homes on its head word-cell and never desyncs the words after it. An
-// index-based walk would let an empty word eat the next segment and silently mis-home or
-// drop every subsequent reply mark — offset alignment cannot.
-export function rekeyReply(positions: ScoredPosition[]): { cells: RawWord[]; homeOf: Map<number, number> } {
-  const text = positions.map(p => p.word).join(' ')
-  const cells = cutCells(text)
-  // char span of every canonical cell in `text` (cells partition the text in order)
-  const spans: { start: number; end: number; cell: RawWord }[] = []
-  let at = 0
-  for (const c of cells) { spans.push({ start: at, end: at + c.word.length, cell: c }); at += c.word.length }
-  // walk the model words by their char offset in the single-space join; head-cell of each span
-  const homeOf = new Map<number, number>()
-  let cursor = 0
-  for (const p of positions) {
-    const wStart = cursor
-    const wEnd = cursor + p.word.length
-    cursor = wEnd + 1                                   // +1 for the joining space (holds even when p.word === '')
-    if (p.word.length === 0) continue                   // empty word: no span, nothing to home
-    const head = spans.find(s => isWordCell(s.cell.word) && s.start < wEnd && s.end > wStart)
-    if (head) homeOf.set(p.pos, head.cell.pos)
-  }
-  return { cells, homeOf }
+// ── §FORK A — G1 cuts the AUTHORITATIVE reply text; word-index → canonical position ──
+// The reply text is the model's own, verbatim. cutCells(reply) is the canonical grid:
+// joinCells(cells) === reply byte-for-byte (the cutter's exact inverse), so the rendered
+// reply carries the model's exact spacing — no re-join, no space-before-punct. There is
+// no alignment problem to solve: the reply IS the text. The only mapping is for marks —
+// the k-th reply WORD-CELL (word cells in order, 1-based) has a canonical position;
+// `wordCellPos[k-1]` is that position. A replyMark whose index is out of range homes
+// nothing (dropped in splitEmission). This replaced rekeyReply's space-join/char-span
+// re-key, which baked spurious spaces into the grid (2-B).
+export function cutReply(reply: string): { cells: RawWord[]; wordCellPos: number[] } {
+  const cells = cutCells(reply)
+  const wordCellPos = cells.filter(c => isWordCell(c.word)).map(c => c.pos)
+  return { cells, wordCellPos }
 }
 
-// ROUTE (A + pair): reply words → substrate (CANONICAL cells); marks (both turns) →
-// F-present store. Reply marks re-key to canonical word-cells; priorMarks home on the
-// person's existing coords (already canonical — no re-key).
+// ROUTE (A + pair): reply text → substrate (CANONICAL cells = cutReply); marks (both
+// turns) → F-present store. Reply marks home on the canonical word-cell named by their
+// 1-based word index; priorMarks home on the person's existing coords (already canonical).
 export function splitEmission(emission: ScoredEmission, replyWho: Who, replySc: number): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
-  const { cells, homeOf } = rekeyReply(emission.positions)
+  const { cells, wordCellPos } = cutReply(emission.reply)
   const rawTurn: RawTurn = { sc: replySc, who: replyWho, words: cells }
-  const replyMarks: PlacedMark[] = emission.positions.flatMap(p => {
-    const pos = homeOf.get(p.pos)
-    if (pos === undefined) return []                       // model marked a non-word cell → drop (M4 also catches)
-    return p.marks.map(mark => ({ home: { who: replyWho, sc: replySc, pos } as Coord, mark }))
+  const replyMarks: PlacedMark[] = emission.replyMarks.flatMap(rm => {
+    const pos = wordCellPos[rm.word - 1]                   // 1-based index → canonical word-cell position
+    if (pos === undefined) return []                       // index out of range → drop (model miscounted)
+    return rm.marks.map(mark => ({ home: { who: replyWho, sc: replySc, pos } as Coord, mark }))
   })
   const priorPlaced: PlacedMark[] = emission.priorMarks.flatMap(pm => pm.marks.map(mark => ({ home: pm.home, mark })))
   return { rawTurn, placedMarks: [...replyMarks, ...priorPlaced] }

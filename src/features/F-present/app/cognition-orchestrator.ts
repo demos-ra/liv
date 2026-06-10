@@ -26,7 +26,7 @@
 // wires-in:
 //   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/contract/ai-contract       (Group 1: R3 surface)
 //   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/contract/ai-contract       (Group 2: R3 surface)
-//   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured/splitEmission/rekeyReply/verifyGrid/validateSharedUniverse   ../domain/coin-score
+//   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured/splitEmission/cutReply/verifyGrid/validateSharedUniverse   ../domain/coin-score
 //   W-ATOM  COIN_MANUAL                                  ../config/coin-manual
 //   W-FN    cutCells/joinCells                           @/features/F-memory/contract/substrate-contract     (G1 — Group 1: R3 surface)
 //   W-FN    buildFactTable                               ../domain/fact-table
@@ -66,7 +66,7 @@
 
 import { streamStructuredEmit }                          from '@/features/F-ai-adapter/contract/ai-contract'
 import type { ChatMessage }                              from '@/features/F-ai-adapter/contract/ai-contract'
-import { SCORE_EMIT_CONFIG, emissionFromStructured, splitEmission, rekeyReply, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
+import { SCORE_EMIT_CONFIG, emissionFromStructured, splitEmission, cutReply, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
 import { COIN_MANUAL } from '@/features/F-present/config/coin-manual'
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
@@ -83,14 +83,15 @@ import type { ReplyComposer, ContextReader }             from '@/core/domain/cog
 
 // ── Write-compose upgrader (R2b) — conforms to the core ReplyComposer ──────────
 // Compose one cognition turn and score BOTH turns (pair-scoring):
-//   manual (M1) + present → model emits its reply (positions) AND marks on the
-//   person's existing cells (priorMarks) → reply cut by G1 (cutCells) → river records
-//   the canonical reply cells → marks (both turns) re-keyed/placed → M4 verify →
-//   M5 split → lens store. §FORK = A: the model self-cuts its reply coarsely; G1 owns
-//   the canonical grid; splitEmission re-keys reply marks word→word-cell. The wearer
+//   manual (M1) + present → model emits its reply as PLAIN TEXT AND marks on its reply
+//   (replyMarks, by word index) and on the person's existing cells (priorMarks) → reply
+//   cut by G1 (cutReply = cutCells) → river records the canonical reply cells → marks
+//   (both turns) placed → M4 verify → M5 split → lens store. §FORK = A: the reply text
+//   is authoritative — G1 cuts it, joinCells renders it byte-identical (no re-join); the
+//   model never numbers the grid, it references reply words by 1-based index. The wearer
 //   turn is already recorded by E1 (the spine) — composeAndWrite never re-records it;
 //   it only marks the person's existing cells by coordinate.
-// Degrades gracefully: a malformed/empty emission -> empty result, no write, no throw.
+// Degrades gracefully: an empty/malformed reply -> empty result, no write, no throw.
 export const composeAndWrite: ReplyComposer = async (input) => {
   // System message: the dated COIN manual (M1) first (the complete fill rules), then
   // the present (input.systemPrompt). Instruction first so "below" is true.
@@ -108,18 +109,19 @@ export const composeAndWrite: ReplyComposer = async (input) => {
     if (chunk.type === 'final') structured = chunk.structured
   }
 
-  // 2. narrow -> emission (malformed -> empty positions).
+  // 2. narrow -> emission (malformed -> empty reply).
   const emission = emissionFromStructured(structured)
-  if (emission.positions.length === 0) return { sc: 0, markCount: 0, text: '' }
+  if (emission.reply.length === 0) return { sc: 0, markCount: 0, text: '' }
 
-  // 3. reply cut by G1 (the canonical grid — the model's coarse split is normalized).
-  const { cells } = rekeyReply(emission.positions)
+  // 3. reply cut by G1 (the canonical grid — the model's reply text IS authoritative).
+  const { cells } = cutReply(emission.reply)
 
   // 4. hand the canonical reply cells DOWN to core (R2a). The assigned position IS sc.
   const sc = await writeRawTurn({ who: input.who, words: cells, userId: input.userId, scope: input.scope })
 
-  // 5. split at sc: reply marks re-key word->word-cell; priorMarks home on the person's
-  //    existing cells. splitEmission is the single source of mark geometry.
+  // 5. split at sc: reply marks home on the canonical word-cell named by their word
+  //    index; priorMarks home on the person's existing cells. splitEmission is the
+  //    single source of mark geometry.
   const { placedMarks } = splitEmission(emission, input.who, sc)
 
   // 6. M4 VERIFY (newly wired — was dead code): invoked on every scored turn, after
