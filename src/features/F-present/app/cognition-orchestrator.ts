@@ -165,9 +165,10 @@ export const presentContext: ContextReader = async (userId) => {
 
   const out: string[] = []
   // 1. transcript — the SESSION WINDOW (Shot 2: from where the current focus-line run
-  //    began, to now), rendered with per-word cell positions (Shot 3). Always on (not a
-  //    table call). Full history stays reachable via readTranscript; only the default
-  //    windshield scope narrows. forest/sheet scope is unchanged this sprint.
+  //    began, to now), rendered byte-pure (3R.1: plain joinCells, no positional markup —
+  //    coordinates are fetched, never rendered). Always on (not a table call). Full
+  //    history stays reachable via readTranscript; only the default windshield scope
+  //    narrows. forest/sheet scope is unchanged this sprint.
   out.push(renderTranscript(sessionWindow(transcript, dim, rows, focus)))
 
   // structure + state appear once marks exist (sparse early, richer as it compounds).
