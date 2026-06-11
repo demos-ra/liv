@@ -8,11 +8,43 @@
 // metaphor in the engine, technical terms only (identity · RELATE · QUALIFY ·
 // IDENTIFY). Cells render the RAW marks only — never a synthesized state. Marks
 // are split by op into typed sub-sections so the table stays organized.
+//
+// sprint-wire-cognition Shot 3: the TRANSCRIPT section renders HERE too (one render
+// home — moved off the orchestrator's inline line), with per-word cell positions —
+// the manual promises them, the render now delivers them.
 
 import type { Ref } from '@/features/F-present/config/mark-types'
 import type { ForestResult, ForestNode, SheetResult, SheetCell } from '@/features/F-present/config/read-engine-types'
+import type { RawTurn, RawWord } from '@/core/types/substrate-raw.types'
+import { isWordCell } from '@/features/F-memory/contract/substrate-contract'
 
 const refText = (r: Ref): string => (typeof r === 'string' ? r : `${r.who}:${r.sc}:${r.pos}`)
+
+// ── Transcript (the raw line) — numbered cells ──────────────────────────────────
+// The manual tells the model "each word has a position; point at them by coordinate";
+// this is where those positions become visible. Each WORD cell is tagged ⟨pos⟩ — its
+// substrate position — so the reader can construct a (who, sc, pos) coordinate for any
+// word directly from the render. Punctuation/space cells are NOT tagged (manual: mark
+// only word cells); they render verbatim.
+//
+// joinCells stays the SOLE text authority — positions are ANNOTATION, never reassembly:
+// each cell emits its literal `word` (the exact concatenation joinCells performs), and
+// word cells additionally carry the ⟨pos⟩ tag. Strip every ⟨…⟩ tag and the line is
+// joinCells(cells) byte-for-byte — the cutter's exact inverse, no re-join, no drift.
+const POS_OPEN = '⟨', POS_CLOSE = '⟩'   // ⟨ ⟩ — rare in prose, unambiguous, parseable
+
+function annotateLine(cells: RawWord[]): string {
+  return cells.map(c => isWordCell(c.word) ? `${c.word}${POS_OPEN}${c.pos}${POS_CLOSE}` : c.word).join('')
+}
+
+export function renderTranscript(turns: RawTurn[]): string {
+  const out: string[] = ['TRANSCRIPT (turns in position order; each word tagged ⟨pos⟩ — its cell position):']
+  for (const t of turns) {
+    const who = t.who === 'wearer' ? '—' : t.who           // '—' the person
+    out.push(`[${t.sc}] (${who}): ${annotateLine(t.words)}`)
+  }
+  return out.join('\n')
+}
 
 export function renderForest(r: ForestResult): string {
   const out: string[] = ['FOREST (structure — lineage by weight; root = wearer):']
