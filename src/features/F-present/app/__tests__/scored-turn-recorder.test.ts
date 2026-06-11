@@ -23,7 +23,6 @@ import { test, before } from 'node:test'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let recordScoredTurn: any, cutReply: any, splitEmission: any, emissionFromStructured: any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cutCells: (t: string) => { pos: number; word: string }[]
 
 before(async () => {

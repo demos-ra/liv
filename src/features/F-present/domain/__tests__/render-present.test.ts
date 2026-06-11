@@ -26,7 +26,6 @@ import { weighDimension } from '../chain-ping'
 import { currentFocus } from '../session-window'
 import { pivot } from '../pivot'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let renderTranscript: (turns: RawTurn[]) => string
 let renderSheet: (r: SheetResult) => string
 let joinCells: (cells: { pos: number; word: string }[]) => string
