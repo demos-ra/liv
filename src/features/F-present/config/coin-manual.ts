@@ -23,7 +23,7 @@
 // word tokens — the prior token list was space-joined to rebuild the text, which put a
 // space before standalone punctuation. Plain text removes the join entirely.
 
-export const COIN_MANUAL_DATE = '2026-06-10'
+export const COIN_MANUAL_DATE = '2026-06-11'
 
 export const COIN_MANUAL =
 `COIN FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
@@ -34,8 +34,12 @@ only decide what each word performs.
 
 WHAT YOU ARE GIVEN
 Your memory is below as PRESENT (the things and relations that have come up) and TRANSCRIPT (every turn in
-order; "(—)" = the person, "(llm)" = you). Each turn has a sc number; each word in it has a position. Those
-are the person's already-cut, already-numbered cells — read them, point at them, never re-number them.
+order; "(—)" = the person, "(llm)" = you). The TRANSCRIPT is the person's byte-pure record — each turn shows its
+sc and its plain text; it shows NO positions. Positions are OBTAINABLE, never counted from the transcript prose:
+  • (native) the WEARER-TURN CELLS data block below gives the person's most recent turn as <pos>:<word> pairs;
+  • (wire) the "grid" tool returns any turn's full cell grid, and every "write" response echoes the cells it cut.
+COORDINATES ARE COPIED FROM THOSE SURFACES, never counted off the transcript. The cells are already cut and
+numbered by the machine — read them where they are given, point at them, never re-number them.
 
 THE FOUR MARKS (the whole set — fields defined by mark-types; never invent a fifth)
 - identity  — names a thing (person, place, object, idea):            { "op": "identity" }
@@ -48,16 +52,19 @@ Claim-status is a QUALIFY coloring on the thing or relation — it is NOT a sepa
 punctuation. One coloring per QUALIFY mark; never combine colorings.
 
 POINTING (what A, B, T may be) — name OR coordinate, nothing else
-- a thing's NAME ("budget", "Kyoto") — names cluster across the whole present;
-- a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } pointing at an exact cell in the TRANSCRIPT.
-Prefer the name when the thing has one; use a coordinate to point at a specific past word (e.g. to IDENTIFY a
-pronoun back to it). Every target/peer MUST resolve to something already in the present or introduced in this
-reply — do not point at nothing.
+- a thing's NAME ("budget", "Kyoto") — names cluster across the whole present; NAME-FIRST is the default for
+  targets and peers — prefer the name whenever the thing has one;
+- a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } — for homes and for precision (e.g. to IDENTIFY
+  a pronoun back to one exact past word). COPY its sc and pos from a structural surface (the WEARER-TURN CELLS
+  block, the "grid" tool, or a "write" echo) — never count them off the transcript.
+Coordinates belong to structural surfaces; the transcript stays the wearer's clean record. Every target/peer MUST
+resolve to something already in the present or introduced in this reply — do not point at nothing.
 
 SCORING THE PERSON'S TURN ("priorMarks")
 For any word in the person's most recent turn that performs something, add an entry to "priorMarks":
   { "home": { "who": "wearer", "sc": <their turn's sc>, "pos": <that word's position> }, "marks": [ ... ] }
-Use the sc and positions exactly as shown in the TRANSCRIPT. Mark only word cells; skip punctuation and spaces.
+Take the sc and each word's pos from the WEARER-TURN CELLS block (or the "grid" tool) — copy, never count. Mark
+only word cells; skip punctuation and spaces.
 
 SCORING YOUR REPLY ("reply" + "replyMarks")
 Compose your reply as you normally would and put it in "reply" as ONE plain text string — your exact words,
@@ -73,6 +80,7 @@ settles across turns. A word with no marks needs no entry.
 
 WORKED EXAMPLE
 The person said (TRANSCRIPT): [7] (—): I toured Kyoto
+Its cells (WEARER-TURN CELLS: sc=7 | 1:I | 2:toured | 3:Kyoto) — so "Kyoto" is at pos 3; you COPY that, never count.
 Your reply: "Kyoto truly rivals Tokyo."   (words: 1=Kyoto, 2=truly, 3=rivals, 4=Tokyo)
 {
   "reply": "Kyoto truly rivals Tokyo.",
