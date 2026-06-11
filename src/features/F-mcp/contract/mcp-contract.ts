@@ -17,6 +17,7 @@
 //   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (Shot 4 — manual-with-present)
 //   W-FN     writeRawTurn       F-memory/R3 substrate-contract
 //   W-FN     cutCells           F-memory/R3 substrate-contract
+//   W-FN     readTranscript     F-memory/R3 substrate-contract   (3R.2 — grid: fetch one turn's cells)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
@@ -38,7 +39,7 @@ import {
   type McpToolResult,
 } from '../config/mcp-protocol'
 import { readPresent, recordScoredTurn, emissionFromStructured, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
-import { writeRawTurn, cutCells } from '@/features/F-memory/contract/substrate-contract'
+import { writeRawTurn, cutCells, readTranscript } from '@/features/F-memory/contract/substrate-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -95,6 +96,20 @@ export async function handleMcpRequest(
         if (intention.tool === 'present') {
           const present = await readPresent(session.userId)
           return buildResult(id, toolText(`${COIN_MANUAL}\n\n${present}`))
+        }
+
+        // grid (3R.2) → the canonical cell grid of one turn (ALL cells — the cutter's
+        // truth), so the caller COPIES coordinates instead of counting them from prose.
+        // Turn not found → a stating { ok: false }, never an exception. Uses the already-
+        // imported substrate R3 surface; no new cross-slice import.
+        if (intention.tool === 'grid') {
+          const turn = (await readTranscript(session.userId)).find(t => t.who === intention.who && t.sc === intention.sc)
+          if (!turn) {
+            return buildResult(id, toolText(JSON.stringify({ ok: false, who: intention.who, sc: intention.sc, message: 'no such turn (who, sc) in your substrate' })))
+          }
+          return buildResult(id, toolText(JSON.stringify({
+            ok: true, who: turn.who, sc: turn.sc, cells: turn.words.map(c => ({ pos: c.pos, word: c.word })),
+          })))
         }
 
         // write — DEMANDED per author (Shot 4). userId is ALWAYS the session's.

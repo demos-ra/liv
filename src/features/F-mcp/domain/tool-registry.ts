@@ -19,7 +19,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_WRITE, WHO_VALUES } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_WRITE, TOOL_GRID, WHO_VALUES } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -62,6 +62,7 @@ export type ToolIntention =
   | { tool: 'present' }
   | { tool: 'write'; who: 'wearer'; text: string; scope: string }
   | { tool: 'write'; who: 'llm'; reply: string; replyMarks: unknown[]; priorMarks: unknown[]; scope: string }
+  | { tool: 'grid'; who: Who; sc: number }   // 3R.2 — fetch one turn's canonical cell grid
 
 export type PlanResult =
   | { ok: true; intention: ToolIntention }
@@ -111,6 +112,21 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires replyMarks and priorMarks (§FORK-A — the speaker scores its own turn; arrays may be empty but never absent)' }
     }
     return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, scope: args.scope } }
+  }
+
+  if (name === TOOL_GRID) {
+    if (!isObject(args)) {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: arguments object required' }
+    }
+    // grid reads a turn's cells; only the two cognition channels record turns —
+    // program is not a wire turn-writer at v2, so it has no grid to fetch.
+    if (args.who !== 'wearer' && args.who !== 'llm') {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: who must be wearer | llm (only cognition turns have a grid)' }
+    }
+    if (typeof args.sc !== 'number' || !Number.isFinite(args.sc)) {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: sc must be a number (the turn position)' }
+    }
+    return { ok: true, intention: { tool: 'grid', who: args.who, sc: args.sc } }
   }
 
   return { ok: false, code: JSONRPC_INVALID_PARAMS, message: `unknown tool: ${String(name)}` }

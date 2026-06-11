@@ -129,3 +129,51 @@ test('the wearer path is words-only; response cells match cutCells(text)', () =>
   const cells = words.map(c => ({ pos: c.pos, word: c.word }))
   assert.deepEqual(cells, cutCells(text).map(c => ({ pos: c.pos, word: c.word })))
 })
+
+// ── (D) the grid tool (3R.2) — the door ──────────────────────────────────────────
+test('grid: valid (who, sc) plans the fetch intention', () => {
+  const r = planToolCall('grid', { who: 'wearer', sc: 7 })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.intention, { tool: 'grid', who: 'wearer', sc: 7 })
+})
+
+test('grid: program who is rejected (only cognition turns have a grid)', () => {
+  const r = planToolCall('grid', { who: 'program', sc: 7 })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /who must be wearer \| llm/)
+})
+
+test('grid: non-numeric sc is rejected', () => {
+  const r = planToolCall('grid', { who: 'llm', sc: 'x' })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /sc must be a number/)
+})
+
+// ── (D) the grid tool — execution (the mcp-contract handler core, replicated) ─────
+// readTranscript → find (who, sc) → ALL cells, the cutter's truth. Replicated verbatim
+// over a stub transcript so it runs DB-free.
+function gridOver(transcript: { who: string; sc: number; words: { pos: number; word: string }[] }[], who: string, sc: number) {
+  const turn = transcript.find(t => t.who === who && t.sc === sc)
+  if (!turn) return { ok: false, who, sc, message: 'no such turn (who, sc) in your substrate' }
+  return { ok: true, who: turn.who, sc: turn.sc, cells: turn.words.map(c => ({ pos: c.pos, word: c.word })) }
+}
+
+test('grid output for a written turn ≡ cutCells ground truth (all cells, punct/space present)', () => {
+  const text = "don't go, U.S. now"                       // contraction, comma, abbreviation, spaces
+  const transcript = [{ who: 'wearer', sc: 12, words: cutCells(text) }]
+  const res = gridOver(transcript, 'wearer', 12) as { ok: true; cells: { pos: number; word: string }[] }
+  assert.equal(res.ok, true)
+  // ALL cells — word, punctuation AND space slots — with identical positions.
+  assert.deepEqual(res.cells, cutCells(text).map(c => ({ pos: c.pos, word: c.word })))
+  assert.ok(res.cells.some(c => c.word === ' '), 'space slots present')
+  assert.ok(res.cells.some(c => c.word === ','), 'punctuation slots present')
+})
+
+test('grid: a turn not found returns a stating { ok: false }, never throws', () => {
+  const res = gridOver([{ who: 'wearer', sc: 1, words: cutCells('hi') }], 'llm', 99)
+  assert.equal(res.ok, false)
+  assert.match((res as { message: string }).message, /no such turn/)
+})

@@ -20,13 +20,19 @@
 import type { Who } from '@/core/types/substrate-raw.types'
 import type { McpToolDescriptor } from './mcp-protocol'
 
-// The MCP surface is exactly two tools (manager §2): present (read) and write
-// (record turn). No third tool, no LLM-reply turn — LIV is the agent's memory
-// substrate; the agent is itself the LLM. Tool names and arg shapes are declared
-// here; mapping to in-process R3 targets is performed at the R3 contract.
+// The MCP surface (manager §2 + sprint-wire-cognition 3R.2): present (read), write
+// (record turn), grid (fetch one turn's canonical cell grid — the first navigation
+// read control). LIV is the agent's memory substrate; the agent is itself the LLM.
+// Tool names and arg shapes are declared here; mapping to in-process R3 targets is
+// performed at the R3 contract.
+//
+// grid is the FIRST navigation read control. It is derived here once on the wire;
+// candidate for promotion to an F-present read control at Phase 3 (re-homed if L0
+// rules — the wire would then call that control rather than readTranscript directly).
 
 export const TOOL_PRESENT = 'present' as const
 export const TOOL_WRITE = 'write' as const
+export const TOOL_GRID = 'grid' as const
 
 // Runtime membership set for the `who` content-authorship axis. `satisfies
 // readonly Who[]` binds it to the canonical Who type: if Who's literals change,
@@ -89,6 +95,20 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
           additionalProperties: false,
         },
       ],
+    },
+  },
+  {
+    name: TOOL_GRID,
+    description:
+      "Fetch the canonical cell grid of one recorded turn — every cell (word, punctuation, space) with its 1-based position. Coordinates are COPIED from this grid, never counted from prose: the transcript is the wearer's byte-pure record and carries no positions. Use grid to obtain a (who, sc, pos) coordinate for a precise home or target.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        who: { type: 'string', enum: ['wearer', 'llm'], description: 'Authorship of the turn whose grid you want.' },
+        sc: { type: 'number', description: 'The turn position (sc) whose cell grid you want.' },
+      },
+      required: ['who', 'sc'],
+      additionalProperties: false,
     },
   },
 ]
