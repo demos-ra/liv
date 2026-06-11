@@ -142,15 +142,16 @@ function sheet(config: PivotConfig, dim: Dimension, rows: FactRow[]): SheetResul
   }
   for (const r of rows) {
     if (!opOK(r.op)) continue
-    if (r.op === 'identity') push(dim.resolveRef(r.home), r.home.sc, { op: 'identity', value: null })
-    else if (r.op === 'IDENTIFY') push(dim.resolveRef(r.refs[0]), r.home.sc, { op: 'IDENTIFY', value: null, ref: r.refs[0] })
+    // home = the mark's home coordinate (3R: the sheet renders it as @pos — real coords).
+    if (r.op === 'identity') push(dim.resolveRef(r.home), r.home.sc, { op: 'identity', value: null, home: r.home })
+    else if (r.op === 'IDENTIFY') push(dim.resolveRef(r.refs[0]), r.home.sc, { op: 'IDENTIFY', value: null, ref: r.refs[0], home: r.home })
     else if (r.op === 'QUALIFY') {
       if (r.value !== null && !colorOK(r.value)) continue
-      push(dim.resolveRef(r.refs[0]), r.home.sc, { op: 'QUALIFY', value: r.value, ref: r.refs[0] })
+      push(dim.resolveRef(r.refs[0]), r.home.sc, { op: 'QUALIFY', value: r.value, ref: r.refs[0], home: r.home })
     } else if (r.op === 'RELATE') {
       const peers = distinctPeers(dim, r.refs)
       if (peers.length < 2) continue                       // Rule 5
-      for (const p of peers) push(p, r.home.sc, { op: 'RELATE', value: r.surface, ref: r.home })
+      for (const p of peers) push(p, r.home.sc, { op: 'RELATE', value: r.surface, ref: r.home, home: r.home })
     }
   }
 

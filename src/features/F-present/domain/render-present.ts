@@ -9,39 +9,30 @@
 // IDENTIFY). Cells render the RAW marks only — never a synthesized state. Marks
 // are split by op into typed sub-sections so the table stays organized.
 //
-// sprint-wire-cognition Shot 3: the TRANSCRIPT section renders HERE too (one render
-// home — moved off the orchestrator's inline line), with per-word cell positions —
-// the manual promises them, the render now delivers them.
+// sprint-wire-cognition Shot 3R (L0 ruling — coordinates are fetched, never rendered,
+// never counted): the TRANSCRIPT renders PLAIN joined text — the wearer's byte-pure
+// record carries NO positional markup of any kind. Coordinates live on STRUCTURAL
+// surfaces only: the `grid` tool, the write-response echo, the native wearer-cells
+// data block, and the marks SHEET (which renders each mark's home @pos — teaching the
+// coordinate format from real marks).
 
 import type { Ref } from '@/features/F-present/config/mark-types'
 import type { ForestResult, ForestNode, SheetResult, SheetCell } from '@/features/F-present/config/read-engine-types'
-import type { RawTurn, RawWord } from '@/core/types/substrate-raw.types'
-import { isWordCell } from '@/features/F-memory/contract/substrate-contract'
+import type { RawTurn } from '@/core/types/substrate-raw.types'
+import { joinCells } from '@/features/F-memory/contract/substrate-contract'
 
 const refText = (r: Ref): string => (typeof r === 'string' ? r : `${r.who}:${r.sc}:${r.pos}`)
 
-// ── Transcript (the raw line) — numbered cells ──────────────────────────────────
-// The manual tells the model "each word has a position; point at them by coordinate";
-// this is where those positions become visible. Each WORD cell is tagged ⟨pos⟩ — its
-// substrate position — so the reader can construct a (who, sc, pos) coordinate for any
-// word directly from the render. Punctuation/space cells are NOT tagged (manual: mark
-// only word cells); they render verbatim.
-//
-// joinCells stays the SOLE text authority — positions are ANNOTATION, never reassembly:
-// each cell emits its literal `word` (the exact concatenation joinCells performs), and
-// word cells additionally carry the ⟨pos⟩ tag. Strip every ⟨…⟩ tag and the line is
-// joinCells(cells) byte-for-byte — the cutter's exact inverse, no re-join, no drift.
-const POS_OPEN = '⟨', POS_CLOSE = '⟩'   // ⟨ ⟩ — rare in prose, unambiguous, parseable
-
-function annotateLine(cells: RawWord[]): string {
-  return cells.map(c => isWordCell(c.word) ? `${c.word}${POS_OPEN}${c.pos}${POS_CLOSE}` : c.word).join('')
-}
-
+// ── Transcript (the raw line) — plain, byte-pure (3R.1) ─────────────────────────
+// The transcript is the wearer's record: `[sc] (who): joinCells(words)`, nothing more.
+// joinCells is the sole text authority; there is no positional markup — positions are
+// obtained from structural surfaces (grid / write echo / wearer-cells / sheet), never
+// counted from this prose.
 export function renderTranscript(turns: RawTurn[]): string {
-  const out: string[] = ['TRANSCRIPT (turns in position order; each word tagged ⟨pos⟩ — its cell position):']
+  const out: string[] = ['TRANSCRIPT (turns in position order):']
   for (const t of turns) {
     const who = t.who === 'wearer' ? '—' : t.who           // '—' the person
-    out.push(`[${t.sc}] (${who}): ${annotateLine(t.words)}`)
+    out.push(`[${t.sc}] (${who}): ${joinCells(t.words)}`)
   }
   return out.join('\n')
 }
@@ -77,19 +68,28 @@ export function renderSheet(r: SheetResult): string {
   return out.join('\n')
 }
 
-// split a cell's raw marks by op into typed sub-groups (organized, never a dump)
+// split a cell's raw marks by op into typed sub-groups (organized, never a dump).
+// 3R.3: each op group prints its marks' home positions (@pos) — the sheet teaches the
+// coordinate format from REAL marks. sc is the row key, who the column context, so only
+// the position prints per mark (do not repeat sc/who). A group's positions are appended
+// once: `identity(2)@5,9`, `RELATE[trip]@7`, `QUALIFY[tall]@5`, `IDENTIFY[Kyoto]@3`.
 function renderCell(cell: SheetCell): string {
-  const byOp = { identity: [] as string[], RELATE: [] as string[], QUALIFY: [] as string[], IDENTIFY: [] as string[] }
+  const byOp = {
+    identity: [] as number[],
+    RELATE:   { v: [] as string[], at: [] as number[] },
+    QUALIFY:  { v: [] as string[], at: [] as number[] },
+    IDENTIFY: { v: [] as string[], at: [] as number[] },
+  }
   for (const e of cell) {
-    if (e.op === 'identity') byOp.identity.push('•')
-    else if (e.op === 'RELATE') byOp.RELATE.push(e.value ?? (e.ref ? refText(e.ref) : ''))
-    else if (e.op === 'QUALIFY') byOp.QUALIFY.push(e.value ?? '')
-    else if (e.op === 'IDENTIFY') byOp.IDENTIFY.push(e.ref ? refText(e.ref) : '')
+    if (e.op === 'identity') byOp.identity.push(e.home.pos)
+    else if (e.op === 'RELATE') { byOp.RELATE.v.push(e.value ?? (e.ref ? refText(e.ref) : '')); byOp.RELATE.at.push(e.home.pos) }
+    else if (e.op === 'QUALIFY') { byOp.QUALIFY.v.push(e.value ?? ''); byOp.QUALIFY.at.push(e.home.pos) }
+    else if (e.op === 'IDENTIFY') { byOp.IDENTIFY.v.push(e.ref ? refText(e.ref) : ''); byOp.IDENTIFY.at.push(e.home.pos) }
   }
   const parts: string[] = []
-  if (byOp.identity.length) parts.push(`identity(${byOp.identity.length})`)
-  if (byOp.RELATE.length) parts.push(`RELATE[${byOp.RELATE.join(',')}]`)
-  if (byOp.QUALIFY.length) parts.push(`QUALIFY[${byOp.QUALIFY.join(',')}]`)
-  if (byOp.IDENTIFY.length) parts.push(`IDENTIFY[${byOp.IDENTIFY.join(',')}]`)
+  if (byOp.identity.length) parts.push(`identity(${byOp.identity.length})@${byOp.identity.join(',')}`)
+  if (byOp.RELATE.v.length) parts.push(`RELATE[${byOp.RELATE.v.join(',')}]@${byOp.RELATE.at.join(',')}`)
+  if (byOp.QUALIFY.v.length) parts.push(`QUALIFY[${byOp.QUALIFY.v.join(',')}]@${byOp.QUALIFY.at.join(',')}`)
+  if (byOp.IDENTIFY.v.length) parts.push(`IDENTIFY[${byOp.IDENTIFY.v.join(',')}]@${byOp.IDENTIFY.at.join(',')}`)
   return parts.join(' ')
 }

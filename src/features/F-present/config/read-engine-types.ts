@@ -69,7 +69,10 @@ export type PivotConfig = {
 
 export type ForestNode = { thing: ThingId; label: string; weight: number; children: ForestNode[] }
 export type ForestResult = { view: 'forest'; root: ForestNode; threads: Thread[] }   // root = wearer
-export type SheetCell = { op: Mark['op']; value: string | null; ref?: Ref }[]         // raw marks, dynamic width
+// raw marks, dynamic width. `home` = the mark's home coordinate (Shot 3R: the sheet
+// teaches the coordinate format from real marks — render shows @home.pos; sc is the
+// row key, who the column context, so only the position need print per mark).
+export type SheetCell = { op: Mark['op']; value: string | null; ref?: Ref; home: Coord }[]
 export type SheetRow = { sc: number; cells: Record<ThingId, SheetCell> }
 export type SheetResult = { view: 'sheet'; columns: ThingId[]; rows: SheetRow[] }     // columns = ancestors|focus|descendants
 export type PivotResult = ForestResult | SheetResult
