@@ -14,6 +14,9 @@
 //       a well-formed llm write LANDS the turn AND its marks (present_marks-bound
 //       PlacedMarks), and the response carries cells matching cutCells.
 //   (C) the wearer path is words-only; its response cells match cutCells(text).
+//   (F) SCOPE-SYMMETRY: scope is circumstance, not testimony — a turn that sends scope
+//       is rejected as an unknown field (both shapes); the door stamps scope =
+//       session.sessionId (white-box via the recorder seam).
 //
 // Run: npx tsx --test src/features/F-mcp/domain/__tests__/wire-write-v2.test.ts
 
@@ -35,7 +38,7 @@ before(async () => {
 
 // ── (A) the demanded door ────────────────────────────────────────────────────────
 test('malformed llm write (no replyMarks/priorMarks) is rejected, law named', () => {
-  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hi' })
+  const r = planToolCall('write', { who: 'llm', reply: 'hi' })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /replyMarks and priorMarks/)
@@ -43,7 +46,7 @@ test('malformed llm write (no replyMarks/priorMarks) is rejected, law named', ()
 })
 
 test('llm write missing reply is rejected, §FORK-A named', () => {
-  const r = planToolCall('write', { who: 'llm', scope: 's', replyMarks: [], priorMarks: [] })
+  const r = planToolCall('write', { who: 'llm', replyMarks: [], priorMarks: [] })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /requires reply/)
@@ -51,7 +54,7 @@ test('llm write missing reply is rejected, §FORK-A named', () => {
 })
 
 test('program write is rejected at v2 with a law-naming message', () => {
-  const r = planToolCall('write', { who: 'program', scope: 's', text: 'x' })
+  const r = planToolCall('write', { who: 'program', text: 'x' })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /no program writer over the wire/)
@@ -59,32 +62,37 @@ test('program write is rejected at v2 with a law-naming message', () => {
 })
 
 test('well-formed llm write plans the §FORK-A intention (arrays present, may be empty)', () => {
-  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hello', replyMarks: [], priorMarks: [] })
+  const r = planToolCall('write', { who: 'llm', reply: 'hello', replyMarks: [], priorMarks: [] })
   assert.equal(r.ok, true)
   if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'write', who: 'llm', reply: 'hello', replyMarks: [], priorMarks: [], scope: 's' })
+  assert.deepEqual(r.intention, { tool: 'write', who: 'llm', reply: 'hello', replyMarks: [], priorMarks: [] })
 })
 
 test('wearer write plans the words-only intention', () => {
-  const r = planToolCall('write', { who: 'wearer', scope: 's', text: 'I toured Kyoto' })
+  const r = planToolCall('write', { who: 'wearer', text: 'I toured Kyoto' })
   assert.equal(r.ok, true)
   if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'write', who: 'wearer', text: 'I toured Kyoto', scope: 's' })
+  assert.deepEqual(r.intention, { tool: 'write', who: 'wearer', text: 'I toured Kyoto' })
 })
 
-// a DB-free recorder seam (mirrors the scored-turn-recorder test).
+// a DB-free recorder seam (mirrors the scored-turn-recorder test). `writes` captures the
+// writeRawTurn input so the stamped-scope path is white-box-assertable.
 function stubDeps(sc: number) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const placed: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const writes: any[] = []
   return {
     deps: {
       readTranscript: async () => [],
-      writeRawTurn: async () => sc,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      writeRawTurn: async (input: any) => { writes.push(input); return sc },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       store: { read: async () => [], place: async (_u: string, m: any[]) => { placed.push(...m) }, clear: async () => {} },
       cutReply,                                            // the real canonical cutter
     },
     placed,
+    writes,
   }
 }
 
@@ -92,7 +100,7 @@ function stubDeps(sc: number) {
 test('a well-formed llm write lands the turn and its marks; response cells match cutCells', async () => {
   const reply = 'Kyoto truly rivals Tokyo.'
   const args = {
-    who: 'llm', scope: 'scope-1', reply,
+    who: 'llm', reply,
     replyMarks: [{ word: 1, marks: [{ op: 'identity' }] }],          // mark on the reply
     priorMarks: [{ home: { who: 'wearer', sc: 3, pos: 1 }, marks: [{ op: 'identity' }] }], // mark on the person
   }
@@ -101,11 +109,12 @@ test('a well-formed llm write lands the turn and its marks; response cells match
   if (!plan.ok || plan.intention.tool !== 'write' || plan.intention.who !== 'llm') return
 
   // the mcp-contract llm path: narrow through emissionFromStructured (the gate), record.
+  // scope is the STAMPED session.sessionId, never a sent field.
   const emission = emissionFromStructured({
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'scope-1', seam.deps)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', seam.deps)
 
   // response shape the wire returns: { ok, sc, cells:[{pos,word}] }
   const response = { ok: true, sc: recorded.sc, cells: recorded.cells.map((c: { pos: number; word: string }) => ({ pos: c.pos, word: c.word })) }
@@ -122,7 +131,7 @@ test('a well-formed llm write lands the turn and its marks; response cells match
 // ── (C) execution — the wearer path is words-only ───────────────────────────────
 test('the wearer path is words-only; response cells match cutCells(text)', () => {
   const text = 'I toured Kyoto'
-  const plan = planToolCall('write', { who: 'wearer', scope: 's', text })
+  const plan = planToolCall('write', { who: 'wearer', text })
   assert.equal(plan.ok, true)
   if (!plan.ok || plan.intention.tool !== 'write' || plan.intention.who !== 'wearer') return
   const words = cutCells(plan.intention.text)              // the mcp-contract wearer path
@@ -182,7 +191,7 @@ test('grid: a turn not found returns a stating { ok: false }, never throws', () 
 // planToolCall is the authoritative validator — unknown top-level fields are rejected
 // fail-closed with a law-naming message, across all three tools and both write shapes.
 test('write (wearer): an unknown field is rejected, law named', () => {
-  const r = planToolCall('write', { who: 'wearer', scope: 's', text: 'hi', extra: 1 })
+  const r = planToolCall('write', { who: 'wearer', text: 'hi', extra: 1 })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /unknown field "extra"/)
@@ -190,11 +199,47 @@ test('write (wearer): an unknown field is rejected, law named', () => {
 })
 
 test('write (llm): an unknown field is rejected, law named', () => {
-  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hi', replyMarks: [], priorMarks: [], bogus: true })
+  const r = planToolCall('write', { who: 'llm', reply: 'hi', replyMarks: [], priorMarks: [], bogus: true })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /unknown field "bogus"/)
   assert.match(r.message, /additionalProperties:false/)
+})
+
+// ── (F) scope-symmetry — scope is circumstance, not testimony ────────────────────
+// A speaker that sends `scope` is rejected as an unknown field (it left the schema);
+// the door stamps scope = session.sessionId. Same rejection path as any extra, zero
+// added code — the symmetry is enforced by the demanded allow-list itself.
+test('write (wearer): a sent scope is rejected as an unknown field', () => {
+  const r = planToolCall('write', { who: 'wearer', text: 'hi', scope: 'proj-1' })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /unknown field "scope"/)
+  assert.match(r.message, /additionalProperties:false/)
+})
+
+test('write (llm): a sent scope is rejected as an unknown field', () => {
+  const r = planToolCall('write', { who: 'llm', reply: 'hi', replyMarks: [], priorMarks: [], scope: 'proj-1' })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /unknown field "scope"/)
+  assert.match(r.message, /additionalProperties:false/)
+})
+
+test('the door stamps scope = session.sessionId (circumstance, not a sent field)', async () => {
+  const session = { userId: 'u-7', sessionId: 'conn-abc' }
+  const plan = planToolCall('write', { who: 'llm', reply: 'hi there', replyMarks: [], priorMarks: [] })
+  assert.equal(plan.ok, true)
+  if (!plan.ok || plan.intention.tool !== 'write' || plan.intention.who !== 'llm') return
+  // mirror the mcp-contract llm path: scope is session.sessionId, NOT from the call.
+  const emission = emissionFromStructured({
+    reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
+  })
+  const seam = stubDeps(21)
+  await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, seam.deps)
+  assert.equal(seam.writes.length, 1)
+  assert.equal(seam.writes[0].userId, 'u-7')
+  assert.equal(seam.writes[0].scope, 'conn-abc')          // the stamped writing connection
 })
 
 test('present: an unknown field is rejected, law named', () => {

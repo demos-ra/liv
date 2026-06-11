@@ -103,4 +103,10 @@ Your reply: "Kyoto truly rivals Tokyo."   (reply words by INDEX — count words 
   ]
 }
 
-Return ONLY the JSON object: { "reply": "<your reply text>", "replyMarks": [ ... ], "priorMarks": [ ... ] }.`
+HOW TO RETURN
+- native: return ONLY the JSON object: { "reply": "<your reply text>", "replyMarks": [ ... ], "priorMarks": [ ... ] }.
+- wire: send each turn through the write tool as you go — the person's turn first (who:'wearer', verbatim text;
+  its echo returns the cells that are your priorMarks coordinates), then your scored turn (who:'llm', the JSON
+  shape above); point further back with grid.
+
+What you write well now is what you wake with next.`

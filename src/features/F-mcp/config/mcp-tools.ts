@@ -54,7 +54,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_WRITE,
     description:
-      "Record one conversation turn into the wearer's substrate. The turn shape is DEMANDED per author: a wearer turn is words-only ({ who, scope, text }) — LIV cuts the text into cells, the machine cuts, never the caller. An llm turn is pair-scored (§FORK-A: { who, scope, reply, replyMarks, priorMarks }) — the speaker scores its own turn; replyMarks and priorMarks are required (arrays may be empty but never absent). program turns are not accepted over the wire at v2.",
+      "Record one conversation turn into the wearer's substrate. The turn shape is DEMANDED per author: a wearer turn is words-only ({ who, text }) — LIV cuts the text into cells, the machine cuts, never the caller. An llm turn is pair-scored (§FORK-A: { who, reply, replyMarks, priorMarks }) — the speaker scores its own turn; replyMarks and priorMarks are required (arrays may be empty but never absent). program turns are not accepted over the wire at v2. Circumstance fields (identity, channel, scope) are stamped by the perimeter — never sent.",
     inputSchema: {
       type: 'object',
       // who DEMANDS its turn shape — a discriminated union. The wearer never emits
@@ -68,17 +68,15 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
           type: 'object',
           properties: {
             who: { const: 'wearer', description: 'Content authorship — the person. Words-only.' },
-            scope: { type: 'string', description: 'The conversation/session scope being recorded into.' },
             text: { type: 'string', description: 'The verbatim wearer turn text. LIV cuts it into cells.' },
           },
-          required: ['who', 'scope', 'text'],
+          required: ['who', 'text'],
           additionalProperties: false,
         },
         {
           type: 'object',
           properties: {
             who: { const: 'llm', description: 'Content authorship — you (the agent). Pair-scored (§FORK-A).' },
-            scope: { type: 'string', description: 'The conversation/session scope being recorded into.' },
             reply: { type: 'string', description: 'Your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical.' },
             replyMarks: {
               type: 'array',
@@ -91,7 +89,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
               items: { type: 'object', properties: { home: { type: 'object' }, marks: { type: 'array' } }, required: ['home', 'marks'], additionalProperties: false },
             },
           },
-          required: ['who', 'scope', 'reply', 'replyMarks', 'priorMarks'],
+          required: ['who', 'reply', 'replyMarks', 'priorMarks'],
           additionalProperties: false,
         },
       ],

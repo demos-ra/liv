@@ -113,6 +113,8 @@ export async function handleMcpRequest(
         }
 
         // write — DEMANDED per author (Shot 4). userId is ALWAYS the session's.
+        // scope = stamped circumstance (the writing connection), symmetric with native's
+        // route-stamped projectId — speakers never declare circumstance.
         if (intention.who === 'llm') {
           // llm turn → narrow through emissionFromStructured (the SAME gate the native
           // path uses — one gate, no copy), then record the pair-scored turn via the
@@ -120,7 +122,7 @@ export async function handleMcpRequest(
           const emission = emissionFromStructured({
             reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
           })
-          const recorded = await recordScoredTurn(emission, 'llm', session.userId, intention.scope)
+          const recorded = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId)
           return buildResult(id, toolText(JSON.stringify({
             ok: true, sc: recorded.sc, cells: recorded.cells.map(c => ({ pos: c.pos, word: c.word })),
           })))
@@ -128,7 +130,7 @@ export async function handleMcpRequest(
 
         // wearer turn → words-only (LIV cuts; the machine cuts, never the caller).
         const words = cutCells(intention.text)
-        const sc = await writeRawTurn({ who: 'wearer', words, userId: session.userId, scope: intention.scope })
+        const sc = await writeRawTurn({ who: 'wearer', words, userId: session.userId, scope: session.sessionId })
         return buildResult(id, toolText(JSON.stringify({
           ok: true, sc, cells: words.map(c => ({ pos: c.pos, word: c.word })),
         })))

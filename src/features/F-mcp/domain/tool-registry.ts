@@ -58,10 +58,15 @@ export function initializeResult(): {
 //     scores its own turn. Marks pass as unknown[] — STRUCTURE is validated here (R1,
 //     pure: present + array), the mark GATE runs at R3 via emissionFromStructured (one
 //     gate, no copy). userId is injected at the R3 contract from the session.
+//
+// SCOPE-SYMMETRY (scope-symmetry delta): scope is CIRCUMSTANCE, not testimony — it left
+// the demanded schema. Speakers send only what they author; the door stamps the writing
+// connection (session.sessionId) at R3. A turn that still sends `scope` is now rejected
+// as an unknown field by firstUnknownField — intentional, zero added code.
 export type ToolIntention =
   | { tool: 'present' }
-  | { tool: 'write'; who: 'wearer'; text: string; scope: string }
-  | { tool: 'write'; who: 'llm'; reply: string; replyMarks: unknown[]; priorMarks: unknown[]; scope: string }
+  | { tool: 'write'; who: 'wearer'; text: string }
+  | { tool: 'write'; who: 'llm'; reply: string; replyMarks: unknown[]; priorMarks: unknown[] }
   | { tool: 'grid'; who: Who; sc: number }   // 3R.2 — fetch one turn's canonical cell grid
 
 export type PlanResult =
@@ -104,9 +109,6 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (!isWho(args.who)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: who must be one of wearer | llm | program' }
     }
-    if (typeof args.scope !== 'string') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: scope must be a string' }
-    }
     // program: rejected at v2 — the wire carries only wearer words + llm pair-scored
     // turns. A program turn is not speaker-scored, and LIV never invents structure.
     if (args.who === 'program') {
@@ -117,9 +119,9 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
       if (typeof args.text !== 'string') {
         return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: wearer turn requires text (words-only — the wearer never emits marks)' }
       }
-      const extra = firstUnknownField(args, ['who', 'scope', 'text'])
+      const extra = firstUnknownField(args, ['who', 'text'])
       if (extra) return unknownFieldReject('write', extra)
-      return { ok: true, intention: { tool: 'write', who: 'wearer', text: args.text, scope: args.scope } }
+      return { ok: true, intention: { tool: 'write', who: 'wearer', text: args.text } }
     }
     // llm: pair-scored (§FORK-A). reply authoritative; replyMarks + priorMarks REQUIRED
     // (arrays may be present-but-empty, never absent). The mark gate runs at R3.
@@ -129,9 +131,9 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (!Array.isArray(args.replyMarks) || !Array.isArray(args.priorMarks)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires replyMarks and priorMarks (§FORK-A — the speaker scores its own turn; arrays may be empty but never absent)' }
     }
-    const extra = firstUnknownField(args, ['who', 'scope', 'reply', 'replyMarks', 'priorMarks'])
+    const extra = firstUnknownField(args, ['who', 'reply', 'replyMarks', 'priorMarks'])
     if (extra) return unknownFieldReject('write', extra)
-    return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, scope: args.scope } }
+    return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
   }
 
   if (name === TOOL_GRID) {
