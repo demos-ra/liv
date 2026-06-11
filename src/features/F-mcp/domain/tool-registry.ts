@@ -52,11 +52,16 @@ export function initializeResult(): {
 }
 
 // What a validated tool call intends. `present` carries no payload (identity is
-// the session). `write` carries the validated authorship, raw text, and scope —
-// userId is injected at the R3 contract from the session, never from the call.
+// the session). `write` is DEMANDED per author (sprint-wire-cognition Shot 4):
+//   - wearer → words-only ({ text }); the wearer never emits marks.
+//   - llm    → pair-scored (§FORK-A: { reply, replyMarks, priorMarks }); the speaker
+//     scores its own turn. Marks pass as unknown[] — STRUCTURE is validated here (R1,
+//     pure: present + array), the mark GATE runs at R3 via emissionFromStructured (one
+//     gate, no copy). userId is injected at the R3 contract from the session.
 export type ToolIntention =
   | { tool: 'present' }
-  | { tool: 'write'; who: Who; text: string; scope: string }
+  | { tool: 'write'; who: 'wearer'; text: string; scope: string }
+  | { tool: 'write'; who: 'llm'; reply: string; replyMarks: unknown[]; priorMarks: unknown[]; scope: string }
 
 export type PlanResult =
   | { ok: true; intention: ToolIntention }
@@ -82,13 +87,30 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (!isWho(args.who)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: who must be one of wearer | llm | program' }
     }
-    if (typeof args.text !== 'string') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: text must be a string' }
-    }
     if (typeof args.scope !== 'string') {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: scope must be a string' }
     }
-    return { ok: true, intention: { tool: 'write', who: args.who, text: args.text, scope: args.scope } }
+    // program: rejected at v2 — the wire carries only wearer words + llm pair-scored
+    // turns. A program turn is not speaker-scored, and LIV never invents structure.
+    if (args.who === 'program') {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: no program writer over the wire at v2 (§no-server-side-marking — only wearer words and llm pair-scored turns cross the wire)' }
+    }
+    // wearer: words-only by design (the wearer never emits marks).
+    if (args.who === 'wearer') {
+      if (typeof args.text !== 'string') {
+        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: wearer turn requires text (words-only — the wearer never emits marks)' }
+      }
+      return { ok: true, intention: { tool: 'write', who: 'wearer', text: args.text, scope: args.scope } }
+    }
+    // llm: pair-scored (§FORK-A). reply authoritative; replyMarks + priorMarks REQUIRED
+    // (arrays may be present-but-empty, never absent). The mark gate runs at R3.
+    if (typeof args.reply !== 'string') {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires reply (§FORK-A — the reply text is authoritative)' }
+    }
+    if (!Array.isArray(args.replyMarks) || !Array.isArray(args.priorMarks)) {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires replyMarks and priorMarks (§FORK-A — the speaker scores its own turn; arrays may be empty but never absent)' }
+    }
+    return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, scope: args.scope } }
   }
 
   return { ok: false, code: JSONRPC_INVALID_PARAMS, message: `unknown tool: ${String(name)}` }

@@ -1,0 +1,131 @@
+// @liv-standard v1.5.2
+// @governing-spec MCP-wire (connector) + COIN v1.0 (§FORK-A)
+// [F-mcp/domain/__tests__/wire-write-v2.test.ts]
+// Built with LIV · livai.dev
+//
+// sprint-wire-cognition Shot 4 — wire write v2 (the demanded door).
+//   (A) THE DOOR (planToolCall, R1 pure, fail-closed):
+//       - a malformed llm write (missing replyMarks/priorMarks) is rejected with a
+//         LAW-NAMING error (§FORK-A);
+//       - a program write is rejected with a law-naming error (§no-server-side-marking);
+//       - a well-formed llm write plans the §FORK-A intention;
+//       - a wearer write plans the words-only intention.
+//   (B) EXECUTION (the mcp-contract llm path, replicated with a DB-free recorder seam):
+//       a well-formed llm write LANDS the turn AND its marks (present_marks-bound
+//       PlacedMarks), and the response carries cells matching cutCells.
+//   (C) the wearer path is words-only; its response cells match cutCells(text).
+//
+// Run: npx tsx --test src/features/F-mcp/domain/__tests__/wire-write-v2.test.ts
+
+import assert from 'node:assert/strict'
+import { test, before } from 'node:test'
+import { planToolCall } from '../tool-registry'
+
+// R3-surface pieces (warmed so the F-memory R3 barrel resolves cleanly under tsx).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let recordScoredTurn: any, emissionFromStructured: any
+let cutCells: (t: string) => { pos: number; word: string }[]
+let cutReply: (r: string) => { cells: { pos: number; word: string }[]; wordCellPos: number[] }
+
+before(async () => {
+  ;({ recordScoredTurn, emissionFromStructured } = await import('@/features/F-present/contract/present-contract'))
+  ;({ cutReply } = await import('@/features/F-present/domain/coin-score'))
+  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
+})
+
+// ── (A) the demanded door ────────────────────────────────────────────────────────
+test('malformed llm write (no replyMarks/priorMarks) is rejected, law named', () => {
+  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hi' })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /replyMarks and priorMarks/)
+  assert.match(r.message, /§FORK-A/)
+})
+
+test('llm write missing reply is rejected, §FORK-A named', () => {
+  const r = planToolCall('write', { who: 'llm', scope: 's', replyMarks: [], priorMarks: [] })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /requires reply/)
+  assert.match(r.message, /§FORK-A/)
+})
+
+test('program write is rejected at v2 with a law-naming message', () => {
+  const r = planToolCall('write', { who: 'program', scope: 's', text: 'x' })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /no program writer over the wire/)
+  assert.match(r.message, /§no-server-side-marking/)
+})
+
+test('well-formed llm write plans the §FORK-A intention (arrays present, may be empty)', () => {
+  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hello', replyMarks: [], priorMarks: [] })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.intention, { tool: 'write', who: 'llm', reply: 'hello', replyMarks: [], priorMarks: [], scope: 's' })
+})
+
+test('wearer write plans the words-only intention', () => {
+  const r = planToolCall('write', { who: 'wearer', scope: 's', text: 'I toured Kyoto' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.intention, { tool: 'write', who: 'wearer', text: 'I toured Kyoto', scope: 's' })
+})
+
+// a DB-free recorder seam (mirrors the scored-turn-recorder test).
+function stubDeps(sc: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const placed: any[] = []
+  return {
+    deps: {
+      readTranscript: async () => [],
+      writeRawTurn: async () => sc,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      store: { read: async () => [], place: async (_u: string, m: any[]) => { placed.push(...m) }, clear: async () => {} },
+      cutReply,                                            // the real canonical cutter
+    },
+    placed,
+  }
+}
+
+// ── (B) execution — the llm path lands the turn AND its marks ───────────────────
+test('a well-formed llm write lands the turn and its marks; response cells match cutCells', async () => {
+  const reply = 'Kyoto truly rivals Tokyo.'
+  const args = {
+    who: 'llm', scope: 'scope-1', reply,
+    replyMarks: [{ word: 1, marks: [{ op: 'identity' }] }],          // mark on the reply
+    priorMarks: [{ home: { who: 'wearer', sc: 3, pos: 1 }, marks: [{ op: 'identity' }] }], // mark on the person
+  }
+  const plan = planToolCall('write', args)
+  assert.equal(plan.ok, true)
+  if (!plan.ok || plan.intention.tool !== 'write' || plan.intention.who !== 'llm') return
+
+  // the mcp-contract llm path: narrow through emissionFromStructured (the gate), record.
+  const emission = emissionFromStructured({
+    reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
+  })
+  const seam = stubDeps(11)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'scope-1', seam.deps)
+
+  // response shape the wire returns: { ok, sc, cells:[{pos,word}] }
+  const response = { ok: true, sc: recorded.sc, cells: recorded.cells.map((c: { pos: number; word: string }) => ({ pos: c.pos, word: c.word })) }
+  assert.equal(response.sc, 11)
+  assert.deepEqual(response.cells, cutCells(reply).map(c => ({ pos: c.pos, word: c.word })))
+
+  // both turns scored → 2 present_marks-bound PlacedMarks (reply identity + prior identity).
+  assert.equal(seam.placed.length, 2)
+  const homes = seam.placed.map((p: { home: { who: string; sc: number } }) => `${p.home.who}:${p.home.sc}`)
+  assert.ok(homes.includes('llm:11'), 'the reply mark homes on this turn (sc 11)')
+  assert.ok(homes.includes('wearer:3'), 'the prior mark homes on the person’s existing cell')
+})
+
+// ── (C) execution — the wearer path is words-only ───────────────────────────────
+test('the wearer path is words-only; response cells match cutCells(text)', () => {
+  const text = 'I toured Kyoto'
+  const plan = planToolCall('write', { who: 'wearer', scope: 's', text })
+  assert.equal(plan.ok, true)
+  if (!plan.ok || plan.intention.tool !== 'write' || plan.intention.who !== 'wearer') return
+  const words = cutCells(plan.intention.text)              // the mcp-contract wearer path
+  const cells = words.map(c => ({ pos: c.pos, word: c.word }))
+  assert.deepEqual(cells, cutCells(text).map(c => ({ pos: c.pos, word: c.word })))
+})

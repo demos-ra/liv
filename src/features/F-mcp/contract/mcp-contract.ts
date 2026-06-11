@@ -12,6 +12,9 @@
 //   W-FN     parseRequest / buildResult / buildError   F-mcp/R1 json-rpc
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R1 tool-registry
 //   W-FN     readPresent        F-present/R3 present-contract
+//   W-FN     recordScoredTurn   F-present/R3 present-contract   (Shot 4 — llm pair-scored turn)
+//   W-FN     emissionFromStructured  F-present/R3 present-contract  (Shot 4 — the narrowing/gate)
+//   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (Shot 4 — manual-with-present)
 //   W-FN     writeRawTurn       F-memory/R3 substrate-contract
 //   W-FN     cutCells           F-memory/R3 substrate-contract
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
@@ -34,7 +37,7 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent } from '@/features/F-present/contract/present-contract'
+import { readPresent, recordScoredTurn, emissionFromStructured, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
 import { writeRawTurn, cutCells } from '@/features/F-memory/contract/substrate-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
@@ -84,16 +87,36 @@ export async function handleMcpRequest(
         }
         const plan = planToolCall(p.name, p.arguments)
         if (!plan.ok) return buildError(id, plan.code, plan.message)
+        const intention = plan.intention
 
-        if (plan.intention.tool === 'present') {
+        // present → MANUAL + present, one return, manual first (mirrors the native
+        // system-message order: instruction first so "below" is true). COIN_MANUAL
+        // comes from its one home via F-present R3.
+        if (intention.tool === 'present') {
           const present = await readPresent(session.userId)
-          return buildResult(id, toolText(present))
+          return buildResult(id, toolText(`${COIN_MANUAL}\n\n${present}`))
         }
 
-        const { who, text, scope } = plan.intention
-        const words = cutCells(text)
-        const sc = await writeRawTurn({ who, words, userId: session.userId, scope })
-        return buildResult(id, toolText(JSON.stringify({ ok: true, sc })))
+        // write — DEMANDED per author (Shot 4). userId is ALWAYS the session's.
+        if (intention.who === 'llm') {
+          // llm turn → narrow through emissionFromStructured (the SAME gate the native
+          // path uses — one gate, no copy), then record the pair-scored turn via the
+          // shared recorder. Return the canonical cut so the caller holds exact coords.
+          const emission = emissionFromStructured({
+            reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
+          })
+          const recorded = await recordScoredTurn(emission, 'llm', session.userId, intention.scope)
+          return buildResult(id, toolText(JSON.stringify({
+            ok: true, sc: recorded.sc, cells: recorded.cells.map(c => ({ pos: c.pos, word: c.word })),
+          })))
+        }
+
+        // wearer turn → words-only (LIV cuts; the machine cuts, never the caller).
+        const words = cutCells(intention.text)
+        const sc = await writeRawTurn({ who: 'wearer', words, userId: session.userId, scope: intention.scope })
+        return buildResult(id, toolText(JSON.stringify({
+          ok: true, sc, cells: words.map(c => ({ pos: c.pos, word: c.word })),
+        })))
       }
 
       default:
