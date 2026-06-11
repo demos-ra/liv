@@ -76,8 +76,24 @@ function isWho(v: unknown): v is Who {
   return typeof v === 'string' && (WHO_VALUES as readonly string[]).includes(v)
 }
 
+// additionalProperties:false enforcement (FIX-2). planToolCall is the AUTHORITATIVE
+// validator — the schema only advertises; the door enforces. An unknown top-level field
+// is rejected fail-closed with a law-naming message. No second layer, no middleware, no
+// schema library — just the demanded allow-list per tool shape.
+function firstUnknownField(args: Record<string, unknown>, allowed: readonly string[]): string | null {
+  for (const k of Object.keys(args)) if (!allowed.includes(k)) return k
+  return null
+}
+function unknownFieldReject(tool: string, field: string): PlanResult {
+  return { ok: false, code: JSONRPC_INVALID_PARAMS, message: `${tool}: unknown field "${field}" — the demanded shape admits no extras (additionalProperties:false)` }
+}
+
 export function planToolCall(name: unknown, args: unknown): PlanResult {
   if (name === TOOL_PRESENT) {
+    if (isObject(args)) {
+      const extra = firstUnknownField(args, [])           // present takes no arguments
+      if (extra) return unknownFieldReject('present', extra)
+    }
     return { ok: true, intention: { tool: 'present' } }
   }
 
@@ -101,6 +117,8 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
       if (typeof args.text !== 'string') {
         return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: wearer turn requires text (words-only — the wearer never emits marks)' }
       }
+      const extra = firstUnknownField(args, ['who', 'scope', 'text'])
+      if (extra) return unknownFieldReject('write', extra)
       return { ok: true, intention: { tool: 'write', who: 'wearer', text: args.text, scope: args.scope } }
     }
     // llm: pair-scored (§FORK-A). reply authoritative; replyMarks + priorMarks REQUIRED
@@ -111,6 +129,8 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (!Array.isArray(args.replyMarks) || !Array.isArray(args.priorMarks)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires replyMarks and priorMarks (§FORK-A — the speaker scores its own turn; arrays may be empty but never absent)' }
     }
+    const extra = firstUnknownField(args, ['who', 'scope', 'reply', 'replyMarks', 'priorMarks'])
+    if (extra) return unknownFieldReject('write', extra)
     return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, scope: args.scope } }
   }
 
@@ -126,6 +146,8 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (typeof args.sc !== 'number' || !Number.isFinite(args.sc)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: sc must be a number (the turn position)' }
     }
+    const extra = firstUnknownField(args, ['who', 'sc'])
+    if (extra) return unknownFieldReject('grid', extra)
     return { ok: true, intention: { tool: 'grid', who: args.who, sc: args.sc } }
   }
 

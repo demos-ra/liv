@@ -177,3 +177,42 @@ test('grid: a turn not found returns a stating { ok: false }, never throws', () 
   assert.equal(res.ok, false)
   assert.match((res as { message: string }).message, /no such turn/)
 })
+
+// ── (E) additionalProperties:false enforced at the door (FIX-2) ───────────────────
+// planToolCall is the authoritative validator — unknown top-level fields are rejected
+// fail-closed with a law-naming message, across all three tools and both write shapes.
+test('write (wearer): an unknown field is rejected, law named', () => {
+  const r = planToolCall('write', { who: 'wearer', scope: 's', text: 'hi', extra: 1 })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /unknown field "extra"/)
+  assert.match(r.message, /additionalProperties:false/)
+})
+
+test('write (llm): an unknown field is rejected, law named', () => {
+  const r = planToolCall('write', { who: 'llm', scope: 's', reply: 'hi', replyMarks: [], priorMarks: [], bogus: true })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /unknown field "bogus"/)
+  assert.match(r.message, /additionalProperties:false/)
+})
+
+test('present: an unknown field is rejected, law named', () => {
+  const r = planToolCall('present', { sneaky: 1 })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /present: unknown field "sneaky"/)
+})
+
+test('present: no arguments is still accepted', () => {
+  assert.equal(planToolCall('present', undefined).ok, true)
+  assert.equal(planToolCall('present', {}).ok, true)
+})
+
+test('grid: an unknown field is rejected, law named', () => {
+  const r = planToolCall('grid', { who: 'wearer', sc: 7, pos: 3 })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /grid: unknown field "pos"/)
+  assert.match(r.message, /additionalProperties:false/)
+})
