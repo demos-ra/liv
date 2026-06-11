@@ -54,45 +54,34 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_WRITE,
     description:
-      "Record one conversation turn into the wearer's substrate. The turn shape is DEMANDED per author: a wearer turn is words-only ({ who, text }) — LIV cuts the text into cells, the machine cuts, never the caller. An llm turn is pair-scored (§FORK-A: { who, reply, replyMarks, priorMarks }) — the speaker scores its own turn; replyMarks and priorMarks are required (arrays may be empty but never absent). program turns are not accepted over the wire at v2. Circumstance fields (identity, channel, scope) are stamped by the perimeter — never sent.",
+      "Record one conversation turn into the wearer's substrate. The turn shape is DEMANDED per author (enforced at the door, not the schema): a wearer turn is words-only — send { who: 'wearer', text } (LIV cuts the text into cells, the machine cuts, never the caller). An llm turn is pair-scored (§FORK-A) — send { who: 'llm', reply, replyMarks, priorMarks }; the speaker scores its own turn, and replyMarks + priorMarks are both required (arrays may be empty but never absent). Send ONLY the fields your author demands — extra fields are rejected. program turns are not accepted over the wire at v2. Circumstance fields (identity, channel, scope) are stamped by the perimeter — never sent.",
+    // TRANSPORT-SAFE ADVERTISEMENT (sprint-wire-transport T1): ONE flat object — no
+    // top-level oneOf/anyOf/allOf (the Anthropic API rejects those and the client drops
+    // the whole tool). `who` is the only structurally-required field; the per-author
+    // demanded shapes are carried in the description (prose) and enforced AUTHORITATIVELY
+    // at the door (planToolCall: wearer→text, llm→reply+replyMarks+priorMarks, extras
+    // rejected, program rejected). FIX-2 correctly layered: the ad describes truthfully +
+    // transport-safe; one home (the door) demands. additionalProperties:false stays — the
+    // write door takes no envelope baggage; only the demanded fields are admitted.
     inputSchema: {
       type: 'object',
-      // who DEMANDS its turn shape — a discriminated union. The wearer never emits
-      // marks (words-only); the llm always carries its own pair-scoring (§FORK-A).
-      // additionalProperties:false on EACH branch — a wearer cannot smuggle marks, an
-      // llm cannot omit them. program is in neither branch (rejected at tool-registry
-      // with a law-naming message). The authoritative validation is planToolCall (R1);
-      // this schema advertises the demanded shapes to the client.
-      oneOf: [
-        {
-          type: 'object',
-          properties: {
-            who: { const: 'wearer', description: 'Content authorship — the person. Words-only.' },
-            text: { type: 'string', description: 'The verbatim wearer turn text. LIV cuts it into cells.' },
-          },
-          required: ['who', 'text'],
-          additionalProperties: false,
+      properties: {
+        who: { type: 'string', enum: ['wearer', 'llm'], description: 'Content authorship of the turn. wearer → words-only; llm → pair-scored (§FORK-A). Not identity, not authority.' },
+        text: { type: 'string', description: "wearer turn: the verbatim turn text. LIV cuts it into cells. (Send only on a wearer turn.)" },
+        reply: { type: 'string', description: 'llm turn: your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. (Send only on an llm turn.)' },
+        replyMarks: {
+          type: 'array',
+          description: 'llm turn: marks on your reply, keyed by 1-based word index ({ word, marks }). Required on an llm turn; may be empty, never absent.',
+          items: { type: 'object', properties: { word: { type: 'number' }, marks: { type: 'array' } }, required: ['word', 'marks'], additionalProperties: false },
         },
-        {
-          type: 'object',
-          properties: {
-            who: { const: 'llm', description: 'Content authorship — you (the agent). Pair-scored (§FORK-A).' },
-            reply: { type: 'string', description: 'Your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical.' },
-            replyMarks: {
-              type: 'array',
-              description: 'Marks on your reply, keyed by 1-based word index ({ word, marks }). Required; may be empty, never absent.',
-              items: { type: 'object', properties: { word: { type: 'number' }, marks: { type: 'array' } }, required: ['word', 'marks'], additionalProperties: false },
-            },
-            priorMarks: {
-              type: 'array',
-              description: "Marks on the person's existing cells, by coordinate ({ home, marks }). Required; may be empty, never absent.",
-              items: { type: 'object', properties: { home: { type: 'object' }, marks: { type: 'array' } }, required: ['home', 'marks'], additionalProperties: false },
-            },
-          },
-          required: ['who', 'reply', 'replyMarks', 'priorMarks'],
-          additionalProperties: false,
+        priorMarks: {
+          type: 'array',
+          description: "llm turn: marks on the person's existing cells, by coordinate ({ home, marks }). Required on an llm turn; may be empty, never absent.",
+          items: { type: 'object', properties: { home: { type: 'object' }, marks: { type: 'array' } }, required: ['home', 'marks'], additionalProperties: false },
         },
-      ],
+      },
+      required: ['who'],
+      additionalProperties: false,
     },
   },
   {
