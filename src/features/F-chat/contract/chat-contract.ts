@@ -620,8 +620,11 @@ export async function POST_message(
   // lie (the transcript read would omit it). writeRawTurn throws only on a genuine
   // write failure (no assigned coordinate); fail the turn visibly rather than stream
   // a response against a substrate that never recorded the message.
+  // 3R.5: capture the wearer turn's sc — its words feed the composer's WEARER-TURN
+  // CELLS data block so the model copies priorMark home coordinates (never counts).
+  let wearerSc: number
   try {
-    await writeRawTurn({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
+    wearerSc = await writeRawTurn({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
   } catch (err) {
     console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
@@ -772,6 +775,10 @@ export async function POST_message(
             userId:       session.userId,
             scope:        projectId,
             apiKey:       _apiKey,
+            // 3R.5: the wearer turn just written — word cells only (homes land on word
+            // cells; isWordCell already imported), canonical positions. The composer
+            // renders these so the model copies priorMark homes instead of counting.
+            wearerTurn:   { sc: wearerSc, cells: wearerCells.filter(c => isWordCell(c.word)).map(c => ({ pos: c.pos, word: c.word })) },
           })
           // upgrade path: not token-streamed — deliver the rendered reply once.
           if (aiResult.text.length > 0) send({ chunk: aiResult.text })

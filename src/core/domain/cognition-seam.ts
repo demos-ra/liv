@@ -12,6 +12,8 @@
 //          key-source-symmetry (CognitionInput.apiKey? added — wearer's resolved provider
 //          key threaded from chat-contract through to streamStructuredEmit; env fallback
 //          unchanged as last resort)
+//          sprint-wire-cognition 3R.5 (CognitionInput.wearerTurn? added — the cut wearer
+//          cells threaded from chat-contract; optional, backward-compatible)
 //
 // The cognition composition seam — I1's modular boundary.
 //
@@ -45,6 +47,12 @@ export type CognitionInput = {
   userId:       string
   scope:        string
   apiKey?:      string  // wearer's resolved provider key; undefined → transport falls back to env
+  // sprint-wire-cognition 3R.5: the wearer turn being replied to, already cut at the
+  // write site — word cells only (homes land on word cells), positions canonical. The
+  // composer renders these as the WEARER-TURN CELLS data block so the model COPIES
+  // priorMark home coordinates instead of counting them. Optional → every existing
+  // caller compiles unchanged; absent = no block rendered (byte-identical context).
+  wearerTurn?:  { sc: number; cells: { pos: number; word: string }[] }
 }
 
 // What a composer returns: the substrate position, the placed-mark count (0 for the

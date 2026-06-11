@@ -23,9 +23,13 @@
 //               instruction first, present second; compose instruction always present)
 //             sprint-wire-cognition Shot 1 (composeAndWrite delegates steps 2–7 to
 //               recordScoredTurn — the shared scored-turn recorder; behavior byte-identical)
-//             sprint-wire-cognition Shot 2/3 (presentContext: transcript section is the
-//               session window, rendered with per-word positions; currentFocus relocated
-//               to ../domain/session-window — one focus home)
+//             sprint-wire-cognition Shot 2 (presentContext: transcript section is the
+//               session window; currentFocus relocated to ../domain/session-window — one
+//               focus home)
+//             sprint-wire-cognition 3R.1 (transcript renders plain — coordinates are
+//               fetched, never rendered; per-word positions reverted)
+//             sprint-wire-cognition 3R.5 (composeAndWrite renders the WEARER-TURN CELLS
+//               data block into the scoring context — one render home; backward-compatible)
 // slice:      F-present
 // layer:      R2
 // wires-in:
@@ -100,12 +104,28 @@ import type { ReplyComposer, ContextReader }             from '@/core/domain/cog
 //   turn is already recorded by E1 (the spine) — composeAndWrite never re-records it;
 //   it only marks the person's existing cells by coordinate.
 // Degrades gracefully: an empty/malformed reply -> empty result, no write, no throw.
+// WEARER-TURN CELLS block (3R.5; one render home) — the person's just-written turn as
+// <pos>:<word> pairs, so the model COPIES priorMark home coordinates instead of counting
+// them off the (position-free) transcript. Word cells only (homes land on word cells).
+function renderWearerCells(wearerTurn: { sc: number; cells: { pos: number; word: string }[] }): string {
+  const pairs = wearerTurn.cells.map(c => `${c.pos}:${c.word}`).join(' | ')
+  return `WEARER-TURN CELLS (for priorMarks homes — copy, never count): sc=${wearerTurn.sc} | ${pairs}`
+}
+
+// Assemble the scoring system message: manual (M1) first, then the present, then — when
+// present — the wearer-cells data block (after the present, before userContent). Absent
+// wearerTurn → byte-identical to the prior `${manual}\n\n${present}` form (backward-compat).
+// Exported for the 3R.5 backward-compat gate test.
+export function buildScoringContext(systemPrompt: string | null, wearerTurn?: { sc: number; cells: { pos: number; word: string }[] }): string {
+  const base = systemPrompt ? `${COIN_MANUAL}\n\n${systemPrompt}` : COIN_MANUAL
+  return wearerTurn ? `${base}\n\n${renderWearerCells(wearerTurn)}` : base
+}
+
 export const composeAndWrite: ReplyComposer = async (input) => {
-  // System message: the dated COIN manual (M1) first (the complete fill rules), then
-  // the present (input.systemPrompt). Instruction first so "below" is true.
-  const systemContent = input.systemPrompt
-    ? `${COIN_MANUAL}\n\n${input.systemPrompt}`
-    : COIN_MANUAL
+  // System message: the dated COIN manual (M1) first (the complete fill rules), then the
+  // present (input.systemPrompt), then the wearer-cells data block (3R.5). Instruction
+  // first so "below" is true.
+  const systemContent = buildScoringContext(input.systemPrompt, input.wearerTurn)
   const messages: ChatMessage[] = [
     { role: 'system' as const, content: systemContent },
     { role: 'user' as const, content: input.userContent },
