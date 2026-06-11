@@ -25,6 +25,13 @@
 
 export const COIN_MANUAL_DATE = '2026-06-11'
 
+// The worked example's wearer sentence and the CANONICAL cell positions it teaches.
+// The prose below renders FROM these constants, and coin-manual's test pins them against
+// the live cutter (cutCells(COIN_EXAMPLE_SENTENCE)) — so the example can never silently
+// teach a false coordinate again (spaces occupy slots: I=1, toured=3, Kyoto=5). One home.
+export const COIN_EXAMPLE_SENTENCE = 'I toured Kyoto'
+export const COIN_EXAMPLE_POS = { I: 1, toured: 3, Kyoto: 5 } as const
+
 export const COIN_MANUAL =
 `COIN FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
 
@@ -79,20 +86,20 @@ A word may carry several marks at once; there is no collision rule — overlappi
 settles across turns. A word with no marks needs no entry.
 
 WORKED EXAMPLE
-The person said (TRANSCRIPT): [7] (—): I toured Kyoto
-Its cells (WEARER-TURN CELLS: sc=7 | 1:I | 2:toured | 3:Kyoto) — so "Kyoto" is at pos 3; you COPY that, never count.
-Your reply: "Kyoto truly rivals Tokyo."   (words: 1=Kyoto, 2=truly, 3=rivals, 4=Tokyo)
+The person said (TRANSCRIPT): [7] (—): ${COIN_EXAMPLE_SENTENCE}
+Its cells (WEARER-TURN CELLS: sc=7 | ${COIN_EXAMPLE_POS.I}:I | ${COIN_EXAMPLE_POS.toured}:toured | ${COIN_EXAMPLE_POS.Kyoto}:Kyoto) — so "Kyoto" is at pos ${COIN_EXAMPLE_POS.Kyoto} (spaces occupy slots); you COPY that, never count.
+Your reply: "Kyoto truly rivals Tokyo."   (reply words by INDEX — count words only: 1=Kyoto, 2=truly, 3=rivals, 4=Tokyo)
 {
   "reply": "Kyoto truly rivals Tokyo.",
   "replyMarks": [
     { "word": 1, "marks": [ { "op": "identity" },
-                            { "op": "IDENTIFY", "target": { "who": "wearer", "sc": 7, "pos": 3 } } ] },
+                            { "op": "IDENTIFY", "target": { "who": "wearer", "sc": 7, "pos": ${COIN_EXAMPLE_POS.Kyoto} } } ] },
     { "word": 2, "marks": [ { "op": "QUALIFY", "coloring": "truly", "target": "Kyoto" } ] },
     { "word": 3, "marks": [ { "op": "RELATE", "peers": [ "Kyoto", "Tokyo" ] } ] },
     { "word": 4, "marks": [ { "op": "identity" } ] }
   ],
   "priorMarks": [
-    { "home": { "who": "wearer", "sc": 7, "pos": 3 }, "marks": [ { "op": "identity" } ] }
+    { "home": { "who": "wearer", "sc": 7, "pos": ${COIN_EXAMPLE_POS.Kyoto} }, "marks": [ { "op": "identity" } ] }
   ]
 }
 
