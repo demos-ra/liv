@@ -21,32 +21,39 @@
 //               wearer key resolves over env fallback; mirrors baseline streamAIResponse call)
 //             coin-scoring-prompt (COIN_SCORING_PROMPT prepended to system message —
 //               instruction first, present second; compose instruction always present)
+//             sprint-wire-cognition Shot 1 (composeAndWrite delegates steps 2–7 to
+//               recordScoredTurn — the shared scored-turn recorder; behavior byte-identical)
+//             sprint-wire-cognition Shot 2/3 (presentContext: transcript section is the
+//               session window, rendered with per-word positions; currentFocus relocated
+//               to ../domain/session-window — one focus home)
 // slice:      F-present
 // layer:      R2
 // wires-in:
 //   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/contract/ai-contract       (Group 1: R3 surface)
 //   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/contract/ai-contract       (Group 2: R3 surface)
-//   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured/splitEmission/cutReply/verifyGrid/validateSharedUniverse   ../domain/coin-score
+//   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured     ../domain/coin-score
 //   W-ATOM  COIN_MANUAL                                  ../config/coin-manual
-//   W-FN    cutCells/joinCells                           @/features/F-memory/contract/substrate-contract     (G1 — Group 1: R3 surface)
+//   W-FN    recordScoredTurn                             ../app/scored-turn-recorder   (sprint-wire-cognition Shot 1)
 //   W-FN    buildFactTable                               ../domain/fact-table
 //   W-FN    resolveDimension                             ../domain/resolve-dimension
 //   W-FN    weighDimension                               ../domain/chain-ping
 //   W-FN    pivot                                        ../domain/pivot
-//   W-FN    renderForest/renderSheet                     ../domain/render-present
+//   W-FN    renderForest/renderSheet/renderTranscript    ../domain/render-present
+//   W-FN    currentFocus/sessionWindow                   ../domain/session-window      (sprint-wire-cognition Shot 2)
 //   W-ATOM  DEFAULT_FOREST_CUTOFF/DEFAULT_ANCESTORS_UP/DEFAULT_DESCENDANTS_DOWN   ../config/read-engine-types
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
-//   W-FN    writeRawTurn                                 @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
 //   W-FN    readTranscript                               @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
 //   W-FN    registerReplyComposer/registerContextReader  @/core/domain/cognition-seam                      (F-present -> core)
 // deps:
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R1  ../domain/coin-score
+//   R2  ../app/scored-turn-recorder
 //   R1  ../domain/fact-table
 //   R1  ../domain/resolve-dimension
 //   R1  ../domain/chain-ping
 //   R1  ../domain/pivot
 //   R1  ../domain/render-present
+//   R1  ../domain/session-window
 //   R0  ../config/read-engine-types
 //   R4  ../exec/present-mark-store-db
 //   R3  @/features/F-memory/contract/substrate-contract
@@ -66,17 +73,18 @@
 
 import { streamStructuredEmit }                          from '@/features/F-ai-adapter/contract/ai-contract'
 import type { ChatMessage }                              from '@/features/F-ai-adapter/contract/ai-contract'
-import { SCORE_EMIT_CONFIG, emissionFromStructured, splitEmission, cutReply, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
+import { SCORE_EMIT_CONFIG, emissionFromStructured }     from '@/features/F-present/domain/coin-score'
 import { COIN_MANUAL } from '@/features/F-present/config/coin-manual'
+import { recordScoredTurn }                              from '@/features/F-present/app/scored-turn-recorder'
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
 import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
 import { pivot }                                         from '@/features/F-present/domain/pivot'
-import { renderForest, renderSheet }                     from '@/features/F-present/domain/render-present'
+import { renderForest, renderSheet, renderTranscript }   from '@/features/F-present/domain/render-present'
+import { currentFocus, sessionWindow }                   from '@/features/F-present/domain/session-window'
 import { DEFAULT_FOREST_CUTOFF, DEFAULT_ANCESTORS_UP, DEFAULT_DESCENDANTS_DOWN } from '@/features/F-present/config/read-engine-types'
-import type { Dimension, ThingId, ForestResult, SheetResult } from '@/features/F-present/config/read-engine-types'
+import type { ForestResult, SheetResult }                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
-import { writeRawTurn, cutCells, joinCells } from '@/features/F-memory/contract/substrate-contract'
 import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
 import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
 import type { ReplyComposer, ContextReader }             from '@/core/domain/cognition-seam'
@@ -109,38 +117,13 @@ export const composeAndWrite: ReplyComposer = async (input) => {
     if (chunk.type === 'final') structured = chunk.structured
   }
 
-  // 2. narrow -> emission (malformed -> empty reply).
+  // 2. narrow -> emission (malformed -> empty reply), then record (Shot 1): cut once →
+  //    write → split → M4 verify → place → render. The recorder is the single scored-turn
+  //    composition, shared with the demanded wire. Empty reply → honest non-write (the
+  //    recorder guards it). Behavior is byte-identical to the prior inline steps 2–7.
   const emission = emissionFromStructured(structured)
-  if (emission.reply.length === 0) return { sc: 0, markCount: 0, text: '' }
-
-  // 3. reply cut by G1 (the canonical grid — the model's reply text IS authoritative).
-  const { cells } = cutReply(emission.reply)
-
-  // 4. hand the canonical reply cells DOWN to core (R2a). The assigned position IS sc.
-  const sc = await writeRawTurn({ who: input.who, words: cells, userId: input.userId, scope: input.scope })
-
-  // 5. split at sc: reply marks home on the canonical word-cell named by their word
-  //    index; priorMarks home on the person's existing cells. splitEmission is the
-  //    single source of mark geometry.
-  const { placedMarks } = splitEmission(emission, input.who, sc)
-
-  // 6. M4 VERIFY (newly wired — was dead code): invoked on every scored turn, after
-  //    fill, before placement — (a) the grid is numbered once & contiguous (verifyGrid),
-  //    and (b) every ref POSITIVELY resolves against the known universe (this reply's
-  //    cells + the recorded transcript: coord-keys AND lowercased names), not merely
-  //    dangler-dropped. Marks that fail either check do not persist.
-  const known = new Set<string>()
-  for (const c of cells) { known.add(`${input.who}:${sc}:${c.pos}`); known.add(c.word.toLowerCase()) }
-  const transcript = await readTranscript(input.userId)
-  for (const t of transcript) for (const w of t.words) { known.add(`${t.who}:${t.sc}:${w.pos}`); known.add(w.word.toLowerCase()) }
-  const verified = verifyGrid(cells) ? validateSharedUniverse(placedMarks, known) : []
-
-  // 7. place the verified marks into F-present's store.
-  await createDbPresentMarkStore().place(input.userId, verified)
-
-  // 8. render text for the UI — G1's inverse (F1), never an ad-hoc space-join.
-  const text = joinCells(cells)
-  return { sc, markCount: verified.length, text }
+  const { sc, markCount, text } = await recordScoredTurn(emission, input.who, input.userId, input.scope)
+  return { sc, markCount, text }
 }
 
 // ── Read-front upgrader — conforms to the core ContextReader ───────────────────
@@ -158,12 +141,14 @@ export const presentContext: ContextReader = async (userId) => {
   const rows = buildFactTable(transcript, store)
   const dim  = resolveDimension(rows)
   weighDimension(dim, rows)
+  const focus = currentFocus(dim)
 
   const out: string[] = []
-  // 1. transcript — the raw words of the line, always on (not a table call).
-  out.push('TRANSCRIPT (turns in position order):')
-  for (const tt of transcript)
-    out.push(`[${tt.sc}] (${tt.who === 'wearer' ? '\u2014' : tt.who}): ${joinCells(tt.words)}`)
+  // 1. transcript — the SESSION WINDOW (Shot 2: from where the current focus-line run
+  //    began, to now), rendered with per-word cell positions (Shot 3). Always on (not a
+  //    table call). Full history stays reachable via readTranscript; only the default
+  //    windshield scope narrows. forest/sheet scope is unchanged this sprint.
+  out.push(renderTranscript(sessionWindow(transcript, dim, rows, focus)))
 
   // structure + state appear once marks exist (sparse early, richer as it compounds).
   if (dim.things.size > 0) {
@@ -171,7 +156,6 @@ export const presentContext: ContextReader = async (userId) => {
     out.push('')
     out.push(renderForest(pivot({ view: 'forest', show: {}, weightCutoff: DEFAULT_FOREST_CUTOFF }, dim, rows) as ForestResult))
     // 3. sheet (state) anchored at the current focus @ ALL mark-types.
-    const focus = currentFocus(dim)
     if (focus) {
       out.push('')
       out.push(renderSheet(pivot(
@@ -181,21 +165,6 @@ export const presentContext: ContextReader = async (userId) => {
     }
   }
   return out.join('\n')
-}
-
-// current focus (a wake-default template knob, not engine logic): the most
-// recently touched thing — highest member sc, then heaviest, then id. Overridable;
-// the LLM re-anchors freely by calling pivot with any focus.
-function currentFocus(dim: Dimension): ThingId | null {
-  let best: ThingId | null = null
-  let bestSc = -Infinity, bestW = -Infinity
-  for (const t of dim.things.values()) {
-    const sc = t.members.length ? t.members[t.members.length - 1].sc : -Infinity
-    if (sc > bestSc || (sc === bestSc && (t.weight > bestW || (t.weight === bestW && (best === null || t.id < best))))) {
-      best = t.id; bestSc = sc; bestW = t.weight
-    }
-  }
-  return best
 }
 
 // ── The single composition wire ────────────────────────────────────────────────

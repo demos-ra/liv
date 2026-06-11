@@ -17,9 +17,15 @@
 //   W-FN  presentRouter          →  F-identity/router (tRPC)
 //   W-FN  registerCognitionUpgrades  →  F-chat, F-event-system/startup
 //   W-FN  isMark                 →  scripts/reconcile-present-marks (the gate, surfaced)
+//   W-FN  recordScoredTurn       →  F-mcp (write tool, who:'llm') — the scored-turn recorder
+//   W-FN  emissionFromStructured →  F-mcp (write tool, who:'llm') — the narrowing/gate filter
+//   W-ATOM COIN_MANUAL           →  F-mcp (present tool — manual-with-present, one home)
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
+//   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission)
+//   R0  ../config/coin-manual    (COIN_MANUAL)
 //   R2  ../app/cognition-orchestrator
+//   R2  ../app/scored-turn-recorder
 //   R3  ./read-surface
 
 // The read surface — the removable lens, rendered to context text.
@@ -35,3 +41,14 @@ export { registerCognitionUpgrades } from '../app/cognition-orchestrator'
 // against the SAME isMark the engine uses — e.g. the reconciliation script. External
 // code reaches the gate HERE (the R3 boundary), never via domain/mark-gate directly.
 export { isMark } from '../domain/mark-gate'
+
+// The scored-turn write surface (sprint-wire-cognition Shot 1/4) — symmetric with
+// readPresent. The demanded wire (F-mcp write, who:'llm') records a pair-scored turn
+// HERE: emissionFromStructured narrows the agent's emission through the same gate the
+// native path uses, then recordScoredTurn lands it (cut once → write → split → verify →
+// place). COIN_MANUAL is surfaced for the present tool's manual-with-present return
+// (one home — defined in config/coin-manual, never re-declared at the wire).
+export { recordScoredTurn } from '../app/scored-turn-recorder'
+export { emissionFromStructured } from '../domain/coin-score'
+export type { ScoredEmission } from '../domain/coin-score'
+export { COIN_MANUAL } from '../config/coin-manual'

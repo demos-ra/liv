@@ -8,7 +8,9 @@
 // standard:   LIV-Standard v1.5.2
 // amended:    write-finalization M2/M4/M5 (pair-scoring emission + G1 re-key + wired verify);
 //             COIN_SCORING_PROMPT removed → the dated manual is M1 (config/coin-manual.ts);
-//             mark-gate-placement (isCoord/isMark moved to ../domain/mark-gate; consumed as a wire)
+//             mark-gate-placement (isCoord/isMark moved to ../domain/mark-gate; consumed as a wire);
+//             sprint-wire-cognition Shot 1 (splitEmission accepts the caller's cut — single
+//               tokenization per turn; still the single source of mark geometry)
 // slice:      F-present
 // layer:      R1
 // wires-in:
@@ -132,8 +134,14 @@ export function cutReply(reply: string): { cells: RawWord[]; wordCellPos: number
 // ROUTE (A + pair): reply text → substrate (CANONICAL cells = cutReply); marks (both
 // turns) → F-present store. Reply marks home on the canonical word-cell named by their
 // 1-based word index; priorMarks home on the person's existing coords (already canonical).
-export function splitEmission(emission: ScoredEmission, replyWho: Who, replySc: number): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
-  const { cells, wordCellPos } = cutReply(emission.reply)
+//
+// SINGLE-CUT (sprint-wire-cognition Shot 1; coin law "no double work"): the caller may
+// hand in the cut it already made (recordScoredTurn cuts ONCE, then threads that cut to
+// writeRawTurn AND here). When `cut` is supplied splitEmission re-cuts NOTHING — it is
+// still the single source of mark geometry, now reading the geometry off the caller's
+// canonical grid. When omitted (direct unit use) it cuts, preserving the old behavior.
+export function splitEmission(emission: ScoredEmission, replyWho: Who, replySc: number, cut?: { cells: RawWord[]; wordCellPos: number[] }): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
+  const { cells, wordCellPos } = cut ?? cutReply(emission.reply)
   const rawTurn: RawTurn = { sc: replySc, who: replyWho, words: cells }
   const replyMarks: PlacedMark[] = emission.replyMarks.flatMap(rm => {
     const pos = wordCellPos[rm.word - 1]                   // 1-based index → canonical word-cell position
