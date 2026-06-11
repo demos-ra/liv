@@ -44,11 +44,11 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_PRESENT,
     description:
-      "Read the wearer's present — the resolved memory context. Takes no arguments; the wearer is the authenticated session identity.",
+      "Read the wearer's present — the resolved memory context. Takes no arguments; the wearer is the authenticated session identity. Extra fields are ignored — reads take no testimony; clients may attach lifecycle envelopes freely.",
     inputSchema: {
       type: 'object',
       properties: {},
-      additionalProperties: false,
+      additionalProperties: true,
     },
   },
   {
@@ -98,7 +98,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_GRID,
     description:
-      "Fetch the canonical cell grid of one recorded turn — every cell (word, punctuation, space) with its 1-based position. Coordinates are COPIED from this grid, never counted from prose: the transcript is the wearer's byte-pure record and carries no positions. Use grid to obtain a (who, sc, pos) coordinate for a precise home or target.",
+      "Fetch the canonical cell grid of one recorded turn — every cell (word, punctuation, space) with its 1-based position. Coordinates are COPIED from this grid, never counted from prose: the transcript is the wearer's byte-pure record and carries no positions. Use grid to obtain a (who, sc, pos) coordinate for a precise home or target. Extra fields are ignored — reads take no testimony; clients may attach lifecycle envelopes freely.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -106,7 +106,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
         sc: { type: 'number', description: 'The turn position (sc) whose cell grid you want.' },
       },
       required: ['who', 'sc'],
-      additionalProperties: false,
+      additionalProperties: true,
     },
   },
 ]

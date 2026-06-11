@@ -187,9 +187,10 @@ test('grid: a turn not found returns a stating { ok: false }, never throws', () 
   assert.match((res as { message: string }).message, /no such turn/)
 })
 
-// ── (E) additionalProperties:false enforced at the door (FIX-2) ───────────────────
-// planToolCall is the authoritative validator — unknown top-level fields are rejected
-// fail-closed with a law-naming message, across all three tools and both write shapes.
+// ── (E) extras gate is the WRITE door's only (FIX-2 + read-door law RD) ───────────
+// Write doors demand: unknown top-level fields are rejected fail-closed with a law-naming
+// message (both write shapes). Read doors (present, grid) ignore extras — they carry no
+// testimony — so clients may attach lifecycle envelopes freely (tested in (G)).
 test('write (wearer): an unknown field is rejected, law named', () => {
   const r = planToolCall('write', { who: 'wearer', text: 'hi', extra: 1 })
   assert.equal(r.ok, false)
@@ -242,11 +243,16 @@ test('the door stamps scope = session.sessionId (circumstance, not a sent field)
   assert.equal(seam.writes[0].scope, 'conn-abc')          // the stamped writing connection
 })
 
-test('present: an unknown field is rejected, law named', () => {
-  const r = planToolCall('present', { sneaky: 1 })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /present: unknown field "sneaky"/)
+// ── (G) read-door law (RD) — reads ignore extras (no testimony to protect) ────────
+// A read carries no testimony, so extras-rejection protects nothing and breaks clients
+// whose lifecycle attaches envelope baggage (a SessionStart hook passing its event
+// envelope as tool arguments bounced the wake at MCP -32602). present + grid now ignore
+// extras; grid still validates its (who, sc) selectors.
+test('present: extra lifecycle-envelope fields are ignored (read door succeeds)', () => {
+  const r = planToolCall('present', { source: 'startup', session_id: 'x' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.intention, { tool: 'present' })
 })
 
 test('present: no arguments is still accepted', () => {
@@ -254,10 +260,14 @@ test('present: no arguments is still accepted', () => {
   assert.equal(planToolCall('present', {}).ok, true)
 })
 
-test('grid: an unknown field is rejected, law named', () => {
-  const r = planToolCall('grid', { who: 'wearer', sc: 7, pos: 3 })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /grid: unknown field "pos"/)
-  assert.match(r.message, /additionalProperties:false/)
+test('grid: selectors plus extra envelope fields succeed (read door ignores extras)', () => {
+  const r = planToolCall('grid', { who: 'wearer', sc: 7, source: 'startup', session_id: 'x' })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.intention, { tool: 'grid', who: 'wearer', sc: 7 })   // extras dropped, selectors kept
+})
+
+test('grid: a missing selector still rejects (selector validation enforced)', () => {
+  assert.equal(planToolCall('grid', { who: 'wearer' }).ok, false)         // missing sc
+  assert.equal(planToolCall('grid', { sc: 7 }).ok, false)                 // missing/invalid who
 })

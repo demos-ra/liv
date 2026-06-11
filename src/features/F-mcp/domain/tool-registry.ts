@@ -81,10 +81,14 @@ function isWho(v: unknown): v is Who {
   return typeof v === 'string' && (WHO_VALUES as readonly string[]).includes(v)
 }
 
-// additionalProperties:false enforcement (FIX-2). planToolCall is the AUTHORITATIVE
-// validator — the schema only advertises; the door enforces. An unknown top-level field
-// is rejected fail-closed with a law-naming message. No second layer, no middleware, no
-// schema library — just the demanded allow-list per tool shape.
+// READ-DOOR LAW (RD): read doors ignore extras (a read carries no testimony, so
+// extras-rejection protects nothing — and it bounces clients whose lifecycle attaches
+// envelope baggage, e.g. a SessionStart hook passing its event envelope as arguments);
+// write doors demand (FIX-2). So the extras gate below is the WRITE door's enforcement
+// only: planToolCall is the authoritative validator — the schema advertises, the write
+// door enforces. An unknown top-level field on a WRITE is rejected fail-closed with a
+// law-naming message. No second layer, no middleware — just the demanded allow-list per
+// write shape. present + grid validate their selectors and ignore everything else.
 function firstUnknownField(args: Record<string, unknown>, allowed: readonly string[]): string | null {
   for (const k of Object.keys(args)) if (!allowed.includes(k)) return k
   return null
@@ -95,10 +99,7 @@ function unknownFieldReject(tool: string, field: string): PlanResult {
 
 export function planToolCall(name: unknown, args: unknown): PlanResult {
   if (name === TOOL_PRESENT) {
-    if (isObject(args)) {
-      const extra = firstUnknownField(args, [])           // present takes no arguments
-      if (extra) return unknownFieldReject('present', extra)
-    }
+    // read door — no selectors, no testimony; ignores any extras (lifecycle envelopes).
     return { ok: true, intention: { tool: 'present' } }
   }
 
@@ -148,8 +149,7 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     if (typeof args.sc !== 'number' || !Number.isFinite(args.sc)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: sc must be a number (the turn position)' }
     }
-    const extra = firstUnknownField(args, ['who', 'sc'])
-    if (extra) return unknownFieldReject('grid', extra)
+    // read door — selectors (who, sc) validated above; any extras are ignored.
     return { ok: true, intention: { tool: 'grid', who: args.who, sc: args.sc } }
   }
 
