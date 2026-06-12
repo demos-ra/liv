@@ -80,6 +80,7 @@ import type { ChatMessage }                              from '@/features/F-ai-a
 import { SCORE_EMIT_CONFIG, emissionFromStructured }     from '@/features/F-present/domain/coin-score'
 import { COIN_MANUAL } from '@/features/F-present/config/coin-manual'
 import { recordScoredTurn }                              from '@/features/F-present/app/scored-turn-recorder'
+import type { WearerSource }                             from '@/features/F-present/app/scored-turn-recorder'
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
 import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
@@ -104,28 +105,25 @@ import type { ReplyComposer, ContextReader }             from '@/core/domain/cog
 //   turn is already recorded by E1 (the spine) — composeAndWrite never re-records it;
 //   it only marks the person's existing cells by coordinate.
 // Degrades gracefully: an empty/malformed reply -> empty result, no write, no throw.
-// WEARER-TURN CELLS block (3R.5; one render home) — the person's just-written turn as
-// <pos>:<word> pairs, so the model COPIES priorMark home coordinates instead of counting
-// them off the (position-free) transcript. Word cells only (homes land on word cells).
-function renderWearerCells(wearerTurn: { sc: number; cells: { pos: number; word: string }[] }): string {
-  const pairs = wearerTurn.cells.map(c => `${c.pos}:${c.word}`).join(' | ')
-  return `WEARER-TURN CELLS (for priorMarks homes — copy, never count): sc=${wearerTurn.sc} | ${pairs}`
-}
+// (sprint-wire-economy) The WEARER-TURN CELLS data block is GONE (deletion manifest, both
+// rails): priorMarks are now keyed by WORD-INDEX into the wearer's turn text — which the
+// model reads straight from the transcript — plus the surface word, validated by the
+// recorder. The model no longer copies <pos>:<word> pairs, so there is no cells block to
+// render. CognitionInput.wearerTurn survives, but ONLY as the recorder's wearer SOURCE (its
+// word-cells resolve priorMarks); it is never rendered into the scoring context.
 
-// Assemble the scoring system message: manual (M1) first, then the present, then — when
-// present — the wearer-cells data block (after the present, before userContent). Absent
-// wearerTurn → byte-identical to the prior `${manual}\n\n${present}` form (backward-compat).
-// Exported for the 3R.5 backward-compat gate test.
-export function buildScoringContext(systemPrompt: string | null, wearerTurn?: { sc: number; cells: { pos: number; word: string }[] }): string {
-  const base = systemPrompt ? `${COIN_MANUAL}\n\n${systemPrompt}` : COIN_MANUAL
-  return wearerTurn ? `${base}\n\n${renderWearerCells(wearerTurn)}` : base
+// Assemble the scoring system message: manual (M1) first, then the present. One source
+// (COIN_MANUAL), two deliveries — the wire rides the same manual on the `turn` tool
+// description (R2). Absent present → the manual alone.
+export function buildScoringContext(systemPrompt: string | null): string {
+  return systemPrompt ? `${COIN_MANUAL}\n\n${systemPrompt}` : COIN_MANUAL
 }
 
 export const composeAndWrite: ReplyComposer = async (input) => {
   // System message: the dated COIN manual (M1) first (the complete fill rules), then the
-  // present (input.systemPrompt), then the wearer-cells data block (3R.5). Instruction
-  // first so "below" is true.
-  const systemContent = buildScoringContext(input.systemPrompt, input.wearerTurn)
+  // present (input.systemPrompt). Instruction first so "below" is true. The wearer turn is
+  // not rendered here — it feeds the recorder as the priorMark source (below).
+  const systemContent = buildScoringContext(input.systemPrompt)
   const messages: ChatMessage[] = [
     { role: 'system' as const, content: systemContent },
     { role: 'user' as const, content: input.userContent },
@@ -137,12 +135,17 @@ export const composeAndWrite: ReplyComposer = async (input) => {
     if (chunk.type === 'final') structured = chunk.structured
   }
 
-  // 2. narrow -> emission (malformed -> empty reply), then record (Shot 1): cut once →
-  //    write → split → M4 verify → place → render. The recorder is the single scored-turn
-  //    composition, shared with the demanded wire. Empty reply → honest non-write (the
-  //    recorder guards it). Behavior is byte-identical to the prior inline steps 2–7.
+  // 2. narrow -> emission (malformed -> empty reply), then record (sprint-wire-economy):
+  //    locate+verify BOTH mark sets (claim+validate, loud) → cut once → write → home → M4
+  //    verify → place → render. The recorder is the single scored-turn composition, shared
+  //    with the demanded wire. The wearer turn is E1's pre-write (the spine wrote it at the
+  //    perimeter): hand it as `wearer: { written }` so priorMarks resolve against its
+  //    word-cells — "feeds it", E1 untouched. Absent wearerTurn (no live caller) → empty.
   const emission = emissionFromStructured(structured)
-  const { sc, markCount, text } = await recordScoredTurn(emission, input.who, input.userId, input.scope)
+  const wearer: WearerSource = input.wearerTurn
+    ? { written: { sc: input.wearerTurn.sc, wordCells: input.wearerTurn.cells } }
+    : { written: { sc: 0, wordCells: [] } }
+  const { sc, markCount, text } = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer)
   return { sc, markCount, text }
 }
 

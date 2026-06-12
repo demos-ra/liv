@@ -19,7 +19,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_WRITE, TOOL_GRID, WHO_VALUES } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_GRID } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -51,22 +51,21 @@ export function initializeResult(): {
   }
 }
 
-// What a validated tool call intends. `present` carries no payload (identity is
-// the session). `write` is DEMANDED per author (sprint-wire-cognition Shot 4):
-//   - wearer → words-only ({ text }); the wearer never emits marks.
-//   - llm    → pair-scored (§FORK-A: { reply, replyMarks, priorMarks }); the speaker
-//     scores its own turn. Marks pass as unknown[] — STRUCTURE is validated here (R1,
-//     pure: present + array), the mark GATE runs at R3 via emissionFromStructured (one
-//     gate, no copy). userId is injected at the R3 contract from the session.
+// What a validated tool call intends. `present` carries no payload (identity is the
+// session). `turn` is DEMANDED (sprint-wire-economy R1) — ONE call carries BOTH turns:
+//   { wearerText, reply, replyMarks, priorMarks } — all four required; the mark arrays may
+//   be empty but never absent. Marks pass as unknown[] — STRUCTURE is validated here (R1,
+//   pure: present + array); the mark GATE + the index↔surface validation run at R3 (via
+//   emissionFromStructured + the recorder's locateWordMarks — one gate, no copy). userId is
+//   injected at the R3 contract from the session; there is no `who` — the reply authors as
+//   'llm' (the agent), the wearer is wearerText.
 //
-// SCOPE-SYMMETRY (scope-symmetry delta): scope is CIRCUMSTANCE, not testimony — it left
-// the demanded schema. Speakers send only what they author; the door stamps the writing
-// connection (session.sessionId) at R3. A turn that still sends `scope` is now rejected
-// as an unknown field by firstUnknownField — intentional, zero added code.
+// SCOPE-SYMMETRY (carried): scope is CIRCUMSTANCE, not testimony — it is not in the demanded
+// shape. The door stamps the writing connection (session.sessionId) at R3. A turn that still
+// sends `scope` (or any extra) is rejected as an unknown field by firstUnknownField.
 export type ToolIntention =
   | { tool: 'present' }
-  | { tool: 'write'; who: 'wearer'; text: string }
-  | { tool: 'write'; who: 'llm'; reply: string; replyMarks: unknown[]; priorMarks: unknown[] }
+  | { tool: 'turn'; wearerText: string; reply: string; replyMarks: unknown[]; priorMarks: unknown[] }
   | { tool: 'grid'; who: Who; sc: number }   // 3R.2 — fetch one turn's canonical cell grid
 
 export type PlanResult =
@@ -75,10 +74,6 @@ export type PlanResult =
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
-}
-
-function isWho(v: unknown): v is Who {
-  return typeof v === 'string' && (WHO_VALUES as readonly string[]).includes(v)
 }
 
 // READ-DOOR LAW (RD): read doors ignore extras (a read carries no testimony, so
@@ -103,38 +98,25 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     return { ok: true, intention: { tool: 'present' } }
   }
 
-  if (name === TOOL_WRITE) {
+  if (name === TOOL_TURN) {
     if (!isObject(args)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: arguments object required' }
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: arguments object required' }
     }
-    if (!isWho(args.who)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: who must be one of wearer | llm | program' }
+    // ONE call, BOTH turns (§FORK-A + R1). wearerText: the person's verbatim words; reply:
+    // authoritative; replyMarks + priorMarks REQUIRED (arrays may be present-but-empty,
+    // never absent). The mark gate + index↔surface validation run at R3.
+    if (typeof args.wearerText !== 'string') {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires wearerText (the person’s verbatim words — one call records both turns; LIV cuts it)' }
     }
-    // program: rejected at v2 — the wire carries only wearer words + llm pair-scored
-    // turns. A program turn is not speaker-scored, and LIV never invents structure.
-    if (args.who === 'program') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: no program writer over the wire at v2 (§no-server-side-marking — only wearer words and llm pair-scored turns cross the wire)' }
-    }
-    // wearer: words-only by design (the wearer never emits marks).
-    if (args.who === 'wearer') {
-      if (typeof args.text !== 'string') {
-        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: wearer turn requires text (words-only — the wearer never emits marks)' }
-      }
-      const extra = firstUnknownField(args, ['who', 'text'])
-      if (extra) return unknownFieldReject('write', extra)
-      return { ok: true, intention: { tool: 'write', who: 'wearer', text: args.text } }
-    }
-    // llm: pair-scored (§FORK-A). reply authoritative; replyMarks + priorMarks REQUIRED
-    // (arrays may be present-but-empty, never absent). The mark gate runs at R3.
     if (typeof args.reply !== 'string') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires reply (§FORK-A — the reply text is authoritative)' }
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires reply (§FORK-A — the reply text is authoritative)' }
     }
     if (!Array.isArray(args.replyMarks) || !Array.isArray(args.priorMarks)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'write: llm turn requires replyMarks and priorMarks (§FORK-A — the speaker scores its own turn; arrays may be empty but never absent)' }
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires replyMarks and priorMarks (the speaker scores BOTH turns; arrays may be empty but never absent)' }
     }
-    const extra = firstUnknownField(args, ['who', 'reply', 'replyMarks', 'priorMarks'])
-    if (extra) return unknownFieldReject('write', extra)
-    return { ok: true, intention: { tool: 'write', who: 'llm', reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
+    const extra = firstUnknownField(args, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+    if (extra) return unknownFieldReject('turn', extra)
+    return { ok: true, intention: { tool: 'turn', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
   }
 
   if (name === TOOL_GRID) {

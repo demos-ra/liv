@@ -9,36 +9,34 @@
 // category:   Modality
 // layer:      config
 // wires-in:
-//   W-ATOM   Who                @/core/types/substrate-raw.types
 //   W-ATOM   McpToolDescriptor  F-mcp/config mcp-protocol
 // wires-out:
-//   W-ATOM   MCP_TOOLS / WHO_VALUES   F-mcp/R1 tool-registry
-// deps:
-//   R0  @/core/types/substrate-raw.types
+//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_GRID   F-mcp/R1 tool-registry, R3 contract
 // validated:  pending
 
-import type { Who } from '@/core/types/substrate-raw.types'
 import type { McpToolDescriptor } from './mcp-protocol'
 
-// The MCP surface (manager §2 + sprint-wire-cognition 3R.2): present (read), write
-// (record turn), grid (fetch one turn's canonical cell grid — the first navigation
-// read control). LIV is the agent's memory substrate; the agent is itself the LLM.
-// Tool names and arg shapes are declared here; mapping to in-process R3 targets is
-// performed at the R3 contract.
+// The MCP surface (manager §2 + sprint-wire-economy R1/R2): present (read), turn (record
+// ONE conversation turn — both the person's words and the scored reply, in one call — and
+// respond with the fresh present), grid (fetch one turn's canonical cell grid). LIV is the
+// agent's memory substrate; the agent is itself the LLM. Tool names and arg shapes are
+// declared here; mapping to in-process R3 targets is performed at the R3 contract.
 //
-// grid is the FIRST navigation read control. It is derived here once on the wire;
-// candidate for promotion to an F-present read control at Phase 3 (re-homed if L0
-// rules — the wire would then call that control rather than readTranscript directly).
+// ONE CALL PER TURN (sprint-wire-economy R1): the wire no longer carries a separate
+// wearer write then an llm write — a `turn` carries wearerText + the scored reply together,
+// LIV records both turns, and the response IS the fresh present. The per-turn manual and
+// per-turn transcript are gone from the wire: the manual rides the `turn` description (a
+// once-channel, R2), the transcript is fetched (grid / lookup), never carried.
+//
+// grid is a navigation read control (re-homed to F-present as `lookup` at Shot 5).
 
 export const TOOL_PRESENT = 'present' as const
-export const TOOL_WRITE = 'write' as const
+export const TOOL_TURN = 'turn' as const
 export const TOOL_GRID = 'grid' as const
 
-// Runtime membership set for the `who` content-authorship axis. `satisfies
-// readonly Who[]` binds it to the canonical Who type: if Who's literals change,
-// this fails to compile. Validation fails closed — an author not in this set is
-// rejected (a new Who value would simply not be accepted until added here).
-export const WHO_VALUES = ['wearer', 'llm', 'program'] as const satisfies readonly Who[]
+// (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
+// is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
+// grid validates its own who (wearer|llm) inline. No remaining consumer.
 
 export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
@@ -52,35 +50,31 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     },
   },
   {
-    name: TOOL_WRITE,
+    name: TOOL_TURN,
     description:
-      "Record one conversation turn into the wearer's substrate. The turn shape is DEMANDED per author (enforced at the door, not the schema): a wearer turn is words-only — send { who: 'wearer', text } (LIV cuts the text into cells, the machine cuts, never the caller). An llm turn is pair-scored (§FORK-A) — send { who: 'llm', reply, replyMarks, priorMarks }; the speaker scores its own turn, and replyMarks + priorMarks are both required (arrays may be empty but never absent). Send ONLY the fields your author demands — extra fields are rejected. program turns are not accepted over the wire at v2. Circumstance fields (identity, channel, scope) are stamped by the perimeter — never sent.",
-    // TRANSPORT-SAFE ADVERTISEMENT (sprint-wire-transport T1): ONE flat object — no
-    // top-level oneOf/anyOf/allOf (the Anthropic API rejects those and the client drops
-    // the whole tool). `who` is the only structurally-required field; the per-author
-    // demanded shapes are carried in the description (prose) and enforced AUTHORITATIVELY
-    // at the door (planToolCall: wearer→text, llm→reply+replyMarks+priorMarks, extras
-    // rejected, program rejected). FIX-2 correctly layered: the ad describes truthfully +
-    // transport-safe; one home (the door) demands. additionalProperties:false stays — the
-    // write door takes no envelope baggage; only the demanded fields are admitted.
+      "Record ONE conversation turn — the person's words AND your scored reply, in a single call — and receive your fresh present in return. LIV writes both turns; you never make a separate wearer write. DEMANDED shape (enforced at the door): { wearerText, reply, replyMarks, priorMarks } — all four required (the mark arrays may be empty, never absent); extra fields are rejected. wearerText is the person's verbatim words (LIV cuts it). reply is your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A) and renders it byte-identical. replyMarks score YOUR reply; priorMarks score the PERSON's turn. Each mark entry is { word, surface, marks }: word is the 1-based WORD-INDEX into that turn's text (count word-cells left to right), surface is the exact word you claim sits at that index — LIV verifies surface against the cut byte-exact and rejects a mismatch loud. Coordinates appear only inside a mark's Ref (target/peer), copied from grid/lookup, never as a home index. Circumstance (identity, channel, scope) is stamped by the perimeter — never sent. The full fill manual is delivered with this tool.",
+    // TRANSPORT-SAFE ADVERTISEMENT (sprint-wire-transport T1, carried): ONE flat object —
+    // no top-level oneOf/anyOf/allOf (the Anthropic API rejects those and the client drops
+    // the whole tool). All four fields are structurally required; the door enforces the
+    // same demand AUTHORITATIVELY (planToolCall) and rejects extras. additionalProperties
+    // stays false — the turn is a write door, it takes no envelope baggage.
     inputSchema: {
       type: 'object',
       properties: {
-        who: { type: 'string', enum: ['wearer', 'llm'], description: 'Content authorship of the turn. wearer → words-only; llm → pair-scored (§FORK-A). Not identity, not authority.' },
-        text: { type: 'string', description: "wearer turn: the verbatim turn text. LIV cuts it into cells. (Send only on a wearer turn.)" },
-        reply: { type: 'string', description: 'llm turn: your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. (Send only on an llm turn.)' },
+        wearerText: { type: 'string', description: "the person's verbatim turn text. LIV cuts it into cells; priorMarks index its word-cells." },
+        reply: { type: 'string', description: 'your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. replyMarks index its word-cells.' },
         replyMarks: {
           type: 'array',
-          description: 'llm turn: marks on your reply, keyed by 1-based word index ({ word, marks }). Required on an llm turn; may be empty, never absent.',
-          items: { type: 'object', properties: { word: { type: 'number' }, marks: { type: 'array' } }, required: ['word', 'marks'], additionalProperties: false },
+          description: 'marks on YOUR reply, by 1-based word index into the reply, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.',
+          items: { type: 'object', properties: { word: { type: 'number' }, surface: { type: 'string' }, marks: { type: 'array' } }, required: ['word', 'surface', 'marks'], additionalProperties: false },
         },
         priorMarks: {
           type: 'array',
-          description: "llm turn: marks on the person's existing cells, by coordinate ({ home, marks }). Required on an llm turn; may be empty, never absent.",
-          items: { type: 'object', properties: { home: { type: 'object' }, marks: { type: 'array' } }, required: ['home', 'marks'], additionalProperties: false },
+          description: "marks on the PERSON's turn, by 1-based word index into wearerText, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.",
+          items: { type: 'object', properties: { word: { type: 'number' }, surface: { type: 'string' }, marks: { type: 'array' } }, required: ['word', 'surface', 'marks'], additionalProperties: false },
         },
       },
-      required: ['who'],
+      required: ['wearerText', 'reply', 'replyMarks', 'priorMarks'],
       additionalProperties: false,
     },
   },

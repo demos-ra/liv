@@ -11,17 +11,25 @@
 //             mark-gate-placement (isCoord/isMark moved to ../domain/mark-gate; consumed as a wire);
 //             sprint-wire-cognition Shot 1 (splitEmission accepts the caller's cut — single
 //               tokenization per turn; still the single source of mark geometry)
+//             sprint-wire-economy Shot 1 (CLAIM + VALIDATE — both turns marked by 1-based
+//               WORD-INDEX into the text of THIS call, each mark carrying its `surface` word;
+//               LIV cuts, resolves index→canonical pos, and VERIFIES cell.word === surface,
+//               byte-exact; mismatch / out-of-range → loud rejection (MarkSurfaceError) naming
+//               index, claimed surface, actual surface. splitEmission's coord-homed priorMarks
+//               and silent index-drop are gone — replaced by locateWordMarks over BOTH texts.)
 // slice:      F-present
 // layer:      R1
 // wires-in:
-//   W-ATOM  Who / RawTurn / RawWord / Coord   @/core/types/substrate-raw.types          (type-only)
+//   W-ATOM  Who / RawWord / Coord             @/core/types/substrate-raw.types          (type-only)
 //   W-ATOM  Mark / PlacedMark / Ref           ../config/mark-types                       (type-only)
 //   W-ATOM  JsonSchema / StructuredEmitConfig @/features/F-ai-adapter/contract/ai-contract (type-only)
 //   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
-//   W-FN    isCoord / isMark                  ../domain/mark-gate
+//   W-FN    isMark                            ../domain/mark-gate
 // wires-out:
-//   W-FN    emissionFromStructured / splitEmission / cutReply / verifyGrid / validateSharedUniverse  →  ../app/cognition-orchestrator (R2)
-//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / ReplyMark / PriorMark                 →  ../app/cognition-orchestrator (R2)
+//   W-FN    emissionFromStructured / cutReply / wordCells / locateWordMarks / homeMarks
+//           / verifyGrid / validateSharedUniverse  →  ../app/scored-turn-recorder (R2)
+//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / WordMark / MarkSurfaceError
+//                                                    →  ../app/cognition-orchestrator (R2), ../app/scored-turn-recorder (R2)
 // deps:
 //   R0  @/core/types/substrate-raw.types
 //   R0  ../config/mark-types
@@ -29,37 +37,48 @@
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R1  ../domain/mark-gate
 //
-// COIN scoring write-path. The model emits its reply as ONE plain text field
-// (`reply`) PLUS replyMarks (marks on its own reply, keyed by WORD INDEX) and
-// priorMarks (marks on the person's already-cut cells, by coordinate) — both turns
-// scored. splitEmission ROUTES the emission: the reply text → the wearer's substrate
-// (a RawTurn of CANONICAL cells from G1 = cutCells(reply)); marks → F-present's
-// external store (PlacedMarks pointing at coordinates). The substrate receives ONLY
-// raw words; F-present receives ONLY pointers. No overlap.
+// COIN scoring write-path. The model emits its reply as ONE plain text field (`reply`)
+// PLUS replyMarks (marks on its own reply) and priorMarks (marks on the person's turn) —
+// both turns scored, BOTH keyed the same way: a 1-based WORD-INDEX into the text of THIS
+// call, each entry carrying the `surface` word it claims to land on. The reply text →
+// the wearer's substrate (a RawTurn of CANONICAL cells from G1 = cutCells(reply)); the
+// marks → F-present's external store (PlacedMarks pointing at coordinates). No overlap.
 //
-// §FORK = A (reassembly-contract fix, 2-B): the reply text is AUTHORITATIVE — G1 cuts
-// it (cutReply) and joinCells renders it byte-identical, so spacing is the model's own,
-// never a re-join. The model never numbers the canonical grid; it references its reply
-// words by 1-based index (the k-th word-cell), which cutReply resolves to the canonical
-// position. The prior shape (positions[].word space-joined, then re-cut) injected a
-// space before any standalone-punctuation token and is GONE — there is no reply join.
+// §FORK = A (reassembly-contract fix, 2-B): the reply text is AUTHORITATIVE — G1 cuts it
+// and joinCells renders it byte-identical, so spacing is the model's own, never a re-join.
+//
+// EMISSION-SEMANTIC PIN (sprint-wire-economy A2.1): indexes count WORD-CELLS of this
+// call's texts (the reply for replyMarks, the wearer turn for priorMarks). A canonical
+// cell coordinate appears ONLY inside a Ref (a mark's target/peer), and ONLY copied from
+// lookup output — never computed, never used as a home index. The surface-check is what
+// makes this safe: a canonical position emitted where a word-index belongs lands on the
+// wrong word-cell, its surface disagrees, and locateWordMarks rejects it loud.
 
-import type { Who, RawTurn, RawWord, Coord } from '@/core/types/substrate-raw.types'
+import type { Who, RawWord, Coord } from '@/core/types/substrate-raw.types'
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
 import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
 import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
-import { isCoord, isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
+import { isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
 
-// The emission the model fills (structured output) — both turns.
-// `reply` is the model's reply as plain text — authoritative for the river grid.
-// `replyMarks` carry marks on the reply, keyed by WORD INDEX (1-based, counting the
-// reply's word-cells left to right); cutReply resolves the index to a canonical pos.
-export type ReplyMark = { word: number; marks: Mark[] }                      // word = 1-based reply word-cell index
-export type PriorMark = { home: Coord; marks: Mark[] }                       // marks on the person's existing cells
-export type ScoredEmission = { reply: string; replyMarks: ReplyMark[]; priorMarks: PriorMark[] }
+// The emission the model fills (structured output) — both turns. `reply` is the model's
+// reply as plain text (authoritative for the river grid). replyMarks score the reply;
+// priorMarks score the person's most-recent turn. BOTH are WordMarks: { word, surface,
+// marks } — word is the 1-based word-cell index INTO THE RELEVANT TEXT, surface the word
+// the model claims sits there (the validation key).
+export type WordMark = { word: number; surface: string; marks: Mark[] }
+export type ScoredEmission = { reply: string; replyMarks: WordMark[]; priorMarks: WordMark[] }
 
-// COIN schema (owned here, single-source). A mark is a permissive object {op + the
-// fields that op uses}; the receiver narrows. Targets/peers are NAMES or COORDS.
+// A surface-check failure — the model's claim (word-index → surface) disagrees with the
+// machine's cut. Loud, named, byte-exact: index, claimed surface, actual surface (or the
+// out-of-range count). Distinct class so the perimeters (native composer, wire turn door)
+// can catch THIS specifically and state it truthfully, separate from any other failure.
+export class MarkSurfaceError extends Error {
+  constructor(message: string) { super(message); this.name = 'MarkSurfaceError' }
+}
+
+// COIN schema (owned here, single-source). A mark is a permissive object {op + the fields
+// that op uses}; the receiver narrows. Targets/peers are NAMES or COORDS (copied from
+// lookup). Both replyMarks and priorMarks share the WordMark shape: word + surface + marks.
 const COORD: JsonSchema = { type: 'object', properties: { who: { type: 'string', enum: ['wearer', 'llm', 'program'] }, sc: { type: 'number' }, pos: { type: 'number' } }, required: ['who', 'sc', 'pos'], additionalProperties: false }
 const REF: JsonSchema = { anyOf: [{ type: 'string' }, COORD] }
 const MARK_ITEM: JsonSchema = {
@@ -70,20 +89,19 @@ const MARK_ITEM: JsonSchema = {
   },
   required: ['op'], additionalProperties: false,
 }
+const WORD_MARK_ITEM: JsonSchema = {
+  type: 'object',
+  properties: {
+    word: { type: 'number' }, surface: { type: 'string' }, marks: { type: 'array', items: MARK_ITEM },
+  },
+  required: ['word', 'surface', 'marks'], additionalProperties: false,
+}
 export const SCORE_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
     reply: { type: 'string' },
-    replyMarks: { type: 'array', items: {
-      type: 'object',
-      properties: { word: { type: 'number' }, marks: { type: 'array', items: MARK_ITEM } },
-      required: ['word', 'marks'], additionalProperties: false,
-    } },
-    priorMarks: { type: 'array', items: {
-      type: 'object',
-      properties: { home: COORD, marks: { type: 'array', items: MARK_ITEM } },
-      required: ['home', 'marks'], additionalProperties: false,
-    } },
+    replyMarks: { type: 'array', items: WORD_MARK_ITEM },
+    priorMarks: { type: 'array', items: WORD_MARK_ITEM },
   },
   required: ['reply'], additionalProperties: false,
 }
@@ -91,29 +109,31 @@ export const SCORE_SCHEMA: JsonSchema = {
 // (the transport parses the whole object — structured-stream.ts).
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamField: 'reply' }
 
+// Narrow an arbitrary WordMark[] candidate: keep entries with a 1-based integer `word`,
+// a string `surface`, and gate each mark through isMark. This is STRUCTURAL narrowing
+// only (never throws) — the LOUD index↔surface validation is locateWordMarks, which runs
+// against the actual cut. A claim that was never made (no word / no surface) is dropped
+// here, fail-closed; a FALSE claim (wrong surface / out of range) is caught loud below.
+function narrowWordMarks(v: unknown): WordMark[] {
+  const out: WordMark[] = []
+  if (!Array.isArray(v)) return out
+  for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const word = (e as { word?: unknown }).word
+    const surface = (e as { surface?: unknown }).surface
+    const marks = (e as { marks?: unknown }).marks
+    if (typeof word !== 'number' || !Number.isInteger(word) || word < 1) continue
+    if (typeof surface !== 'string') continue
+    out.push({ word, surface, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
+  }
+  return out
+}
+
 export function emissionFromStructured(structured: unknown): ScoredEmission {
   if (structured === null || typeof structured !== 'object') return { reply: '', replyMarks: [], priorMarks: [] }
   const s = structured as { reply?: unknown; replyMarks?: unknown; priorMarks?: unknown }
   const reply = typeof s.reply === 'string' ? s.reply : ''
-  const replyMarks: ReplyMark[] = []
-  if (Array.isArray(s.replyMarks)) {
-    for (const rm of s.replyMarks) {
-      if (!rm || typeof rm !== 'object') continue
-      const word = (rm as { word?: unknown }).word, marks = (rm as { marks?: unknown }).marks
-      if (typeof word !== 'number' || !Number.isInteger(word) || word < 1) continue   // 1-based word-cell index
-      replyMarks.push({ word, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
-    }
-  }
-  const priorMarks: PriorMark[] = []
-  if (Array.isArray(s.priorMarks)) {
-    for (const pm of s.priorMarks) {
-      if (!pm || typeof pm !== 'object') continue
-      const home = (pm as { home?: unknown }).home, marks = (pm as { marks?: unknown }).marks
-      if (!isCoord(home)) continue
-      priorMarks.push({ home, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
-    }
-  }
-  return { reply, replyMarks, priorMarks }
+  return { reply, replyMarks: narrowWordMarks(s.replyMarks), priorMarks: narrowWordMarks(s.priorMarks) }
 }
 
 // ── §FORK A — G1 cuts the AUTHORITATIVE reply text; word-index → canonical position ──
@@ -121,35 +141,50 @@ export function emissionFromStructured(structured: unknown): ScoredEmission {
 // joinCells(cells) === reply byte-for-byte (the cutter's exact inverse), so the rendered
 // reply carries the model's exact spacing — no re-join, no space-before-punct. There is
 // no alignment problem to solve: the reply IS the text. The only mapping is for marks —
-// the k-th reply WORD-CELL (word cells in order, 1-based) has a canonical position;
-// `wordCellPos[k-1]` is that position. A replyMark whose index is out of range homes
-// nothing (dropped in splitEmission). This replaced rekeyReply's space-join/char-span
-// re-key, which baked spurious spaces into the grid (2-B).
+// the k-th WORD-CELL (word cells in order, 1-based) has a canonical position.
 export function cutReply(reply: string): { cells: RawWord[]; wordCellPos: number[] } {
   const cells = cutCells(reply)
   const wordCellPos = cells.filter(c => isWordCell(c.word)).map(c => c.pos)
   return { cells, wordCellPos }
 }
 
-// ROUTE (A + pair): reply text → substrate (CANONICAL cells = cutReply); marks (both
-// turns) → F-present store. Reply marks home on the canonical word-cell named by their
-// 1-based word index; priorMarks home on the person's existing coords (already canonical).
-//
-// SINGLE-CUT (sprint-wire-cognition Shot 1; coin law "no double work"): the caller may
-// hand in the cut it already made (recordScoredTurn cuts ONCE, then threads that cut to
-// writeRawTurn AND here). When `cut` is supplied splitEmission re-cuts NOTHING — it is
-// still the single source of mark geometry, now reading the geometry off the caller's
-// canonical grid. When omitted (direct unit use) it cuts, preserving the old behavior.
-export function splitEmission(emission: ScoredEmission, replyWho: Who, replySc: number, cut?: { cells: RawWord[]; wordCellPos: number[] }): { rawTurn: RawTurn; placedMarks: PlacedMark[] } {
-  const { cells, wordCellPos } = cut ?? cutReply(emission.reply)
-  const rawTurn: RawTurn = { sc: replySc, who: replyWho, words: cells }
-  const replyMarks: PlacedMark[] = emission.replyMarks.flatMap(rm => {
-    const pos = wordCellPos[rm.word - 1]                   // 1-based index → canonical word-cell position
-    if (pos === undefined) return []                       // index out of range → drop (model miscounted)
-    return rm.marks.map(mark => ({ home: { who: replyWho, sc: replySc, pos } as Coord, mark }))
+// The word-cells of a cut, in order — each carries its canonical `pos` AND its `word`
+// (the surface). The k-th entry (0-based k-1) is what a 1-based word-index k resolves to.
+export function wordCells(cells: RawWord[]): RawWord[] {
+  return cells.filter(c => isWordCell(c.word))
+}
+
+// ── CLAIM + VALIDATE — the surface-checked resolver (sprint-wire-economy R3) ──────────
+// Resolve each WordMark's 1-based word-index against `cells'` word-cells, VERIFYING the
+// claimed surface byte-exact. Returns each mark's resolved canonical `pos` (intrinsic to
+// the cut — no sc needed, so this runs BEFORE any substrate write). A miscount, an
+// out-of-range index, or a canonical-position-as-index all land on the wrong word-cell
+// (or none) → its surface disagrees → MarkSurfaceError, loud, naming index / claimed /
+// actual. The model testifies (word + surface); the structure validates (this).
+// `label` ('reply' | 'prior') names the text in the error so a failure is unambiguous.
+export function locateWordMarks(marks: WordMark[], cells: RawWord[], label: 'reply' | 'prior'): { pos: number; marks: Mark[] }[] {
+  const wc = wordCells(cells)
+  return marks.map(wm => {
+    const cell = wc[wm.word - 1]
+    if (cell === undefined) {
+      throw new MarkSurfaceError(
+        `${label} mark word-index ${wm.word} is out of range — the ${label} has ${wc.length} word-cell${wc.length === 1 ? '' : 's'} (claimed surface "${wm.surface}"). Indexes count word-cells of this call's text, never canonical positions.`,
+      )
+    }
+    if (cell.word !== wm.surface) {
+      throw new MarkSurfaceError(
+        `${label} mark word-index ${wm.word} claims surface "${wm.surface}" but word-cell ${wm.word} is "${cell.word}" — index↔surface mismatch (indexes count word-cells, never canonical positions; coordinates live only inside Refs, copied from lookup).`,
+      )
+    }
+    return { pos: cell.pos, marks: wm.marks }
   })
-  const priorPlaced: PlacedMark[] = emission.priorMarks.flatMap(pm => pm.marks.map(mark => ({ home: pm.home, mark })))
-  return { rawTurn, placedMarks: [...replyMarks, ...priorPlaced] }
+}
+
+// Home located marks at a turn's coordinate — trivial once `sc` is assigned (the write
+// returns it). `pos` is already canonical (from locateWordMarks); who+sc complete the
+// Coord. One located entry fans out to one PlacedMark per mark it carries.
+export function homeMarks(located: { pos: number; marks: Mark[] }[], who: Who, sc: number): PlacedMark[] {
+  return located.flatMap(l => l.marks.map(mark => ({ home: { who, sc, pos: l.pos } as Coord, mark })))
 }
 
 // ── M4 verify ───────────────────────────────────────────────────────────────────

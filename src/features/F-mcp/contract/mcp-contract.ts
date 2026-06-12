@@ -11,12 +11,12 @@
 // wires-in:
 //   W-FN     parseRequest / buildResult / buildError   F-mcp/R1 json-rpc
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R1 tool-registry
-//   W-FN     readPresent        F-present/R3 present-contract
-//   W-FN     recordScoredTurn   F-present/R3 present-contract   (Shot 4 — llm pair-scored turn)
-//   W-FN     emissionFromStructured  F-present/R3 present-contract  (Shot 4 — the narrowing/gate)
-//   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (Shot 4 — manual-with-present)
-//   W-FN     writeRawTurn       F-memory/R3 substrate-contract
-//   W-FN     cutCells           F-memory/R3 substrate-contract
+//   W-FN     readPresent        F-present/R3 present-contract   (turn response + present tool)
+//   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns)
+//   W-FN     emissionFromStructured  F-present/R3 present-contract  (the narrowing/gate)
+//   W-ATOM   MarkSurfaceError   F-present/R3 present-contract   (claim+validate — loud, atomic reject)
+//   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (manual rides the turn description — once-channel)
+//   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
 //   W-FN     readTranscript     F-memory/R3 substrate-contract   (3R.2 — grid: fetch one turn's cells)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 // wires-out:
@@ -32,14 +32,16 @@
 
 import { parseRequest, buildResult, buildError } from '../domain/json-rpc'
 import { listTools, initializeResult, planToolCall } from '../domain/tool-registry'
+import { TOOL_TURN } from '../config/mcp-tools'
 import {
   JSONRPC_METHOD_NOT_FOUND,
   JSONRPC_INTERNAL_ERROR,
+  JSONRPC_INVALID_PARAMS,
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, recordScoredTurn, emissionFromStructured, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
-import { writeRawTurn, cutCells, readTranscript } from '@/features/F-memory/contract/substrate-contract'
+import { readPresent, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
+import { readTranscript } from '@/features/F-memory/contract/substrate-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -79,7 +81,12 @@ export async function handleMcpRequest(
         return buildResult(id, {})
 
       case 'tools/list':
-        return buildResult(id, { tools: listTools() })
+        // The fill manual rides the `turn` tool description — a ONCE-channel (R2): the
+        // client fetches tools/list once at session start, so the manual crosses the wire
+        // once, never per turn. One home (COIN_MANUAL via F-present R3), injected here.
+        return buildResult(id, {
+          tools: listTools().map(t => t.name === TOOL_TURN ? { ...t, description: `${t.description}\n\n${COIN_MANUAL}` } : t),
+        })
 
       case 'tools/call': {
         const p = (typeof params === 'object' && params !== null ? params : {}) as {
@@ -90,12 +97,11 @@ export async function handleMcpRequest(
         if (!plan.ok) return buildError(id, plan.code, plan.message)
         const intention = plan.intention
 
-        // present → MANUAL + present, one return, manual first (mirrors the native
-        // system-message order: instruction first so "below" is true). COIN_MANUAL
-        // comes from its one home via F-present R3.
+        // present → the fresh present, ONLY. The manual rides the `turn` description (a
+        // once-channel, R2), so present carries zero manual tokens — the wake self-reach
+        // and every later read return just the resolved memory.
         if (intention.tool === 'present') {
-          const present = await readPresent(session.userId)
-          return buildResult(id, toolText(`${COIN_MANUAL}\n\n${present}`))
+          return buildResult(id, toolText(await readPresent(session.userId)))
         }
 
         // grid (3R.2) → the canonical cell grid of one turn (ALL cells — the cutter's
@@ -112,28 +118,37 @@ export async function handleMcpRequest(
           })))
         }
 
-        // write — DEMANDED per author (Shot 4). userId is ALWAYS the session's.
-        // scope = stamped circumstance (the writing connection), symmetric with native's
-        // route-stamped projectId — speakers never declare circumstance.
-        if (intention.who === 'llm') {
-          // llm turn → narrow through emissionFromStructured (the SAME gate the native
-          // path uses — one gate, no copy), then record the pair-scored turn via the
-          // shared recorder. Return the canonical cut so the caller holds exact coords.
-          const emission = emissionFromStructured({
-            reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
-          })
-          const recorded = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId)
-          return buildResult(id, toolText(JSON.stringify({
-            ok: true, sc: recorded.sc, cells: recorded.cells.map(c => ({ pos: c.pos, word: c.word })),
-          })))
+        // turn — DEMANDED (R1): ONE call carries BOTH turns. userId is ALWAYS the session's;
+        // scope = stamped circumstance (session.sessionId), symmetric with native's
+        // route-stamped projectId — speakers never declare circumstance. emissionFromStructured
+        // narrows through the SAME gate the native path uses (one gate, no copy); the recorder
+        // cuts + writes BOTH turns and surface-validates both mark sets.
+        const emission = emissionFromStructured({
+          reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
+        })
+        let recorded
+        try {
+          recorded = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, { text: intention.wearerText })
+        } catch (err) {
+          // CLAIM + VALIDATE failure (R3): a word-index↔surface mismatch is rejected LOUD and
+          // ATOMIC — nothing persisted. Name it (law-named, invalid params) so the agent
+          // re-emits; this is invalid testimony, not an internal error to be masked.
+          if (err instanceof MarkSurfaceError) return buildError(id, JSONRPC_INVALID_PARAMS, err.message)
+          throw err
         }
 
-        // wearer turn → words-only (LIV cuts; the machine cuts, never the caller).
-        const words = cutCells(intention.text)
-        const sc = await writeRawTurn({ who: 'wearer', words, userId: session.userId, scope: session.sessionId })
-        return buildResult(id, toolText(JSON.stringify({
-          ok: true, sc, cells: words.map(c => ({ pos: c.pos, word: c.word })),
-        })))
+        // Response = the fresh present, rendered POST-write (R2/R7 — the turn door is a write
+        // door whose response carries the present). FAILURE ORDERING (A2.2): the write COMMITTED
+        // above; if the present render fails, the turn STILL STANDS — state it truthfully rather
+        // than masking a committed write as a failure.
+        try {
+          return buildResult(id, toolText(await readPresent(session.userId)))
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err)
+          return buildResult(id, toolText(JSON.stringify({
+            ok: true, sc: recorded.sc, present: null, note: `turn recorded; present unavailable: ${reason}`,
+          })))
+        }
       }
 
       default:

@@ -26,7 +26,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { MCP_TOOLS, TOOL_WRITE } from '../mcp-tools'
+import { MCP_TOOLS, TOOL_TURN } from '../mcp-tools'
 
 const FORBIDDEN_TOP_LEVEL = ['oneOf', 'anyOf', 'allOf'] as const
 
@@ -44,11 +44,11 @@ test('every tool schema is transport-safe (type:object, no top-level oneOf/anyOf
   }
 })
 
-// ── write is advertised FLAT (one object), door enforces the per-author shapes ──
-test('write advertises one flat object — who required + the demanded fields as properties', () => {
-  const write = MCP_TOOLS.find(t => t.name === TOOL_WRITE)
-  assert.ok(write, 'the write tool exists')
-  const s = write!.inputSchema as {
+// ── turn is advertised FLAT (one object); the door enforces the demanded shape ───
+test('turn advertises one flat object — all four demanded fields required, no oneOf', () => {
+  const turn = MCP_TOOLS.find(t => t.name === TOOL_TURN)
+  assert.ok(turn, 'the turn tool exists')
+  const s = turn!.inputSchema as {
     type: string
     properties: Record<string, unknown>
     required: string[]
@@ -56,20 +56,16 @@ test('write advertises one flat object — who required + the demanded fields as
   }
   // flat object — NOT a oneOf union (the transport-safe form).
   assert.equal(s.type, 'object')
-  assert.ok(!('oneOf' in (write!.inputSchema as object)), 'write must not use top-level oneOf')
+  assert.ok(!('oneOf' in (turn!.inputSchema as object)), 'turn must not use top-level oneOf')
 
-  // who is the only structurally-required field; the per-author demands live at the door.
-  assert.deepEqual(s.required, ['who'])
-  const who = s.properties.who as { enum?: string[] }
-  assert.deepEqual(who.enum, ['wearer', 'llm'], "who advertises the two valid authors (program rejected at the door)")
-
-  // every demanded field is advertised as a property (description carries which author).
-  for (const f of ['who', 'text', 'reply', 'replyMarks', 'priorMarks']) {
-    assert.ok(f in s.properties, `write advertises "${f}" as a property`)
+  // one call carries BOTH turns — all four fields are structurally required (R1).
+  assert.deepEqual(s.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+  for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
+    assert.ok(f in s.properties, `turn advertises "${f}" as a property`)
   }
 
-  // the write DOOR takes no envelope baggage — additionalProperties stays false.
-  assert.equal(s.additionalProperties, false, 'write is a write door — extras rejected')
+  // the turn DOOR takes no envelope baggage — additionalProperties stays false.
+  assert.equal(s.additionalProperties, false, 'turn is a write door — extras rejected')
 })
 
 // ── reads admit envelope baggage (read-door law) — advertised honestly ──────────

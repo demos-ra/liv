@@ -47,11 +47,12 @@ export type CognitionInput = {
   userId:       string
   scope:        string
   apiKey?:      string  // wearer's resolved provider key; undefined → transport falls back to env
-  // sprint-wire-cognition 3R.5: the wearer turn being replied to, already cut at the
-  // write site — word cells only (homes land on word cells), positions canonical. The
-  // composer renders these as the WEARER-TURN CELLS data block so the model COPIES
-  // priorMark home coordinates instead of counting them. Optional → every existing
-  // caller compiles unchanged; absent = no block rendered (byte-identical context).
+  // The wearer turn being replied to, already cut at the write site — word cells only,
+  // positions canonical. (sprint-wire-economy) This is no longer rendered into context:
+  // it is the recorder's priorMark SOURCE — priorMarks key by word-index into this turn's
+  // word-cells, and the recorder resolves+verifies them against it ("feeds it", so E1's
+  // perimeter write stays untouched). Optional → every caller compiles; absent = no
+  // priorMark resolution surface (an empty wearer turn).
   wearerTurn?:  { sc: number; cells: { pos: number; word: string }[] }
 }
 

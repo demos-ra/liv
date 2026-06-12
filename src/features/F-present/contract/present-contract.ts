@@ -49,6 +49,6 @@ export { isMark } from '../domain/mark-gate'
 // place). COIN_MANUAL is surfaced for the present tool's manual-with-present return
 // (one home — defined in config/coin-manual, never re-declared at the wire).
 export { recordScoredTurn } from '../app/scored-turn-recorder'
-export { emissionFromStructured } from '../domain/coin-score'
+export { emissionFromStructured, MarkSurfaceError } from '../domain/coin-score'
 export type { ScoredEmission } from '../domain/coin-score'
 export { COIN_MANUAL } from '../config/coin-manual'
