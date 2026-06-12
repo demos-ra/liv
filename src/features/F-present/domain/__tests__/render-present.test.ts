@@ -24,7 +24,7 @@ import { buildFactTable } from '../fact-table'
 import { resolveDimension } from '../resolve-dimension'
 import { weighDimension } from '../chain-ping'
 import { currentFocus } from '../session-window'
-import { pivot } from '../pivot'
+import { pivot, sheetConfig } from '../pivot'
 
 let renderTranscript: (turns: RawTurn[]) => string
 let renderSheet: (r: SheetResult) => string
@@ -79,12 +79,13 @@ test('renderSheet shows each mark @home.pos, matching the placed mark', () => {
   const focus = currentFocus(dim)
   assert.equal(focus, 'kyoto')
 
-  const sheet = pivot({ view: 'sheet', focus: focus!, show: {} }, dim, rows) as SheetResult
+  const sheet = pivot(sheetConfig(focus!), dim, rows) as SheetResult
   const render = renderSheet(sheet)
 
-  // the @pos appears and matches the placed mark's home position.
-  assert.ok(render.includes(`identity(1)@${kyotoPos}`), `expected identity(1)@${kyotoPos} in:\n${render}`)
-  assert.ok(render.includes(`QUALIFY[ancient]@${kyotoPos}`), `expected QUALIFY[ancient]@${kyotoPos} in:\n${render}`)
+  // the @pos appears and matches the placed mark's home position — in the MUSICAL register
+  // (R9): identity→note, QUALIFY→expression.
+  assert.ok(render.includes(`note(1)@${kyotoPos}`), `expected note(1)@${kyotoPos} in:\n${render}`)
+  assert.ok(render.includes(`expression[ancient]@${kyotoPos}`), `expected expression[ancient]@${kyotoPos} in:\n${render}`)
   // the home pos is REAL — equals the placed mark's home.
   assert.equal(kyotoPos, store[0].home.pos)
 })

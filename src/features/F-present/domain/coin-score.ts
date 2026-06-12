@@ -59,6 +59,7 @@ import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-typ
 import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
 import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
+import { MUSICAL_OPS, toEngineMark } from '@/features/F-present/config/register-map'   // R9 register seam (translate names; the gate validates)
 
 // The emission the model fills (structured output) — both turns. `reply` is the model's
 // reply as plain text (authoritative for the river grid). replyMarks score the reply;
@@ -81,10 +82,13 @@ export class MarkSurfaceError extends Error {
 // lookup). Both replyMarks and priorMarks share the WordMark shape: word + surface + marks.
 const COORD: JsonSchema = { type: 'object', properties: { who: { type: 'string', enum: ['wearer', 'llm', 'program'] }, sc: { type: 'number' }, pos: { type: 'number' } }, required: ['who', 'sc', 'pos'], additionalProperties: false }
 const REF: JsonSchema = { anyOf: [{ type: 'string' }, COORD] }
+// op is advertised in the MUSICAL register (R9 — model-facing surface): note·tie·chord·
+// expression. toEngineMark re-skins it to the engine vocabulary at intake, then mark-gate
+// validates. The payload field names (peers/coloring/target) are register-neutral.
 const MARK_ITEM: JsonSchema = {
   type: 'object',
   properties: {
-    op: { type: 'string', enum: ['identity', 'RELATE', 'QUALIFY', 'IDENTIFY'] },
+    op: { type: 'string', enum: [...MUSICAL_OPS] },
     peers: { type: 'array', items: REF }, coloring: { type: 'string' }, target: REF,
   },
   required: ['op'], additionalProperties: false,
@@ -124,7 +128,9 @@ function narrowWordMarks(v: unknown): WordMark[] {
     const marks = (e as { marks?: unknown }).marks
     if (typeof word !== 'number' || !Number.isInteger(word) || word < 1) continue
     if (typeof surface !== 'string') continue
-    out.push({ word, surface, marks: Array.isArray(marks) ? marks.filter(isMark) : [] })
+    // R9 intake: translate the op name musical→engine (toEngineMark), THEN the gate validates.
+    // Already-engine ops (internal callers) and malformed values pass through to isMark.
+    out.push({ word, surface, marks: Array.isArray(marks) ? marks.map(toEngineMark).filter(isMark) : [] })
   }
   return out
 }

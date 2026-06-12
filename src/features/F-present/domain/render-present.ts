@@ -20,6 +20,7 @@ import type { Ref } from '@/features/F-present/config/mark-types'
 import type { ForestResult, ForestNode, SheetResult, SheetCell } from '@/features/F-present/config/read-engine-types'
 import type { RawTurn } from '@/core/types/substrate-raw.types'
 import { joinCells } from '@/features/F-memory/contract/substrate-contract'
+import { engineOpToMusical } from '@/features/F-present/config/register-map'   // R9: render the MUSICAL register (note·tie·chord·expression)
 
 const refText = (r: Ref): string => (typeof r === 'string' ? r : `${r.who}:${r.sc}:${r.pos}`)
 
@@ -47,7 +48,7 @@ export function renderForest(r: ForestResult): string {
   }
   walk(r.root, 0)
   if (r.threads.length > 0) {
-    out.push('RELATE (lateral threads):')
+    out.push(`${engineOpToMusical('RELATE')} (lateral threads):`)   // "chord (lateral threads):"
     for (const t of r.threads) out.push(`  ${t.word}: ${t.peers.join(' \u2194 ')}`)
   }
   return out.join('\n')
@@ -86,10 +87,12 @@ function renderCell(cell: SheetCell): string {
     else if (e.op === 'QUALIFY') { byOp.QUALIFY.v.push(e.value ?? ''); byOp.QUALIFY.at.push(e.home.pos) }
     else if (e.op === 'IDENTIFY') { byOp.IDENTIFY.v.push(e.ref ? refText(e.ref) : ''); byOp.IDENTIFY.at.push(e.home.pos) }
   }
+  // OUTBOUND register (R9): each engine op renders in the MUSICAL register —
+  // identity→note, RELATE→chord, QUALIFY→expression, IDENTIFY→tie. One home (the map).
   const parts: string[] = []
-  if (byOp.identity.length) parts.push(`identity(${byOp.identity.length})@${byOp.identity.join(',')}`)
-  if (byOp.RELATE.v.length) parts.push(`RELATE[${byOp.RELATE.v.join(',')}]@${byOp.RELATE.at.join(',')}`)
-  if (byOp.QUALIFY.v.length) parts.push(`QUALIFY[${byOp.QUALIFY.v.join(',')}]@${byOp.QUALIFY.at.join(',')}`)
-  if (byOp.IDENTIFY.v.length) parts.push(`IDENTIFY[${byOp.IDENTIFY.v.join(',')}]@${byOp.IDENTIFY.at.join(',')}`)
+  if (byOp.identity.length) parts.push(`${engineOpToMusical('identity')}(${byOp.identity.length})@${byOp.identity.join(',')}`)
+  if (byOp.RELATE.v.length) parts.push(`${engineOpToMusical('RELATE')}[${byOp.RELATE.v.join(',')}]@${byOp.RELATE.at.join(',')}`)
+  if (byOp.QUALIFY.v.length) parts.push(`${engineOpToMusical('QUALIFY')}[${byOp.QUALIFY.v.join(',')}]@${byOp.QUALIFY.at.join(',')}`)
+  if (byOp.IDENTIFY.v.length) parts.push(`${engineOpToMusical('IDENTIFY')}[${byOp.IDENTIFY.v.join(',')}]@${byOp.IDENTIFY.at.join(',')}`)
   return parts.join(' ')
 }

@@ -47,13 +47,13 @@ word). So you never count cells or copy positions for a home — you name the wo
 is your safety: if you miscount, the surfaces disagree and LIV tells you.
 
 THE FOUR MARKS (the whole set — never invent a fifth)
-- identity  — names a thing (person, place, object, idea):            { "op": "identity" }
-- RELATE    — links 2+ things into one connection:                    { "op": "RELATE", "peers": [A, B] }
-- QUALIFY   — colors ONE target (a quality, degree, negation, or a
-              claim-status like "asked"/"commanded"/"maybe"):         { "op": "QUALIFY", "coloring": "<word>", "target": T }
-- IDENTIFY  — this word is the SAME thing as one already mentioned
-              (co-reference, pronoun, or typo fix):                    { "op": "IDENTIFY", "target": T }
-One coloring per QUALIFY; never combine colorings; claim-status is just a QUALIFY coloring, never on punctuation.
+- note        — names a thing (person, place, object, idea):           { "op": "note" }
+- chord       — links 2+ things into one connection:                   { "op": "chord", "peers": [A, B] }
+- expression  — colors ONE thing (a quality, degree, negation, or a
+                claim-status like "asked"/"commanded"/"maybe"):        { "op": "expression", "coloring": "<word>", "target": T }
+- tie         — this word is the SAME thing as one already named
+                (co-reference, pronoun, or typo fix):                  { "op": "tie", "target": T }
+One coloring per expression; never combine colorings; claim-status is just an expression coloring, never on punctuation.
 
 POINTING INSIDE A MARK (what A, B, T may be) — a NAME or a coordinate, nothing else
 - a thing's NAME ("budget", "Kyoto") — names cluster across the whole present; NAME-FIRST is the default,
@@ -77,13 +77,13 @@ Your reply: "${COIN_EXAMPLE_REPLY}"    (word-cells: ${COIN_EXAMPLE_REPLY_WORDS.K
 {
   "reply": "${COIN_EXAMPLE_REPLY}",
   "replyMarks": [
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}, "surface": "Kyoto",  "marks": [ { "op": "identity" }, { "op": "IDENTIFY", "target": "Kyoto" } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.truly}, "surface": "truly",  "marks": [ { "op": "QUALIFY", "coloring": "truly", "target": "Kyoto" } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.rivals}, "surface": "rivals", "marks": [ { "op": "RELATE", "peers": [ "Kyoto", "Tokyo" ] } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}, "surface": "Tokyo",  "marks": [ { "op": "identity" } ] }
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}, "surface": "Kyoto",  "marks": [ { "op": "note" }, { "op": "tie", "target": "Kyoto" } ] },
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.truly}, "surface": "truly",  "marks": [ { "op": "expression", "coloring": "truly", "target": "Kyoto" } ] },
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.rivals}, "surface": "rivals", "marks": [ { "op": "chord", "peers": [ "Kyoto", "Tokyo" ] } ] },
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}, "surface": "Tokyo",  "marks": [ { "op": "note" } ] }
   ],
   "priorMarks": [
-    { "word": ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}, "surface": "Kyoto", "marks": [ { "op": "identity" } ] }
+    { "word": ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}, "surface": "Kyoto", "marks": [ { "op": "note" } ] }
   ]
 }
 

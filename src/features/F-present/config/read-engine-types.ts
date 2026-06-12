@@ -57,14 +57,30 @@ export type Selection = {
   preset?: 'skeleton' | 'verbatim' | 'evolution'
 }
 
+// ── ONE instrument — the Excel-register zone config (sprint-wire-economy R6) ───────
+// The `view: 'forest'|'sheet'` enum is GONE. There is one pivot(); forest and sheet are
+// two NAMED default configs (forestConfig / sheetConfig) over one engine. The registers:
+//   rows     — row-zone layout: 'lineage' (things nested by parent → the forest).
+//   columns  — column-zone layout: 'line' (the slicer's direct line → the sheet).
+//   slicer   — the focus/anchor thing (the Excel slicer; required by columns:'line').
+//   level    — depth bound: rings down the lineage (rows) / fan along the line (columns).
+//              undefined = ∞ (all).
+//   top      — brightness floor as a SHARE-OF-RING fraction (0..1): keep a node WHERE
+//              weight / Σ(weights at the node's concentric ring = same depth from the
+//              wearer) >= top. RING-LOCAL and scale-invariant — a heavy deep node is judged
+//              among its depth-peers, never diluted against the whole. This is the R6 fix
+//              for the cross-branch inversion; it replaces weightCutoff (share-of-whole).
+//   filter   — which mark-ops/colorings are in play (the Selection; was `show`).
+//   sort     — child/row ordering: 'weight' (then id) | 'id'. default 'weight' (preserved).
+export type PivotSort = 'weight' | 'id'
 export type PivotConfig = {
-  view: 'forest' | 'sheet'
-  focus?: ThingId
-  show: Selection                 // Filter zone + field-value visibility — never a hardcoded class list
-  weightCutoff?: number           // forest zoom: show WHERE (weight / Σ-at-wearer) >= cutoff. A FRACTION
-                                  // of the whole (0..1), NOT an absolute weight — scale-invariant, future-proof.
-  ancestorsUp?: number            // sheet: how many ancestor levels (along the direct line)
-  descendantsDown?: number        // sheet: how many descendant levels
+  rows?:    'lineage'
+  columns?: 'line'
+  slicer?:  ThingId
+  level?:   number
+  top?:     number
+  filter?:  Selection
+  sort?:    PivotSort
 }
 
 export type ForestNode = { thing: ThingId; label: string; weight: number; children: ForestNode[] }
@@ -78,9 +94,10 @@ export type SheetResult = { view: 'sheet'; columns: ThingId[]; rows: SheetRow[] 
 export type PivotResult = ForestResult | SheetResult
 
 // ── Wake-default knobs (M6) — overridable, owning no taxonomy ───────────────────
-// DEFAULT_FOREST_CUTOFF is a SHARE-OF-WHOLE fraction (0..1 of Σ-at-wearer), never an
-// absolute weight — a percent-of-whole brightness floor, so it stays correct as the
-// substrate grows. Builder-chosen default; a reader may override per call.
-export const DEFAULT_FOREST_CUTOFF = 0.02       // show things carrying >= 2% of total mass
-export const DEFAULT_ANCESTORS_UP = 3           // sheet: ancestor levels along the direct line
-export const DEFAULT_DESCENDANTS_DOWN = 2        // sheet: descendant levels along the direct line
+// DEFAULT_FOREST_TOP is the share-of-RING brightness floor (0..1 of the node's concentric
+// ring = Σ-weights at the same depth), NOT share-of-whole — ring-local and scale-invariant
+// (R6). DEFAULT_SHEET_LEVEL bounds the sheet's fan/line depth. Builder-chosen defaults; a
+// reader overrides per call. (DEFAULT_FOREST_CUTOFF / ANCESTORS_UP / DESCENDANTS_DOWN are
+// retired — share-of-whole and the asymmetric up/down knobs are gone with the view enum.)
+export const DEFAULT_FOREST_TOP = 0.02          // forest: show nodes carrying >= 2% of their ring
+export const DEFAULT_SHEET_LEVEL = 3            // sheet: ancestor + descendant depth along the line

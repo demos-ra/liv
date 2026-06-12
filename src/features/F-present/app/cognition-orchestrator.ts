@@ -84,10 +84,9 @@ import type { WearerSource }                             from '@/features/F-pres
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
 import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
-import { pivot }                                         from '@/features/F-present/domain/pivot'
+import { pivot, forestConfig, sheetConfig }              from '@/features/F-present/domain/pivot'
 import { renderForest, renderSheet, renderTranscript }   from '@/features/F-present/domain/render-present'
 import { currentFocus, sessionWindow }                   from '@/features/F-present/domain/session-window'
-import { DEFAULT_FOREST_CUTOFF, DEFAULT_ANCESTORS_UP, DEFAULT_DESCENDANTS_DOWN } from '@/features/F-present/config/read-engine-types'
 import type { ForestResult, SheetResult }                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
@@ -176,16 +175,13 @@ export const presentContext: ContextReader = async (userId) => {
 
   // structure + state appear once marks exist (sparse early, richer as it compounds).
   if (dim.things.size > 0) {
-    // 2. forest (structure) @ ALL mark-types, brightness-floor = DEFAULT_FOREST_CUTOFF.
+    // 2. forest (structure) — the named default config (rows=lineage, ring-local top).
     out.push('')
-    out.push(renderForest(pivot({ view: 'forest', show: {}, weightCutoff: DEFAULT_FOREST_CUTOFF }, dim, rows) as ForestResult))
-    // 3. sheet (state) anchored at the current focus @ ALL mark-types.
+    out.push(renderForest(pivot(forestConfig(), dim, rows) as ForestResult))
+    // 3. sheet (state) — the named default config, sliced at the current focus.
     if (focus) {
       out.push('')
-      out.push(renderSheet(pivot(
-        { view: 'sheet', focus, show: {}, ancestorsUp: DEFAULT_ANCESTORS_UP, descendantsDown: DEFAULT_DESCENDANTS_DOWN },
-        dim, rows,
-      ) as SheetResult))
+      out.push(renderSheet(pivot(sheetConfig(focus), dim, rows) as SheetResult))
     }
   }
   return out.join('\n')
