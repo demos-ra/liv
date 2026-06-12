@@ -52,3 +52,10 @@ export { recordScoredTurn } from '../app/scored-turn-recorder'
 export { emissionFromStructured, MarkSurfaceError } from '../domain/coin-score'
 export type { ScoredEmission } from '../domain/coin-score'
 export { COIN_MANUAL } from '../config/coin-manual'
+
+// The read controls + the rail-aware bundle (sprint-wire-economy R7/R8). The wire reads the
+// present (PRESENT_BUNDLES.wire = tables only) and fetches cells on demand via lookup (turn |
+// span | thing → numbered cells — grid generalized, re-homed here). One home per surface.
+export { lookup } from '../app/lookup'
+export type { LookupSelector, LookupResult, LookupCell } from '../app/lookup'
+export { PRESENT_BUNDLES } from '../config/read-engine-types'

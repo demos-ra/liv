@@ -11,7 +11,7 @@
 // wires-in:
 //   W-ATOM   McpToolDescriptor  F-mcp/config mcp-protocol
 // wires-out:
-//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_GRID   F-mcp/R1 tool-registry, R3 contract
+//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP   F-mcp/R1 tool-registry, R3 contract
 // validated:  pending
 
 import type { McpToolDescriptor } from './mcp-protocol'
@@ -28,11 +28,12 @@ import type { McpToolDescriptor } from './mcp-protocol'
 // per-turn transcript are gone from the wire: the manual rides the `turn` description (a
 // once-channel, R2), the transcript is fetched (grid / lookup), never carried.
 //
-// grid is a navigation read control (re-homed to F-present as `lookup` at Shot 5).
+// lookup is the navigation read control (R8): grid generalized (turn | span | thing →
+// numbered cells) and re-homed to F-present, where the dimension lives. grid is deleted.
 
 export const TOOL_PRESENT = 'present' as const
 export const TOOL_TURN = 'turn' as const
-export const TOOL_GRID = 'grid' as const
+export const TOOL_LOOKUP = 'lookup' as const
 
 // (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
 // is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
@@ -79,16 +80,20 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     },
   },
   {
-    name: TOOL_GRID,
+    name: TOOL_LOOKUP,
     description:
-      "Fetch the canonical cell grid of one recorded turn — every cell (word, punctuation, space) with its 1-based position. Coordinates are COPIED from this grid, never counted from prose: the transcript is the wearer's byte-pure record and carries no positions. Use grid to obtain a (who, sc, pos) coordinate for a precise home or target. Extra fields are ignored — reads take no testimony; clients may attach lifecycle envelopes freely.",
+      "Fetch numbered cells — the cutter's truth (each cell's verbatim word + its (who, sc, pos) coordinate) — when you need to copy a coordinate into a mark's Ref. Coordinates are COPIED from here, NEVER counted from prose. Selectors: { kind: 'turn', who, sc } one turn's cells; { kind: 'span', from, to, who? } every turn in an sc range; { kind: 'thing', name } every appearance of a named thing in your present. A read control — it takes no testimony; extra fields are ignored.",
     inputSchema: {
       type: 'object',
       properties: {
-        who: { type: 'string', enum: ['wearer', 'llm'], description: 'Authorship of the turn whose grid you want.' },
-        sc: { type: 'number', description: 'The turn position (sc) whose cell grid you want.' },
+        kind: { type: 'string', enum: ['turn', 'span', 'thing'], description: "what to fetch: 'turn' | 'span' | 'thing'." },
+        who: { type: 'string', enum: ['wearer', 'llm'], description: "turn: the turn's author (required). span: optional author filter." },
+        sc: { type: 'number', description: 'turn: the turn position (sc).' },
+        from: { type: 'number', description: 'span: first sc (inclusive).' },
+        to: { type: 'number', description: 'span: last sc (inclusive).' },
+        name: { type: 'string', description: "thing: the thing's name (clusters across the present)." },
       },
-      required: ['who', 'sc'],
+      required: ['kind'],
       additionalProperties: true,
     },
   },

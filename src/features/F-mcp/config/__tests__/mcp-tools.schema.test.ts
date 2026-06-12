@@ -69,8 +69,8 @@ test('turn advertises one flat object — all four demanded fields required, no 
 })
 
 // ── reads admit envelope baggage (read-door law) — advertised honestly ──────────
-test('read doors (present, grid) advertise additionalProperties:true (extras ignored)', () => {
-  for (const name of ['present', 'grid']) {
+test('read doors (present, lookup) advertise additionalProperties:true (extras ignored)', () => {
+  for (const name of ['present', 'lookup']) {
     const tool = MCP_TOOLS.find(t => t.name === name)
     assert.ok(tool, `${name} exists`)
     assert.equal((tool!.inputSchema as { additionalProperties?: boolean }).additionalProperties, true,

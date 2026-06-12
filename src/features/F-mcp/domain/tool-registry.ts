@@ -19,7 +19,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_GRID } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -66,7 +66,13 @@ export function initializeResult(): {
 export type ToolIntention =
   | { tool: 'present' }
   | { tool: 'turn'; wearerText: string; reply: string; replyMarks: unknown[]; priorMarks: unknown[] }
-  | { tool: 'grid'; who: Who; sc: number }   // 3R.2 — fetch one turn's canonical cell grid
+  // lookup (R8) — the navigation read control: turn | span | thing → numbered cells. The
+  // selector is declared inline (structurally == F-present's LookupSelector) so R1 stays
+  // pure — no F-present import; the R3 contract passes it straight to lookup().
+  | { tool: 'lookup'; selector:
+      | { kind: 'turn'; who: Who; sc: number }
+      | { kind: 'span'; from: number; to: number; who?: Who }
+      | { kind: 'thing'; name: string } }
 
 export type PlanResult =
   | { ok: true; intention: ToolIntention }
@@ -119,20 +125,34 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     return { ok: true, intention: { tool: 'turn', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
   }
 
-  if (name === TOOL_GRID) {
+  if (name === TOOL_LOOKUP) {
     if (!isObject(args)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: arguments object required' }
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup: arguments object required' }
     }
-    // grid reads a turn's cells; only the two cognition channels record turns —
-    // program is not a wire turn-writer at v2, so it has no grid to fetch.
-    if (args.who !== 'wearer' && args.who !== 'llm') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: who must be wearer | llm (only cognition turns have a grid)' }
+    // read door — the selector is validated per kind; any extras are ignored (no testimony).
+    if (args.kind === 'turn') {
+      if (args.who !== 'wearer' && args.who !== 'llm') {
+        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup turn: who must be wearer | llm (only cognition turns have cells)' }
+      }
+      if (typeof args.sc !== 'number' || !Number.isFinite(args.sc)) {
+        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup turn: sc must be a number (the turn position)' }
+      }
+      return { ok: true, intention: { tool: 'lookup', selector: { kind: 'turn', who: args.who, sc: args.sc } } }
     }
-    if (typeof args.sc !== 'number' || !Number.isFinite(args.sc)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'grid: sc must be a number (the turn position)' }
+    if (args.kind === 'span') {
+      if (typeof args.from !== 'number' || !Number.isFinite(args.from) || typeof args.to !== 'number' || !Number.isFinite(args.to)) {
+        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup span: from and to must be numbers (the sc range)' }
+      }
+      const who = args.who === 'wearer' || args.who === 'llm' ? args.who : undefined
+      return { ok: true, intention: { tool: 'lookup', selector: { kind: 'span', from: args.from, to: args.to, who } } }
     }
-    // read door — selectors (who, sc) validated above; any extras are ignored.
-    return { ok: true, intention: { tool: 'grid', who: args.who, sc: args.sc } }
+    if (args.kind === 'thing') {
+      if (typeof args.name !== 'string') {
+        return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup thing: name must be a string (the thing to fetch)' }
+      }
+      return { ok: true, intention: { tool: 'lookup', selector: { kind: 'thing', name: args.name } } }
+    }
+    return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'lookup: kind must be turn | span | thing' }
   }
 
   return { ok: false, code: JSONRPC_INVALID_PARAMS, message: `unknown tool: ${String(name)}` }

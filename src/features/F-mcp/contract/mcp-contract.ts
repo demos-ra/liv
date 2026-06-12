@@ -17,7 +17,8 @@
 //   W-ATOM   MarkSurfaceError   F-present/R3 present-contract   (claim+validate — loud, atomic reject)
 //   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (manual rides the turn description — once-channel)
 //   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
-//   W-FN     readTranscript     F-memory/R3 substrate-contract   (3R.2 — grid: fetch one turn's cells)
+//   W-FN     lookup             F-present/R3 present-contract   (R8 read control — turn|span|thing)
+//   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
@@ -40,8 +41,7 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
-import { readTranscript } from '@/features/F-memory/contract/substrate-contract'
+import { readPresent, lookup, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -97,25 +97,19 @@ export async function handleMcpRequest(
         if (!plan.ok) return buildError(id, plan.code, plan.message)
         const intention = plan.intention
 
-        // present → the fresh present, ONLY. The manual rides the `turn` description (a
-        // once-channel, R2), so present carries zero manual tokens — the wake self-reach
-        // and every later read return just the resolved memory.
+        // present → the fresh present, ONLY, in the WIRE bundle (R7: both tables, no
+        // transcript — the transcript is fetched via lookup, never carried per turn). The
+        // manual rides the `turn` description (a once-channel, R2), so zero manual tokens here.
         if (intention.tool === 'present') {
-          return buildResult(id, toolText(await readPresent(session.userId)))
+          return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
         }
 
-        // grid (3R.2) → the canonical cell grid of one turn (ALL cells — the cutter's
-        // truth), so the caller COPIES coordinates instead of counting them from prose.
-        // Turn not found → a stating { ok: false }, never an exception. Uses the already-
-        // imported substrate R3 surface; no new cross-slice import.
-        if (intention.tool === 'grid') {
-          const turn = (await readTranscript(session.userId)).find(t => t.who === intention.who && t.sc === intention.sc)
-          if (!turn) {
-            return buildResult(id, toolText(JSON.stringify({ ok: false, who: intention.who, sc: intention.sc, message: 'no such turn (who, sc) in your substrate' })))
-          }
-          return buildResult(id, toolText(JSON.stringify({
-            ok: true, who: turn.who, sc: turn.sc, cells: turn.words.map(c => ({ pos: c.pos, word: c.word })),
-          })))
+        // lookup (R8) → numbered cells (turn | span | thing) so the caller COPIES coordinates
+        // instead of counting them from prose. The read control lives in F-present (it holds
+        // the dimension a `thing` selector needs); a miss is a stating { ok: false }, never
+        // an exception.
+        if (intention.tool === 'lookup') {
+          return buildResult(id, toolText(JSON.stringify(await lookup(session.userId, intention.selector))))
         }
 
         // turn — DEMANDED (R1): ONE call carries BOTH turns. userId is ALWAYS the session's;
@@ -137,12 +131,12 @@ export async function handleMcpRequest(
           throw err
         }
 
-        // Response = the fresh present, rendered POST-write (R2/R7 — the turn door is a write
-        // door whose response carries the present). FAILURE ORDERING (A2.2): the write COMMITTED
-        // above; if the present render fails, the turn STILL STANDS — state it truthfully rather
-        // than masking a committed write as a failure.
+        // Response = the fresh present in the WIRE bundle (R7: tables only), rendered POST-write
+        // (R2 — the turn door is a write door whose response carries the present). FAILURE
+        // ORDERING (A2.2): the write COMMITTED above; if the present render fails, the turn STILL
+        // STANDS — state it truthfully rather than masking a committed write as a failure.
         try {
-          return buildResult(id, toolText(await readPresent(session.userId)))
+          return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
         } catch (err) {
           const reason = err instanceof Error ? err.message : String(err)
           return buildResult(id, toolText(JSON.stringify({

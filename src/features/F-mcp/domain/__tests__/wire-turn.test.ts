@@ -155,43 +155,27 @@ test('turn: a sent scope is rejected as an unknown field', () => {
   assert.match(r.message, /unknown field "scope"/)
 })
 
-// ── (D) the grid tool (3R.2) — the door (unchanged) ──────────────────────────────
-test('grid: valid (who, sc) plans the fetch intention', () => {
-  const r = planToolCall('grid', { who: 'wearer', sc: 7 })
+// ── (D) the lookup read control (R8) — the door (grid generalized) ────────────────
+test('lookup turn: valid (who, sc) plans the selector intention', () => {
+  const r = planToolCall('lookup', { kind: 'turn', who: 'wearer', sc: 7 })
   assert.equal(r.ok, true)
   if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'grid', who: 'wearer', sc: 7 })
+  assert.deepEqual(r.intention, { tool: 'lookup', selector: { kind: 'turn', who: 'wearer', sc: 7 } })
 })
 
-test('grid: program who is rejected (only cognition turns have a grid)', () => {
-  const r = planToolCall('grid', { who: 'program', sc: 7 })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /who must be wearer \| llm/)
+test('lookup span / thing plan their selectors', () => {
+  const span = planToolCall('lookup', { kind: 'span', from: 1, to: 9 })
+  assert.equal(span.ok, true)
+  if (span.ok) assert.deepEqual(span.intention, { tool: 'lookup', selector: { kind: 'span', from: 1, to: 9, who: undefined } })
+  const thing = planToolCall('lookup', { kind: 'thing', name: 'Kyoto' })
+  assert.equal(thing.ok, true)
+  if (thing.ok) assert.deepEqual(thing.intention, { tool: 'lookup', selector: { kind: 'thing', name: 'Kyoto' } })
 })
 
-test('grid: non-numeric sc is rejected', () => {
-  const r = planToolCall('grid', { who: 'llm', sc: 'x' })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /sc must be a number/)
-})
-
-// ── (D) the grid tool — execution (the mcp-contract handler core, replicated) ─────
-function gridOver(transcript: { who: string; sc: number; words: { pos: number; word: string }[] }[], who: string, sc: number) {
-  const turn = transcript.find(t => t.who === who && t.sc === sc)
-  if (!turn) return { ok: false, who, sc, message: 'no such turn (who, sc) in your substrate' }
-  return { ok: true, who: turn.who, sc: turn.sc, cells: turn.words.map(c => ({ pos: c.pos, word: c.word })) }
-}
-
-test('grid output for a written turn ≡ cutCells ground truth (all cells, punct/space present)', () => {
-  const text = "don't go, U.S. now"
-  const transcript = [{ who: 'wearer', sc: 12, words: cutCells(text) }]
-  const res = gridOver(transcript, 'wearer', 12) as { ok: true; cells: { pos: number; word: string }[] }
-  assert.equal(res.ok, true)
-  assert.deepEqual(res.cells, cutCells(text).map(c => ({ pos: c.pos, word: c.word })))
-  assert.ok(res.cells.some(c => c.word === ' '), 'space slots present')
-  assert.ok(res.cells.some(c => c.word === ','), 'punctuation slots present')
+test('lookup: bad selectors are rejected, named', () => {
+  assert.match((planToolCall('lookup', { kind: 'turn', who: 'program', sc: 7 }) as { message: string }).message, /who must be wearer \| llm/)
+  assert.match((planToolCall('lookup', { kind: 'turn', who: 'llm', sc: 'x' }) as { message: string }).message, /sc must be a number/)
+  assert.match((planToolCall('lookup', { kind: 'bogus' }) as { message: string }).message, /kind must be turn \| span \| thing/)
 })
 
 // ── (G) read-door law (RD) — reads ignore extras ──────────────────────────────────
@@ -202,9 +186,9 @@ test('present: extra lifecycle-envelope fields are ignored (read door succeeds)'
   assert.deepEqual(r.intention, { tool: 'present' })
 })
 
-test('grid: selectors plus extra envelope fields succeed (read door ignores extras)', () => {
-  const r = planToolCall('grid', { who: 'wearer', sc: 7, source: 'startup', session_id: 'x' })
+test('lookup: selectors plus extra envelope fields succeed (read door ignores extras)', () => {
+  const r = planToolCall('lookup', { kind: 'turn', who: 'wearer', sc: 7, source: 'startup', session_id: 'x' })
   assert.equal(r.ok, true)
   if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'grid', who: 'wearer', sc: 7 })
+  assert.deepEqual(r.intention, { tool: 'lookup', selector: { kind: 'turn', who: 'wearer', sc: 7 } })
 })

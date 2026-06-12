@@ -15,7 +15,7 @@
 // word. LIV cuts, resolves the index to a canonical position, and VERIFIES the surface
 // byte-exact — a mismatch is rejected loud. The model never numbers cells and never copies
 // coordinates for a home; a canonical coordinate appears only INSIDE a Ref (a mark's
-// target/peer), copied from grid/lookup. The worked example below teaches exactly this.
+// target/peer), copied from lookup. The worked example below teaches exactly this.
 //
 // The example's sentences + their WORD-INDICES are exported constants; the prose renders
 // FROM them and coin-manual's test pins them against the live cutter (cutCells word-cells)
@@ -59,9 +59,13 @@ POINTING INSIDE A MARK (what A, B, T may be) — a NAME or a coordinate, nothing
 - a thing's NAME ("budget", "Kyoto") — names cluster across the whole present; NAME-FIRST is the default,
   prefer the name whenever the thing has one;
 - a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } — only to pin one exact past appearance, and
-  only COPIED from grid/lookup output, NEVER counted or computed. Coordinates live ONLY inside a mark's Ref;
-  a home is a word-index, never a coordinate. Every target/peer must resolve to something already in the present
-  or introduced in this reply — do not point at nothing.
+  only COPIED from the "lookup" tool's output, NEVER counted or computed. Coordinates live ONLY inside a mark's
+  Ref; a home is a word-index, never a coordinate. Every target/peer must resolve to something already in the
+  present or introduced in this reply — do not point at nothing.
+DEEPER REACH: a name is enough for anything that clusters ("Kyoto" finds every Kyoto). To pin ONE exact earlier
+appearance, call lookup — { kind:'thing', name:'Kyoto' } (or { kind:'turn', who, sc }) returns numbered cells;
+COPY a cell's { who, sc, pos } into your Ref. Example: tie this "it" back to that exact Kyoto →
+{ "op": "tie", "target": { "who": "wearer", "sc": 7, "pos": 5 } }  (the coordinate copied from lookup, never counted).
 
 SCORE THE PERSON'S TURN ("priorMarks") — by word-index into THEIR most-recent turn
 For any word the person's turn performs something with, add { "word": <index into their turn>, "surface": "<that word>", "marks": [ ... ] }.
@@ -90,6 +94,6 @@ Your reply: "${COIN_EXAMPLE_REPLY}"    (word-cells: ${COIN_EXAMPLE_REPLY_WORDS.K
 HOW TO RETURN
 - native: return ONLY the JSON object: { "reply": "<your reply>", "replyMarks": [ ... ], "priorMarks": [ ... ] }.
 - wire: call the "turn" tool ONCE with { wearerText, reply, replyMarks, priorMarks } — the person's words and your
-  scored reply together; LIV records both turns and returns your fresh present. Point further back with grid/lookup.
+  scored reply together; LIV records both turns and returns your fresh present. Fetch cells to point back: lookup.
 
 What you write well now is what you wake with next.`

@@ -11,12 +11,15 @@
 // stored geometry, no new shape: this surface emits the engine's rendered present.
 
 import { presentContext } from '../app/cognition-orchestrator'
+import type { PresentBundle } from '@/features/F-present/config/read-engine-types'
 import { createTRPCRouter, protectedProcedure } from '@/features/F-identity/contract/trpc-procedures'
 
-// readPresent — resolve the wearer's current present (transcript + forest@ALL +
-// sheet@focus@ALL), rendered to context text by the engine.
-export async function readPresent(userId: string): Promise<string> {
-  return presentContext(userId)
+// readPresent — resolve the wearer's present, rendered to context text by the engine.
+// `bundle` (R7 named config) selects the rail's sections: default native (windshield
+// transcript + both tables); the wire passes PRESENT_BUNDLES.wire (tables only — the
+// transcript is fetched via lookup). REST/tRPC dashboards take the native default.
+export async function readPresent(userId: string, bundle?: PresentBundle): Promise<string> {
+  return presentContext(userId, bundle)
 }
 
 // tRPC router — the kept `present` route (F-identity/router.ts slots this as

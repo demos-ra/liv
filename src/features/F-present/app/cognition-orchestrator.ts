@@ -87,7 +87,8 @@ import { weighDimension }                                from '@/features/F-pres
 import { pivot, forestConfig, sheetConfig }              from '@/features/F-present/domain/pivot'
 import { renderForest, renderSheet, renderTranscript }   from '@/features/F-present/domain/render-present'
 import { currentFocus, sessionWindow }                   from '@/features/F-present/domain/session-window'
-import type { ForestResult, SheetResult }                from '@/features/F-present/config/read-engine-types'
+import type { ForestResult, SheetResult, PresentBundle } from '@/features/F-present/config/read-engine-types'
+import { PRESENT_BUNDLES }                                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
 import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
@@ -148,15 +149,16 @@ export const composeAndWrite: ReplyComposer = async (input) => {
   return { sc, markCount, text }
 }
 
-// ── Read-front upgrader — conforms to the core ContextReader ───────────────────
-// The wake-default bundle the LLM wakes with: transcript + forest@ALL +
-// sheet@focus@ALL, run through the read engine (buildFactTable -> resolveDimension
-// -> weighDimension -> pivot -> render). The three are a REMOVABLE template layer,
-// not engine structure — drop the bundle and pivot() still answers any explicit
-// PivotConfig. show:{} = ALL mark-types (each op in its own typed sub-section);
-// scoping is on the things (forest by weight, sheet by the focus line), never on
-// mark-types. The defaults are a convenience surface, not a contract.
-export const presentContext: ContextReader = async (userId) => {
+// ── Read-front — the rail-aware present bundle (R7) ────────────────────────────
+// The wake-default bundle the reader wakes with, run through the read engine
+// (buildFactTable -> resolveDimension -> weighDimension -> pivot -> render). The sections
+// are a REMOVABLE template layer, not engine structure — pivot() still answers any explicit
+// config; lookup still fetches any cells. `bundle` (R7 named config) selects the sections
+// per rail: native = windshield transcript + both tables; wire = both tables only (the
+// transcript is fetched via lookup, never carried per turn, R8). Sections join with a blank
+// line — byte-identical to the prior native render; clean (no leading blank) when the wire
+// bundle drops the transcript. The registered ContextReader (native) uses PRESENT_BUNDLES.native.
+export async function presentContext(userId: string, bundle: PresentBundle = PRESENT_BUNDLES.native): Promise<string> {
   const transcript = await readTranscript(userId)
   const store      = await createDbPresentMarkStore().read(userId)
 
@@ -165,27 +167,23 @@ export const presentContext: ContextReader = async (userId) => {
   weighDimension(dim, rows)
   const focus = currentFocus(dim)
 
-  const out: string[] = []
-  // 1. transcript — the SESSION WINDOW (Shot 2: from where the current focus-line run
-  //    began, to now), rendered byte-pure (3R.1: plain joinCells, no positional markup —
-  //    coordinates are fetched, never rendered). Always on (not a table call). Full
-  //    history stays reachable via readTranscript; only the default windshield scope
-  //    narrows. forest/sheet scope is unchanged this sprint.
-  out.push(renderTranscript(sessionWindow(transcript, dim, rows, focus)))
+  const sections: string[] = []
+  // 1. transcript — the SESSION WINDOW, byte-pure (3R.1). Native windshield only; the wire
+  //    fetches cells via lookup. Full history stays reachable via readTranscript / lookup.
+  if (bundle.transcript) sections.push(renderTranscript(sessionWindow(transcript, dim, rows, focus)))
 
   // structure + state appear once marks exist (sparse early, richer as it compounds).
   if (dim.things.size > 0) {
     // 2. forest (structure) — the named default config (rows=lineage, ring-local top).
-    out.push('')
-    out.push(renderForest(pivot(forestConfig(), dim, rows) as ForestResult))
+    if (bundle.forest) sections.push(renderForest(pivot(forestConfig(), dim, rows) as ForestResult))
     // 3. sheet (state) — the named default config, sliced at the current focus.
-    if (focus) {
-      out.push('')
-      out.push(renderSheet(pivot(sheetConfig(focus), dim, rows) as SheetResult))
-    }
+    if (bundle.sheet && focus) sections.push(renderSheet(pivot(sheetConfig(focus), dim, rows) as SheetResult))
   }
-  return out.join('\n')
+  return sections.join('\n\n')
 }
+
+// The registered upgrader conforms to the core ContextReader (userId → string) — native rail.
+export const presentContextReader: ContextReader = (userId) => presentContext(userId)
 
 // ── The single composition wire ────────────────────────────────────────────────
 // Called from F-event-system bootstrap() (warm start) AND from chat-contract at
@@ -196,5 +194,5 @@ export const presentContext: ContextReader = async (userId) => {
 // markCognitionEnsured never fires; core loop runs its baseline.
 export function registerCognitionUpgrades(): void {
   registerReplyComposer(composeAndWrite)
-  registerContextReader(presentContext)
+  registerContextReader(presentContextReader)
 }

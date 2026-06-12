@@ -101,3 +101,13 @@ export type PivotResult = ForestResult | SheetResult
 // retired — share-of-whole and the asymmetric up/down knobs are gone with the view enum.)
 export const DEFAULT_FOREST_TOP = 0.02          // forest: show nodes carrying >= 2% of their ring
 export const DEFAULT_SHEET_LEVEL = 3            // sheet: ancestor + descendant depth along the line
+
+// ── Present bundles (R7) — rail-aware named defaults; CONFIG DATA, not code ────────
+// The wake bundle per rail. native carries the windshield transcript + both tables; wire
+// carries the tables ONLY — the transcript is fetched on demand (lookup, R8), never carried
+// per turn. The model may request a different shape per call; it never edits these defaults.
+export type PresentBundle = { transcript: boolean; forest: boolean; sheet: boolean }
+export const PRESENT_BUNDLES = {
+  native: { transcript: true,  forest: true, sheet: true },
+  wire:   { transcript: false, forest: true, sheet: true },
+} as const satisfies Record<string, PresentBundle>
