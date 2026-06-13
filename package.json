@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint-diff": "git diff --name-only HEAD -- '*.ts' '*.tsx' | xargs --no-run-if-empty eslint",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npx tsx --test \"src/features/**/__tests__/*.test.ts\"",
     "migrate": "npx tsx scripts/migrate.ts"
   },
   "dependencies": {

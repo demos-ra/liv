@@ -11,9 +11,11 @@
 //   (B) EXECUTION (the mcp-contract turn path, replicated with a DB-free recorder seam):
 //       a well-formed turn LANDS BOTH turns AND its marks (present_marks-bound PlacedMarks);
 //       scope is the STAMPED session.sessionId; a surface mismatch is rejected loud + atomic.
-//   (D) the grid read control (3R.2) is unchanged — door + execution.
+//   (A2.2) FAILURE-ORDERING: a committed write survives a post-write present-render failure
+//         — the turn STILL STANDS and the response states the degradation truthfully.
+//   (D) the lookup read control (R8) is unchanged — door + execution.
 //   (F) SCOPE-SYMMETRY: a sent `scope` is rejected as an unknown field.
-//   (G) READ-DOOR LAW: present + grid ignore extras (no testimony to protect).
+//   (G) READ-DOOR LAW: present + lookup ignore extras (no testimony to protect).
 //
 // Run: npx tsx --test src/features/F-mcp/domain/__tests__/wire-turn.test.ts
 
@@ -136,6 +138,43 @@ test('a turn whose mark surface mismatches is rejected loud + atomic (nothing wr
     (e: unknown) => e instanceof MarkSurfaceError,
   )
   assert.equal(seam.writes.length, 0, 'atomic — the loud rejection precedes every write')
+})
+
+// ── (A2.2) failure-ordering — a committed write survives a present-render failure ──
+// Mirrors the mcp-contract turn path (the post-write block): the write COMMITS, then the
+// fresh present is rendered; if that render throws, the turn STILL STANDS — the response
+// reports { ok:true, present:null, note } truthfully, never masking a committed write as a
+// failure. Driven by the in-memory seam so the write genuinely persists before the render.
+test('A2.2: a present-render failure post-write → write persists; ok:true, present:null, truthful note', async () => {
+  const plan = planToolCall('turn', goodArgs())
+  assert.equal(plan.ok, true)
+  if (!plan.ok || plan.intention.tool !== 'turn') return
+
+  const emission = emissionFromStructured({
+    reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
+  })
+  const seam = stubDeps(12, 11)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, seam.deps)
+
+  // the write COMMITTED to the in-memory deps — both turns + both marks persisted.
+  assert.equal(seam.writes.length, 2, 'both turns written before the render is attempted')
+  assert.equal(seam.placed.length, 2, 'both marks placed — the committed turn stands')
+
+  // post-write, the present render fails; the contract builds the truthful degraded envelope.
+  const renderPresent = async (): Promise<string> => { throw new Error('store offline') }
+  let response: { ok: boolean; sc: number; present: null; note: string } | { present: string }
+  try {
+    response = { present: await renderPresent() }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err)
+    response = { ok: true, sc: recorded.sc, present: null, note: `turn recorded; present unavailable: ${reason}` }
+  }
+
+  assert.ok('ok' in response && response.ok === true, 'the committed turn is reported as success, not failure')
+  if (!('ok' in response)) return
+  assert.equal(response.sc, recorded.sc)
+  assert.equal(response.present, null, 'present is null — render unavailable, stated not masked')
+  assert.match(response.note, /turn recorded; present unavailable: store offline/)
 })
 
 // ── (E) extras gate — the turn is a WRITE door (FIX-2, carried) ───────────────────

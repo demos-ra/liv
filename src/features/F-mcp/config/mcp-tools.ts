@@ -18,15 +18,15 @@ import type { McpToolDescriptor } from './mcp-protocol'
 
 // The MCP surface (manager §2 + sprint-wire-economy R1/R2): present (read), turn (record
 // ONE conversation turn — both the person's words and the scored reply, in one call — and
-// respond with the fresh present), grid (fetch one turn's canonical cell grid). LIV is the
-// agent's memory substrate; the agent is itself the LLM. Tool names and arg shapes are
+// respond with the fresh present), lookup (fetch numbered cells — turn | span | thing). LIV
+// is the agent's memory substrate; the agent is itself the LLM. Tool names and arg shapes are
 // declared here; mapping to in-process R3 targets is performed at the R3 contract.
 //
 // ONE CALL PER TURN (sprint-wire-economy R1): the wire no longer carries a separate
 // wearer write then an llm write — a `turn` carries wearerText + the scored reply together,
 // LIV records both turns, and the response IS the fresh present. The per-turn manual and
 // per-turn transcript are gone from the wire: the manual rides the `turn` description (a
-// once-channel, R2), the transcript is fetched (grid / lookup), never carried.
+// once-channel, R2), the transcript is fetched (lookup), never carried.
 //
 // lookup is the navigation read control (R8): grid generalized (turn | span | thing →
 // numbered cells) and re-homed to F-present, where the dimension lives. grid is deleted.
@@ -37,7 +37,7 @@ export const TOOL_LOOKUP = 'lookup' as const
 
 // (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
 // is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
-// grid validates its own who (wearer|llm) inline. No remaining consumer.
+// lookup validates its own who (wearer|llm) per selector kind. No remaining consumer.
 
 export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
@@ -53,7 +53,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_TURN,
     description:
-      "Record ONE conversation turn — the person's words AND your scored reply, in a single call — and receive your fresh present in return. LIV writes both turns; you never make a separate wearer write. DEMANDED shape (enforced at the door): { wearerText, reply, replyMarks, priorMarks } — all four required (the mark arrays may be empty, never absent); extra fields are rejected. wearerText is the person's verbatim words (LIV cuts it). reply is your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A) and renders it byte-identical. replyMarks score YOUR reply; priorMarks score the PERSON's turn. Each mark entry is { word, surface, marks }: word is the 1-based WORD-INDEX into that turn's text (count word-cells left to right), surface is the exact word you claim sits at that index — LIV verifies surface against the cut byte-exact and rejects a mismatch loud. Coordinates appear only inside a mark's Ref (target/peer), copied from grid/lookup, never as a home index. Circumstance (identity, channel, scope) is stamped by the perimeter — never sent. The full fill manual is delivered with this tool.",
+      "Record ONE conversation turn — the person's words AND your scored reply, in a single call — and receive your fresh present in return. LIV writes both turns; you never make a separate wearer write. DEMANDED shape (enforced at the door): { wearerText, reply, replyMarks, priorMarks } — all four required (the mark arrays may be empty, never absent); extra fields are rejected. wearerText is the person's verbatim words (LIV cuts it). reply is your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A) and renders it byte-identical. replyMarks score YOUR reply; priorMarks score the PERSON's turn. Each mark entry is { word, surface, marks }: word is the 1-based WORD-INDEX into that turn's text (count word-cells left to right), surface is the exact word you claim sits at that index — LIV verifies surface against the cut byte-exact and rejects a mismatch loud. Coordinates appear only inside a mark's Ref (target/peer), copied from lookup, never as a home index. Circumstance (identity, channel, scope) is stamped by the perimeter — never sent. The full fill manual is delivered with this tool.",
     // TRANSPORT-SAFE ADVERTISEMENT (sprint-wire-transport T1, carried): ONE flat object —
     // no top-level oneOf/anyOf/allOf (the Anthropic API rejects those and the client drops
     // the whole tool). All four fields are structurally required; the door enforces the

@@ -4,17 +4,18 @@
 // Built with LIV · livai.dev
 // [F-present/domain/render-present.ts]
 //
-// PivotResult -> context text, name-first. Plain serialization of the pivot — no
-// metaphor in the engine, technical terms only (identity · RELATE · QUALIFY ·
-// IDENTIFY). Cells render the RAW marks only — never a synthesized state. Marks
-// are split by op into typed sub-sections so the table stays organized.
+// PivotResult -> context text, name-first. Plain serialization of the pivot — the cells
+// render the RAW marks only (never a synthesized state), re-skinned to the MUSICAL register
+// (note · tie · chord · expression) at this outbound boundary via engineOpToMusical (R9); the
+// engine's own technical vocabulary (identity · RELATE · QUALIFY · IDENTIFY) stays inside the
+// gate. Marks are split by op into typed sub-sections so the table stays organized.
 //
 // sprint-wire-cognition Shot 3R (L0 ruling — coordinates are fetched, never rendered,
 // never counted): the TRANSCRIPT renders PLAIN joined text — the wearer's byte-pure
 // record carries NO positional markup of any kind. Coordinates live on STRUCTURAL
-// surfaces only: the `grid` tool, the write-response echo, the native wearer-cells
-// data block, and the marks SHEET (which renders each mark's home @pos — teaching the
-// coordinate format from real marks).
+// surfaces only: the `lookup` tool (turn | span | thing → numbered cells) and the marks
+// SHEET (which renders each mark's home @pos — teaching the coordinate format from real
+// marks).
 
 import type { Ref } from '@/features/F-present/config/mark-types'
 import type { ForestResult, ForestNode, SheetResult, SheetCell } from '@/features/F-present/config/read-engine-types'
@@ -27,8 +28,7 @@ const refText = (r: Ref): string => (typeof r === 'string' ? r : `${r.who}:${r.s
 // ── Transcript (the raw line) — plain, byte-pure (3R.1) ─────────────────────────
 // The transcript is the wearer's record: `[sc] (who): joinCells(words)`, nothing more.
 // joinCells is the sole text authority; there is no positional markup — positions are
-// obtained from structural surfaces (grid / write echo / wearer-cells / sheet), never
-// counted from this prose.
+// obtained from structural surfaces (lookup / sheet), never counted from this prose.
 export function renderTranscript(turns: RawTurn[]): string {
   const out: string[] = ['TRANSCRIPT (turns in position order):']
   for (const t of turns) {

@@ -9,7 +9,7 @@
 // category:   Modality
 // layer:      R1
 // wires-in:
-//   W-ATOM   MCP_TOOLS / WHO_VALUES   F-mcp/config mcp-tools
+//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP   F-mcp/config mcp-tools
 //   W-ATOM   Who                      @/core/types/substrate-raw.types
 // wires-out:
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R3 contract
@@ -89,7 +89,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
 // only: planToolCall is the authoritative validator — the schema advertises, the write
 // door enforces. An unknown top-level field on a WRITE is rejected fail-closed with a
 // law-naming message. No second layer, no middleware — just the demanded allow-list per
-// write shape. present + grid validate their selectors and ignore everything else.
+// write shape. present + lookup validate their selectors and ignore everything else.
 function firstUnknownField(args: Record<string, unknown>, allowed: readonly string[]): string | null {
   for (const k of Object.keys(args)) if (!allowed.includes(k)) return k
   return null

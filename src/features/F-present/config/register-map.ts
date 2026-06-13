@@ -6,8 +6,8 @@
 //
 // THIS FILE TRANSLATES NAMES; MARK-GATE ALONE VALIDATES MARKS, BOTH CROSSINGS.
 //
-// (sprint-wire-economy R9) The CONTENT register is musical (note · tie · chord · expression
-// — Will) on every model/wearer-facing surface: the manual, the emit schema, the rendered
+// (sprint-wire-economy R9) The CONTENT register is musical (note · tie · chord · expression)
+// on every model/wearer-facing surface: the manual, the emit schema, the rendered
 // cells. The ENGINE keeps its own vocabulary (identity · RELATE · QUALIFY · IDENTIFY) —
 // mark-gate, mark-types, the store, the spec, the DB are technical and UNTOUCHED. This map
 // is the one name-translation seam, one home per direction:
@@ -21,7 +21,7 @@
 
 import type { Mark } from '@/features/F-present/config/mark-types'
 
-// The musical content register (Will), in canonical order.
+// The musical content register, in canonical order.
 export const MUSICAL_OPS = ['note', 'tie', 'chord', 'expression'] as const
 export type MusicalOp = (typeof MUSICAL_OPS)[number]
 

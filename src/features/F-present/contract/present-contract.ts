@@ -17,15 +17,20 @@
 //   W-FN  presentRouter          →  F-identity/router (tRPC)
 //   W-FN  registerCognitionUpgrades  →  F-chat, F-event-system/startup
 //   W-FN  isMark                 →  scripts/reconcile-present-marks (the gate, surfaced)
-//   W-FN  recordScoredTurn       →  F-mcp (write tool, who:'llm') — the scored-turn recorder
-//   W-FN  emissionFromStructured →  F-mcp (write tool, who:'llm') — the narrowing/gate filter
-//   W-ATOM COIN_MANUAL           →  F-mcp (present tool — manual-with-present, one home)
+//   W-FN  recordScoredTurn       →  F-mcp (turn tool, who:'llm') — the scored-turn recorder
+//   W-FN  emissionFromStructured →  F-mcp (turn tool, who:'llm') — the narrowing/gate filter
+//   W-ATOM COIN_MANUAL           →  F-mcp (turn tool — manual rides the description, one home)
+//   W-FN  lookup                 →  F-mcp (lookup tool — R8 read control: turn|span|thing)
+//   W-ATOM LookupSelector/Result/Cell  →  F-mcp (lookup tool — R8, type-only)
+//   W-ATOM PRESENT_BUNDLES       →  F-mcp (present/turn — R7 rail-aware bundle: wire = tables only)
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
-//   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission)
+//   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission, MarkSurfaceError)
 //   R0  ../config/coin-manual    (COIN_MANUAL)
+//   R0  ../config/read-engine-types  (PRESENT_BUNDLES)
 //   R2  ../app/cognition-orchestrator
 //   R2  ../app/scored-turn-recorder
+//   R2  ../app/lookup            (lookup, Lookup* types)
 //   R3  ./read-surface
 
 // The read surface — the removable lens, rendered to context text.
