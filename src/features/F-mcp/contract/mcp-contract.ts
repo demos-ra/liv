@@ -11,7 +11,8 @@
 // wires-in:
 //   W-FN     parseRequest / buildResult / buildError   F-mcp/R1 json-rpc
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R1 tool-registry
-//   W-FN     readPresent        F-present/R3 present-contract   (turn response + present tool)
+//   W-FN     readPresent        F-present/R3 present-contract   (present tool — the read)
+//   W-FN     presentOrDegraded  F-mcp/R2 present-or-degraded     (turn response — post-write present-or-degraded, A2.2)
 //   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns)
 //   W-FN     emissionFromStructured  F-present/R3 present-contract  (the narrowing/gate)
 //   W-ATOM   MarkSurfaceError   F-present/R3 present-contract   (claim+validate — loud, atomic reject)
@@ -25,6 +26,7 @@
 // deps:
 //   R1  ../domain/json-rpc
 //   R1  ../domain/tool-registry
+//   R2  ../app/present-or-degraded
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract
 //   R3  @/features/F-memory/contract/substrate-contract
@@ -33,6 +35,7 @@
 
 import { parseRequest, buildResult, buildError } from '../domain/json-rpc'
 import { listTools, initializeResult, planToolCall } from '../domain/tool-registry'
+import { presentOrDegraded } from '../app/present-or-degraded'
 import { TOOL_TURN } from '../config/mcp-tools'
 import {
   JSONRPC_METHOD_NOT_FOUND,
@@ -133,16 +136,11 @@ export async function handleMcpRequest(
 
         // Response = the fresh present in the WIRE bundle (R7: tables only), rendered POST-write
         // (R2 — the turn door is a write door whose response carries the present). FAILURE
-        // ORDERING (A2.2): the write COMMITTED above; if the present render fails, the turn STILL
-        // STANDS — state it truthfully rather than masking a committed write as a failure.
-        try {
-          return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
-        } catch (err) {
-          const reason = err instanceof Error ? err.message : String(err)
-          return buildResult(id, toolText(JSON.stringify({
-            ok: true, sc: recorded.sc, present: null, note: `turn recorded; present unavailable: ${reason}`,
-          })))
-        }
+        // ORDERING (A2.2) is owned by the R2 unit presentOrDegraded: the write COMMITTED above,
+        // so a present-render failure returns the named degraded payload (the turn STILL STANDS)
+        // rather than masking a committed write as a failure. The door stays thin — no try/catch.
+        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, recorded.sc)
+        return buildResult(id, toolText(typeof out === 'string' ? out : JSON.stringify(out)))
       }
 
       default:

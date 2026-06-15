@@ -65,7 +65,7 @@ export type Selection = {
 //   slicer   — the focus/anchor thing (the Excel slicer; required by columns:'line').
 //   level    — depth bound: rings down the lineage (rows) / fan along the line (columns).
 //              undefined = ∞ (all).
-//   top      — brightness floor as a SHARE-OF-RING fraction (0..1): keep a node WHERE
+//   top      — share-of-ring floor as a fraction (0..1): keep a node WHERE
 //              weight / Σ(weights at the node's concentric ring = same depth from the
 //              wearer) >= top. RING-LOCAL and scale-invariant — a heavy deep node is judged
 //              among its depth-peers, never diluted against the whole. This is the R6 fix
@@ -94,7 +94,7 @@ export type SheetResult = { view: 'sheet'; columns: ThingId[]; rows: SheetRow[] 
 export type PivotResult = ForestResult | SheetResult
 
 // ── Wake-default knobs (M6) — overridable, owning no taxonomy ───────────────────
-// DEFAULT_FOREST_TOP is the share-of-RING brightness floor (0..1 of the node's concentric
+// DEFAULT_FOREST_TOP is the share-of-RING floor (0..1 of the node's concentric
 // ring = Σ-weights at the same depth), NOT share-of-whole — ring-local and scale-invariant
 // (R6). DEFAULT_SHEET_LEVEL bounds the sheet's fan/line depth. Builder-chosen defaults; a
 // reader overrides per call. (DEFAULT_FOREST_CUTOFF / ANCESTORS_UP / DESCENDANTS_DOWN are

@@ -26,12 +26,15 @@ import { planToolCall } from '../tool-registry'
 // R3-surface pieces (warmed so the F-memory R3 barrel resolves cleanly under tsx).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let recordScoredTurn: any, emissionFromStructured: any, MarkSurfaceError: any, wordCells: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let presentOrDegraded: any
 let cutCells: (t: string) => { pos: number; word: string }[]
 
 before(async () => {
   ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError } = await import('@/features/F-present/contract/present-contract'))
   ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
+  ;({ presentOrDegraded } = await import('@/features/F-mcp/app/present-or-degraded'))
 })
 
 const WEARER = 'I toured Kyoto'
@@ -140,41 +143,28 @@ test('a turn whose mark surface mismatches is rejected loud + atomic (nothing wr
   assert.equal(seam.writes.length, 0, 'atomic — the loud rejection precedes every write')
 })
 
-// ── (A2.2) failure-ordering — a committed write survives a present-render failure ──
-// Mirrors the mcp-contract turn path (the post-write block): the write COMMITS, then the
-// fresh present is rendered; if that render throws, the turn STILL STANDS — the response
-// reports { ok:true, present:null, note } truthfully, never masking a committed write as a
-// failure. Driven by the in-memory seam so the write genuinely persists before the render.
-test('A2.2: a present-render failure post-write → write persists; ok:true, present:null, truthful note', async () => {
-  const plan = planToolCall('turn', goodArgs())
-  assert.equal(plan.ok, true)
-  if (!plan.ok || plan.intention.tool !== 'turn') return
+// ── (A2.2) failure-ordering — drives the REAL R2 unit (present-or-degraded) ────────
+// The turn door commits BOTH turns (proven above), THEN renders the present for its
+// response. Failure-ordering is owned by the R2 unit presentOrDegraded: a present-render
+// failure does NOT mask the committed write — the unit returns the named degraded payload.
+// Here we drive that real unit with an injected readPresent seam (success then throw) and
+// assert its actual returned value — no inline twin of the contract's logic.
+const WIRE_BUNDLE = { transcript: false, forest: true, sheet: true } as const
+test('A2.2: presentOrDegraded passes the present through on success; on render failure returns the named degraded payload', async () => {
+  // success → the render passes straight through (no envelope).
+  const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, 12, { readPresent: async () => 'PRESENT-TEXT' })
+  assert.equal(ok, 'PRESENT-TEXT', 'a successful render passes straight through')
 
-  const emission = emissionFromStructured({
-    reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
+  // failure → the committed turn STILL STANDS; the unit returns the named degraded payload.
+  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, 12, {
+    readPresent: async () => { throw new Error('store offline') },
   })
-  const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, seam.deps)
-
-  // the write COMMITTED to the in-memory deps — both turns + both marks persisted.
-  assert.equal(seam.writes.length, 2, 'both turns written before the render is attempted')
-  assert.equal(seam.placed.length, 2, 'both marks placed — the committed turn stands')
-
-  // post-write, the present render fails; the contract builds the truthful degraded envelope.
-  const renderPresent = async (): Promise<string> => { throw new Error('store offline') }
-  let response: { ok: boolean; sc: number; present: null; note: string } | { present: string }
-  try {
-    response = { present: await renderPresent() }
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err)
-    response = { ok: true, sc: recorded.sc, present: null, note: `turn recorded; present unavailable: ${reason}` }
-  }
-
-  assert.ok('ok' in response && response.ok === true, 'the committed turn is reported as success, not failure')
-  if (!('ok' in response)) return
-  assert.equal(response.sc, recorded.sc)
-  assert.equal(response.present, null, 'present is null — render unavailable, stated not masked')
-  assert.match(response.note, /turn recorded; present unavailable: store offline/)
+  assert.ok(typeof out !== 'string', 'a render failure yields the degraded payload, not a present string')
+  if (typeof out === 'string') return
+  assert.equal(out.ok, true, 'the committed turn is reported as success, not failure')
+  assert.equal(out.sc, 12, 'the committed turn position is carried back')
+  assert.equal(out.present, null, 'present is null — render unavailable, stated not masked')
+  assert.match(out.note, /turn recorded; present unavailable: store offline/)
 })
 
 // ── (E) extras gate — the turn is a WRITE door (FIX-2, carried) ───────────────────

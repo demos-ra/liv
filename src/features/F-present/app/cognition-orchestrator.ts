@@ -44,7 +44,7 @@
 //   W-FN    pivot                                        ../domain/pivot
 //   W-FN    renderForest/renderSheet/renderTranscript    ../domain/render-present
 //   W-FN    currentFocus/sessionWindow                   ../domain/session-window      (sprint-wire-cognition Shot 2)
-//   W-ATOM  DEFAULT_FOREST_CUTOFF/DEFAULT_ANCESTORS_UP/DEFAULT_DESCENDANTS_DOWN   ../config/read-engine-types
+//   W-ATOM  PRESENT_BUNDLES / PresentBundle                                      ../config/read-engine-types   (R7 rail-aware bundles)
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
 //   W-FN    readTranscript                               @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
 //   W-FN    registerReplyComposer/registerContextReader  @/core/domain/cognition-seam                      (F-present -> core)
