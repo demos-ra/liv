@@ -59,6 +59,7 @@
 //   R1  ../domain/render-present
 //   R1  ../domain/session-window
 //   R0  ../config/read-engine-types
+//   R0  ../config/coin-manual
 //   R4  ../exec/present-mark-store-db
 //   R3  @/features/F-memory/contract/substrate-contract
 //   core @/core/domain/cognition-seam

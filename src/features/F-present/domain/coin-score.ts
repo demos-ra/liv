@@ -25,6 +25,7 @@
 //   W-ATOM  JsonSchema / StructuredEmitConfig @/features/F-ai-adapter/contract/ai-contract (type-only)
 //   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
 //   W-FN    isMark                            ../domain/mark-gate
+//   W-ATOM  MUSICAL_OPS / toEngineMark        ../config/register-map                     (R9 register seam — emit enum + intake translate)
 // wires-out:
 //   W-FN    emissionFromStructured / cutReply / wordCells / locateWordMarks / homeMarks
 //           / verifyGrid / validateSharedUniverse  →  ../app/scored-turn-recorder (R2)
@@ -33,6 +34,7 @@
 // deps:
 //   R0  @/core/types/substrate-raw.types
 //   R0  ../config/mark-types
+//   R0  ../config/register-map
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R1  ../domain/mark-gate
