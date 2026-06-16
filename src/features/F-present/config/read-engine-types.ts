@@ -57,25 +57,35 @@ export type Selection = {
   preset?: 'skeleton' | 'verbatim' | 'evolution'
 }
 
-// ── ONE instrument — the Excel-register zone config (sprint-wire-economy R6) ───────
-// The `view: 'forest'|'sheet'` enum is GONE. There is one pivot(); forest and sheet are
-// two NAMED default configs (forestConfig / sheetConfig) over one engine. The registers:
-//   rows     — row-zone layout: 'lineage' (things nested by parent → the forest).
-//   columns  — column-zone layout: 'line' (the slicer's direct line → the sheet).
+// ── ONE engine — the Excel-register zone config (sprint pivot-compute-close) ───────
+// There is one pivot() that COMPOSES three config-keyed zone functions (row-source ·
+// column-source · cell-filler); it never branches on which table it is. A table is named
+// wholly by this config — every zone the engine reads has a name here, including the row
+// axis (so the engine selects a row-source by name, never infers one from `columns`):
+//   rows     — row axis: 'lineage' (things by parent → the structure tree) | 'time' (sc).
+//   columns  — column axis: 'single' (one synthetic value column) | 'line' (the slicer's
+//              direct line). selects the column-source.
+//   values   — value field: 'weight' (scalar, from Thing.weight) | 'marks' (the raw marks
+//              at the intersection). selects the cell-filler. The engine PLACES the value
+//              type-agnostic — the cell union (GridCell) is read only by the renderer.
 //   slicer   — the focus/anchor thing (the Excel slicer; required by columns:'line').
-//   level    — depth bound: rings down the lineage (rows) / fan along the line (columns).
-//              undefined = ∞ (all).
+//   level    — depth bound: rings down the lineage (rows) / ancestor+descendant span along
+//              the line (columns). undefined = ∞ (all).
 //   top      — share-of-ring floor as a fraction (0..1): keep a node WHERE
 //              weight / Σ(weights at the node's concentric ring = same depth from the
 //              wearer) >= top. RING-LOCAL and scale-invariant — a heavy deep node is judged
-//              among its depth-peers, never diluted against the whole. This is the R6 fix
-//              for the cross-branch inversion; it replaces weightCutoff (share-of-whole).
+//              among its depth-peers, never diluted against the whole. On the `line` column
+//              axis it trims DESCENDANTS only; the ancestor chain is taken whole (L0-2).
 //   filter   — which mark-ops/colorings are in play (the Selection; was `show`).
 //   sort     — child/row ordering: 'weight' (then id) | 'id'. default 'weight' (preserved).
-export type PivotSort = 'weight' | 'id'
+export type RowAxis    = 'lineage' | 'time'
+export type ColAxis    = 'single'  | 'line'
+export type ValueField = 'weight'  | 'marks'
+export type PivotSort  = 'weight' | 'id'
 export type PivotConfig = {
-  rows?:    'lineage'
-  columns?: 'line'
+  rows:     RowAxis
+  columns:  ColAxis
+  values:   ValueField
   slicer?:  ThingId
   level?:   number
   top?:     number
@@ -83,31 +93,62 @@ export type PivotConfig = {
   sort?:    PivotSort
 }
 
-export type ForestNode = { thing: ThingId; label: string; weight: number; children: ForestNode[] }
-export type ForestResult = { view: 'forest'; root: ForestNode; threads: Thread[] }   // root = wearer
-// raw marks, dynamic width. `home` = the mark's home coordinate (Shot 3R: the sheet
-// teaches the coordinate format from real marks — render shows @home.pos; sc is the
-// row key, who the column context, so only the position need print per mark).
-export type SheetCell = { op: Mark['op']; value: string | null; ref?: Ref; home: Coord }[]
-export type SheetRow = { sc: number; cells: Record<ThingId, SheetCell> }
-export type SheetResult = { view: 'sheet'; columns: ThingId[]; rows: SheetRow[] }     // columns = ancestors|focus|descendants
-export type PivotResult = ForestResult | SheetResult
+// ── The ONE Grid (no discriminant — nothing to switch on in compute) ──────────────
+// A column key is a ThingId, or VALUE_COL for the single synthetic value column (which is
+// never rendered as a header). A row key is a ThingId (lineage) or an sc number (time).
+export type ColKey = string                     // a ThingId, or VALUE_COL (single-column layouts)
+export type RowKey = ThingId | number           // lineage → ThingId ; time → sc
+export const VALUE_COL: ColKey = '__value__'  // synthetic single-value column; never printed (columnsLine:false)
+
+// One mark placed at an intersection — `home` is the mark's home coordinate (Shot 3R: the
+// state grid teaches the coordinate format from real marks — render shows @home.pos; the sc
+// is the row key, the column the context, so only the position prints per mark).
+export type MarkEntry = { op: Mark['op']; value: string | null; ref?: Ref; home: Coord }
+
+// The Values-zone payload — a typed union, declared for honesty at the type boundary. The
+// ENGINE never reads the tag (L0-3, the heart); only the renderer does (presentation, legal).
+export type GridCell = { kind: 'weight'; weight: number } | { kind: 'marks'; marks: MarkEntry[] }
+export type GridRow  = { key: RowKey; label: string; depth: number; parent: RowKey | null; cells: Record<ColKey, GridCell> }
+// `threads` is an EPHEMERAL read-time overlay (lateral RELATE relations) derived every read,
+// generically, from the marks — persisted nowhere. Store-nothing = persist nothing to the
+// mark store; a field on the read-time Grid is not storage. Shown iff RenderSpec.threadsBlock.
+export type Grid = { columns: ColKey[]; rows: GridRow[]; threads: Thread[] }
+
+// ── Render is modular the same way compute is — one renderer + a render spec (data) ──
+// Compute = one engine + an assignment (which zones). Render = one renderer + a RenderSpec
+// (which layout). EVERY way the two bodies diverge — the header line included — is a
+// DECLARATIVE FIELD, authored per table, fed in; none is a render branch. renderGrid reads
+// ONLY the spec + each cell's own `kind` — never config, never table/assignment identity,
+// and never re-derives compute structure (full registry-symmetry with the engine).
+export type RenderSpec = {
+  header:       string               // the terse, token-free header line — DATA, not derived from config (NF-1)
+  columnsLine:  boolean              // emit "columns: a | b | …"?            lineage:false  timeline:true
+  cellLayout:   'inline' | 'matrix'  // cell on the row line, or per-column sub-lines   lineage:'inline'  timeline:'matrix'
+  threadsBlock: boolean              // emit the trailing chord section from grid.threads?    lineage:true   timeline:false
+}
+
+// A "table" is now pure data: two halves, each fed to a fixed general mechanism —
+// pivot(view.assignment, …) → Grid ; renderGrid(grid, view.render) → text.
+// Add-a-table = add a PresentView; touch neither engine nor renderer. (Instances live with
+// the named configs in domain/pivot — R0 declares the shape, never imports R1.)
+export type PresentView = { assignment: PivotConfig; render: RenderSpec }
 
 // ── Wake-default knobs (M6) — overridable, owning no taxonomy ───────────────────
-// DEFAULT_FOREST_TOP is the share-of-RING floor (0..1 of the node's concentric
-// ring = Σ-weights at the same depth), NOT share-of-whole — ring-local and scale-invariant
-// (R6). DEFAULT_SHEET_LEVEL bounds the sheet's fan/line depth. Builder-chosen defaults; a
-// reader overrides per call. (DEFAULT_FOREST_CUTOFF / ANCESTORS_UP / DESCENDANTS_DOWN are
-// retired — share-of-whole and the asymmetric up/down knobs are gone with the view enum.)
-export const DEFAULT_FOREST_TOP = 0.02          // forest: show nodes carrying >= 2% of their ring
-export const DEFAULT_SHEET_LEVEL = 3            // sheet: ancestor + descendant depth along the line
+// DEFAULT_LINEAGE_TOP is the share-of-RING floor (0..1 of the node's concentric ring =
+// Σ-weights at the same depth), NOT share-of-whole — ring-local and scale-invariant (R6).
+// DEFAULT_TIMELINE_LEVEL bounds the `line` ancestor+descendant span. Builder-chosen
+// defaults; a reader overrides per call.
+export const DEFAULT_LINEAGE_TOP = 0.02         // structure: show nodes carrying >= 2% of their ring
+export const DEFAULT_TIMELINE_LEVEL = 3         // state: ancestor + descendant depth along the line
 
 // ── Present bundles (R7) — rail-aware named defaults; CONFIG DATA, not code ────────
-// The wake bundle per rail. native carries the windshield transcript + both tables; wire
-// carries the tables ONLY — the transcript is fetched on demand (lookup, R8), never carried
-// per turn. The model may request a different shape per call; it never edits these defaults.
-export type PresentBundle = { transcript: boolean; forest: boolean; sheet: boolean }
+// The wake bundle per rail, named for the SECTIONS it selects: the windshield transcript,
+// the `structure` section (the lineage view) and the `state` section (the timeline view).
+// native carries the transcript + both sections; wire carries the sections ONLY — the
+// transcript is fetched on demand (lookup, R8), never carried per turn. The model may
+// request a different shape per call; it never edits these defaults.
+export type PresentBundle = { transcript: boolean; structure: boolean; state: boolean }
 export const PRESENT_BUNDLES = {
-  native: { transcript: true,  forest: true, sheet: true },
-  wire:   { transcript: false, forest: true, sheet: true },
+  native: { transcript: true,  structure: true, state: true },
+  wire:   { transcript: false, structure: true, state: true },
 } as const satisfies Record<string, PresentBundle>

@@ -41,8 +41,8 @@
 //   W-FN    buildFactTable                               ../domain/fact-table
 //   W-FN    resolveDimension                             ../domain/resolve-dimension
 //   W-FN    weighDimension                               ../domain/chain-ping
-//   W-FN    pivot                                        ../domain/pivot
-//   W-FN    renderForest/renderSheet/renderTranscript    ../domain/render-present
+//   W-FN    pivot / lineageView / timelineView           ../domain/pivot
+//   W-FN    renderGrid / renderTranscript                ../domain/render-present
 //   W-FN    currentFocus/sessionWindow                   ../domain/session-window      (sprint-wire-cognition Shot 2)
 //   W-ATOM  PRESENT_BUNDLES / PresentBundle                                      ../config/read-engine-types   (R7 rail-aware bundles)
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
@@ -85,10 +85,10 @@ import type { WearerSource }                             from '@/features/F-pres
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
 import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
-import { pivot, forestConfig, sheetConfig }              from '@/features/F-present/domain/pivot'
-import { renderForest, renderSheet, renderTranscript }   from '@/features/F-present/domain/render-present'
+import { pivot, lineageView, timelineView }              from '@/features/F-present/domain/pivot'
+import { renderGrid, renderTranscript }                  from '@/features/F-present/domain/render-present'
 import { currentFocus, sessionWindow }                   from '@/features/F-present/domain/session-window'
-import type { ForestResult, SheetResult, PresentBundle } from '@/features/F-present/config/read-engine-types'
+import type { PresentBundle }                            from '@/features/F-present/config/read-engine-types'
 import { PRESENT_BUNDLES }                                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
@@ -152,13 +152,16 @@ export const composeAndWrite: ReplyComposer = async (input) => {
 
 // ── Read-front — the rail-aware present bundle (R7) ────────────────────────────
 // The wake-default bundle the reader wakes with, run through the read engine
-// (buildFactTable -> resolveDimension -> weighDimension -> pivot -> render). The sections
+// (buildFactTable -> resolveDimension -> weighDimension -> pivot -> renderGrid). The sections
 // are a REMOVABLE template layer, not engine structure — pivot() still answers any explicit
 // config; lookup still fetches any cells. `bundle` (R7 named config) selects the sections
-// per rail: native = windshield transcript + both tables; wire = both tables only (the
+// per rail: native = windshield transcript + both sections; wire = both sections only (the
 // transcript is fetched via lookup, never carried per turn, R8). Sections join with a blank
 // line — byte-identical to the prior native render; clean (no leading blank) when the wire
 // bundle drops the transcript. The registered ContextReader (native) uses PRESENT_BUNDLES.native.
+//
+// A section is a PresentView (assignment + render spec) consumed by two fixed mechanisms:
+// pivot(view.assignment, …) → Grid ; renderGrid(grid, view.render) → text.
 export async function presentContext(userId: string, bundle: PresentBundle = PRESENT_BUNDLES.native): Promise<string> {
   const transcript = await readTranscript(userId)
   const store      = await createDbPresentMarkStore().read(userId)
@@ -175,10 +178,13 @@ export async function presentContext(userId: string, bundle: PresentBundle = PRE
 
   // structure + state appear once marks exist (sparse early, richer as it compounds).
   if (dim.things.size > 0) {
-    // 2. forest (structure) — the named default config (rows=lineage, ring-local top).
-    if (bundle.forest) sections.push(renderForest(pivot(forestConfig(), dim, rows) as ForestResult))
-    // 3. sheet (state) — the named default config, sliced at the current focus.
-    if (bundle.sheet && focus) sections.push(renderSheet(pivot(sheetConfig(focus), dim, rows) as SheetResult))
+    // 2. structure — the lineage view (rows=lineage, ring-local top).
+    if (bundle.structure) sections.push(renderGrid(pivot(lineageView.assignment, dim, rows), lineageView.render))
+    // 3. state — the timeline view, sliced at the current focus.
+    if (bundle.state && focus) {
+      const tv = timelineView(focus)
+      sections.push(renderGrid(pivot(tv.assignment, dim, rows), tv.render))
+    }
   }
   return sections.join('\n\n')
 }

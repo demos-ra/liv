@@ -12,12 +12,12 @@
 // computed on read (M2/M3), never stored.
 
 // ─── Engine chain (internal; data path = dependency order) ────────────────────
-//   R0  config/read-engine-types        atoms: FactRow·Thing·Dimension·Selection·PivotConfig·Forest/Sheet
+//   R0  config/read-engine-types        atoms: FactRow·Thing·Dimension·Selection·PivotConfig·Grid·RenderSpec·PresentView
 //   R1  domain/fact-table               buildFactTable        (join the two stores)
 //   R1  domain/resolve-dimension        resolveDimension      (KEYSTONE; G1-G3)
 //   R1  domain/chain-ping               weighDimension        (direct line; summed weight)
-//   R1  domain/pivot                    pivot                 (two zone-layouts)
-//   R1  domain/render-present           renderForest/renderSheet
+//   R1  domain/pivot                    pivot                 (one engine; three zone registries)
+//   R1  domain/render-present           renderGrid/renderHeader (one branchless walker over a RenderSpec)
 //   R2  app/cognition-orchestrator      presentContext (read-front) + composeAndWrite (write-compose)
 //   R3  contract/read-surface           readPresent + presentRouter
 //   R3  contract/present-contract       the public boundary (re-exports the above)

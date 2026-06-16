@@ -16,12 +16,12 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { PRESENT_BUNDLES } from '../read-engine-types'
 
-test('native bundle = windshield transcript + both tables', () => {
-  assert.deepEqual(PRESENT_BUNDLES.native, { transcript: true, forest: true, sheet: true })
+test('native bundle = windshield transcript + both sections', () => {
+  assert.deepEqual(PRESENT_BUNDLES.native, { transcript: true, structure: true, state: true })
 })
 
-test('wire bundle = both tables ONLY — no transcript (fetched via lookup, R8)', () => {
+test('wire bundle = both sections ONLY — no transcript (fetched via lookup, R8)', () => {
   assert.equal(PRESENT_BUNDLES.wire.transcript, false, 'the wire carries no per-turn transcript')
-  assert.equal(PRESENT_BUNDLES.wire.forest, true)
-  assert.equal(PRESENT_BUNDLES.wire.sheet, true)
+  assert.equal(PRESENT_BUNDLES.wire.structure, true)
+  assert.equal(PRESENT_BUNDLES.wire.state, true)
 })

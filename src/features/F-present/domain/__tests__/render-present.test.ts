@@ -7,7 +7,7 @@
 //   (3R.1) TRANSCRIPT is byte-pure: every turn line is exactly `[sc] (who): ` +
 //          joinCells(words) — NO positional markup of any kind, ever, over an
 //          adversarial-punctuation corpus.
-//   (3R.3) the marks SHEET teaches the coordinate format from REAL marks: each mark
+//   (3R.3) the marks STATE GRID teaches the coordinate format from REAL marks: each mark
 //          renders its home @pos, matching the placed mark's home coordinate.
 //
 // Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first so the
@@ -19,21 +19,22 @@ import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
 import type { RawTurn } from '@/core/types/substrate-raw.types'
 import type { PresentStore } from '@/features/F-present/config/mark-types'
-import type { SheetResult } from '@/features/F-present/config/read-engine-types'
+import type { Grid, RenderSpec } from '@/features/F-present/config/read-engine-types'
 import { buildFactTable } from '../fact-table'
 import { resolveDimension } from '../resolve-dimension'
 import { weighDimension } from '../chain-ping'
 import { currentFocus } from '../session-window'
-import { pivot, sheetConfig } from '../pivot'
+import { pivot, lineageView, timelineView } from '../pivot'
+import { transcript as travelTranscript, store as travelStore } from '../__fixtures__/travel-store'
 
 let renderTranscript: (turns: RawTurn[]) => string
-let renderSheet: (r: SheetResult) => string
+let renderGrid: (g: Grid, spec: RenderSpec) => string
 let joinCells: (cells: { pos: number; word: string }[]) => string
 let cutCells: (t: string) => { pos: number; word: string }[]
 
 before(async () => {
   await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ renderTranscript, renderSheet } = await import('@/features/F-present/domain/render-present'))
+  ;({ renderTranscript, renderGrid } = await import('@/features/F-present/domain/render-present'))
   ;({ joinCells, cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
 })
 
@@ -64,8 +65,8 @@ test('llm turns render who = llm; wearer renders the dash', () => {
   assert.equal(r[2], '[2] (llm): hello')
 })
 
-// ── (3R.3) the marks sheet teaches @pos from real marks ─────────────────────────
-test('renderSheet shows each mark @home.pos, matching the placed mark', () => {
+// ── (3R.3) the state grid teaches @pos from real marks ──────────────────────────
+test('renderGrid (state) shows each mark @home.pos, matching the placed mark', () => {
   // a turn whose pos-3 word "Kyoto" carries identity + a QUALIFY.
   const turn: RawTurn = { sc: 7, who: 'wearer', words: cutCells('I toured Kyoto') } // 1:I 3:toured 5:Kyoto
   const kyotoPos = cutCells('I toured Kyoto').find(c => c.word === 'Kyoto')!.pos
@@ -79,8 +80,8 @@ test('renderSheet shows each mark @home.pos, matching the placed mark', () => {
   const focus = currentFocus(dim)
   assert.equal(focus, 'kyoto')
 
-  const sheet = pivot(sheetConfig(focus!), dim, rows) as SheetResult
-  const render = renderSheet(sheet)
+  const tv = timelineView(focus!)
+  const render = renderGrid(pivot(tv.assignment, dim, rows), tv.render)
 
   // the @pos appears and matches the placed mark's home position — in the MUSICAL register
   // (R9): identity→note, QUALIFY→expression.
@@ -88,4 +89,54 @@ test('renderSheet shows each mark @home.pos, matching the placed mark', () => {
   assert.ok(render.includes(`expression[ancient]@${kyotoPos}`), `expected expression[ancient]@${kyotoPos} in:\n${render}`)
   // the home pos is REAL — equals the placed mark's home.
   assert.equal(kyotoPos, store[0].home.pos)
+})
+
+// ── §B0 equivalence golden — the rich travel-store, rendered through the ONE engine ─────
+// The committed referent (advisor finding 6 / §B0): captured from HEAD's two render bodies
+// before the unification, now reproduced by renderGrid over the composing engine. Equivalence
+// is of the BODY (the lineage outline + the state grid) — byte-for-byte; only the two baked
+// titles became the terse, token-free header (mandated by §2.4).
+// The lineage rows are emitted DFS pre-order so render-time indent reproduces the nested walk.
+test('§B0 — travel-store STRUCTURE renders byte-equal to the HEAD lineage outline', () => {
+  const rows = buildFactTable(travelTranscript, travelStore)
+  const dim = resolveDimension(rows)
+  weighDimension(dim, rows)
+  const golden =
+`structure — lineage by weight; root = wearer:
+— [w=53]
+  Japan [w=38]
+    Kyoto [w=19]
+      ryokan [w=9]
+    Q3 [w=5]
+    Tokyo [w=3]
+  Bangkok [w=12]
+    Osaka [w=4]
+  dentist [w=3]
+chord (lateral threads):
+  flew: japan ↔ tokyo
+  toured: japan ↔ kyoto
+  itinerary: japan ↔ q3
+  stayed: kyoto ↔ ryokan
+  landed: japan ↔ tokyo
+  deadline: kyoto ↔ q3
+  loved: japan ↔ kyoto
+  trip: bangkok ↔ osaka`
+  assert.equal(renderGrid(pivot(lineageView.assignment, dim, rows), lineageView.render), golden)
+})
+
+test('§B0 — travel-store STATE renders byte-equal to the HEAD timeline grid', () => {
+  const rows = buildFactTable(travelTranscript, travelStore)
+  const dim = resolveDimension(rows)
+  weighDimension(dim, rows)
+  const focus = currentFocus(dim)
+  assert.equal(focus, 'dentist')                     // most-recent touch (sc21)
+  const golden =
+`state — columns = the focus's direct line:
+columns: dentist
+sc20:
+  dentist: note(1)@0 expression[anxious]@1
+sc21:
+  dentist: expression[monday]@0`
+  const tv = timelineView(focus!)
+  assert.equal(renderGrid(pivot(tv.assignment, dim, rows), tv.render), golden)
 })

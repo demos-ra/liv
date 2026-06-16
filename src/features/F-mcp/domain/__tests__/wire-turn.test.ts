@@ -149,7 +149,7 @@ test('a turn whose mark surface mismatches is rejected loud + atomic (nothing wr
 // failure does NOT mask the committed write — the unit returns the named degraded payload.
 // Here we drive that real unit with an injected readPresent seam (success then throw) and
 // assert its actual returned value — no inline twin of the contract's logic.
-const WIRE_BUNDLE = { transcript: false, forest: true, sheet: true } as const
+const WIRE_BUNDLE = { transcript: false, structure: true, state: true } as const
 test('A2.2: presentOrDegraded passes the present through on success; on render failure returns the named degraded payload', async () => {
   // success → the render passes straight through (no envelope).
   const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, 12, { readPresent: async () => 'PRESENT-TEXT' })

@@ -10,22 +10,22 @@
 //     inversion (deep heavy nodes diluted against the whole, sinking below shallow light
 //     ones) is gone — each node is judged among its depth-peers.
 //   - LEVEL bounds the rings shown; an OFF-DEFAULT config (level, top, sort, filter) answers
-//     correctly; the default forest renders byte-equal to a golden.
+//     correctly; the default lineage render is byte-equal to a golden.
 //
 // Pure domain — builds a Dimension directly (no DB), so it runs under bare tsx with zero @/.
 // Run: npx tsx --test src/features/F-present/domain/__tests__/pivot-instrument.test.ts
 
 import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
-import { pivot, forestConfig } from '../pivot'
-import type { Dimension, ThingId, ForestResult, ForestNode } from '../../config/read-engine-types'
+import { pivot, lineageConfig, lineageView } from '../pivot'
+import type { Dimension, ThingId, Grid } from '../../config/read-engine-types'
 
-// renderForest pulls the F-memory R3 barrel (joinCells) — warm the F-present R3 graph first
+// renderGrid pulls the F-memory R3 barrel (joinCells) — warm the F-present R3 graph first
 // so it resolves cleanly under bare tsx (db client is lazy), then load it dynamically.
-let renderForest: (r: ForestResult) => string
+let renderGrid: (g: Grid, spec: typeof lineageView.render) => string
 before(async () => {
   await import('@/features/F-present/contract/present-contract')
-  ;({ renderForest } = await import('../render-present'))
+  ;({ renderGrid } = await import('../render-present'))
 })
 
 // build a Dimension from a flat spec (id, label, weight, parent). resolveRef by name.
@@ -36,7 +36,10 @@ function mkDim(specs: { id: string; label: string; weight: number; parent: strin
   return { things: things as unknown as Dimension['things'], resolveRef: (r) => (typeof r === 'string' ? byLabel.get(r.toLowerCase()) ?? null : null) }
 }
 
-const ids = (n: ForestNode): string[] => [n.thing, ...n.children.flatMap(ids)].filter(Boolean)
+// the thing-keys shown, in flat DFS pre-order (the synthetic root '' dropped).
+const ids = (g: Grid): string[] => g.rows.map(r => String(r.key)).filter(Boolean)
+// the top-level children, in row order (depth 1).
+const topChildren = (g: Grid): string[] => g.rows.filter(r => r.depth === 1).map(r => String(r.key))
 
 // H (ring 1, weight 100) → D (ring 2, weight 80, bright in its ring); L (ring 1, weight 5, dim).
 // ring sums: ring1 = H+L = 105 ; ring2 = D = 80.
@@ -49,8 +52,8 @@ const INVERSION = () => mkDim([
 // ── ring inversion — concentric altitude ─────────────────────────────────────────
 test('share-of-RING surfaces a bright deep node that share-of-WHOLE would sink (concentric)', () => {
   const dim = INVERSION()
-  const f = pivot(forestConfig({ top: 0.5 }), dim, []) as ForestResult
-  const shown = ids(f.root)
+  const f = pivot(lineageConfig({ top: 0.5 }), dim, [])
+  const shown = ids(f)
 
   // D is 80/80 = 100% of ring 2 → bright → shown, under its parent H (95% of ring 1).
   assert.ok(shown.includes('h'), 'H (95% of ring 1) shows')
@@ -67,8 +70,8 @@ test('share-of-RING surfaces a bright deep node that share-of-WHOLE would sink (
 // ── level bounds the rings ───────────────────────────────────────────────────────
 test('level bounds the rings shown (off-default config answers)', () => {
   const dim = INVERSION()
-  const f = pivot(forestConfig({ top: 0.5, level: 1 }), dim, []) as ForestResult
-  const shown = ids(f.root)
+  const f = pivot(lineageConfig({ top: 0.5, level: 1 }), dim, [])
+  const shown = ids(f)
   assert.ok(shown.includes('h'), 'ring 1 shows')
   assert.ok(!shown.includes('d'), 'D (ring 2) is cut by level=1')
 })
@@ -79,24 +82,26 @@ test('top=0 keeps the whole ring; sort=id orders children by id', () => {
     { id: 'b', label: 'B', weight: 1, parent: null },
     { id: 'a', label: 'A', weight: 100, parent: null },
   ])
-  const all = ids((pivot(forestConfig({ top: 0 }), dim, []) as ForestResult).root)
+  const all = ids(pivot(lineageConfig({ top: 0 }), dim, []))
   assert.deepEqual(all.sort(), ['a', 'b'])                  // both kept (no floor)
 
-  const byId = pivot(forestConfig({ top: 0, sort: 'id' }), dim, []) as ForestResult
-  assert.deepEqual(byId.root.children.map(c => c.thing), ['a', 'b'])   // id order (not weight)
-  const byWeight = pivot(forestConfig({ top: 0 }), dim, []) as ForestResult
-  assert.deepEqual(byWeight.root.children.map(c => c.thing), ['a', 'b'])   // weight order: a(100) before b(1)
+  const byId = pivot(lineageConfig({ top: 0, sort: 'id' }), dim, [])
+  assert.deepEqual(topChildren(byId), ['a', 'b'])   // id order (not weight)
+  const byWeight = pivot(lineageConfig({ top: 0 }), dim, [])
+  assert.deepEqual(topChildren(byWeight), ['a', 'b'])   // weight order: a(100) before b(1)
 })
 
-// ── default forest render is byte-equal to a golden ──────────────────────────────
-test('the default forest config renders byte-equal to the golden', () => {
+// ── default lineage render is byte-equal to a golden (header terse + token-free; body = HEAD) ─
+test('the default lineage config renders byte-equal to the golden', () => {
   const dim = INVERSION()
   const golden =
-`FOREST (structure — lineage by weight; root = wearer):
+`structure — lineage by weight; root = wearer:
 — [w=105]
   H [w=100]
     D [w=80]`
-  // top=0.5 prunes L; H→D survive. (forestConfig default top is 0.02 — here we pin the
-  // 0.5 shape so the golden is unambiguous about which ring the floor judges.)
-  assert.equal(renderForest(pivot(forestConfig({ top: 0.5 }), dim, []) as ForestResult), golden)
+  // top=0.5 prunes L; H→D survive. (lineageConfig default top is 0.02 — here we pin the
+  // 0.5 shape so the golden is unambiguous about which ring the floor judges.) The body is
+  // byte-equal to the pre-build nested walk; only the baked title became the terse header.
+  const cfg = lineageConfig({ top: 0.5 })
+  assert.equal(renderGrid(pivot(cfg, dim, []), lineageView.render), golden)
 })
