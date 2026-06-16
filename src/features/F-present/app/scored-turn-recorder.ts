@@ -16,6 +16,10 @@
 //               and nothing persists (the wire is atomic; native's wearer turn is E1's
 //               pre-write, untouched). "feeds it", not "moves inside": E1's perimeter
 //               stamping is never disturbed (§7).)
+//             cognition-turn contract (the door is transport): the `{ text }` WearerSource
+//               intake now takes `unknown` and guards a non-string → empty wearer text. The
+//               MCP door sheds emission-SHAPE validation (mis-owned at R1); this contract is
+//               the sole validator, so the wearerText-is-usable-text guard homes HERE.
 // slice:      F-present
 // layer:      R2
 // wires-in:
@@ -90,7 +94,8 @@ export type RecordedTurn = { sc: number; cells: RawWord[]; markCount: number; te
 // recorder cuts + writes it. priorMarks resolve against this turn's word-cells.
 export type WearerSource =
   | { written: { sc: number; wordCells: RawWord[] } }   // native — E1 wrote it (perimeter-stamped, untouched)
-  | { text: string }                                    // wire — the turn door's wearerText; recorder cuts + writes
+  | { text: unknown }                                   // wire — the turn door's wearerText (the door sheds shape-validation;
+                                                        //   this contract is the sole validator); recorder cuts + writes
 
 // The injected I/O + cutter seam (A4). Default-bound to the live wires.
 export type ScoredTurnDeps = {
@@ -134,7 +139,13 @@ export async function recordScoredTurn(
     wearerSc = wearer.written.sc
     wearerWordCells = wearer.written.wordCells
   } else {
-    wearerFull = deps.cutCells(wearer.text)
+    // the wire's wearerText arrives `unknown` (the door sheds shape-validation — this
+    // contract is the sole validator). A non-string is absorbed HERE → empty wearer text,
+    // never thrown into cutCells (graceful; nothing masked). The reply still records; any
+    // priorMarks against the now-empty wearer turn fail LOUD via locateWordMarks (out of
+    // range), not silently here. This is the one guard that followed the contract home.
+    const text = typeof wearer.text === 'string' ? wearer.text : ''
+    wearerFull = deps.cutCells(text)
     wearerWordCells = wordCells(wearerFull)
     wearerSc = null
   }

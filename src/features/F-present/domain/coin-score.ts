@@ -31,6 +31,8 @@
 //           / verifyGrid / validateSharedUniverse  →  ../app/scored-turn-recorder (R2)
 //   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / WordMark / MarkSurfaceError
 //                                                    →  ../app/cognition-orchestrator (R2), ../app/scored-turn-recorder (R2)
+//   W-FN    projectEmissionSchema  W-ATOM MarkingSituation  →  ../contract/present-contract (R3 → F-mcp R3 mcp-contract:
+//           the wire's `turn` inputSchema is projectEmissionSchema(MCP_SITUATION) — one contract, two derived views)
 // deps:
 //   R0  @/core/types/substrate-raw.types
 //   R0  ../config/mark-types
@@ -102,15 +104,48 @@ const WORD_MARK_ITEM: JsonSchema = {
   },
   required: ['word', 'surface', 'marks'], additionalProperties: false,
 }
-export const SCORE_SCHEMA: JsonSchema = {
-  type: 'object',
-  properties: {
-    reply: { type: 'string' },
-    replyMarks: { type: 'array', items: WORD_MARK_ITEM },
-    priorMarks: { type: 'array', items: WORD_MARK_ITEM },
-  },
-  required: ['reply'], additionalProperties: false,
+// ── The one emission contract, projected per situation (single source) ────────────
+// The emission SHAPE is owned HERE and ADVERTISED by projection — never hand-declared a
+// second time. A MarkingSituation is the small set of choices a surface makes about the
+// SAME contract: does the surface carry the person's turn inline (the wire sends wearerText;
+// native's wearer turn is already written by E1), how much does it DEMAND (native asks only
+// `reply`; the wire demands every present field), and what per-field guidance rides the
+// advertisement (descriptions ride the WIRE only — native carries none, which is exactly
+// what keeps the native projection byte-identical to the prior hand-written SCORE_SCHEMA).
+// Every surface's schema is projectEmissionSchema(its situation); COORD/REF/MARK_ITEM/
+// WORD_MARK_ITEM above are the LONE source of mark geometry, shared by every projection —
+// so the wire can no longer drift to a bare `array` for its marks (the old MCP copy did).
+export type MarkingSituation = {
+  includeWearerText: boolean                  // wire carries the person's turn inline (wearerText); native does not
+  demand: 'reply-only' | 'all-present'        // native demands only `reply`; the wire demands every present field
+  descriptions?: Partial<Record<'wearerText' | 'reply' | 'replyMarks' | 'priorMarks', string>>
 }
+
+// Compose the emission schema from a situation. Fields are inserted present-order (wearerText
+// first iff carried, then reply/replyMarks/priorMarks); `required` is ['reply'] for the
+// reply-only demand and every present field for all-present. additionalProperties:false
+// always (the emission admits no extras). A field's `description` rides only when the
+// situation names it — absent on native, so the native projection equals today's schema byte
+// for byte; the mark item is WORD_MARK_ITEM uniformly, the one mark geometry.
+export function projectEmissionSchema(situation: MarkingSituation): JsonSchema {
+  const d = situation.descriptions ?? {}
+  const field = (base: JsonSchema, key: 'wearerText' | 'reply' | 'replyMarks' | 'priorMarks'): JsonSchema =>
+    d[key] === undefined ? base : { ...base, description: d[key] }
+  const properties: Record<string, JsonSchema> = {}
+  if (situation.includeWearerText) properties.wearerText = field({ type: 'string' }, 'wearerText')
+  properties.reply = field({ type: 'string' }, 'reply')
+  properties.replyMarks = field({ type: 'array', items: WORD_MARK_ITEM }, 'replyMarks')
+  properties.priorMarks = field({ type: 'array', items: WORD_MARK_ITEM }, 'priorMarks')
+  const required = situation.demand === 'reply-only' ? ['reply'] : Object.keys(properties)
+  return { type: 'object', properties, required, additionalProperties: false }
+}
+
+// native cognition — the model returns ONLY the JSON object: no wearerText (E1 already wrote
+// the wearer turn), only `reply` demanded (marks may be absent), and no field descriptions.
+// So projectEmissionSchema(NATIVE_SITUATION) is byte-identical to the prior hand-written
+// SCORE_SCHEMA — the native path is otherwise untouched (containment-proof regression pin).
+export const NATIVE_SITUATION: MarkingSituation = { includeWearerText: false, demand: 'reply-only' }
+export const SCORE_SCHEMA: JsonSchema = projectEmissionSchema(NATIVE_SITUATION)
 // streamField names the reply text for a later incremental surface; advisory today
 // (the transport parses the whole object — structured-stream.ts).
 export const SCORE_EMIT_CONFIG: StructuredEmitConfig = { schema: SCORE_SCHEMA, streamField: 'reply' }

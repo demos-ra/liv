@@ -12,6 +12,7 @@
 //   W-ATOM   McpToolDescriptor  F-mcp/config mcp-protocol
 // wires-out:
 //   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP   F-mcp/R1 tool-registry, R3 contract
+//   W-ATOM   TURN_ARGS   F-mcp/R1 tool-registry   (the write-door's extras allow-list — the four wire arg names)
 // validated:  pending
 
 import type { McpToolDescriptor } from './mcp-protocol'
@@ -35,6 +36,13 @@ export const TOOL_PRESENT = 'present' as const
 export const TOOL_TURN = 'turn' as const
 export const TOOL_LOOKUP = 'lookup' as const
 
+// The `turn` write-door's arg names — the allow-list the door rejects extras against
+// (planToolCall, R1). The four WIRE fields, in present order. Pinned by test to the projected
+// schema's property keys (projectEmissionSchema(MCP_SITUATION)): the door's extras-check and
+// the advertised shape can never disagree. Config owns the arg NAMES (wire-hygiene); the
+// emission SHAPE is the core contract's, projected at R3 (cognition-turn contract).
+export const TURN_ARGS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
+
 // (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
 // is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
 // lookup validates its own who (wearer|llm) per selector kind. No remaining consumer.
@@ -54,30 +62,12 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     name: TOOL_TURN,
     description:
       "Record ONE conversation turn — the person's words AND your scored reply, in a single call — and receive your fresh present in return. LIV writes both turns; you never make a separate wearer write. DEMANDED shape (enforced at the door): { wearerText, reply, replyMarks, priorMarks } — all four required (the mark arrays may be empty, never absent); extra fields are rejected. wearerText is the person's verbatim words (LIV cuts it). reply is your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A) and renders it byte-identical. replyMarks score YOUR reply; priorMarks score the PERSON's turn. Each mark entry is { word, surface, marks }: word is the 1-based WORD-INDEX into that turn's text (count word-cells left to right), surface is the exact word you claim sits at that index — LIV verifies surface against the cut byte-exact and rejects a mismatch loud. Coordinates appear only inside a mark's Ref (target/peer), copied from lookup, never as a home index. Circumstance (identity, channel, scope) is stamped by the perimeter — never sent. The full fill manual is delivered with this tool.",
-    // TRANSPORT-SAFE ADVERTISEMENT (sprint-wire-transport T1, carried): ONE flat object —
-    // no top-level oneOf/anyOf/allOf (the Anthropic API rejects those and the client drops
-    // the whole tool). All four fields are structurally required; the door enforces the
-    // same demand AUTHORITATIVELY (planToolCall) and rejects extras. additionalProperties
-    // stays false — the turn is a write door, it takes no envelope baggage.
-    inputSchema: {
-      type: 'object',
-      properties: {
-        wearerText: { type: 'string', description: "the person's verbatim turn text. LIV cuts it into cells; priorMarks index its word-cells." },
-        reply: { type: 'string', description: 'your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. replyMarks index its word-cells.' },
-        replyMarks: {
-          type: 'array',
-          description: 'marks on YOUR reply, by 1-based word index into the reply, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.',
-          items: { type: 'object', properties: { word: { type: 'number' }, surface: { type: 'string' }, marks: { type: 'array' } }, required: ['word', 'surface', 'marks'], additionalProperties: false },
-        },
-        priorMarks: {
-          type: 'array',
-          description: "marks on the PERSON's turn, by 1-based word index into wearerText, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.",
-          items: { type: 'object', properties: { word: { type: 'number' }, surface: { type: 'string' }, marks: { type: 'array' } }, required: ['word', 'surface', 'marks'], additionalProperties: false },
-        },
-      },
-      required: ['wearerText', 'reply', 'replyMarks', 'priorMarks'],
-      additionalProperties: false,
-    },
+    // NO inputSchema here — the `turn` advertisement is a DERIVED view (cognition-turn
+    // contract). Its schema is projected at R3 (mcp-contract) as projectEmissionSchema(
+    // MCP_SITUATION): the one core emission contract, projected for the wire — flat object,
+    // all four required, additionalProperties:false, the full mark shape. Config owns the
+    // arg NAMES only (TURN_ARGS, above), not the emission shape. Transport-safety (flat
+    // object, no top-level oneOf/anyOf/allOf) is the projector's invariant, pinned by test.
   },
   {
     name: TOOL_LOOKUP,

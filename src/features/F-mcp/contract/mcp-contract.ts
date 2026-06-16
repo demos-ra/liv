@@ -15,6 +15,8 @@
 //   W-FN     presentOrDegraded  F-mcp/R2 present-or-degraded     (turn response — post-write present-or-degraded, A2.2)
 //   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns)
 //   W-FN     emissionFromStructured  F-present/R3 present-contract  (the narrowing/gate)
+//   W-FN     projectEmissionSchema   F-present/R3 present-contract  (turn inputSchema = projectEmissionSchema(MCP_SITUATION))
+//   W-ATOM   MarkingSituation        F-present/R3 present-contract  (MCP_SITUATION — the wire's contract choices, type-only)
 //   W-ATOM   MarkSurfaceError   F-present/R3 present-contract   (claim+validate — loud, atomic reject)
 //   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (manual rides the turn description — once-channel)
 //   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
@@ -44,7 +46,8 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, lookup, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL } from '@/features/F-present/contract/present-contract'
+import { readPresent, lookup, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
+import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -61,6 +64,25 @@ import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-
 
 function toolText(text: string): McpToolResult {
   return { content: [{ type: 'text', text }] }
+}
+
+// MCP_SITUATION — the wire's choices about the ONE emission contract (cognition-turn
+// contract). The wire carries the person's turn inline (wearerText) and DEMANDS every
+// present field (all four required; the mark arrays may be empty, never absent); the field
+// descriptions ride the advertisement (the wire is the model's only channel — native carries
+// none). The `turn` inputSchema is projectEmissionSchema(MCP_SITUATION): the core contract,
+// projected — it shares the native projection's mark item (no bare-`array` drift), so the
+// wire now ADVERTISES the full mark shape it always ACCEPTED. This is the only F-mcp file
+// that imports another slice's contract; the situation lives here, the shape lives at the core.
+export const MCP_SITUATION: MarkingSituation = {
+  includeWearerText: true,
+  demand: 'all-present',
+  descriptions: {
+    wearerText: "the person's verbatim turn text. LIV cuts it into cells; priorMarks index its word-cells.",
+    reply: 'your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. replyMarks index its word-cells.',
+    replyMarks: 'marks on YOUR reply, by 1-based word index into the reply, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.',
+    priorMarks: "marks on the PERSON's turn, by 1-based word index into wearerText, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.",
+  },
 }
 
 export async function handleMcpRequest(
@@ -84,11 +106,16 @@ export async function handleMcpRequest(
         return buildResult(id, {})
 
       case 'tools/list':
-        // The fill manual rides the `turn` tool description — a ONCE-channel (R2): the
-        // client fetches tools/list once at session start, so the manual crosses the wire
-        // once, never per turn. One home (COIN_MANUAL via F-present R3), injected here.
+        // The `turn` tool's advertisement is DERIVED here, not hand-declared at config: its
+        // inputSchema is projectEmissionSchema(MCP_SITUATION) — the one core emission contract,
+        // projected for the wire (all four required, the full mark shape, field descriptions).
+        // The fill manual rides its description — a ONCE-channel (R2): the client fetches
+        // tools/list once at session start, so the manual crosses the wire once, never per
+        // turn. One home each (COIN_MANUAL + the contract, via F-present R3), injected together.
         return buildResult(id, {
-          tools: listTools().map(t => t.name === TOOL_TURN ? { ...t, description: `${t.description}\n\n${COIN_MANUAL}` } : t),
+          tools: listTools().map(t => t.name === TOOL_TURN
+            ? { ...t, description: `${t.description}\n\n${COIN_MANUAL}`, inputSchema: projectEmissionSchema(MCP_SITUATION) }
+            : t),
         })
 
       case 'tools/call': {

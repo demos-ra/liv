@@ -31,6 +31,14 @@ export const COIN_EXAMPLE_REPLY = 'Kyoto truly rivals Tokyo.'
 export const COIN_EXAMPLE_WEARER_WORDS = { I: 1, toured: 2, Kyoto: 3 } as const
 export const COIN_EXAMPLE_REPLY_WORDS = { Kyoto: 1, truly: 2, rivals: 3, Tokyo: 4 } as const
 
+// The emission field names. HOW TO RETURN renders FROM these (one home — the prose never
+// re-types a field name). Pinned by test to the core contract's PROJECTED property keys
+// (coin-score's projectEmissionSchema): native returns `reply` + the two mark arrays; the
+// wire's `turn` carries those plus wearerText. The manual can never name a field the contract
+// does not carry, nor drop one it does — the schema and the prose share one logical source.
+export const COIN_NATIVE_FIELDS = ['reply', 'replyMarks', 'priorMarks'] as const
+export const COIN_WIRE_FIELDS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
+
 export const COIN_MANUAL =
 `COIN FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
 
@@ -92,8 +100,9 @@ Your reply: "${COIN_EXAMPLE_REPLY}"    (word-cells: ${COIN_EXAMPLE_REPLY_WORDS.K
 }
 
 HOW TO RETURN
-- native: return ONLY the JSON object: { "reply": "<your reply>", "replyMarks": [ ... ], "priorMarks": [ ... ] }.
-- wire: call the "turn" tool ONCE with { wearerText, reply, replyMarks, priorMarks } — the person's words and your
-  scored reply together; LIV records both turns and returns your fresh present. Fetch cells to point back: lookup.
+- native: return ONLY the JSON object — exactly these fields, nothing else: { ${COIN_NATIVE_FIELDS.join(', ')} } (reply is
+  your reply as plain text; replyMarks + priorMarks are the two mark arrays scored above).
+- wire: call the "turn" tool ONCE with exactly these fields: { ${COIN_WIRE_FIELDS.join(', ')} } — the person's words and
+  your scored reply together; LIV records both turns and returns your fresh present. Fetch cells to point back: lookup.
 
 What you write well now is what you wake with next.`

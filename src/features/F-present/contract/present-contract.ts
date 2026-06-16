@@ -19,6 +19,8 @@
 //   W-FN  isMark                 →  scripts/reconcile-present-marks (the gate, surfaced)
 //   W-FN  recordScoredTurn       →  F-mcp (turn tool, who:'llm') — the scored-turn recorder
 //   W-FN  emissionFromStructured →  F-mcp (turn tool, who:'llm') — the narrowing/gate filter
+//   W-FN  projectEmissionSchema  →  F-mcp (turn tool — the `turn` inputSchema is a derived view)
+//   W-ATOM MarkingSituation      →  F-mcp (MCP_SITUATION — the wire's per-surface contract choices, type-only)
 //   W-ATOM COIN_MANUAL           →  F-mcp (turn tool — manual rides the description, one home)
 //   W-FN  lookup                 →  F-mcp (lookup tool — R8 read control: turn|span|thing)
 //   W-ATOM LookupSelector/Result/Cell  →  F-mcp (lookup tool — R8, type-only)
@@ -57,6 +59,13 @@ export { recordScoredTurn } from '../app/scored-turn-recorder'
 export { emissionFromStructured, MarkSurfaceError } from '../domain/coin-score'
 export type { ScoredEmission } from '../domain/coin-score'
 export { COIN_MANUAL } from '../config/coin-manual'
+
+// The emission contract's PROJECTOR (cognition-turn contract — one core-owned shape). The
+// wire derives its `turn` inputSchema as projectEmissionSchema(MCP_SITUATION) at F-mcp R3 —
+// it never hand-declares the emission shape. MarkingSituation is the per-surface choice set
+// (carry wearerText? demand all? field descriptions?). One contract, surfaces derive.
+export { projectEmissionSchema } from '../domain/coin-score'
+export type { MarkingSituation } from '../domain/coin-score'
 
 // The read controls + the rail-aware bundle (sprint-wire-economy R7/R8). The wire reads the
 // present (PRESENT_BUNDLES.wire = tables only) and fetches cells on demand via lookup (turn |

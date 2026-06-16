@@ -22,15 +22,18 @@ import {
   COIN_MANUAL,
   COIN_EXAMPLE_WEARER, COIN_EXAMPLE_REPLY,
   COIN_EXAMPLE_WEARER_WORDS, COIN_EXAMPLE_REPLY_WORDS,
+  COIN_NATIVE_FIELDS, COIN_WIRE_FIELDS,
 } from '../coin-manual'
 
 let cutCells: (t: string) => { pos: number; word: string }[]
 let wordCells: (cells: { pos: number; word: string }[]) => { pos: number; word: string }[]
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let projectEmissionSchema: any, NATIVE_SITUATION: any
 
 before(async () => {
   await import('@/features/F-present/contract/present-contract')          // warm the graph
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
+  ;({ wordCells, projectEmissionSchema, NATIVE_SITUATION } = await import('@/features/F-present/domain/coin-score'))
 })
 
 // ── every taught word-index equals the live cutter's word-cell (both texts) ──────
@@ -46,6 +49,25 @@ test('the worked example teaches the cutter\'s real word-indices, byte-exact sur
   // the documented fact: "Kyoto" is the 3rd WORD-cell of the wearer turn (a word-index,
   // NOT canonical position 5 — word-indices skip the space slots).
   assert.equal(COIN_EXAMPLE_WEARER_WORDS.Kyoto, 3)
+})
+
+// ── HOW TO RETURN renders its field names FROM the one contract (no fourth home) ──
+// (cognition-turn contract) The manual no longer hand-types field names in free prose: HOW
+// TO RETURN renders them from COIN_NATIVE_FIELDS / COIN_WIRE_FIELDS, and those lists are
+// pinned to the CORE contract's projected property keys (projectEmissionSchema). The schema
+// and the manual share one logical source — the manual can never name a field the contract
+// does not carry, nor drop one it does.
+test('HOW TO RETURN renders the field names from the contract lists', () => {
+  assert.ok(COIN_MANUAL.includes(`{ ${COIN_NATIVE_FIELDS.join(', ')} }`), 'native return renders from COIN_NATIVE_FIELDS')
+  assert.ok(COIN_MANUAL.includes(`{ ${COIN_WIRE_FIELDS.join(', ')} }`), 'wire call renders from COIN_WIRE_FIELDS')
+})
+
+test('the manual field lists ARE the core contract\'s projected property keys', () => {
+  // native: projectEmissionSchema(NATIVE_SITUATION) — reply + the two mark arrays.
+  assert.deepEqual([...COIN_NATIVE_FIELDS], Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties))
+  // wire: the all-present + wearerText projection (the wire's situation) — all four.
+  const wire = projectEmissionSchema({ includeWearerText: true, demand: 'all-present' })
+  assert.deepEqual([...COIN_WIRE_FIELDS], Object.keys(wire.properties))
 })
 
 // ── the prose actually renders from those constants (no drift between text & test) ─

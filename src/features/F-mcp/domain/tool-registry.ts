@@ -19,7 +19,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP, TURN_ARGS } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -52,20 +52,21 @@ export function initializeResult(): {
 }
 
 // What a validated tool call intends. `present` carries no payload (identity is the
-// session). `turn` is DEMANDED (sprint-wire-economy R1) — ONE call carries BOTH turns:
-//   { wearerText, reply, replyMarks, priorMarks } — all four required; the mark arrays may
-//   be empty but never absent. Marks pass as unknown[] — STRUCTURE is validated here (R1,
-//   pure: present + array); the mark GATE + the index↔surface validation run at R3 (via
-//   emissionFromStructured + the recorder's locateWordMarks — one gate, no copy). userId is
-//   injected at the R3 contract from the session; there is no `who` — the reply authors as
-//   'llm' (the agent), the wearer is wearerText.
+// session). `turn` is TRANSPORT (cognition-turn contract — the door is transport): ONE call
+// carries BOTH turns as { wearerText, reply, replyMarks, priorMarks }. The door no longer
+// validates the emission SHAPE — that concern is the CORE contract's (F-present), the sole
+// validator. So every field passes as `unknown`: emissionFromStructured narrows reply/marks
+// at R3, recordScoredTurn surface-checks loud, and the recorder's wearerText guard absorbs a
+// non-string. The door owns only wire-hygiene (arguments-is-object + foreign-field rejection
+// against TURN_ARGS) — it imports nothing from F-present. userId is injected at R3 from the
+// session; there is no `who` — the reply authors as 'llm' (the agent), the wearer is wearerText.
 //
-// SCOPE-SYMMETRY (carried): scope is CIRCUMSTANCE, not testimony — it is not in the demanded
-// shape. The door stamps the writing connection (session.sessionId) at R3. A turn that still
-// sends `scope` (or any extra) is rejected as an unknown field by firstUnknownField.
+// SCOPE-SYMMETRY (carried): scope is CIRCUMSTANCE, not testimony — it is not a wire arg. The
+// door stamps the writing connection (session.sessionId) at R3. A turn that still sends
+// `scope` (or any field outside TURN_ARGS) is rejected as an unknown field by firstUnknownField.
 export type ToolIntention =
   | { tool: 'present' }
-  | { tool: 'turn'; wearerText: string; reply: string; replyMarks: unknown[]; priorMarks: unknown[] }
+  | { tool: 'turn'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown }
   // lookup (R8) — the navigation read control: turn | span | thing → numbered cells. The
   // selector is declared inline (structurally == F-present's LookupSelector) so R1 stays
   // pure — no F-present import; the R3 contract passes it straight to lookup().
@@ -105,22 +106,18 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
   }
 
   if (name === TOOL_TURN) {
+    // TRANSPORT + WIRE-HYGIENE ONLY (cognition-turn contract — the door is transport). The
+    // door checks that arguments is an object and rejects FOREIGN fields against the tool's
+    // own arg names (TURN_ARGS, the write-door extras allow-list — a standing wire policy). It
+    // does NOT validate the emission SHAPE: that is the CORE contract's concern (F-present),
+    // the sole validator, which re-checks every field — emissionFromStructured narrows the
+    // unknown reply/marks, recordScoredTurn surface-checks the marks loud, and the recorder's
+    // wearerText guard absorbs a non-string. The fields pass through as unknown; the door
+    // imports nothing from F-present.
     if (!isObject(args)) {
       return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: arguments object required' }
     }
-    // ONE call, BOTH turns (§FORK-A + R1). wearerText: the person's verbatim words; reply:
-    // authoritative; replyMarks + priorMarks REQUIRED (arrays may be present-but-empty,
-    // never absent). The mark gate + index↔surface validation run at R3.
-    if (typeof args.wearerText !== 'string') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires wearerText (the person’s verbatim words — one call records both turns; LIV cuts it)' }
-    }
-    if (typeof args.reply !== 'string') {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires reply (§FORK-A — the reply text is authoritative)' }
-    }
-    if (!Array.isArray(args.replyMarks) || !Array.isArray(args.priorMarks)) {
-      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'turn: requires replyMarks and priorMarks (the speaker scores BOTH turns; arrays may be empty but never absent)' }
-    }
-    const extra = firstUnknownField(args, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+    const extra = firstUnknownField(args, TURN_ARGS)
     if (extra) return unknownFieldReject('turn', extra)
     return { ok: true, intention: { tool: 'turn', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
   }

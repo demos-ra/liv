@@ -30,10 +30,16 @@ import { MCP_TOOLS, TOOL_TURN } from '../mcp-tools'
 
 const FORBIDDEN_TOP_LEVEL = ['oneOf', 'anyOf', 'allOf'] as const
 
-// ── C1–C3 hold for EVERY advertised tool ────────────────────────────────────────
-test('every tool schema is transport-safe (type:object, no top-level oneOf/anyOf/allOf, has properties)', () => {
+// ── C1–C3 hold for EVERY tool that DECLARES a config inputSchema ─────────────────
+// (cognition-turn contract) The `turn` schema is now a DERIVED view — projected at R3 as
+// projectEmissionSchema(MCP_SITUATION), not hand-declared at config. Its transport-safety
+// (flat object, no top-level oneOf/anyOf/allOf, has properties) is pinned against the
+// PROJECTION in F-mcp/domain/__tests__/wire-turn. Here we pin the config-declared schemas
+// (present, lookup) and that turn correctly declares NONE.
+test('every config-declared tool schema is transport-safe (type:object, no top-level oneOf/anyOf/allOf, has properties)', () => {
   assert.ok(MCP_TOOLS.length >= 1, 'there is at least one tool')
   for (const tool of MCP_TOOLS) {
+    if (!tool.inputSchema) continue                                  // turn defers its schema to R3
     const s = tool.inputSchema as Record<string, unknown>
     assert.equal(s.type, 'object', `${tool.name}: C1 — top-level type must be 'object'`)            // C1
     for (const k of FORBIDDEN_TOP_LEVEL) {
@@ -44,28 +50,12 @@ test('every tool schema is transport-safe (type:object, no top-level oneOf/anyOf
   }
 })
 
-// ── turn is advertised FLAT (one object); the door enforces the demanded shape ───
-test('turn advertises one flat object — all four demanded fields required, no oneOf', () => {
+// ── turn's schema is the core contract, projected at R3 — NOT hand-declared at config ──
+test('turn declares no config inputSchema (its emission shape is projected at R3)', () => {
   const turn = MCP_TOOLS.find(t => t.name === TOOL_TURN)
   assert.ok(turn, 'the turn tool exists')
-  const s = turn!.inputSchema as {
-    type: string
-    properties: Record<string, unknown>
-    required: string[]
-    additionalProperties: boolean
-  }
-  // flat object — NOT a oneOf union (the transport-safe form).
-  assert.equal(s.type, 'object')
-  assert.ok(!('oneOf' in (turn!.inputSchema as object)), 'turn must not use top-level oneOf')
-
-  // one call carries BOTH turns — all four fields are structurally required (R1).
-  assert.deepEqual(s.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
-  for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
-    assert.ok(f in s.properties, `turn advertises "${f}" as a property`)
-  }
-
-  // the turn DOOR takes no envelope baggage — additionalProperties stays false.
-  assert.equal(s.additionalProperties, false, 'turn is a write door — extras rejected')
+  assert.equal(turn!.inputSchema, undefined,
+    'the emission shape is the one core contract, projected at R3 (projectEmissionSchema) — never re-declared at config')
 })
 
 // ── reads admit envelope baggage (read-door law) — advertised honestly ──────────

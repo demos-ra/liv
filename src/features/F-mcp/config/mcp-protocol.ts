@@ -51,7 +51,11 @@ export type JsonRpcResponse = JsonRpcSuccess | JsonRpcError
 export interface McpToolDescriptor {
   name: string
   description: string
-  inputSchema: Record<string, unknown>
+  // OPTIONAL: a tool whose schema is a DERIVED view declares no inputSchema at config — it is
+  // projected at R3 (cognition-turn contract: the `turn` schema = projectEmissionSchema(
+  // MCP_SITUATION), injected at tools/list). Read doors (present, lookup) still declare theirs
+  // here; only the emission-shaped `turn` defers to the core contract.
+  inputSchema?: Record<string, unknown>
 }
 
 export interface McpTextContent {

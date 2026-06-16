@@ -22,19 +22,21 @@
 import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
 import { planToolCall } from '../tool-registry'
+import { TURN_ARGS } from '../../config/mcp-tools'
 
 // R3-surface pieces (warmed so the F-memory R3 barrel resolves cleanly under tsx).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let recordScoredTurn: any, emissionFromStructured: any, MarkSurfaceError: any, wordCells: any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let presentOrDegraded: any
+let presentOrDegraded: any, projectEmissionSchema: any, MCP_SITUATION: any
 let cutCells: (t: string) => { pos: number; word: string }[]
 
 before(async () => {
-  ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError } = await import('@/features/F-present/contract/present-contract'))
+  ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError, projectEmissionSchema } = await import('@/features/F-present/contract/present-contract'))
   ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
   ;({ presentOrDegraded } = await import('@/features/F-mcp/app/present-or-degraded'))
+  ;({ MCP_SITUATION } = await import('@/features/F-mcp/contract/mcp-contract'))
 })
 
 const WEARER = 'I toured Kyoto'
@@ -46,34 +48,83 @@ const goodArgs = () => ({
   priorMarks: [{ word: 3, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
 })
 
-// ── (A) the demanded door ────────────────────────────────────────────────────────
-test('malformed turn (no replyMarks/priorMarks) is rejected, law named', () => {
-  const r = planToolCall('turn', { wearerText: 'hi', reply: 'yo' })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /replyMarks and priorMarks/)
+// ── (A) the door is TRANSPORT (cognition-turn contract) ──────────────────────────
+// The door no longer validates the emission SHAPE — that concern moved to the CORE contract
+// (F-present), the sole validator. The door owns wire-hygiene only: arguments-is-object +
+// foreign-field rejection. A structurally-incomplete turn is NOT rejected at the door; it
+// PLANS, and the core narrows/validates it (graceful for absences, loud for false claims).
+test('a structurally-incomplete turn is NOT rejected at the door — it plans (the core validates)', () => {
+  // missing reply, marks, wearerText: the door (transport) admits it; absent fields pass as undefined.
+  const r = planToolCall('turn', { reply: 'yo' })
+  assert.equal(r.ok, true)
+  if (!r.ok || r.intention.tool !== 'turn') return
+  assert.equal(r.intention.reply, 'yo')
+  assert.equal(r.intention.wearerText, undefined)
+  assert.equal(r.intention.replyMarks, undefined)
+  assert.equal(r.intention.priorMarks, undefined)
 })
 
-test('turn missing reply is rejected, §FORK-A named', () => {
-  const r = planToolCall('turn', { wearerText: 'hi', replyMarks: [], priorMarks: [] })
+test('a non-object arguments is rejected (wire-hygiene — the one structural door check)', () => {
+  const r = planToolCall('turn', 'not-an-object')
   assert.equal(r.ok, false)
   if (r.ok) return
-  assert.match(r.message, /requires reply/)
-  assert.match(r.message, /§FORK-A/)
+  assert.match(r.message, /arguments object required/)
 })
 
-test('turn missing wearerText is rejected (one call carries both turns)', () => {
-  const r = planToolCall('turn', { reply: 'yo', replyMarks: [], priorMarks: [] })
-  assert.equal(r.ok, false)
-  if (r.ok) return
-  assert.match(r.message, /requires wearerText/)
-})
-
-test('well-formed turn plans the intention (mark arrays present, may be empty)', () => {
+test('well-formed turn plans the intention (fields pass through unchanged)', () => {
   const r = planToolCall('turn', { wearerText: 'hi there', reply: 'hello', replyMarks: [], priorMarks: [] })
   assert.equal(r.ok, true)
   if (!r.ok) return
   assert.deepEqual(r.intention, { tool: 'turn', wearerText: 'hi there', reply: 'hello', replyMarks: [], priorMarks: [] })
+})
+
+// ── (A′) the projected wire schema — DERIVED from the one core contract ───────────
+// The `turn` inputSchema is projectEmissionSchema(MCP_SITUATION). It demands all four,
+// carries the field descriptions, and shares the native projection's mark item (the
+// bare-`array` drift is gone). TURN_ARGS (the door's extras allow-list) IS its property keys.
+test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, descriptions, shared mark item', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { SCORE_SCHEMA } = await import('@/features/F-present/domain/coin-score') as any
+  const s = projectEmissionSchema(MCP_SITUATION)
+  assert.equal(s.type, 'object')
+  assert.deepEqual(Object.keys(s.properties), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+  assert.deepEqual(s.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+  assert.equal(s.additionalProperties, false)
+  // descriptions ride the wire.
+  for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
+    assert.equal(typeof s.properties[f].description, 'string', `${f} carries a wire description`)
+  }
+  // DRIFT GONE: the wire's mark item is the SAME geometry the native projection advertises.
+  assert.deepEqual(s.properties.replyMarks.items, SCORE_SCHEMA.properties.replyMarks.items)
+  assert.deepEqual(s.properties.priorMarks.items, s.properties.replyMarks.items)
+})
+
+test('transport-safe: the projected turn schema is a flat object, no top-level oneOf/anyOf/allOf', () => {
+  const s = projectEmissionSchema(MCP_SITUATION) as Record<string, unknown>
+  assert.equal(s.type, 'object')                                   // C1
+  for (const k of ['oneOf', 'anyOf', 'allOf']) assert.ok(!(k in s), `no top-level ${k}`)   // C2
+  assert.equal(typeof s.properties, 'object')                      // C3
+})
+
+test('TURN_ARGS === the projected schema property keys (the door cannot diverge from the advertisement)', () => {
+  assert.deepEqual([...TURN_ARGS], Object.keys(projectEmissionSchema(MCP_SITUATION).properties))
+})
+
+// the R3 WIRING end-to-end: tools/list injects the PROJECTED inputSchema (not a config copy)
+// AND the fill manual onto the turn tool — the two derived views crossing the wire once.
+test('tools/list injects the projected inputSchema and the manual on the turn tool (R3 wiring)', async () => {
+  const { handleMcpRequest } = await import('@/features/F-mcp/contract/mcp-contract')
+  // tools/list does not touch identity — a minimal session stub suffices.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const res: any = await handleMcpRequest(
+    { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    { userId: 'u', sessionId: 's' } as never,
+  )
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const turn = res.result.tools.find((t: any) => t.name === 'turn')
+  assert.ok(turn, 'the turn tool is listed')
+  assert.deepEqual(turn.inputSchema, projectEmissionSchema(MCP_SITUATION), 'turn advertises the projected emission schema')
+  assert.ok(turn.description.includes('COIN FILL MANUAL'), 'the fill manual rides the turn description (once-channel)')
 })
 
 // a DB-free recorder seam (mirrors the scored-turn-recorder test).
@@ -141,6 +192,27 @@ test('a turn whose mark surface mismatches is rejected loud + atomic (nothing wr
     (e: unknown) => e instanceof MarkSurfaceError,
   )
   assert.equal(seam.writes.length, 0, 'atomic — the loud rejection precedes every write')
+})
+
+// the door admits a non-string wearerText (it sheds shape-validation); the CORE absorbs it
+// gracefully — empty wearer turn, the reply still records, nothing masked or thrown.
+test('a non-string wearerText is absorbed at the core (empty wearer; reply records; not masked)', async () => {
+  const plan = planToolCall('turn', {
+    wearerText: 123,                                              // not a string — the door admits it
+    reply: REPLY,
+    replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+    priorMarks: [],
+  })
+  assert.equal(plan.ok, true, 'the door (transport) admits it — shape is the core\'s concern')
+  if (!plan.ok || plan.intention.tool !== 'turn') return
+  const emission = emissionFromStructured({
+    reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
+  })
+  const seam = stubDeps(12, 11)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, seam.deps)
+  assert.equal(recorded.sc, 12, 'the reply still records — the non-string wearerText did not throw')
+  assert.equal(seam.placed.length, 1, 'only the reply mark lands; the wearer turn is empty (graceful)')
+  assert.equal(seam.placed[0].home.who, 'llm')
 })
 
 // ── (A2.2) failure-ordering — drives the REAL R2 unit (present-or-degraded) ────────
