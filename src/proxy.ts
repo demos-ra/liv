@@ -103,6 +103,7 @@ import {
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
   PERIMETER_HEADER_AUTHORITY,
+  stampPerimeterHeaders,
 } from '@/core/constants/perimeter-headers'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
@@ -416,31 +417,39 @@ async function buildStampedResponse(args: {
       crossingWriteResult.error.message)
   }
 
-  // ── Build response with perimeter headers ─────────────────────────────────
-  const response = NextResponse.next()
-
-  // Existing headers (PA-A1 enforcement surface for downstream contracts).
-  response.headers.set(PERIMETER_HEADER_USER_ID,    args.userId)
-  response.headers.set(PERIMETER_HEADER_SESSION_ID, args.sessionId)
-
-  // New headers — sprint-b1-shot-1 (Part B).
-  response.headers.set(PERIMETER_HEADER_CHANNEL,    args.resolvedChannel)
-  response.headers.set(PERIMETER_HEADER_CROSSED_AT, String(crossedAt))
-  // sprint-b1-shot-2.
-  response.headers.set(PERIMETER_HEADER_DISPOSITION, resolvedDisposition)
-
+  // ── Build response + forward sanitized perimeter headers ──────────────────
   // sprint-beta-shot-3 — authority stamp. Resolve the requesting channel's
-  // PermittedAuthoritySet (AuthorityAssertion[]) from the PerimeterBinding and
-  // stamp it as a perimeter header. This is the capability mechanism made live:
-  // permittedAuthorityByChannel was declared but consulted nowhere — proxy.ts
-  // now resolves it once, here, and stamps it. Downstream contracts read via
-  // getPerimeterSession; they do not re-resolve (PA-I unitary discipline).
-  // Open-vocabulary channels with no binding entry resolve to [] (no admitted
-  // authority) — conservative.
+  // PermittedAuthoritySet (AuthorityAssertion[]) from the PerimeterBinding once,
+  // here, and stamp it (the capability mechanism made live; PA-I unitary discipline —
+  // downstream contracts read via getPerimeterSession, never re-resolve). Open-vocabulary
+  // channels with no binding entry resolve to [] (no admitted authority) — conservative.
   const permittedAuthority =
     DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel[
       args.resolvedChannel as keyof typeof DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel
     ] ?? []
+
+  // PA-I ENFORCEMENT (the write-perimeter's teeth). Forward the request to the route with
+  // any INBOUND perimeter headers STRIPPED and the authoritative site values stamped — a
+  // stranger cannot forge x-perimeter-user-id to cross another wearer's scope (the route's
+  // userId is read from these headers, never the body). The strip+stamp is one home, beside
+  // the reader in F-identity. getPerimeterSession reads these off the forwarded request.
+  const stampedRequestHeaders = stampPerimeterHeaders(args.req.headers, {
+    [PERIMETER_HEADER_USER_ID]:     args.userId,
+    [PERIMETER_HEADER_SESSION_ID]:  args.sessionId,
+    [PERIMETER_HEADER_CHANNEL]:     args.resolvedChannel,
+    [PERIMETER_HEADER_CROSSED_AT]:  String(crossedAt),
+    [PERIMETER_HEADER_DISPOSITION]: resolvedDisposition,
+    [PERIMETER_HEADER_AUTHORITY]:   JSON.stringify(permittedAuthority),
+  })
+  const response = NextResponse.next({ request: { headers: stampedRequestHeaders } })
+
+  // Also mirror the stamps onto the RESPONSE — the existing PA-A1 surface for downstream
+  // contracts (preserved behavior).
+  response.headers.set(PERIMETER_HEADER_USER_ID,    args.userId)
+  response.headers.set(PERIMETER_HEADER_SESSION_ID, args.sessionId)
+  response.headers.set(PERIMETER_HEADER_CHANNEL,    args.resolvedChannel)
+  response.headers.set(PERIMETER_HEADER_CROSSED_AT, String(crossedAt))
+  response.headers.set(PERIMETER_HEADER_DISPOSITION, resolvedDisposition)
   response.headers.set(PERIMETER_HEADER_AUTHORITY, JSON.stringify(permittedAuthority))
 
   // Part A — re-set cookie if session was refreshed in DB.

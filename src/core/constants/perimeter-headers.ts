@@ -52,3 +52,34 @@ export const PERIMETER_HEADER_DISPOSITION = 'x-perimeter-disposition'
 // permitted-authority set and stamps it; downstream contracts read, never
 // re-resolve (PA-I unitary discipline).
 export const PERIMETER_HEADER_AUTHORITY  = 'x-perimeter-authority'
+
+// ── PA-I enforcement: the site's stamp (the write-perimeter's teeth, Part 6) ──────
+// The full set of perimeter headers, and the ONE site-stamp helper. PA-I (above) says
+// perimeter-validated state can ONLY originate at the perimeter site — so any INBOUND
+// perimeter header is a forgery (a client or program cannot legitimately set one) and must
+// never survive into the request a route reads. stampPerimeterHeaders clones the inbound
+// headers, DELETES every perimeter header (stripping any forgery), THEN sets the authoritative
+// site values. getPerimeterSession therefore reads ONLY site-originated state: a stranger
+// cannot forge x-perimeter-user-id to write across another wearer's scope. Pure (R5, no deps)
+// so it is testable in isolation; the perimeter site (src/proxy.ts) is its sole caller.
+export const PERIMETER_HEADERS = [
+  PERIMETER_HEADER_USER_ID,
+  PERIMETER_HEADER_SESSION_ID,
+  PERIMETER_HEADER_CHANNEL,
+  PERIMETER_HEADER_CROSSED_AT,
+  PERIMETER_HEADER_DISPOSITION,
+  PERIMETER_HEADER_AUTHORITY,
+] as const
+
+export function stampPerimeterHeaders(
+  incoming: Headers,
+  values: Partial<Record<(typeof PERIMETER_HEADERS)[number], string>>,
+): Headers {
+  const headers = new Headers(incoming)
+  for (const name of PERIMETER_HEADERS) headers.delete(name)         // strip any inbound forgery
+  for (const name of PERIMETER_HEADERS) {
+    const value = values[name]
+    if (value !== undefined) headers.set(name, value)               // set the authoritative site value
+  }
+  return headers
+}
