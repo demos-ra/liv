@@ -30,14 +30,23 @@
 // this unit, it does not carry the try/catch). A4 (isolated execution): readPresent is
 // INJECTED — default-bound to the live F-present R3 surface; the test drives a throwing
 // seam to exercise the degraded branch against the REAL unit.
+//
+// HONEST WRITE-ACK (§0): see body.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readPresent } from '@/features/F-present/contract/present-contract'
 
-// The ONE named degraded payload — a committed turn whose present render failed. `ok`
-// stays true (the write stands); `present` is null (the only thing unavailable); `note`
-// states the degradation in plain words. The R3 door JSON-serializes it into the tool text.
-export type DegradedPresent = { ok: true; sc: number; present: null; note: string }
+// The ONE named honest-acknowledgement payload — returned when a bare present would lie.
+// `ok` is the SOLE landed/dropped signal (true = the turn stands, false = nothing landed);
+// a reader infers persistence from `ok` alone, NEVER from `sc`. `sc` is purely the
+// state-change coordinate — a real position when one exists, `null` when there is none (no
+// state-change = no coordinate; never 0, which would be a fake coordinate colliding with a
+// real first turn if the store ever numbered from 0). Two truths share the shape: a committed
+// turn whose present render failed (`ok` true, `sc` its position, `present` null — the only
+// thing unavailable), and an honest no-write (`ok` false, `sc` null, `present` carried intact —
+// it recomputed unchanged). The R3 door JSON-serializes it into the tool text — a result +
+// view, never projection structure (the seal holds: `present` is rendered text, never a grid).
+export type DegradedPresent = { ok: boolean; sc: number | null; present: string | null; note: string }
 
 // readPresent is the only ambient dep; default-bound to the live F-present R3 surface. The
 // bundle type is readPresent's own 2nd parameter — sourced through the R3 surface, with no
@@ -50,18 +59,36 @@ function defaultDeps(): PresentOrDegradedDeps {
   return { readPresent }
 }
 
-// Render the wearer's present for the turn door's response; on render failure return the
-// named degraded payload (the write has already committed — `sc` is its substrate position).
+// The recorder's outcome, narrowed to what the ack needs: `cells` is the written reply grid
+// (empty ⇔ the recorder honestly no-op'd — an empty reply wrote zero rows) and `sc` is the
+// reply's substrate position when one was assigned. PERSISTENCE IS READ FROM `cells`, the write
+// evidence — NEVER from `sc`'s value (a coordinate is not a signal). Structural, so the door
+// hands its RecordedTurn straight in with no cross-slice type reach.
+type Recorded = { sc: number; cells: unknown[] }
+
+// Render the wearer's present for the turn door's response and acknowledge HONESTLY:
+//   - no-write (recorder no-op'd — `cells` empty): nothing landed → { ok:false, sc:null, … }.
+//     The present recomputed unchanged and is carried back intact; soft on incompleteness
+//     (no throw, no reject) — only the acknowledgement is made honest, so the model's context
+//     finally gets the signal the write dropped. `sc` is null: no state-change, no coordinate.
+//   - render throws: the write already committed (`recorded.sc` is its position) → the turn
+//     STILL STANDS → { ok:true, sc, present:null, … }; a committed write is never masked. (If
+//     a no-op's render also throws, stay honest: ok:false, sc:null — never claim "recorded".)
+//   - otherwise: pass the rendered present straight through (a persisted write, a view out).
 export async function presentOrDegraded(
   userId: string,
   bundle: PresentBundle,
-  sc: number,
+  recorded: Recorded,
   deps: PresentOrDegradedDeps = defaultDeps(),
 ): Promise<string | DegradedPresent> {
+  const persisted = recorded.cells.length > 0
   try {
-    return await deps.readPresent(userId, bundle)
+    const present = await deps.readPresent(userId, bundle)
+    if (!persisted) return { ok: false, sc: null, present, note: 'no testimony recorded (empty reply); present unchanged' }
+    return present
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err)
-    return { ok: true, sc, present: null, note: `turn recorded; present unavailable: ${reason}` }
+    if (!persisted) return { ok: false, sc: null, present: null, note: `no testimony recorded (empty reply); present unavailable: ${reason}` }
+    return { ok: true, sc: recorded.sc, present: null, note: `turn recorded; present unavailable: ${reason}` }
   }
 }

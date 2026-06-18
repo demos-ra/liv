@@ -222,21 +222,71 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
 // Here we drive that real unit with an injected readPresent seam (success then throw) and
 // assert its actual returned value — no inline twin of the contract's logic.
 const WIRE_BUNDLE = { transcript: false, structure: true, state: true } as const
+// the recorder's outcome handed to the unit: a PERSISTED turn has written cells (non-empty);
+// an honest no-op has none. Persistence is read from `cells`, never from `sc`'s value.
+const PERSISTED = { sc: 12, cells: [{ pos: 1, word: 'x' }] }
+const NO_WRITE = { sc: 0, cells: [] as unknown[] }
 test('A2.2: presentOrDegraded passes the present through on success; on render failure returns the named degraded payload', async () => {
   // success → the render passes straight through (no envelope).
-  const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, 12, { readPresent: async () => 'PRESENT-TEXT' })
+  const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, { readPresent: async () => 'PRESENT-TEXT' })
   assert.equal(ok, 'PRESENT-TEXT', 'a successful render passes straight through')
 
   // failure → the committed turn STILL STANDS; the unit returns the named degraded payload.
-  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, 12, {
+  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, {
     readPresent: async () => { throw new Error('store offline') },
   })
   assert.ok(typeof out !== 'string', 'a render failure yields the degraded payload, not a present string')
   if (typeof out === 'string') return
   assert.equal(out.ok, true, 'the committed turn is reported as success, not failure')
-  assert.equal(out.sc, 12, 'the committed turn position is carried back')
+  assert.equal(out.sc, 12, 'the committed turn position is carried back as its coordinate')
   assert.equal(out.present, null, 'present is null — render unavailable, stated not masked')
   assert.match(out.note, /turn recorded; present unavailable: store offline/)
+})
+
+// ── HONEST WRITE-ACK — the no-write case (§0 acknowledgement value) ────────────────
+// The recorder honestly no-ops on an empty reply (EMPTY → zero rows → no cells). The present
+// recomputes fine, but a bare present string would read as a persisted write. The unit
+// surfaces the truth via `ok` (the SOLE landed/dropped signal): ok false, the intact present
+// carried back — soft on incompleteness (no throw). `sc` is null — no state-change, no
+// coordinate; NEVER 0 (a fake coordinate). Persistence is read from `ok`, not from `sc`.
+test('honest no-write: an empty no-op yields { ok:false, sc:null } carrying the intact present', async () => {
+  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, NO_WRITE, { readPresent: async () => 'PRESENT-TEXT' })
+  assert.ok(typeof out !== 'string', 'a no-write turn does NOT pass a bare present through — it is acknowledged honestly')
+  if (typeof out === 'string') return
+  assert.equal(out.ok, false, 'ok is the signal — nothing landed, reported as not-persisted')
+  assert.equal(out.sc, null, 'sc is null — no state-change, no coordinate (never 0, a fake coordinate)')
+  assert.equal(out.present, 'PRESENT-TEXT', 'the present recomputed unchanged and is carried back intact')
+  assert.match(out.note, /no testimony recorded \(empty reply\); present unchanged/)
+})
+
+// sc is a COORDINATE, never a persistence signal: ok carries persistence even when a real
+// store numbers a turn at position 0 — a persisted turn at sc 0 is still ok:true (not a no-op).
+test('sc never doubles as the persistence signal: a persisted turn at sc 0 is ok (not read as a no-write)', async () => {
+  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, { sc: 0, cells: [{ pos: 1, word: 'x' }] }, {
+    readPresent: async () => { throw new Error('x') },
+  })
+  assert.ok(typeof out !== 'string')
+  if (typeof out === 'string') return
+  assert.equal(out.ok, true, 'written cells ⇒ persisted ⇒ ok true, even at coordinate 0 — sc value is not the signal')
+  assert.equal(out.sc, 0, 'the real coordinate (0) is carried back as the coordinate, not as a not-persisted marker')
+})
+
+// ── SEAL VERIFY — compose returns a result + view, never projection structure ──────
+// Both non-pass-through acks (render-failure, no-write) cross the door as { ok, sc, present,
+// note }: `present` is rendered text or null — never a grid, pivot, or PlacedMark. The pass-
+// through is a plain view string. No projection internals leak through compose's return.
+test('seal: every compose return is a view string or a {ok,sc,present,note} ack — never projection structure', async () => {
+  const SEAL_KEYS = ['ok', 'sc', 'present', 'note']
+  const noWrite = await presentOrDegraded('user-1', WIRE_BUNDLE, NO_WRITE, { readPresent: async () => 'VIEW' })
+  const degraded = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, { readPresent: async () => { throw new Error('x') } })
+  for (const out of [noWrite, degraded]) {
+    assert.ok(typeof out !== 'string')
+    if (typeof out === 'string') continue
+    assert.deepEqual(Object.keys(out).sort(), [...SEAL_KEYS].sort(), 'the ack carries exactly the named shape — no engine internals')
+    assert.ok(out.present === null || typeof out.present === 'string', 'present is rendered text or null — never a grid/projection')
+  }
+  const passThrough = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, { readPresent: async () => 'VIEW' })
+  assert.equal(passThrough, 'VIEW', 'a persisted write passes the view straight through')
 })
 
 // ── (E) extras gate — the turn is a WRITE door (FIX-2, carried) ───────────────────

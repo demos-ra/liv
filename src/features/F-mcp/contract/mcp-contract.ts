@@ -162,11 +162,13 @@ export async function handleMcpRequest(
         }
 
         // Response = the fresh present in the WIRE bundle (R7: tables only), rendered POST-write
-        // (R2 — the turn door is a write door whose response carries the present). FAILURE
-        // ORDERING (A2.2) is owned by the R2 unit presentOrDegraded: the write COMMITTED above,
-        // so a present-render failure returns the named degraded payload (the turn STILL STANDS)
-        // rather than masking a committed write as a failure. The door stays thin — no try/catch.
-        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, recorded.sc)
+        // (R2 — the turn door is a write door whose response carries the present). The HONEST
+        // ACKNOWLEDGEMENT (§0) is owned by the R2 unit presentOrDegraded: it hands over the whole
+        // `recorded` outcome and the unit forms the truthful ack — a committed write whose render
+        // failed STILL STANDS (the turn is never masked), and an honest no-write (empty reply →
+        // zero rows) is reported as not-persisted (ok:false, sc:null), never as a value that looks
+        // persisted when it wasn't. The door stays thin — no try/catch, no persistence inference.
+        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, recorded)
         return buildResult(id, toolText(typeof out === 'string' ? out : JSON.stringify(out)))
       }
 
