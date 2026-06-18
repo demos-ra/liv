@@ -55,7 +55,7 @@ const goodArgs = () => ({
 // PLANS, and the core narrows/validates it (graceful for absences, loud for false claims).
 test('a structurally-incomplete turn is NOT rejected at the door — it plans (the core validates)', () => {
   // missing reply, marks, wearerText: the door (transport) admits it; absent fields pass as undefined.
-  const r = planToolCall('turn', { reply: 'yo' })
+  const r = planToolCall('compose', { reply: 'yo' })
   assert.equal(r.ok, true)
   if (!r.ok || r.intention.tool !== 'turn') return
   assert.equal(r.intention.reply, 'yo')
@@ -65,24 +65,25 @@ test('a structurally-incomplete turn is NOT rejected at the door — it plans (t
 })
 
 test('a non-object arguments is rejected (wire-hygiene — the one structural door check)', () => {
-  const r = planToolCall('turn', 'not-an-object')
+  const r = planToolCall('compose', 'not-an-object')
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /arguments object required/)
 })
 
 test('well-formed turn plans the intention (fields pass through unchanged)', () => {
-  const r = planToolCall('turn', { wearerText: 'hi there', reply: 'hello', replyMarks: [], priorMarks: [] })
+  const r = planToolCall('compose', { wearerText: 'hi there', reply: 'hello', replyMarks: [], priorMarks: [] })
   assert.equal(r.ok, true)
   if (!r.ok) return
   assert.deepEqual(r.intention, { tool: 'turn', wearerText: 'hi there', reply: 'hello', replyMarks: [], priorMarks: [] })
 })
 
 // ── (A′) the projected wire schema — DERIVED from the one core contract ───────────
-// The `turn` inputSchema is projectEmissionSchema(MCP_SITUATION). It demands all four,
-// carries the field descriptions, and shares the native projection's mark item (the
-// bare-`array` drift is gone). TURN_ARGS (the door's extras allow-list) IS its property keys.
-test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, descriptions, shared mark item', async () => {
+// The `turn`/compose inputSchema is projectEmissionSchema(MCP_SITUATION). It demands all four,
+// carries ZERO field hints (§2.4-text 4b — structure is the schema's; the manual teaches), and
+// shares the native projection's mark item (the bare-`array` drift is gone). TURN_ARGS (the
+// door's extras allow-list) IS its property keys.
+test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, zero field hints, shared mark item', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { SCORE_SCHEMA } = await import('@/features/F-present/domain/coin-score') as any
   const s = projectEmissionSchema(MCP_SITUATION)
@@ -90,9 +91,9 @@ test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, descr
   assert.deepEqual(Object.keys(s.properties), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.deepEqual(s.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.equal(s.additionalProperties, false)
-  // descriptions ride the wire.
+  // FIELD HINTS ARE ZERO: the schema enforces structure silently; no per-field description rides.
   for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
-    assert.equal(typeof s.properties[f].description, 'string', `${f} carries a wire description`)
+    assert.equal(s.properties[f].description, undefined, `${f} carries no field hint (zero — the manual teaches)`)
   }
   // DRIFT GONE: the wire's mark item is the SAME geometry the native projection advertises.
   assert.deepEqual(s.properties.replyMarks.items, SCORE_SCHEMA.properties.replyMarks.items)
@@ -121,10 +122,10 @@ test('tools/list injects the projected inputSchema and the manual on the turn to
     { userId: 'u', sessionId: 's' } as never,
   )
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const turn = res.result.tools.find((t: any) => t.name === 'turn')
-  assert.ok(turn, 'the turn tool is listed')
-  assert.deepEqual(turn.inputSchema, projectEmissionSchema(MCP_SITUATION), 'turn advertises the projected emission schema')
-  assert.ok(turn.description.includes('COIN FILL MANUAL'), 'the fill manual rides the turn description (once-channel)')
+  const turn = res.result.tools.find((t: any) => t.name === 'compose')
+  assert.ok(turn, 'the compose tool is listed (public name; internal token stays "turn")')
+  assert.deepEqual(turn.inputSchema, projectEmissionSchema(MCP_SITUATION), 'compose advertises the projected emission schema')
+  assert.ok(turn.description.includes('COIN FILL MANUAL'), 'the fill manual rides the compose description (once-channel)')
 })
 
 // a DB-free recorder seam (mirrors the scored-turn-recorder test).
@@ -150,7 +151,7 @@ function stubDeps(replySc: number, wearerSc: number) {
 
 // ── (B) execution — the turn path lands BOTH turns AND its marks ─────────────────
 test('a well-formed turn lands both turns and its marks; scope is the stamped sessionId', async () => {
-  const plan = planToolCall('turn', goodArgs())
+  const plan = planToolCall('compose', goodArgs())
   assert.equal(plan.ok, true)
   if (!plan.ok || plan.intention.tool !== 'turn') return
 
@@ -177,7 +178,7 @@ test('a well-formed turn lands both turns and its marks; scope is the stamped se
 })
 
 test('a turn whose mark surface mismatches is rejected loud + atomic (nothing written)', async () => {
-  const plan = planToolCall('turn', {
+  const plan = planToolCall('compose', {
     wearerText: WEARER, reply: REPLY,
     replyMarks: [{ word: 2, surface: 'rivals', marks: [{ op: 'identity' }] }],   // word 2 is "truly"
     priorMarks: [],
@@ -197,7 +198,7 @@ test('a turn whose mark surface mismatches is rejected loud + atomic (nothing wr
 // the door admits a non-string wearerText (it sheds shape-validation); the CORE absorbs it
 // gracefully — empty wearer turn, the reply still records, nothing masked or thrown.
 test('a non-string wearerText is absorbed at the core (empty wearer; reply records; not masked)', async () => {
-  const plan = planToolCall('turn', {
+  const plan = planToolCall('compose', {
     wearerText: 123,                                              // not a string — the door admits it
     reply: REPLY,
     replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
@@ -291,7 +292,7 @@ test('seal: every compose return is a view string or a {ok,sc,present,note} ack 
 
 // ── (E) extras gate — the turn is a WRITE door (FIX-2, carried) ───────────────────
 test('turn: an unknown field is rejected, law named', () => {
-  const r = planToolCall('turn', { ...goodArgs(), bogus: true })
+  const r = planToolCall('compose', { ...goodArgs(), bogus: true })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /unknown field "bogus"/)
@@ -300,46 +301,43 @@ test('turn: an unknown field is rejected, law named', () => {
 
 // ── (F) scope-symmetry — scope is circumstance, not testimony ────────────────────
 test('turn: a sent scope is rejected as an unknown field', () => {
-  const r = planToolCall('turn', { ...goodArgs(), scope: 'proj-1' })
+  const r = planToolCall('compose', { ...goodArgs(), scope: 'proj-1' })
   assert.equal(r.ok, false)
   if (r.ok) return
   assert.match(r.message, /unknown field "scope"/)
 })
 
-// ── (D) the lookup read control (R8) — the door (grid generalized) ────────────────
-test('lookup turn: valid (who, sc) plans the selector intention', () => {
-  const r = planToolCall('lookup', { kind: 'turn', who: 'wearer', sc: 7 })
+// ── (D) the search read door is TRANSPORT (region × lens) ─────────────────────────
+// The door no longer validates the selector — search is region × lens and the CORE
+// (parseSearchSpec, exercised in search-text-pivot.test) is the sole validator. The door
+// owns wire-hygiene only: arguments-is-object, then the raw payload rides through unchanged.
+test('a search payload plans the raw intention (the core validates region × lens)', () => {
+  const args = { region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'pivot', rows: 'time', focus: 'Kyoto' } }
+  const r = planToolCall('search', args)
   assert.equal(r.ok, true)
-  if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'lookup', selector: { kind: 'turn', who: 'wearer', sc: 7 } })
+  if (!r.ok || r.intention.tool !== 'lookup') return
+  assert.deepEqual(r.intention, { tool: 'lookup', raw: args })
 })
 
-test('lookup span / thing plan their selectors', () => {
-  const span = planToolCall('lookup', { kind: 'span', from: 1, to: 9 })
-  assert.equal(span.ok, true)
-  if (span.ok) assert.deepEqual(span.intention, { tool: 'lookup', selector: { kind: 'span', from: 1, to: 9, who: undefined } })
-  const thing = planToolCall('lookup', { kind: 'thing', name: 'Kyoto' })
-  assert.equal(thing.ok, true)
-  if (thing.ok) assert.deepEqual(thing.intention, { tool: 'lookup', selector: { kind: 'thing', name: 'Kyoto' } })
-})
-
-test('lookup: bad selectors are rejected, named', () => {
-  assert.match((planToolCall('lookup', { kind: 'turn', who: 'program', sc: 7 }) as { message: string }).message, /who must be wearer \| llm/)
-  assert.match((planToolCall('lookup', { kind: 'turn', who: 'llm', sc: 'x' }) as { message: string }).message, /sc must be a number/)
-  assert.match((planToolCall('lookup', { kind: 'bogus' }) as { message: string }).message, /kind must be turn \| span \| thing/)
+test('search: a non-object arguments is rejected (the one structural door check)', () => {
+  const r = planToolCall('search', 'not-an-object')
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /arguments object required/)
 })
 
 // ── (G) read-door law (RD) — reads ignore extras ──────────────────────────────────
 test('present: extra lifecycle-envelope fields are ignored (read door succeeds)', () => {
-  const r = planToolCall('present', { source: 'startup', session_id: 'x' })
+  const r = planToolCall('summary', { source: 'startup', session_id: 'x' })
   assert.equal(r.ok, true)
   if (!r.ok) return
   assert.deepEqual(r.intention, { tool: 'present' })
 })
 
-test('lookup: selectors plus extra envelope fields succeed (read door ignores extras)', () => {
-  const r = planToolCall('lookup', { kind: 'turn', who: 'wearer', sc: 7, source: 'startup', session_id: 'x' })
+test('search: a raw payload plus extra envelope fields rides through (read door ignores extras)', () => {
+  const args = { lens: { view: 'raw' }, source: 'startup', session_id: 'x' }
+  const r = planToolCall('search', args)
   assert.equal(r.ok, true)
-  if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'lookup', selector: { kind: 'turn', who: 'wearer', sc: 7 } })
+  if (!r.ok || r.intention.tool !== 'lookup') return
+  assert.deepEqual(r.intention, { tool: 'lookup', raw: args })
 })

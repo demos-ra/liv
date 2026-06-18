@@ -72,4 +72,9 @@ export type { MarkingSituation } from '../domain/coin-score'
 // span | thing → numbered cells — grid generalized, re-homed here). One home per surface.
 export { lookup } from '../app/lookup'
 export type { LookupSelector, LookupResult, LookupCell } from '../app/lookup'
+// search (region × lens — the text-pivot): the one read door, exposing both the raw cells
+// (cellsOf) and the rendered pivot grid (pivot → renderGrid) through region × lens. The wire
+// `search` tool maps here; turn|span|thing are region shorthands, never a parallel path.
+export { search, parseSearchSpec } from '../app/lookup'
+export type { SearchRegion, SearchLens, SearchSpec, SearchResult } from '../app/lookup'
 export { PRESENT_BUNDLES } from '../config/read-engine-types'

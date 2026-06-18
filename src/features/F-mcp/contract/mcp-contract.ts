@@ -46,7 +46,7 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, lookup, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
+import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
@@ -68,21 +68,17 @@ function toolText(text: string): McpToolResult {
 
 // MCP_SITUATION — the wire's choices about the ONE emission contract (cognition-turn
 // contract). The wire carries the person's turn inline (wearerText) and DEMANDS every
-// present field (all four required; the mark arrays may be empty, never absent); the field
-// descriptions ride the advertisement (the wire is the model's only channel — native carries
-// none). The `turn` inputSchema is projectEmissionSchema(MCP_SITUATION): the core contract,
-// projected — it shares the native projection's mark item (no bare-`array` drift), so the
-// wire now ADVERTISES the full mark shape it always ACCEPTED. This is the only F-mcp file
-// that imports another slice's contract; the situation lives here, the shape lives at the core.
+// present field (all four required; the mark arrays may be empty, never absent). FIELD HINTS
+// ARE ZERO (§2.4-text 4b): the schema enforces structure silently (names, types, required,
+// additionalProperties:false) and the manual rides the same tool, so a per-field description
+// is noise the model must read and discard — the `descriptions` choice is omitted. The `turn`
+// inputSchema is projectEmissionSchema(MCP_SITUATION): the core contract, projected — it shares
+// the native projection's mark item (no bare-`array` drift), so the wire ADVERTISES the full
+// mark shape it always ACCEPTED. This is the only F-mcp file that imports another slice's
+// contract; the situation lives here, the shape lives at the core.
 export const MCP_SITUATION: MarkingSituation = {
   includeWearerText: true,
   demand: 'all-present',
-  descriptions: {
-    wearerText: "the person's verbatim turn text. LIV cuts it into cells; priorMarks index its word-cells.",
-    reply: 'your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A), renders it byte-identical. replyMarks index its word-cells.',
-    replyMarks: 'marks on YOUR reply, by 1-based word index into the reply, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.',
-    priorMarks: "marks on the PERSON's turn, by 1-based word index into wearerText, each carrying its surface word: { word, surface, marks }. Required; may be empty, never absent.",
-  },
 }
 
 export async function handleMcpRequest(
@@ -138,8 +134,21 @@ export async function handleMcpRequest(
         // instead of counting them from prose. The read control lives in F-present (it holds
         // the dimension a `thing` selector needs); a miss is a stating { ok: false }, never
         // an exception.
+        // search (the text-pivot) — region × lens. The door is transport: parseSearchSpec (core)
+        // validates the raw payload (a named INVALID_PARAMS on a bad zone), then search composes
+        // pivot/cellsOf through the one read door. A pivot lens returns the rendered grid TEXT
+        // (coordinates render inside it — navigation and coordinate-fetch are one verb); a raw
+        // lens returns the numbered cells as JSON (the coordinate-fetch path).
         if (intention.tool === 'lookup') {
-          return buildResult(id, toolText(JSON.stringify(await lookup(session.userId, intention.selector))))
+          const parsed = parseSearchSpec(intention.raw)
+          if (!parsed.ok) return buildError(id, JSONRPC_INVALID_PARAMS, parsed.message)
+          const result = await search(session.userId, parsed.spec)
+          const out = !result.ok
+            ? JSON.stringify({ ok: false, message: result.message })
+            : result.view === 'pivot'
+              ? result.text
+              : JSON.stringify({ ok: true, view: 'raw', cells: result.cells })
+          return buildResult(id, toolText(out))
         }
 
         // turn — DEMANDED (R1): ONE call carries BOTH turns. userId is ALWAYS the session's;

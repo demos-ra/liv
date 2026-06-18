@@ -32,9 +32,15 @@ import type { McpToolDescriptor } from './mcp-protocol'
 // lookup is the navigation read control (R8): grid generalized (turn | span | thing →
 // numbered cells) and re-homed to F-present, where the dimension lives. grid is deleted.
 
-export const TOOL_PRESENT = 'present' as const
-export const TOOL_TURN = 'turn' as const
-export const TOOL_LOOKUP = 'lookup' as const
+// PUBLIC WIRE NAMES (DIST vocabulary). The constant IDENTIFIERS stay (TOOL_PRESENT/TOOL_TURN/
+// TOOL_LOOKUP — referenced across R1/R3); only their VALUES are the renamed public verbs. The
+// surface maps public→internal: the wire advertises these names, planToolCall matches on them,
+// and the intention discriminator + internal functions (readPresent / lookup() / recordScoredTurn)
+// keep the old internal tokens behind the boundary. Advertisement/manual PROSE still names the
+// old verbs — deferred to Part 4 (see the targeted-rewrite list handed with this part's SHA).
+export const TOOL_PRESENT = 'summary' as const
+export const TOOL_TURN = 'compose' as const
+export const TOOL_LOOKUP = 'search' as const
 
 // The `turn` write-door's arg names — the allow-list the door rejects extras against
 // (planToolCall, R1). The four WIRE fields, in present order. Pinned by test to the projected
@@ -71,19 +77,46 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   },
   {
     name: TOOL_LOOKUP,
-    description:
-      "Fetch numbered cells — the cutter's truth (each cell's verbatim word + its (who, sc, pos) coordinate) — when you need to copy a coordinate into a mark's Ref. Coordinates are COPIED from here, NEVER counted from prose. Selectors: { kind: 'turn', who, sc } one turn's cells; { kind: 'span', from, to, who? } every turn in an sc range; { kind: 'thing', name } every appearance of a named thing in your present. A read control — it takes no testimony; extra fields are ignored.",
+    // PLACEHOLDER advertisement — Part 4 writes the real words in her voice. The SHAPE is
+    // region × lens (two orthogonal axes that compose): region (where) selects the substrate;
+    // lens (how) returns raw numbered cells (to copy a coordinate) or the rendered pivot grid
+    // (the Excel view, its zones as fields). The structure below is discoverable; the words are L0's.
+    description: 'search — region (where) × lens (how); they compose. [placeholder — Part 4]',
     inputSchema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['turn', 'span', 'thing'], description: "what to fetch: 'turn' | 'span' | 'thing'." },
-        who: { type: 'string', enum: ['wearer', 'llm'], description: "turn: the turn's author (required). span: optional author filter." },
-        sc: { type: 'number', description: 'turn: the turn position (sc).' },
-        from: { type: 'number', description: 'span: first sc (inclusive).' },
-        to: { type: 'number', description: 'span: last sc (inclusive).' },
-        name: { type: 'string', description: "thing: the thing's name (clusters across the present)." },
+        region: {
+          type: 'object',
+          description: 'where — which part of the substrate. [placeholder]',
+          properties: {
+            kind: { type: 'string', enum: ['turn', 'span', 'thing', 'all'] },
+            who:  { type: 'string', enum: ['wearer', 'llm'] },
+            sc:   { type: 'number' },
+            from: { type: 'number' },
+            to:   { type: 'number' },
+            name: { type: 'string' },
+          },
+          additionalProperties: true,
+        },
+        lens: {
+          type: 'object',
+          description: 'how — raw cells, or the pivot grid (its zones as fields). [placeholder]',
+          properties: {
+            view:    { type: 'string', enum: ['raw', 'pivot'] },
+            rows:    { type: 'string', enum: ['lineage', 'time'] },
+            columns: { type: 'string', enum: ['single', 'line'] },
+            values:  { type: 'string', enum: ['weight', 'marks'] },
+            focus:   { type: 'string' },
+            depth:   { type: 'number' },
+            top:     { type: 'number' },
+            sort:    { type: 'string', enum: ['weight', 'id'] },
+            filter:  { type: 'object', additionalProperties: true },
+          },
+          required: ['view'],
+          additionalProperties: true,
+        },
       },
-      required: ['kind'],
+      required: ['lens'],
       additionalProperties: true,
     },
   },
