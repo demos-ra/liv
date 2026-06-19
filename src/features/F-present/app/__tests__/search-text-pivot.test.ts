@@ -64,11 +64,13 @@ async function seedKyoto(h: ReturnType<typeof harness>) {
 test('parseSearchSpec: region defaults to all; lens is required; bad zones are named', () => {
   assert.deepEqual(parseSearchSpec({ lens: { view: 'raw' } }).spec.region, { kind: 'all' })
   assert.equal(parseSearchSpec({}).ok, false)                                   // lens required
-  assert.match(parseSearchSpec({ lens: { view: 'bogus' } }).message, /view must be raw \| pivot/)
-  assert.match(parseSearchSpec({ lens: { view: 'pivot', rows: 'xyz' } }).message, /rows: lineage \| time/)
+  assert.match(parseSearchSpec({ lens: { view: 'bogus' } }).message, /view must be raw \| table/)
+  assert.match(parseSearchSpec({ lens: { view: 'table', rows: 'xyz' } }).message, /rows: lineage \| time/)
   assert.match(parseSearchSpec({ region: { kind: 'turn', who: 'nope', sc: 1 }, lens: { view: 'raw' } }).message, /who must be wearer \| llm/)
   // a full pivot spec round-trips to a typed spec.
-  const ok = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'pivot', rows: 'time', focus: 'Kyoto', sort: 'id', filter: { colorings: { hide: ['truly'] } } } })
+  // the PUBLIC value is `table`; parseSearchSpec translates it to the internal `pivot` lens —
+  // so the input says table, the parsed result reads pivot (the one translation, proven here).
+  const ok = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'table', rows: 'time', focus: 'Kyoto', sort: 'id', filter: { colorings: { hide: ['truly'] } } } })
   assert.equal(ok.ok, true)
   assert.equal(ok.spec.lens.view, 'pivot')
 })
@@ -116,19 +118,19 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
   assert.deepEqual(Object.keys(tool('search').inputSchema.properties).sort(), ['lens', 'region'])
 
   // ── (a) read the default present  ≡ search(all, pivot lineage) — the structure table ──
-  const aSpec = parseSearchSpec({ lens: { view: 'pivot', rows: 'lineage' } })       // region defaults to all
+  const aSpec = parseSearchSpec({ lens: { view: 'table', rows: 'lineage' } })       // region defaults to all
   assert.equal(aSpec.ok, true)
   const present = await search('u', aSpec.spec, h.lookDeps)
-  assert.equal(present.ok && present.view === 'pivot', true)
-  log('\n=========== (a) default present — search { lens:{view:pivot,rows:lineage} } ===========\n' + present.text)
+  assert.equal(present.ok && present.view === 'pivot', true)   // public `table` → internal `pivot`
+  log('\n=========== (a) default present — search { lens:{view:table,rows:lineage} } ===========\n' + present.text)
   assert.match(present.text, /Kyoto/)
 
   // ── (b) call up a DIFFERENT table — focus Kyoto, lineage→time, hide a coloring, sort ──
-  const bSpec = parseSearchSpec({ lens: { view: 'pivot', rows: 'time', focus: 'Kyoto' } })
+  const bSpec = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto' } })
   const timeline = await search('u', bSpec.spec, h.lookDeps)
   assert.equal(timeline.ok && timeline.view === 'pivot', true)
-  log('\n=========== (b) focus Kyoto, lineage→time — search { lens:{view:pivot,rows:time,focus:Kyoto} } ===========\n' + timeline.text)
-  const bHide = parseSearchSpec({ lens: { view: 'pivot', rows: 'time', focus: 'Kyoto', filter: { colorings: { hide: ['truly'] } }, sort: 'id' } })
+  log('\n=========== (b) focus Kyoto, lineage→time — search { lens:{view:table,rows:time,focus:Kyoto} } ===========\n' + timeline.text)
+  const bHide = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto', filter: { colorings: { hide: ['truly'] } }, sort: 'id' } })
   const hidden = await search('u', bHide.spec, h.lookDeps)
   assert.equal(hidden.ok, true)
   log('\n=========== (b′) hide a coloring + sort — filter:{colorings:{hide:[truly]}}, sort:id ===========\n' + hidden.text)

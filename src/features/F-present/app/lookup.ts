@@ -245,9 +245,11 @@ function parseFilter(raw: unknown): { ok: true; filter: Selection } | { ok: fals
 }
 
 function parseLens(raw: unknown): { ok: true; lens: SearchLens } | { ok: false; message: string } {
-  if (!isObj(raw)) return { ok: false, message: 'search lens: required object { view: raw | pivot }' }
+  if (!isObj(raw)) return { ok: false, message: 'search lens: required object { view: raw | table }' }
   if (raw.view === 'raw') return { ok: true, lens: { view: 'raw' } }
-  if (raw.view !== 'pivot') return { ok: false, message: 'search lens: view must be raw | pivot' }
+  // PUBLIC lens vocabulary (WP5): the model types `table`; the engine stays `pivot`/grid. This is
+  // the ONE translation point — `table` is mapped to the internal pivot lens here, nowhere else.
+  if (raw.view !== 'table') return { ok: false, message: 'search lens: view must be raw | table' }
   const lens: Extract<SearchLens, { view: 'pivot' }> = { view: 'pivot' }
   if (raw.rows !== undefined) { if (!(ROW_AXES as readonly string[]).includes(raw.rows as string)) return { ok: false, message: 'search lens.rows: lineage | time' }; lens.rows = raw.rows as RowAxis }
   if (raw.columns !== undefined) { if (!(COL_AXES as readonly string[]).includes(raw.columns as string)) return { ok: false, message: 'search lens.columns: single | line' }; lens.columns = raw.columns as ColAxis }

@@ -124,7 +124,7 @@ test('tools/list injects the projected inputSchema and the manual on the turn to
   const turn = res.result.tools.find((t: any) => t.name === 'compose')
   assert.ok(turn, 'the compose tool is listed (public name; internal token stays "turn")')
   assert.deepEqual(turn.inputSchema, projectEmissionSchema(MCP_SITUATION), 'compose advertises the projected emission schema')
-  assert.ok(turn.description.includes('COIN FILL MANUAL'), 'the fill manual rides the compose description (once-channel)')
+  assert.ok(turn.description.includes('FILL MANUAL'), 'the fill manual rides the compose description (once-channel)')
 })
 
 // a DB-free recorder seam (mirrors the scored-turn-recorder test).
@@ -329,7 +329,7 @@ test('turn: a sent scope is rejected as an unknown field', () => {
 // (parseSearchSpec, exercised in search-text-pivot.test) is the sole validator. The door
 // owns wire-hygiene only: arguments-is-object, then the raw payload rides through unchanged.
 test('a search payload plans the raw intention (the core validates region × lens)', () => {
-  const args = { region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'pivot', rows: 'time', focus: 'Kyoto' } }
+  const args = { region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'table', rows: 'time', focus: 'Kyoto' } }
   const r = planToolCall('search', args)
   assert.equal(r.ok, true)
   if (!r.ok || r.intention.tool !== 'lookup') return

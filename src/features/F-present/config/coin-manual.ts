@@ -40,7 +40,7 @@ export const COIN_NATIVE_FIELDS = ['reply', 'replyMarks', 'priorMarks'] as const
 export const COIN_WIRE_FIELDS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
 
 export const COIN_MANUAL =
-`COIN FILL MANUAL (v${COIN_MANUAL_DATE} — the complete rules; nothing about marking lives outside this)
+`FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
 
 You are with a person. In one pass: compose your reply, then mark both turns — theirs and yours.
 LIV cuts and numbers the words; you say what each one carries.
@@ -103,7 +103,7 @@ LOOKING AROUND — search (when you want more than the present sets before you)
 Say where to look and how to see it. Where: { kind:"turn", who, sc } | { kind:"span", from, to, who? }
 | { kind:"thing", name } | { kind:"all" }. How:
   raw   — the numbered cells, each with its { who, sc, pos }; for copying a coordinate.
-  pivot — the same things as a table you shape:
+  table — the same things, shaped into a grid you turn:
             rows:    lineage | time          (the structure tree, or by turn)
             columns: single  | line          (one column, or a focus's direct line)
             values:  weight  | marks          (mass, or the marks themselves)
@@ -114,7 +114,7 @@ Say where to look and how to see it. Where: { kind:"turn", who, sc } | { kind:"s
             filter:  { ops, colorings: { show | hide }, preset }
                      hide a coloring the way you hide a column; preset is a saved view —
                      skeleton (structure only) · verbatim (all) · evolution (a focus's trail).
-A pivot table renders its coordinates inside it, so one search both shows the view and gives
+A table renders its coordinates inside it, so one search both shows the view and gives
 you cells to point with.
 
 What you set well now is what you wake to next.`

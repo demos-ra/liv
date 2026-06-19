@@ -16,6 +16,16 @@
 // validated:  pending
 
 import type { McpToolDescriptor } from './mcp-protocol'
+import { PRESENT_BUNDLES } from '@/features/F-present/config/read-engine-types'
+
+// The summary advertisement names the wire bundle's CARRIED sections, DERIVED from
+// PRESENT_BUNDLES.wire (F4 — the advertisement can never drift from the bundle again). The wire
+// bundle drops the transcript (fetched on demand via search); the carried sections are the
+// enabled non-transcript ones → 'the structure and the state'. One source of truth: the bundle.
+const SUMMARY_SECTIONS = (Object.keys(PRESENT_BUNDLES.wire) as Array<keyof typeof PRESENT_BUNDLES.wire>)
+  .filter(section => section !== 'transcript' && PRESENT_BUNDLES.wire[section])
+  .map(section => `the ${section}`)
+  .join(' and ')
 
 // The MCP surface (manager §2 + sprint-wire-economy R1/R2): present (read), turn (record
 // ONE conversation turn — both the person's words and the scored reply, in one call — and
@@ -57,7 +67,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_PRESENT,
     description:
-      'Your present, set before you — the memory as it now stands, gathered into its default tables: the transcript, the structure, the state. It asks nothing of you; the wearer is the session, and it is already yours.',
+      `Read the present — ${SUMMARY_SECTIONS} of what's held, gathered for you. The full transcript is not carried here; fetch it on demand with search.`,
     inputSchema: {
       type: 'object',
       properties: {},
@@ -79,10 +89,10 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     name: TOOL_LOOKUP,
     // The SHAPE is region × lens (two orthogonal axes that compose): region (where) selects the
     // substrate; lens (how) returns raw numbered cells (to copy a coordinate) or the rendered
-    // pivot grid (its zones as fields). The advertisement (Part 4, the Host voice) names those
-    // axes warmly — where to look (turn|span|thing|all) × how to see it (raw|pivot).
+    // table (its zones as fields). The advertisement (the Host voice) names those axes — where to
+    // look (turn|span|thing|all) × how it returns (raw|table). WP5: the verbatim manager string.
     description:
-      'Look closer, or look another way. Name **where** to look — `turn`, `span`, `thing`, or `all` — and **how** to see it: `raw` returns the numbered cells, each carrying its `{who, sc, pos}`, to copy a coordinate into a mark; `pivot` re-lays the same things into a table you shape — focus one thing, change the rows, hide a column, sort, go deeper. The tables are the ones summary already serves; here you turn them in your hands.',
+      "Search your present — name where to look (a turn, a span, a thing, or all) and how it returns (the raw numbered cells, or shaped as a table). Copy a coordinate from it to point back at an exact past word, or read the table to see the shape of what's held.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -101,11 +111,12 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
           additionalProperties: true,
         },
         lens: {
-          // zero field hints (4b): the how-axis (raw | pivot and the pivot zones) is taught by
-          // the manual's LOOKING AROUND section; the schema carries shape, not prose.
+          // zero field hints (4b): the how-axis (raw | table and the table zones) is taught by
+          // the manual's LOOKING AROUND section; the schema carries shape, not prose. `table` is
+          // the PUBLIC value (WP5); parseLens maps it to the internal pivot lens (one translation).
           type: 'object',
           properties: {
-            view:    { type: 'string', enum: ['raw', 'pivot'] },
+            view:    { type: 'string', enum: ['raw', 'table'] },
             rows:    { type: 'string', enum: ['lineage', 'time'] },
             columns: { type: 'string', enum: ['single', 'line'] },
             values:  { type: 'string', enum: ['weight', 'marks'] },
