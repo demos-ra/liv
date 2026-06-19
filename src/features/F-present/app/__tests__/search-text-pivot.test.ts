@@ -110,8 +110,9 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
     if (t.inputSchema) log(`inputSchema: ${JSON.stringify(t.inputSchema)}`)
   }
   log('\n--- compose rides the fill manual (excerpt) ---\n' + String(COIN_MANUAL).split('\n').slice(0, 6).join('\n') + '\n…')
-  // the search schema is structurally discoverable: region (where) × lens (how).
-  assert.match(tool('search').description, /region .* lens|lens .* region/i)
+  // the search description names its two axes — where (region) × how (lens), the Part 4 voice;
+  // the SCHEMA still carries both as `region` and `lens` (the structural axes are unchanged).
+  assert.match(tool('search').description, /where[\s\S]*how|how[\s\S]*where/i)
   assert.deepEqual(Object.keys(tool('search').inputSchema.properties).sort(), ['lens', 'region'])
 
   // ── (a) read the default present  ≡ search(all, pivot lineage) — the structure table ──
@@ -154,7 +155,8 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
     'llm', 'u', 'sess', { text: 'more on Kyoto' }, h.recDeps,
   )
   log('\n=========== (d+e) compose — pin the coordinate in a tie mark ===========')
-  log(`compose recorded: sc=${recorded.sc}, markCount=${recorded.markCount}, text=${JSON.stringify(recorded.text)}`)
+  // the R3 door returns the WriteAck (§1a): landed → { landed:true, sc, text } (markCount dropped).
+  log(`compose recorded: landed=${recorded.landed}, sc=${recorded.sc}, text=${JSON.stringify(recorded.text)}`)
   assert.ok(recorded.sc > 0, 'the turn recorded')
   // the pinned coordinate survived M4 — a tie (IDENTIFY) homed this turn, targeting the pinned coord.
   const newMarks = h.placed.slice(before)

@@ -17,7 +17,10 @@
 //   W-FN  presentRouter          →  F-identity/router (tRPC)
 //   W-FN  registerCognitionUpgrades  →  F-chat, F-event-system/startup
 //   W-FN  isMark                 →  scripts/reconcile-present-marks (the gate, surfaced)
-//   W-FN  recordScoredTurn       →  F-mcp (turn tool, who:'llm') — the scored-turn recorder
+//   W-FN  recordScoredTurn       →  F-mcp (turn door) + /api/compose (REST) — WRAPS the recorder, returns WriteAck
+//   W-ATOM WriteAck              →  F-mcp + REST (the honest write-ack — landed:false carries no sc)
+//   W-FN  presentOrDegraded      →  F-mcp (turn door) + /api/compose (REST) — post-write present-or-degraded (§1b)
+//   W-ATOM DegradedPresent       →  F-mcp + REST (the one named degraded payload)
 //   W-FN  emissionFromStructured →  F-mcp (turn tool, who:'llm') — the narrowing/gate filter
 //   W-FN  projectEmissionSchema  →  F-mcp (turn tool — the `turn` inputSchema is a derived view)
 //   W-ATOM MarkingSituation      →  F-mcp (MCP_SITUATION — the wire's per-surface contract choices, type-only)
@@ -30,10 +33,14 @@
 //   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission, MarkSurfaceError)
 //   R0  ../config/coin-manual    (COIN_MANUAL)
 //   R0  ../config/read-engine-types  (PRESENT_BUNDLES)
+//   R0  ../config/write-ack-types    (WriteAck)
 //   R2  ../app/cognition-orchestrator
-//   R2  ../app/scored-turn-recorder
+//   R2  ../app/scored-turn-recorder  (aliased — wrapped by recordScoredTurn, returns WriteAck)
+//   R2  ../app/write-ack             (toWriteAck — the one ack deriver)
 //   R2  ../app/lookup            (lookup, Lookup* types)
 //   R3  ./read-surface
+//   R3  ./present-or-degraded    (presentOrDegraded, DegradedPresent — the post-write read-door, §1b)
+//   core @/core/types/substrate-raw.types  (Who — recordScoredTurn wrapper param)
 
 // The read surface — the removable lens, rendered to context text.
 export { readPresent, presentRouter } from './read-surface'
@@ -49,16 +56,43 @@ export { registerCognitionUpgrades } from '../app/cognition-orchestrator'
 // code reaches the gate HERE (the R3 boundary), never via domain/mark-gate directly.
 export { isMark } from '../domain/mark-gate'
 
-// The scored-turn write surface (sprint-wire-cognition Shot 1/4) — symmetric with
-// readPresent. The demanded wire (F-mcp write, who:'llm') records a pair-scored turn
-// HERE: emissionFromStructured narrows the agent's emission through the same gate the
-// native path uses, then recordScoredTurn lands it (cut once → write → split → verify →
-// place). COIN_MANUAL is surfaced for the present tool's manual-with-present return
-// (one home — defined in config/coin-manual, never re-declared at the wire).
-export { recordScoredTurn } from '../app/scored-turn-recorder'
+// The scored-turn write surface (sprint-wire-cognition Shot 1/4) — symmetric with readPresent.
+// The demanded wire (F-mcp write, who:'llm') records a pair-scored turn HERE: emissionFromStructured
+// narrows the agent's emission through the same gate the native path uses, then the recorder lands
+// it (cut once → write → split → verify → place). The door no longer re-exports the RAW recorder
+// (§1a): it WRAPS it — keeping the name `recordScoredTurn` — so every rail derives the ONE honest
+// acknowledgement. The wrapper returns the R3 WriteAck (toWriteAck reads the write evidence — cells
+// — never sc; landed:false carries no sc). MarkSurfaceError — the loud, ATOMIC reject — propagates
+// THROUGH the wrapper unchanged, ahead of any ack (only a RETURNED RecordedTurn is folded). COIN_MANUAL
+// is surfaced for the present tool's manual-with-present return (one home — config/coin-manual).
+import { recordScoredTurn as recordScoredTurnRaw } from '../app/scored-turn-recorder'
+import type { WearerSource, ScoredTurnDeps } from '../app/scored-turn-recorder'
+import { toWriteAck } from '../app/write-ack'
+import type { WriteAck } from '../config/write-ack-types'
+import type { ScoredEmission } from '../domain/coin-score'
+import type { Who } from '@/core/types/substrate-raw.types'
+
+export async function recordScoredTurn(
+  emission: ScoredEmission,
+  who: Who,
+  userId: string,
+  scope: string,
+  wearer: WearerSource,
+  deps?: ScoredTurnDeps,
+): Promise<WriteAck> {
+  const recorded = await recordScoredTurnRaw(emission, who, userId, scope, wearer, deps)
+  return toWriteAck(recorded)
+}
+export type { WriteAck }
 export { emissionFromStructured, MarkSurfaceError } from '../domain/coin-score'
 export type { ScoredEmission } from '../domain/coin-score'
 export { COIN_MANUAL } from '../config/coin-manual'
+
+// The post-write present-or-degraded (R3 read-door, §1b — rehomed here from F-mcp so REST gains
+// the same guard MCP has, and so it imports readPresent in-layer). The turn door (MCP) and the
+// /api/compose route (REST) both derive their honest post-write response from this one unit.
+export { presentOrDegraded } from './present-or-degraded'
+export type { DegradedPresent } from './present-or-degraded'
 
 // The emission contract's PROJECTOR (cognition-turn contract — one core-owned shape). The
 // wire derives its `turn` inputSchema as projectEmissionSchema(MCP_SITUATION) at F-mcp R3 —

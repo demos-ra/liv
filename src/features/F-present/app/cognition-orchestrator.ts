@@ -38,6 +38,7 @@
 //   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured     ../domain/coin-score
 //   W-ATOM  COIN_MANUAL                                  ../config/coin-manual
 //   W-FN    recordScoredTurn                             ../app/scored-turn-recorder   (sprint-wire-cognition Shot 1)
+//   W-FN    toWriteAck                                   ../app/write-ack              (§1a — the shared ack deriver)
 //   W-FN    buildFactTable                               ../domain/fact-table
 //   W-FN    resolveDimension                             ../domain/resolve-dimension
 //   W-FN    weighDimension                               ../domain/chain-ping
@@ -52,6 +53,7 @@
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R1  ../domain/coin-score
 //   R2  ../app/scored-turn-recorder
+//   R2  ../app/write-ack
 //   R1  ../domain/fact-table
 //   R1  ../domain/resolve-dimension
 //   R1  ../domain/chain-ping
@@ -82,6 +84,7 @@ import { SCORE_EMIT_CONFIG, emissionFromStructured }     from '@/features/F-pres
 import { COIN_MANUAL } from '@/features/F-present/config/coin-manual'
 import { recordScoredTurn }                              from '@/features/F-present/app/scored-turn-recorder'
 import type { WearerSource }                             from '@/features/F-present/app/scored-turn-recorder'
+import { toWriteAck }                                    from '@/features/F-present/app/write-ack'
 import { buildFactTable }                                from '@/features/F-present/domain/fact-table'
 import { resolveDimension }                              from '@/features/F-present/domain/resolve-dimension'
 import { weighDimension }                                from '@/features/F-present/domain/chain-ping'
@@ -146,8 +149,16 @@ export const composeAndWrite: ReplyComposer = async (input) => {
   const wearer: WearerSource = input.wearerTurn
     ? { written: { sc: input.wearerTurn.sc, wordCells: input.wearerTurn.cells } }
     : { written: { sc: 0, wordCells: [] } }
-  const { sc, markCount, text } = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer)
-  return { sc, markCount, text }
+  // Native calls the recorder IN-SLICE (the raw RecordedTurn) and wraps it with the SHARED
+  // toWriteAck — the one ack deriver every rail uses, none reconstructing (§1a). landed → the
+  // CognitionResult { sc, text } the seam expects (markCount rides from the recorder — a dead
+  // seam field, residue, not Part 1's to remove); dropped (empty/malformed reply) → { sc:0,
+  // text:'' }, the live empty-text signal F-chat already handles at chat-contract.
+  const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer)
+  const ack = toWriteAck(recorded)
+  return ack.landed
+    ? { sc: ack.sc, markCount: recorded.markCount, text: ack.text }
+    : { sc: 0, markCount: 0, text: '' }
 }
 
 // ── Read-front — the rail-aware present bundle (R7) ────────────────────────────

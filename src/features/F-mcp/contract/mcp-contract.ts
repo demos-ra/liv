@@ -12,8 +12,8 @@
 //   W-FN     parseRequest / buildResult / buildError   F-mcp/R1 json-rpc
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R1 tool-registry
 //   W-FN     readPresent        F-present/R3 present-contract   (present tool — the read)
-//   W-FN     presentOrDegraded  F-mcp/R2 present-or-degraded     (turn response — post-write present-or-degraded, A2.2)
-//   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns)
+//   W-FN     presentOrDegraded  F-present/R3 present-contract   (turn response — post-write present-or-degraded, A2.2/§1b)
+//   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns, returns WriteAck)
 //   W-FN     emissionFromStructured  F-present/R3 present-contract  (the narrowing/gate)
 //   W-FN     projectEmissionSchema   F-present/R3 present-contract  (turn inputSchema = projectEmissionSchema(MCP_SITUATION))
 //   W-ATOM   MarkingSituation        F-present/R3 present-contract  (MCP_SITUATION — the wire's contract choices, type-only)
@@ -28,7 +28,6 @@
 // deps:
 //   R1  ../domain/json-rpc
 //   R1  ../domain/tool-registry
-//   R2  ../app/present-or-degraded
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract
 //   R3  @/features/F-memory/contract/substrate-contract
@@ -37,7 +36,6 @@
 
 import { parseRequest, buildResult, buildError } from '../domain/json-rpc'
 import { listTools, initializeResult, planToolCall } from '../domain/tool-registry'
-import { presentOrDegraded } from '../app/present-or-degraded'
 import { TOOL_TURN } from '../config/mcp-tools'
 import {
   JSONRPC_METHOD_NOT_FOUND,
@@ -46,7 +44,7 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordScoredTurn, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
+import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordScoredTurn, presentOrDegraded, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
@@ -159,9 +157,9 @@ export async function handleMcpRequest(
         const emission = emissionFromStructured({
           reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
         })
-        let recorded
+        let ack
         try {
-          recorded = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, { text: intention.wearerText })
+          ack = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, { text: intention.wearerText })
         } catch (err) {
           // CLAIM + VALIDATE failure (R3): a word-index↔surface mismatch is rejected LOUD and
           // ATOMIC — nothing persisted. Name it (law-named, invalid params) so the agent
@@ -171,13 +169,13 @@ export async function handleMcpRequest(
         }
 
         // Response = the fresh present in the WIRE bundle (R7: tables only), rendered POST-write
-        // (R2 — the turn door is a write door whose response carries the present). The HONEST
-        // ACKNOWLEDGEMENT (§0) is owned by the R2 unit presentOrDegraded: it hands over the whole
-        // `recorded` outcome and the unit forms the truthful ack — a committed write whose render
-        // failed STILL STANDS (the turn is never masked), and an honest no-write (empty reply →
-        // zero rows) is reported as not-persisted (ok:false, sc:null), never as a value that looks
-        // persisted when it wasn't. The door stays thin — no try/catch, no persistence inference.
-        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, recorded)
+        // (the turn door is a write door whose response carries the present). The HONEST
+        // ACKNOWLEDGEMENT (§0) is owned by the rehomed read-door unit presentOrDegraded (F-present
+        // R3, §1b): it takes the WriteAck and forms the truthful ack — a committed write whose
+        // render failed STILL STANDS (ok:true, sc; the turn is never masked), and a dropped no-write
+        // (empty reply → landed:false) is reported as not-persisted (ok:false, sc:null), never as a
+        // value that looks persisted when it wasn't. The door stays thin — no try/catch, no inference.
+        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, ack)
         return buildResult(id, toolText(typeof out === 'string' ? out : JSON.stringify(out)))
       }
 

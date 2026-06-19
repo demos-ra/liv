@@ -36,8 +36,8 @@ import type { McpToolDescriptor } from './mcp-protocol'
 // TOOL_LOOKUP — referenced across R1/R3); only their VALUES are the renamed public verbs. The
 // surface maps public→internal: the wire advertises these names, planToolCall matches on them,
 // and the intention discriminator + internal functions (readPresent / lookup() / recordScoredTurn)
-// keep the old internal tokens behind the boundary. Advertisement/manual PROSE still names the
-// old verbs — deferred to Part 4 (see the targeted-rewrite list handed with this part's SHA).
+// keep the old internal tokens behind the boundary. Advertisement/manual PROSE now speaks the
+// public verbs in the Host voice (Part 4): summary / search / compose throughout, no stale verb.
 export const TOOL_PRESENT = 'summary' as const
 export const TOOL_TURN = 'compose' as const
 export const TOOL_LOOKUP = 'search' as const
@@ -57,7 +57,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_PRESENT,
     description:
-      "Read the wearer's present — the resolved memory context. Takes no arguments; the wearer is the authenticated session identity. Extra fields are ignored — reads take no testimony; clients may attach lifecycle envelopes freely.",
+      'Your present, set before you — the memory as it now stands, gathered into its default tables: the transcript, the structure, the state. It asks nothing of you; the wearer is the session, and it is already yours.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -67,7 +67,7 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   {
     name: TOOL_TURN,
     description:
-      "Record ONE conversation turn — the person's words AND your scored reply, in a single call — and receive your fresh present in return. LIV writes both turns; you never make a separate wearer write. DEMANDED shape (enforced at the door): { wearerText, reply, replyMarks, priorMarks } — all four required (the mark arrays may be empty, never absent); extra fields are rejected. wearerText is the person's verbatim words (LIV cuts it). reply is your reply as ONE plain text string — authoritative; LIV cuts it (§FORK-A) and renders it byte-identical. replyMarks score YOUR reply; priorMarks score the PERSON's turn. Each mark entry is { word, surface, marks }: word is the 1-based WORD-INDEX into that turn's text (count word-cells left to right), surface is the exact word you claim sits at that index — LIV verifies surface against the cut byte-exact and rejects a mismatch loud. Coordinates appear only inside a mark's Ref (target/peer), copied from lookup, never as a home index. Circumstance (identity, channel, scope) is stamped by the perimeter — never sent. The full fill manual is delivered with this tool.",
+      "Offer this turn — the person's words and your reply, marked as you read them — and receive your present, freshly set. LIV keeps both turns; you never write the person's words separately. The full manual for marking rides with this tool.",
     // NO inputSchema here — the `turn` advertisement is a DERIVED view (cognition-turn
     // contract). Its schema is projected at R3 (mcp-contract) as projectEmissionSchema(
     // MCP_SITUATION): the one core emission contract, projected for the wire — flat object,
@@ -77,17 +77,19 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
   },
   {
     name: TOOL_LOOKUP,
-    // PLACEHOLDER advertisement — Part 4 writes the real words in her voice. The SHAPE is
-    // region × lens (two orthogonal axes that compose): region (where) selects the substrate;
-    // lens (how) returns raw numbered cells (to copy a coordinate) or the rendered pivot grid
-    // (the Excel view, its zones as fields). The structure below is discoverable; the words are L0's.
-    description: 'search — region (where) × lens (how); they compose. [placeholder — Part 4]',
+    // The SHAPE is region × lens (two orthogonal axes that compose): region (where) selects the
+    // substrate; lens (how) returns raw numbered cells (to copy a coordinate) or the rendered
+    // pivot grid (its zones as fields). The advertisement (Part 4, the Host voice) names those
+    // axes warmly — where to look (turn|span|thing|all) × how to see it (raw|pivot).
+    description:
+      'Look closer, or look another way. Name **where** to look — `turn`, `span`, `thing`, or `all` — and **how** to see it: `raw` returns the numbered cells, each carrying its `{who, sc, pos}`, to copy a coordinate into a mark; `pivot` re-lays the same things into a table you shape — focus one thing, change the rows, hide a column, sort, go deeper. The tables are the ones summary already serves; here you turn them in your hands.',
     inputSchema: {
       type: 'object',
       properties: {
         region: {
+          // zero field hints (4b): the schema enforces shape silently; the manual teaches
+          // the where-axis (LOOKING AROUND), and the search advertisement names it warmly.
           type: 'object',
-          description: 'where — which part of the substrate. [placeholder]',
           properties: {
             kind: { type: 'string', enum: ['turn', 'span', 'thing', 'all'] },
             who:  { type: 'string', enum: ['wearer', 'llm'] },
@@ -99,8 +101,9 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
           additionalProperties: true,
         },
         lens: {
+          // zero field hints (4b): the how-axis (raw | pivot and the pivot zones) is taught by
+          // the manual's LOOKING AROUND section; the schema carries shape, not prose.
           type: 'object',
-          description: 'how — raw cells, or the pivot grid (its zones as fields). [placeholder]',
           properties: {
             view:    { type: 'string', enum: ['raw', 'pivot'] },
             rows:    { type: 'string', enum: ['lineage', 'time'] },

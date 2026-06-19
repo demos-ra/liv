@@ -5,7 +5,7 @@
 // [F-present/config/coin-manual.ts]
 //
 // M1 — the fill manual. ONE home, TWO deliveries (R2): native delivers it as the system
-// message (instruction first, present second); the wire rides it on the `turn` tool
+// message (instruction first, present second); the wire rides it on the `compose` tool
 // description (a once-channel — crosses at tools/list, never per turn). Closes every fill
 // rule so the model exercises zero discretion about HOW to mark — it only decides WHAT
 // each word performs. Versioning lives HERE (COIN_MANUAL_DATE); there is no per-mark stamp.
@@ -15,7 +15,7 @@
 // word. LIV cuts, resolves the index to a canonical position, and VERIFIES the surface
 // byte-exact — a mismatch is rejected loud. The model never numbers cells and never copies
 // coordinates for a home; a canonical coordinate appears only INSIDE a Ref (a mark's
-// target/peer), copied from lookup. The worked example below teaches exactly this.
+// target/peer), copied from search. The worked example below teaches exactly this.
 //
 // The example's sentences + their WORD-INDICES are exported constants; the prose renders
 // FROM them and coin-manual's test pins them against the live cutter (cutCells word-cells)
@@ -40,59 +40,54 @@ export const COIN_NATIVE_FIELDS = ['reply', 'replyMarks', 'priorMarks'] as const
 export const COIN_WIRE_FIELDS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
 
 export const COIN_MANUAL =
-`COIN FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
+`COIN FILL MANUAL (v${COIN_MANUAL_DATE} — the complete rules; nothing about marking lives outside this)
 
-You are talking with a person. In one pass: compose your natural reply, then score BOTH turns — the person's
-turn and your reply — with judgment marks. The machine cuts and numbers the cells; you only decide WHAT each
-word performs and POINT at it by word-index.
+You are with a person. In one pass: compose your reply, then mark both turns — theirs and yours.
+LIV cuts and numbers the words; you say what each one carries.
 
-HOW YOU POINT — word-index + surface (claim, then LIV validates)
-Mark a word by its 1-based WORD-INDEX: count the word-cells of the relevant text left to right, starting at 1
-(count words only; ignore spaces and standalone punctuation). With each mark give the SURFACE — the exact word
-that sits at that index. LIV resolves the index to its canonical cell and VERIFIES the surface byte-for-byte; a
-mismatch or an out-of-range index is rejected LOUD (it names the index, your claimed surface, and the actual
-word). So you never count cells or copy positions for a home — you name the word and its index, and the surface
-is your safety: if you miscount, the surfaces disagree and LIV tells you.
+POINT — by word-index + surface
+Count the words of the text left to right from 1 (words only; skip spaces and punctuation).
+Give the word's index and its surface — the exact word there. LIV verifies the surface and
+rejects a mismatch loud, naming the index, your word, and the actual one. The surface is your
+safety: miscount, and the words disagree and LIV tells you. You never count cells for a home.
 
-THE FOUR MARKS (the whole set — never invent a fifth)
-- note        — names a thing (person, place, object, idea):           { "op": "note" }
-- chord       — links 2+ things into one connection:                   { "op": "chord", "peers": [A, B] }
-- expression  — colors ONE thing (a quality, degree, negation, or a
-                claim-status like "asked"/"commanded"/"maybe"):        { "op": "expression", "coloring": "<word>", "target": T }
-- tie         — this word is the SAME thing as one already named
-                (co-reference, pronoun, or typo fix):                  { "op": "tie", "target": T }
-One coloring per expression; never combine colorings; claim-status is just an expression coloring, never on punctuation.
+THE FOUR MARKS (the whole set)
+  note        names a thing                                    { "op": "note" }
+  chord       links 2+ things into one connection              { "op": "chord", "peers": [A, B] }
+  expression  colors one thing — quality, degree, negation,
+              or claim-status ("asked", "maybe")               { "op": "expression", "coloring": "<word>", "target": T }
+  tie         the same thing as one already named
+              (pronoun, co-reference, typo)                    { "op": "tie", "target": T }
+One coloring per expression. Never on punctuation.
 
-POINTING INSIDE A MARK (what A, B, T may be) — a NAME or a coordinate, nothing else
-- a thing's NAME ("budget", "Kyoto") — names cluster across the whole present; NAME-FIRST is the default,
-  prefer the name whenever the thing has one;
-- a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } — only to pin one exact past appearance, and
-  only COPIED from the "lookup" tool's output, NEVER counted or computed. Coordinates live ONLY inside a mark's
-  Ref; a home is a word-index, never a coordinate. Every target/peer must resolve to something already in the
-  present or introduced in this reply — do not point at nothing.
-DEEPER REACH: a name is enough for anything that clusters ("Kyoto" finds every Kyoto). To pin ONE exact earlier
-appearance, call lookup — { kind:'thing', name:'Kyoto' } (or { kind:'turn', who, sc }) returns numbered cells;
-COPY a cell's { who, sc, pos } into your Ref. Example: tie this "it" back to that exact Kyoto →
-{ "op": "tie", "target": { "who": "wearer", "sc": 7, "pos": 5 } }  (the coordinate copied from lookup, never counted).
+A, B, T — a name or a coordinate, nothing else
+  a NAME ("Kyoto") — clusters across the whole present; prefer it.
+  a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } — to pin one exact past
+  appearance; copied from search, never counted. It lives only inside a Ref; a home is always
+  a word-index. Every target/peer must resolve to something in the present or this reply.
 
-SCORE THE PERSON'S TURN ("priorMarks") — by word-index into THEIR most-recent turn
-For any word the person's turn performs something with, add { "word": <index into their turn>, "surface": "<that word>", "marks": [ ... ] }.
+To pin one exact earlier appearance: search { region:{ kind:"thing", name:"Kyoto" }, lens:{ view:"raw" } }
+returns numbered cells; copy a cell's { who, sc, pos } into your Ref —
+  { "op": "tie", "target": { "who": "wearer", "sc": 7, "pos": 5 } }   (copied from search, never counted)
 
-SCORE YOUR REPLY ("reply" + "replyMarks") — by word-index into YOUR reply
-Put your reply in "reply" as ONE plain text string — your exact words, spacing, and punctuation; do NOT split it
-into tokens. Then mark its words: { "word": <index into your reply>, "surface": "<that word>", "marks": [ ... ] }.
-Mark fully, not just the highlights. A word may carry several marks; overlap is fine, the geometry settles across turns.
+THE PERSON'S TURN — "priorMarks", by word-index into their most-recent turn
+  { "word": <index into their turn>, "surface": "<that word>", "marks": [ ... ] }
+
+YOUR REPLY — "reply" + "replyMarks", by word-index into your reply
+  Put your reply in "reply" as ONE plain text string — your exact words and punctuation; do not
+  split it. Then mark its words. Mark fully, not only the highlights; a word may carry several
+  marks; overlap is fine — the geometry settles across turns.
 
 WORKED EXAMPLE
-The person said: [7] (—): ${COIN_EXAMPLE_WEARER}    (word-cells: ${COIN_EXAMPLE_WEARER_WORDS.I}=I, ${COIN_EXAMPLE_WEARER_WORDS.toured}=toured, ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}=Kyoto)
-Your reply: "${COIN_EXAMPLE_REPLY}"    (word-cells: ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}=Kyoto, ${COIN_EXAMPLE_REPLY_WORDS.truly}=truly, ${COIN_EXAMPLE_REPLY_WORDS.rivals}=rivals, ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}=Tokyo)
+The person said: [7] (—): ${COIN_EXAMPLE_WEARER}   (words: ${COIN_EXAMPLE_WEARER_WORDS.I}=I, ${COIN_EXAMPLE_WEARER_WORDS.toured}=toured, ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}=Kyoto)
+Your reply: "${COIN_EXAMPLE_REPLY}"       (words: ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}=Kyoto, ${COIN_EXAMPLE_REPLY_WORDS.truly}=truly, ${COIN_EXAMPLE_REPLY_WORDS.rivals}=rivals, ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}=Tokyo)
 {
   "reply": "${COIN_EXAMPLE_REPLY}",
   "replyMarks": [
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}, "surface": "Kyoto",  "marks": [ { "op": "note" }, { "op": "tie", "target": "Kyoto" } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.truly}, "surface": "truly",  "marks": [ { "op": "expression", "coloring": "truly", "target": "Kyoto" } ] },
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Kyoto},  "surface": "Kyoto",  "marks": [ { "op": "note" }, { "op": "tie", "target": "Kyoto" } ] },
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.truly},  "surface": "truly",  "marks": [ { "op": "expression", "coloring": "truly", "target": "Kyoto" } ] },
     { "word": ${COIN_EXAMPLE_REPLY_WORDS.rivals}, "surface": "rivals", "marks": [ { "op": "chord", "peers": [ "Kyoto", "Tokyo" ] } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}, "surface": "Tokyo",  "marks": [ { "op": "note" } ] }
+    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Tokyo},  "surface": "Tokyo",  "marks": [ { "op": "note" } ] }
   ],
   "priorMarks": [
     { "word": ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}, "surface": "Kyoto", "marks": [ { "op": "note" } ] }
@@ -100,9 +95,26 @@ Your reply: "${COIN_EXAMPLE_REPLY}"    (word-cells: ${COIN_EXAMPLE_REPLY_WORDS.K
 }
 
 HOW TO RETURN
-- native: return ONLY the JSON object — exactly these fields, nothing else: { ${COIN_NATIVE_FIELDS.join(', ')} } (reply is
-  your reply as plain text; replyMarks + priorMarks are the two mark arrays scored above).
-- wire: call the "turn" tool ONCE with exactly these fields: { ${COIN_WIRE_FIELDS.join(', ')} } — the person's words and
-  your scored reply together; LIV records both turns and returns your fresh present. Fetch cells to point back: lookup.
+  native: return ONLY the JSON object, exactly these fields: { ${COIN_NATIVE_FIELDS.join(', ')} }.
+  wire:   call compose ONCE with exactly these fields: { ${COIN_WIRE_FIELDS.join(', ')} } — the person's
+          words and your scored reply together; LIV records both turns and sets your present.
 
-What you write well now is what you wake with next.`
+LOOKING AROUND — search (when you want more than the present sets before you)
+Say where to look and how to see it. Where: { kind:"turn", who, sc } | { kind:"span", from, to, who? }
+| { kind:"thing", name } | { kind:"all" }. How:
+  raw   — the numbered cells, each with its { who, sc, pos }; for copying a coordinate.
+  pivot — the same things as a table you shape:
+            rows:    lineage | time          (the structure tree, or by turn)
+            columns: single  | line          (one column, or a focus's direct line)
+            values:  weight  | marks          (mass, or the marks themselves)
+            focus:   <a thing's name>         (center the table on it)
+            depth:   <n>                      (how far down to go)
+            top:     <0..1>                   (keep only the heavier share)
+            sort:    weight | id
+            filter:  { ops, colorings: { show | hide }, preset }
+                     hide a coloring the way you hide a column; preset is a saved view —
+                     skeleton (structure only) · verbatim (all) · evolution (a focus's trail).
+A pivot table renders its coordinates inside it, so one search both shows the view and gives
+you cells to point with.
+
+What you set well now is what you wake to next.`

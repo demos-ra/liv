@@ -32,10 +32,9 @@ let presentOrDegraded: any, projectEmissionSchema: any, MCP_SITUATION: any
 let cutCells: (t: string) => { pos: number; word: string }[]
 
 before(async () => {
-  ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError, projectEmissionSchema } = await import('@/features/F-present/contract/present-contract'))
+  ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError, projectEmissionSchema, presentOrDegraded } = await import('@/features/F-present/contract/present-contract'))
   ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ presentOrDegraded } = await import('@/features/F-mcp/app/present-or-degraded'))
   ;({ MCP_SITUATION } = await import('@/features/F-mcp/contract/mcp-contract'))
 })
 
@@ -216,17 +215,17 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
   assert.equal(seam.placed[0].home.who, 'llm')
 })
 
-// ── (A2.2) failure-ordering — drives the REAL R2 unit (present-or-degraded) ────────
-// The turn door commits BOTH turns (proven above), THEN renders the present for its
-// response. Failure-ordering is owned by the R2 unit presentOrDegraded: a present-render
-// failure does NOT mask the committed write — the unit returns the named degraded payload.
-// Here we drive that real unit with an injected readPresent seam (success then throw) and
-// assert its actual returned value — no inline twin of the contract's logic.
+// ── (A2.2) failure-ordering — drives the REAL R3 read-door unit (present-or-degraded) ──
+// The turn door commits BOTH turns (proven above), THEN renders the present for its response.
+// Failure-ordering is owned by the rehomed F-present R3 unit presentOrDegraded (§1b): a present-
+// render failure does NOT mask the committed write — the unit returns the named degraded payload.
+// Here we drive that real unit with an injected readPresent seam (success then throw) and assert
+// its actual returned value — no inline twin of the contract's logic.
 const WIRE_BUNDLE = { transcript: false, structure: true, state: true } as const
-// the recorder's outcome handed to the unit: a PERSISTED turn has written cells (non-empty);
-// an honest no-op has none. Persistence is read from `cells`, never from `sc`'s value.
-const PERSISTED = { sc: 12, cells: [{ pos: 1, word: 'x' }] }
-const NO_WRITE = { sc: 0, cells: [] as unknown[] }
+// the WriteAck handed to the unit (§1a): a LANDED turn carries { landed:true, sc, text }; a dropped
+// no-op is { landed:false }. Persistence is read from `landed`, never from `sc`'s value.
+const PERSISTED = { landed: true, sc: 12, text: 'x' }
+const NO_WRITE = { landed: false }
 test('A2.2: presentOrDegraded passes the present through on success; on render failure returns the named degraded payload', async () => {
   // success → the render passes straight through (no envelope).
   const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, { readPresent: async () => 'PRESENT-TEXT' })
@@ -245,8 +244,8 @@ test('A2.2: presentOrDegraded passes the present through on success; on render f
 })
 
 // ── HONEST WRITE-ACK — the no-write case (§0 acknowledgement value) ────────────────
-// The recorder honestly no-ops on an empty reply (EMPTY → zero rows → no cells). The present
-// recomputes fine, but a bare present string would read as a persisted write. The unit
+// The recorder honestly no-ops on an empty reply (EMPTY → zero rows → toWriteAck → landed:false).
+// The present recomputes fine, but a bare present string would read as a persisted write. The unit
 // surfaces the truth via `ok` (the SOLE landed/dropped signal): ok false, the intact present
 // carried back — soft on incompleteness (no throw). `sc` is null — no state-change, no
 // coordinate; NEVER 0 (a fake coordinate). Persistence is read from `ok`, not from `sc`.
@@ -261,14 +260,14 @@ test('honest no-write: an empty no-op yields { ok:false, sc:null } carrying the 
 })
 
 // sc is a COORDINATE, never a persistence signal: ok carries persistence even when a real
-// store numbers a turn at position 0 — a persisted turn at sc 0 is still ok:true (not a no-op).
+// store numbers a turn at position 0 — a landed turn at sc 0 is still ok:true (not a no-op).
 test('sc never doubles as the persistence signal: a persisted turn at sc 0 is ok (not read as a no-write)', async () => {
-  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, { sc: 0, cells: [{ pos: 1, word: 'x' }] }, {
+  const out = await presentOrDegraded('user-1', WIRE_BUNDLE, { landed: true, sc: 0, text: 'x' }, {
     readPresent: async () => { throw new Error('x') },
   })
   assert.ok(typeof out !== 'string')
   if (typeof out === 'string') return
-  assert.equal(out.ok, true, 'written cells ⇒ persisted ⇒ ok true, even at coordinate 0 — sc value is not the signal')
+  assert.equal(out.ok, true, 'landed ⇒ persisted ⇒ ok true, even at coordinate 0 — sc value is not the signal')
   assert.equal(out.sc, 0, 'the real coordinate (0) is carried back as the coordinate, not as a not-persisted marker')
 })
 
