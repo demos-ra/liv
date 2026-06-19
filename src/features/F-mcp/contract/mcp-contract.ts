@@ -22,6 +22,7 @@
 //   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
 //   W-FN     lookup             F-present/R3 present-contract   (R8 read control — turn|span|thing)
 //   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only)
+//   W-FN     entitlementAdmits  F-entitlement/R3 entitlement-contract   (WP1 — the write-door crossing decision)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
@@ -30,6 +31,7 @@
 //   R1  ../domain/tool-registry
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract
+//   R3  @/features/F-entitlement/contract/entitlement-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R3  @/features/F-identity/contract/perimeter-consultation
 // validated:  pending
@@ -41,11 +43,13 @@ import {
   JSONRPC_METHOD_NOT_FOUND,
   JSONRPC_INTERNAL_ERROR,
   JSONRPC_INVALID_PARAMS,
+  JSONRPC_ENTITLEMENT_DENIED,
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
 import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordScoredTurn, presentOrDegraded, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
+import { entitlementAdmits } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -147,6 +151,16 @@ export async function handleMcpRequest(
               ? result.text
               : JSON.stringify({ ok: true, view: 'raw', cells: result.cells })
           return buildResult(id, toolText(out))
+        }
+
+        // ENTITLEMENT GATE (WP1) — the boundary crossing DECISION at the write-door. A turn is a
+        // write crossing; admit it only if the perimeter-stamped attribute admits (paid|trial).
+        // Switchable + dormant by default: no provider → proxy stamps 'trial' → admit. The decision
+        // READS session.resolvedEntitlement (stamped once at the perimeter, PA-I) and re-resolves
+        // nothing; a not-admitted crossing is denied HERE, before the recorder is ever reached. It
+        // is a gate, not a meter (no count). Reads (present/search) are not gated — only the write.
+        if (!entitlementAdmits(session.resolvedEntitlement)) {
+          return buildError(id, JSONRPC_ENTITLEMENT_DENIED, 'entitlement lapsed: this write crossing is not admitted')
         }
 
         // turn — DEMANDED (R1): ONE call carries BOTH turns. userId is ALWAYS the session's;

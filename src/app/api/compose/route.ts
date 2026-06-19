@@ -22,6 +22,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
+import { entitlementAdmits } from '@/features/F-entitlement/contract/entitlement-contract'
 import {
   emissionFromStructured,
   recordScoredTurn,
@@ -36,6 +37,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { ok: false, error: { code: 'COMPOSE_AUTH_REJECTED', message: 'unauthenticated' } },
       { status: 401 },
+    )
+  }
+
+  // ENTITLEMENT GATE (WP1) — the SAME boundary crossing decision as the MCP turn door (REST↔MCP
+  // symmetry). A compose is a write crossing; admit only if the perimeter-stamped attribute admits
+  // (paid|trial). Switchable + dormant by default: no provider → 'trial' → admit. Reads the stamp
+  // (session.resolvedEntitlement), re-resolves nothing (PA-I); a not-admitted crossing is denied
+  // here, before the recorder. A gate, not a meter.
+  if (!entitlementAdmits(session.resolvedEntitlement)) {
+    return NextResponse.json(
+      { ok: false, error: { code: 'COMPOSE_ENTITLEMENT_DENIED', message: 'entitlement lapsed: this write crossing is not admitted' } },
+      { status: 402 },
     )
   }
 

@@ -215,6 +215,24 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
   assert.equal(seam.placed[0].home.who, 'llm')
 })
 
+// ── (WP1) entitlement gate — the write-door crossing decision ──────────────────────
+// A turn is a write crossing; the door admits it only if the perimeter-stamped attribute
+// admits (paid|trial). A lapsed crossing is denied AT THE DOOR — before the recorder is
+// reached (no DB touched). The default stamp is 'trial' (no provider) → admit, so the gate
+// is dormant until a provider feeds 'lapsed' (entitlementAdmits is unit-tested for the
+// paid/trial/lapsed logic in F-entitlement; here we prove the door is wired to it).
+test('WP1: a lapsed crossing is denied at the turn door (entitlement), the write never reached', async () => {
+  const { handleMcpRequest } = await import('@/features/F-mcp/contract/mcp-contract')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const res: any = await handleMcpRequest(
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'compose', arguments: goodArgs() } },
+    { userId: 'u', sessionId: 's', resolvedEntitlement: 'lapsed' } as never,
+  )
+  assert.ok(res.error, 'the lapsed crossing is denied (a JSON-RPC error, not a result)')
+  assert.equal(res.error.code, -32002, 'denied with the entitlement-denied code (write never reached)')
+  assert.match(res.error.message, /not admitted/i)
+})
+
 // ── (A2.2) failure-ordering — drives the REAL R3 read-door unit (present-or-degraded) ──
 // The turn door commits BOTH turns (proven above), THEN renders the present for its response.
 // Failure-ordering is owned by the rehomed F-present R3 unit presentOrDegraded (§1b): a present-

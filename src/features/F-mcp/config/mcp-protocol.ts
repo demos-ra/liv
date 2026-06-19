@@ -31,6 +31,9 @@ export const JSONRPC_INVALID_PARAMS = -32602 as const
 export const JSONRPC_INTERNAL_ERROR = -32603 as const
 // Implementation-defined server-error range (-32000..-32099). Auth rejection.
 export const JSONRPC_UNAUTHENTICATED = -32001 as const
+// Entitlement-denied (WP1): a write crossing whose stamped attribute does not admit
+// (lapsed). Distinct from unauthenticated — the wearer is known, the crossing is gated.
+export const JSONRPC_ENTITLEMENT_DENIED = -32002 as const
 
 export type JsonRpcId = string | number | null
 
