@@ -796,10 +796,13 @@ export async function POST_message(
             send({ chunk })
           }
           const replyCells = cutCells(reply)
-          const sc = replyCells.some(c => isWordCell(c.word))
-            ? await writeRawTurn({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
-            : 0
-          aiResult = { sc, markCount: 0, text: reply }
+          // baseline write (R2a) — the plain reply's words. The assigned position is not read
+          // back (CognitionResult carries only text, F5); the write happens for its substrate
+          // effect (skipped when the reply has no word-cells — an honest empty non-write).
+          if (replyCells.some(c => isWordCell(c.word))) {
+            await writeRawTurn({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
+          }
+          aiResult = { text: reply }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'unknown_error'

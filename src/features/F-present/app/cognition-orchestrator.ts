@@ -150,15 +150,12 @@ export const composeAndWrite: ReplyComposer = async (input) => {
     ? { written: { sc: input.wearerTurn.sc, wordCells: input.wearerTurn.cells } }
     : { written: { sc: 0, wordCells: [] } }
   // Native calls the recorder IN-SLICE (the raw RecordedTurn) and wraps it with the SHARED
-  // toWriteAck — the one ack deriver every rail uses, none reconstructing (§1a). landed → the
-  // CognitionResult { sc, text } the seam expects (markCount rides from the recorder — a dead
-  // seam field, residue, not Part 1's to remove); dropped (empty/malformed reply) → { sc:0,
-  // text:'' }, the live empty-text signal F-chat already handles at chat-contract.
+  // toWriteAck — the one ack deriver every rail uses, none reconstructing (§1a). The seam now
+  // carries only text (F5): landed → { text }; dropped (empty/malformed reply) → { text:'' },
+  // the live empty-text signal F-chat already handles at chat-contract.
   const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer)
   const ack = toWriteAck(recorded)
-  return ack.landed
-    ? { sc: ack.sc, markCount: recorded.markCount, text: ack.text }
-    : { sc: 0, markCount: 0, text: '' }
+  return { text: ack.landed ? ack.text : '' }
 }
 
 // ── Read-front — the rail-aware present bundle (R7) ────────────────────────────

@@ -56,9 +56,10 @@ export type CognitionInput = {
   wearerTurn?:  { sc: number; cells: { pos: number; word: string }[] }
 }
 
-// What a composer returns: the substrate position, the placed-mark count (0 for the
-// baseline plain reply), and the rendered response text for the UI.
-export type CognitionResult = { sc: number; markCount: number; text: string }
+// What a composer returns: the rendered response text for the UI. (F5: the dead `sc` and
+// `markCount` are gone — no consumer ever read them; F-chat reads `.text` only. The write
+// position lives in the sealed recorder return, not here; the seam carries only what is read.)
+export type CognitionResult = { text: string }
 
 // The two optional upgraders.
 export type ReplyComposer = (input: CognitionInput) => Promise<CognitionResult>

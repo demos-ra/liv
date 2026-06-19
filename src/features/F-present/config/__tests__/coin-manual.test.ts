@@ -70,6 +70,18 @@ test('the manual field lists ARE the core contract\'s projected property keys', 
   assert.deepEqual([...COIN_WIRE_FIELDS], Object.keys(wire.properties))
 })
 
+// ── F6: the manual's mark vocabulary is pinned to MUSICAL_OPS (the register) ───────
+// The four op tokens the manual teaches (note · tie · chord · expression) ARE the musical
+// content register (register-map). Pinned by its op-form ("op": "<token>") so a substring
+// can't false-match. If the register renames an op, this fails — the manual can never teach
+// an op the register does not carry, the same guarantee fields and indices already have.
+test('the manual teaches exactly the MUSICAL_OPS vocabulary (by op-form)', async () => {
+  const { MUSICAL_OPS } = await import('../register-map')
+  for (const op of MUSICAL_OPS) {
+    assert.ok(COIN_MANUAL.includes(`"op": "${op}"`), `the manual names the "${op}" mark in its op-form (MUSICAL_OPS)`)
+  }
+})
+
 // ── the prose actually renders from those constants (no drift between text & test) ─
 test('the manual prose renders the pinned word-indices', () => {
   const w = COIN_EXAMPLE_WEARER_WORDS, r = COIN_EXAMPLE_REPLY_WORDS
