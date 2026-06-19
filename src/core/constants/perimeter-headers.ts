@@ -53,6 +53,12 @@ export const PERIMETER_HEADER_DISPOSITION = 'x-perimeter-disposition'
 // re-resolve (PA-I unitary discipline).
 export const PERIMETER_HEADER_AUTHORITY  = 'x-perimeter-authority'
 
+// build-spec-part5: the entitlement attribute (paid | trial | lapsed) resolved
+// from the swappable seam (F-entitlement). Set once at proxy.ts; read by
+// getPerimeterSession. The attribute rides the stamp so a crossing decision can
+// consult it — the deny decision itself is not made here (Permissions' dimension).
+export const PERIMETER_HEADER_ENTITLEMENT = 'x-perimeter-entitlement'
+
 // ── PA-I enforcement: the site's stamp (the write-perimeter's teeth, Part 6) ──────
 // The full set of perimeter headers, and the ONE site-stamp helper. PA-I (above) says
 // perimeter-validated state can ONLY originate at the perimeter site — so any INBOUND
@@ -69,6 +75,7 @@ export const PERIMETER_HEADERS = [
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
   PERIMETER_HEADER_AUTHORITY,
+  PERIMETER_HEADER_ENTITLEMENT,   // B↔E fold: entitlement is site-originated — a forged x-perimeter-entitlement is stripped, then re-set authoritatively (below, in proxy.ts)
 ] as const
 
 export function stampPerimeterHeaders(

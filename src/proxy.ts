@@ -103,8 +103,10 @@ import {
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
   PERIMETER_HEADER_AUTHORITY,
+  PERIMETER_HEADER_ENTITLEMENT,
   stampPerimeterHeaders,
 } from '@/core/constants/perimeter-headers'
+import { resolveEntitlement } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
@@ -236,6 +238,10 @@ async function buildStampedResponse(args: {
   validationBasis:  string
   sessionRefreshed: boolean
   newToken?:        string
+  // build-spec-part5: the trial anchor for the entitlement seam. The cookie path
+  // supplies the wearer's account createdAt; the token path has no account record
+  // and passes null (the provider decides what a null anchor means).
+  accountCreatedAt?: Date | null
 }): Promise<NextResponse> {
   // ── Part B — Boundary stamp ───────────────────────────────────────────────
   // Fields determinable at crossing time: crossingId, crossedAt, args.resolvedChannel,
@@ -428,11 +434,26 @@ async function buildStampedResponse(args: {
       args.resolvedChannel as keyof typeof DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel
     ] ?? []
 
+  // build-spec-part5 (B↔E fold) — the entitlement attribute, resolved through the swappable
+  // seam (F-entitlement) once, here, at the unitary site (PA-I). It is site-originated and
+  // token-derived EXACTLY like the user-id, so it travels the same hardened path below: it is
+  // in PERIMETER_HEADERS (any forged x-perimeter-entitlement is stripped) and re-set here to
+  // the authoritative resolved value. No provider/payment logic lives here. A seam failure
+  // defaults to 'trial' (permissive: the attribute gates nothing yet, so a fault must not lock
+  // a wearer out).
+  let entitlementStatus = 'trial'
+  try {
+    const entitlement = await resolveEntitlement({ userId: args.userId, accountCreatedAt: args.accountCreatedAt ?? null })
+    entitlementStatus = entitlement.status
+  } catch (err) {
+    console.error('[perimeter] entitlement resolution failed', err instanceof Error ? err.message : 'unknown')
+  }
+
   // PA-I ENFORCEMENT (the write-perimeter's teeth). Forward the request to the route with
   // any INBOUND perimeter headers STRIPPED and the authoritative site values stamped — a
-  // stranger cannot forge x-perimeter-user-id to cross another wearer's scope (the route's
-  // userId is read from these headers, never the body). The strip+stamp is one home, beside
-  // the reader in F-identity. getPerimeterSession reads these off the forwarded request.
+  // stranger cannot forge x-perimeter-user-id (or x-perimeter-entitlement) to cross another
+  // wearer's scope or claim paid access. The strip+stamp is one home, beside the reader in
+  // F-identity. getPerimeterSession reads these off the forwarded request.
   const stampedRequestHeaders = stampPerimeterHeaders(args.req.headers, {
     [PERIMETER_HEADER_USER_ID]:     args.userId,
     [PERIMETER_HEADER_SESSION_ID]:  args.sessionId,
@@ -440,6 +461,7 @@ async function buildStampedResponse(args: {
     [PERIMETER_HEADER_CROSSED_AT]:  String(crossedAt),
     [PERIMETER_HEADER_DISPOSITION]: resolvedDisposition,
     [PERIMETER_HEADER_AUTHORITY]:   JSON.stringify(permittedAuthority),
+    [PERIMETER_HEADER_ENTITLEMENT]: entitlementStatus,
   })
   const response = NextResponse.next({ request: { headers: stampedRequestHeaders } })
 
@@ -451,6 +473,7 @@ async function buildStampedResponse(args: {
   response.headers.set(PERIMETER_HEADER_CROSSED_AT, String(crossedAt))
   response.headers.set(PERIMETER_HEADER_DISPOSITION, resolvedDisposition)
   response.headers.set(PERIMETER_HEADER_AUTHORITY, JSON.stringify(permittedAuthority))
+  response.headers.set(PERIMETER_HEADER_ENTITLEMENT, entitlementStatus)
 
   // Part A — re-set cookie if session was refreshed in DB.
   // Same token string; new Max-Age anchors browser expiry to DB expiry.
@@ -528,6 +551,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       validationBasis:  'session-token-validated-by-middleware',
       sessionRefreshed: false,
       newToken:         undefined,
+      // Token path carries no account record — null anchor (build-spec-part5).
+      accountCreatedAt: null,
     })
   }
 
@@ -576,6 +601,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     validationBasis:  'session-cookie-validated-by-middleware',
     sessionRefreshed,
     newToken,
+    // The wearer's account anchor for the entitlement seam (build-spec-part5).
+    accountCreatedAt: user.createdAt,
   })
 }
 

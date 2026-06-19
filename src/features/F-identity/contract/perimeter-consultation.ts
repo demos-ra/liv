@@ -37,6 +37,8 @@
 //   W-ATOM    CorrelationRefBrand             @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
 //   W-ATOM    LIV_INSTANCE_PERIMETER_SITE_REF @/core/constants/perimeter-standard              (boundary-symmetry-shot; replaces local shadow — S1 closure)
 //   W-ATOM    FOUR_CELL_GOVERNANCE_MAP        @/core/constants/perimeter-standard              (boundary-symmetry-shot; cellGovernance decomposition at dispatch direction)
+//   W-ATOM    PERIMETER_HEADER_ENTITLEMENT    @/core/constants/perimeter-headers               (build-spec-part5; entitlement stamp reader)
+//   W-ATOM    EntitlementStatus               @/features/F-entitlement/types/entitlement-types  (build-spec-part5; the stamped field type)
 // wires-out:
 //   W-FN      getPerimeterSession             → all distributed R3 contracts (F-chat, F-verify, F-output, F-permissions, F-plan, F-project, F-user-profile)
 //   W-ATOM    PerimeterSession                → all distributed R3 contracts
@@ -78,7 +80,9 @@ import {
   PERIMETER_HEADER_CROSSED_AT,
   PERIMETER_HEADER_DISPOSITION,
   PERIMETER_HEADER_AUTHORITY,
+  PERIMETER_HEADER_ENTITLEMENT,
 } from '@/core/constants/perimeter-headers'
+import type { EntitlementStatus } from '@/features/F-entitlement/types/entitlement-types'
 import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM, LIV_INSTANCE_PERIMETER_SITE_REF, FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
 import type { Who } from '@/core/types/substrate-raw.types'
@@ -171,6 +175,18 @@ function toPermittedAuthority(
   return out
 }
 
+// build-spec-part5: narrow the entitlement stamp. The header is one of the three
+// statuses; an absent or unknown value falls back to 'trial' — permissive, since
+// the attribute gates nothing yet and a missing stamp must not lock a wearer out.
+const ENTITLEMENT_STATUS_ENUM: readonly EntitlementStatus[] = ['paid', 'trial', 'lapsed']
+
+function toEntitlementStatus(raw: string | null): EntitlementStatus {
+  if (raw && (ENTITLEMENT_STATUS_ENUM as readonly string[]).includes(raw)) {
+    return raw as EntitlementStatus
+  }
+  return 'trial'
+}
+
 /**
  * PerimeterSession — extended session surface carrying boundary-stamped fields.
  *
@@ -197,6 +213,11 @@ export interface PerimeterSession {
   // channel has no binding entry or the stamp is absent/malformed —
   // conservative (no admitted authority rather than a false grant).
   resolvedAuthority:   ReadonlyArray<{ level: string; actor: string; source?: string | null }>
+  // build-spec-part5: the entitlement attribute resolved at proxy.ts from the
+  // swappable seam (F-entitlement) and stamped. Carried downstream so a crossing
+  // decision can read it without re-resolving (PA-I); the deny decision itself is
+  // not made here. 'trial' on an absent/unknown stamp (permissive).
+  resolvedEntitlement: EntitlementStatus
 }
 
 /**
@@ -249,6 +270,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   const crossedAtRaw   = req.headers.get(PERIMETER_HEADER_CROSSED_AT)
   const dispositionRaw = req.headers.get(PERIMETER_HEADER_DISPOSITION)
   const authorityRaw   = req.headers.get(PERIMETER_HEADER_AUTHORITY)
+  const entitlementRaw = req.headers.get(PERIMETER_HEADER_ENTITLEMENT)
 
   const resolvedChannel: ChannelKind         = toChannelKind(channelRaw, 'wearer-message')
   // Authorship resolved here, once, from the channel (the single site).
@@ -260,6 +282,8 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   // sprint-beta-shot-3: the channel's permitted-authority set, parsed from the
   // stamp. Absent/malformed → [] (no admitted authority — conservative).
   const resolvedAuthority                    = toPermittedAuthority(authorityRaw)
+  // build-spec-part5: the entitlement attribute, narrowed from its stamp.
+  const resolvedEntitlement: EntitlementStatus = toEntitlementStatus(entitlementRaw)
 
   return {
     userId,
@@ -269,6 +293,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
     crossedAt,
     resolvedDisposition,
     resolvedAuthority,
+    resolvedEntitlement,
   }
 }
 
