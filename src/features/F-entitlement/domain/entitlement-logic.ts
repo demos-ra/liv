@@ -36,10 +36,10 @@ export function computeTrialEntitlement(
   return { status: elapsedDays <= trialDays ? 'trial' : 'lapsed' }
 }
 
-// The crossing-decision SHAPE — exposed, not wired. It states what the attribute
-// would mean to a crossing (paid/trial admit; lapsed is the gate point) so the
-// decision is one named, testable place. The line does not call it: enforcing it
-// is the integration's act (Permissions' dimension), out of this seam's scope.
+// The crossing-decision predicate. It states what the attribute means to a crossing
+// (paid/trial admit; lapsed is the gate point) — one named, testable place. WP1 WIRED it:
+// entitlementAdmits is now consulted at BOTH write-doors (the MCP turn door + REST /api/compose).
+// What stays off the line is the PROVIDER — the swappable outbound seam (§3b), not the decision.
 export function entitlementAdmits(status: EntitlementStatus): boolean {
   return status === 'paid' || status === 'trial'
 }

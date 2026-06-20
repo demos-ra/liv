@@ -103,7 +103,7 @@ LOOKING AROUND — search (when you want more than the present sets before you)
 Say where to look and how to see it. Where: { kind:"turn", who, sc } | { kind:"span", from, to, who? }
 | { kind:"thing", name } | { kind:"all" }. How:
   raw   — the numbered cells, each with its { who, sc, pos }; for copying a coordinate.
-  table — the same things, shaped into a grid you turn:
+  table — the same things, shaped into a table you turn:
             rows:    lineage | time          (the structure tree, or by turn)
             columns: single  | line          (one column, or a focus's direct line)
             values:  weight  | marks          (mass, or the marks themselves)

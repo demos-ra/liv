@@ -17,20 +17,6 @@
 // deps:
 //   R0  @/core/types/perimeter-standard.types
 //   R0  @/core/types/substrate.types
-//
-// THE CHANNEL REGISTER — one declared map: the perimeter's ChannelKind → substrate
-// SourceChannel translation. Mirrors the mark register (F-present/config/register-map.ts):
-// a closed const table + one reader, one home per direction. The two former hand-written
-// switches (src/proxy.ts intake + perimeter-consultation dispatch) both derive from HERE,
-// so the two can never drift again (the external-agent bug was exactly that drift).
-//
-// EXHAUSTIVENESS IS COMPILE-FORCED. ChannelKind is open-vocab (8 known literals + a branded
-// string tail), so a Record<ChannelKind, …> cannot force completeness. We extract the KNOWN
-// members as a closed const array and key the map over THAT closed union — omit any known
-// channel and the file is rejected by the compiler. The open-vocab fallthrough (a genuinely
-// unknown FUTURE channel) resolves to ONE explicit default — never 'wearer': mis-attributing
-// an unknown channel as the wearer's own content is precisely the bug this register closes;
-// an unknown channel is the apparatus's own internal origin.
 
 import type { ChannelKind } from '@/core/types/perimeter-standard.types'
 import type { SourceChannel } from '@/core/types/substrate.types'
