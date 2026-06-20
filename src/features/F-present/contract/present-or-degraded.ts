@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @governing-spec COIN v1.0 (read-engine) + the honest write-ack (§0/§2.3)
+// @governing-spec COIN v1.0 (read-engine)
 // [F-present/R3]
 // Built with LIV · livai.dev
 // [F-present/contract/present-or-degraded.ts]
@@ -17,24 +17,6 @@
 // deps:
 //   R3  ./read-surface              (in-layer — dodges the R3↔R2 cycle a naive app/ move would create)
 //   R0  ../config/write-ack-types
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// POST-WRITE PRESENT-OR-DEGRADED (R3 read-door). RAIL-AGNOSTIC (§1b, F4→a): BOTH write
-// rails — the MCP turn door and the REST /api/compose route — commit the turn(s) at the
-// door, THEN render the fresh present for the response. This unit owns the FAILURE-ORDERING
-// (A2.2): the write has ALREADY committed — so if the present render throws, the turn STILL
-// STANDS. It homes in F-present's READ-DOOR (beside read-surface), NOT app/, NOT F-mcp: that
-// lets it import readPresent IN-LAYER (dodging the R3↔R2 cycle a naive app/ move would create)
-// and lets BOTH rails derive the ONE shared honest ack. It never masks a committed write as a
-// failure — the §2.3 dishonesty REST used to commit as a 500 (its post-write readPresent throw)
-// is closed here: REST now derives this same guard.
-//
-// It reads the honest WriteAck (§1a) — persistence from `landed`, the write evidence, NEVER
-// from sc. The named degraded value lives HERE and nowhere else; the door stays thin (it calls
-// this unit, it does not carry the try/catch). A4 (isolated execution): readPresent is INJECTED
-// — default-bound to the in-layer read surface; the test drives a throwing seam to exercise the
-// degraded branch against the REAL unit.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { readPresent } from './read-surface'
 import type { WriteAck } from '../config/write-ack-types'
