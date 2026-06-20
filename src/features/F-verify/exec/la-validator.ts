@@ -13,9 +13,10 @@
 //   Undeclared items are reported as notes (not hard-fail) per brief §A.2.
 //
 // w5-item-6.7 (A2, A3, A7):
-//   Check #5: CC.18 — cross-slice imports via @/features/ must target
-//   R0 (types/) or R3 (contract/) only. Codifies A2/A3 mechanically.
-//   One function — remove it and validator runs without it (A7).
+//   Check #5: CC.01 (derived from LIV_STANDARD) — cross-slice imports via
+//   @/features/ must target R0 (types/ + config alias) or R3 (contract/) only.
+//   Rule text + id + the admitted dir set are READ from the canonical; no local
+//   re-encoding. Codifies A2/A3 mechanically. Remove it and validator runs (A7).
 //
 // Sprint 13 Shot 3 — F-la-config collapse:
 //   Moved from F-la-config/exec/ to F-verify/exec/ as verificative binding.
@@ -33,10 +34,29 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { LIV_STANDARD } from '@/core/constants/liv-standard'
+import { PLACEMENT_ITEM_KIND_VALUES } from '@/core/constants/placement-standard'
 
 const ROOT = path.join(__dirname, '../../../../')
 const FEATURES = path.join(ROOT, 'src/features')
 const F_TAGS = path.join(__dirname, '../config/f-tags.json')
+
+// ─── Derived from canonical (LIV-Standard) — never re-encoded ─────────────────
+// The cross-slice rule + the layer model are READ from core/constants/liv-standard.ts:
+// T1.1 gives each layer's directory; T1.2's preamble gives the dir aliases
+// (config→R0, app→R2); CC.01 is the cross-slice rule itself. Dropping the old
+// ['types','contract'] literals means config/ (the R0 alias) is now correctly admitted.
+const DIR_TO_LAYER: Record<string, string> = {}
+for (const layer of LIV_STANDARD.sections['T1.1'].tables?.layers ?? []) {
+  DIR_TO_LAYER[layer.dir.replace(/\/$/, '')] = layer.layer
+}
+for (const m of LIV_STANDARD.sections['T1.2'].preamble.matchAll(/(\w+)\/ is an alias for (\w+)\/ \((R\d)\)/g)) {
+  DIR_TO_LAYER[m[1]] = m[3]   // alias dir inherits its target layer (config→R0, app→R2)
+}
+const CC01 = LIV_STANDARD.complianceChecks.find(c => c.id === 'CC.01')!
+const CROSS_SLICE_OK_DIRS = new Set(
+  Object.entries(DIR_TO_LAYER).filter(([, layer]) => layer === 'R0' || layer === 'R3').map(([dir]) => dir),
+)
 
 type CheckResult = { name: string; passed: boolean; violations: string[]; notes?: string[] }
 const results: CheckResult[] = []
@@ -103,8 +123,8 @@ check('All slices have domain/, contract/, exec/', () => {
   return { violations }
 })
 
-// 5. CC.18: Cross-slice imports target R0 or R3 only
-check('CC.18: Cross-slice imports target R0 or R3 only', () => {
+// 5. CC.01 (derived) — cross-slice imports target R0 (W-ATOM) or R3 (W-HOOK) only
+check(`${CC01.id}: ${CC01.text}`, () => {
   const violations: string[] = []
   walkTs(FEATURES, (filePath, content) => {
     const importingSlice = filePath.split('/features/')[1]?.split('/')[0]
@@ -118,9 +138,8 @@ check('CC.18: Cross-slice imports target R0 or R3 only', () => {
       const targetSlice = m[1]
       const targetLayer = m[2]
 
-      if (targetSlice === importingSlice) continue  // intra-slice OK
-      if (targetLayer === 'types') continue          // R0 OK
-      if (targetLayer === 'contract') continue       // R3 OK
+      if (targetSlice === importingSlice) continue          // intra-slice OK
+      if (CROSS_SLICE_OK_DIRS.has(targetLayer)) continue     // R0 (types/, config alias) or R3 (contract/)
 
       violations.push(
         `${shortPath(filePath)} imports cross-slice ${targetLayer}/ from ${targetSlice}`
@@ -147,13 +166,8 @@ check('Placement Standard: self-declared kind+placement matches filesystem (inve
   const violations: string[] = []
   const notes: string[] = []
 
-  const VALID_KINDS = new Set([
-    'framework',
-    'cycle-record',
-    'typed-runtime-projectroot',
-    'build-config',
-    'platform-tooling',
-  ])
+  // PlacementItemKind enum imported from the Placement canonical — not re-encoded inline.
+  const VALID_KINDS = new Set<string>(PLACEMENT_ITEM_KIND_VALUES)
 
   const WALK_ROOTS = [
     path.join(ROOT, 'src'),

@@ -25,8 +25,8 @@
 //   W-FN  projectEmissionSchema  →  F-mcp (turn tool — the `turn` inputSchema is a derived view)
 //   W-ATOM MarkingSituation      →  F-mcp (MCP_SITUATION — the wire's per-surface contract choices, type-only)
 //   W-ATOM COIN_MANUAL           →  F-mcp (turn tool — manual rides the description, one home)
-//   W-FN  lookup                 →  F-mcp (lookup tool — R8 read control: turn|span|thing)
-//   W-ATOM LookupSelector/Result/Cell  →  F-mcp (lookup tool — R8, type-only)
+//   W-FN  search/parseSearchSpec →  F-mcp (search tool — the text-pivot: region × lens)
+//   W-ATOM SearchRegion/Lens/Spec/Result  →  F-mcp (search tool — type-only)
 //   W-ATOM PRESENT_BUNDLES       →  F-mcp (present/turn — R7 rail-aware bundle: wire = tables only)
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
@@ -37,7 +37,7 @@
 //   R2  ../app/cognition-orchestrator
 //   R2  ../app/scored-turn-recorder  (aliased — wrapped by recordScoredTurn, returns WriteAck)
 //   R2  ../app/write-ack             (toWriteAck — the one ack deriver)
-//   R2  ../app/lookup            (lookup, Lookup* types)
+//   R2  ../app/lookup            (search, parseSearchSpec, Search* types)
 //   R3  ./read-surface
 //   R3  ./present-or-degraded    (presentOrDegraded, DegradedPresent — the post-write read-door, §1b)
 //   core @/core/types/substrate-raw.types  (Who — recordScoredTurn wrapper param)
@@ -101,14 +101,11 @@ export type { DegradedPresent } from './present-or-degraded'
 export { projectEmissionSchema } from '../domain/coin-score'
 export type { MarkingSituation } from '../domain/coin-score'
 
-// The read controls + the rail-aware bundle (sprint-wire-economy R7/R8). The wire reads the
-// present (PRESENT_BUNDLES.wire = tables only) and fetches cells on demand via lookup (turn |
-// span | thing → numbered cells — grid generalized, re-homed here). One home per surface.
-export { lookup } from '../app/lookup'
-export type { LookupSelector, LookupResult, LookupCell } from '../app/lookup'
 // search (region × lens — the text-pivot): the one read door, exposing both the raw cells
-// (cellsOf) and the rendered pivot grid (pivot → renderGrid) through region × lens. The wire
-// `search` tool maps here; turn|span|thing are region shorthands, never a parallel path.
+// (cellsOf) and the rendered grid (pivot → renderGrid) through region × lens. The wire `search`
+// tool maps here; turn|span|thing are region shorthands. The superseded `lookup`/Lookup* R3
+// re-exports are gone — search is the one read surface; lookup() stays an internal helper of
+// app/lookup that search composes (PRESENT_BUNDLES.wire = tables only; cells fetched on demand).
 export { search, parseSearchSpec } from '../app/lookup'
 export type { SearchRegion, SearchLens, SearchSpec, SearchResult } from '../app/lookup'
 export { PRESENT_BUNDLES } from '../config/read-engine-types'

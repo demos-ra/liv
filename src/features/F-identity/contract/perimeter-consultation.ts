@@ -1,5 +1,5 @@
 // @liv-standard v1.5.1 amended sprint-13-shot-2 sprint-b1-shot-1 sprint-b1-shot-2 sprint-13c-shot-1 boundary-symmetry-shot sprint-beta-shot-3
-// @perimeter-standard v1.3
+// @perimeter-standard v1.0
 // [F-identity/R3]
 // Built with LIV · livai.dev
 // @manifest
@@ -29,7 +29,8 @@
 //   W-ATOM    SubstrateWriteInput             @/core/types/substrate.types                     (sprint-13c-shot-1)
 //   W-ATOM    IdentityRef                     @/core/types/substrate.types                     (sprint-13c-shot-1)
 //   W-ATOM    ScopeRef                        @/core/types/substrate.types                     (sprint-13c-shot-1)
-//   W-ATOM    SourceChannel                   @/core/types/substrate.types                     (sprint-13c-shot-1)
+//   W-ATOM    SourceChannel                   @/core/types/substrate.types                     (sprint-13c-shot-1; now via channel-register)
+//   W-FN      toSourceChannel                 @/features/F-identity/config/channel-register     (the channel register — one home)
 //   W-ATOM    RoleRef                         @/core/types/substrate.types                     (sprint-13c-shot-1)
 //   W-ATOM    BoundaryDispatchRequest         @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
 //   W-ATOM    CrossingId                      @/core/types/perimeter-standard.types            (sprint-13c-shot-1)
@@ -93,32 +94,14 @@ import type {
   CorrelationRefBrand,
 } from '@/core/types/perimeter-standard.types'
 import { writeStateChange } from '@/features/F-memory/contract/substrate-contract'
-import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
+import type { SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef } from '@/core/types/substrate.types'
+import { toSourceChannel } from '@/features/F-identity/config/channel-register'
 import { generateId } from '@/core/types/primitives'
 
-// ─── ChannelKind → SourceChannel mapping (dispatch direction) ─────────────────
-// Mirrors toSourceChannel() in src/proxy.ts (intake direction).
-// Declared locally — perimeter-consultation is R3; importing from middleware
-// would be a module boundary violation (middleware is not a slice).
-
-function toSourceChannel(channel: ChannelKind): SourceChannel {
-  switch (channel) {
-    case 'wearer-message':
-    case 'wearer-query':
-      return 'wearer'
-    case 'ai-reply':
-      return 'ai'
-    case 'system-trigger':
-    case 'scheduled-trigger':
-      return 'cron'
-    case 'integration-event':
-      return 'integration-event'
-    case 'internal-derivation':
-      return 'internal-derivation'
-    default:
-      return 'wearer'
-  }
-}
+// ChannelKind → SourceChannel derives from the ONE channel register (F-identity R0,
+// config/channel-register) — imported above. The old local switch lacked the external-agent
+// case and mis-resolved it to 'wearer'; both directions now share one home, so external-agent
+// resolves correctly here too (intake + dispatch can no longer drift apart).
 
 // ─── Guarded narrowing helpers (F-1 fix) ─────────────────────────────────────
 // Header values arrive as string | null. Casting directly to ChannelKind /
@@ -308,8 +291,6 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
 // scopeContext from request: used as substrate write scope. The LIV_INSTANCE_PERIMETER_SITE_REF
 // constant ('src/proxy.ts') is the unitary site identity per PA-I — shared across
 // intake and dispatch directions for audit-trail coherence.
-
-const PERIMETER_FRAMEWORK_VERSION = '1.0.0'
 
 export async function dispatchCrossing(request: BoundaryDispatchRequest): Promise<void> {
   const crossingId: CrossingId = generateId('cx') as CrossingId

@@ -4,32 +4,7 @@
     "pattern": "F-[a-z][a-z0-9-]*",
     "description": "Kebab-case, starts with lowercase letter"
   },
-  "core_infrastructure": {
-    "description": "Shared infrastructure. Not F-slices. No commit tag ownership. Zero business logic.",
-    "modules": [
-      "src/core/db/client.ts        \u2014 Postgres pool singleton",
-      "src/core/api/trpc-setup.ts   \u2014 tRPC init",
-      "src/core/api/trpc-client.ts  \u2014 tRPC React client",
-      "src/core/api/router.ts       \u2014 App router assembly",
-      "src/core/types/primitives.ts \u2014 Shared types and ID generation",
-      "src/core/types/state-registry.ts \u2014 Namespace registry map"
-    ],
-    "absorbed_from": [
-      "F-types",
-      "F-state-registry",
-      "F-integration"
-    ]
-  },
   "completeness": {
-    "required_layers": [
-      "domain",
-      "contract",
-      "exec"
-    ],
-    "optional_layers": [
-      "config",
-      "app"
-    ],
     "exceptions": {
       "F-design-system": "Pure token/component library. No app/ or exec/ — no server ops, no DB, no events.",
       "F-dashboard": "Composition root and render surface owner. No server ops, no DB, no events — no exec/ needed. Orchestrates F-plan, F-output hooks. providers.tsx lives here.",

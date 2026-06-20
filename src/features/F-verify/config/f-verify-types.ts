@@ -33,9 +33,9 @@
 
 // ─── VS atom re-exports (from core/R5) ───────────────────────────────────────
 // Re-export discipline: F-verify slice consumers import VS atoms via this R0
-// boundary. Cross-slice imports of core/R5 verification-standard.types are
-// permitted by r-layers.json ("R0 may import from core/types and other slices
-// R0 only"); re-export here keeps F-verify's surface uniform.
+// boundary. Cross-slice imports of core/R5 verification-standard.types are permitted
+// by LIV-Standard CC.01 (cross-slice via R0 atom / W-ATOM) + T1.1 (R5 core exports
+// to any slice); re-export here keeps F-verify's surface uniform.
 
 export type {
   // Identifiers

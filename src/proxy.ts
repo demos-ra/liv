@@ -109,7 +109,8 @@ import {
 import { resolveEntitlement } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
-import type { SubstrateWriteInput, IdentityRef, ScopeRef, SourceChannel, RoleRef } from '@/core/types/substrate.types'
+import type { SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef } from '@/core/types/substrate.types'
+import { toSourceChannel } from '@/features/F-identity/config/channel-register'
 
 // ─── Public route prefixes ────────────────────────────────────────────────────
 // Requests matching these prefixes bypass auth. Order is significant — checked
@@ -145,34 +146,9 @@ function buildSetCookieHeader(name: string, value: string, options: {
   return parts.join('; ')
 }
 
-// ─── ChannelKind → SourceChannel mapping (Decision-D-CHANNEL) ────────────────
-// Explicit. Not a cast. Maps PS-level channel to substrate channel enum.
-
-function toSourceChannel(channel: ChannelKind): SourceChannel {
-  switch (channel) {
-    case 'wearer-message':
-    case 'wearer-query':
-      return 'wearer'
-    case 'ai-reply':
-      return 'ai'
-    case 'system-trigger':
-    case 'scheduled-trigger':
-      return 'cron'
-    case 'integration-event':
-      return 'integration-event'
-    case 'internal-derivation':
-      return 'internal-derivation'
-    case 'external-agent':
-      // sprint-beta-shot-3: the connector channel maps to its own substrate
-      // SourceChannel value — the crossing record stamps 'external-agent', not
-      // the default 'wearer'. deriveContentClassFromChannel maps it to
-      // 'wearer-life' (the agent produces the wearer's own content).
-      return 'external-agent'
-    default:
-      // Open-vocabulary fallback: unknown channel kinds map to 'wearer' as conservative default.
-      return 'wearer'
-  }
-}
+// ChannelKind → SourceChannel is the channel register (Decision-D-CHANNEL), now ONE declared
+// home at F-identity R0 (config/channel-register) — imported above, no local switch. The
+// dispatch-direction consumer (perimeter-consultation) derives from the same register.
 
 // ─── Route disposition map (Decision-D-TRPC) ─────────────────────────────────
 // Maps pathname × HTTP method → DispositionKind (act | reference).
