@@ -60,9 +60,9 @@ test('a model emitting MUSICAL ops yields validated ENGINE marks', () => {
   const e = emissionFromStructured({
     reply: 'Kyoto truly rivals Tokyo.',
     replyMarks: [
-      { word: 1, surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: 'Kyoto' }] },
-      { word: 3, surface: 'rivals', marks: [{ op: 'chord', peers: ['Kyoto', 'Tokyo'] }] },
-      { word: 2, surface: 'truly', marks: [{ op: 'expression', coloring: 'truly', target: 'Kyoto' }] },
+      { surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: 'Kyoto' }] },
+      { surface: 'rivals', marks: [{ op: 'chord', peers: ['Kyoto', 'Tokyo'] }] },
+      { surface: 'truly', marks: [{ op: 'expression', coloring: 'truly', target: 'Kyoto' }] },
     ],
     priorMarks: [],
   })
@@ -73,7 +73,7 @@ test('a model emitting MUSICAL ops yields validated ENGINE marks', () => {
 test('a non-musical, non-engine op is dropped by the gate (the map never validates)', () => {
   const e = emissionFromStructured({
     reply: 'a b',
-    replyMarks: [{ word: 1, surface: 'a', marks: [{ op: 'glissando' }, { op: 'note' }] }],
+    replyMarks: [{ surface: 'a', marks: [{ op: 'glissando' }, { op: 'note' }] }],
     priorMarks: [],
   })
   assert.deepEqual(e.replyMarks[0].marks.map((m: Mark) => m.op), ['identity'])   // glissando dropped, note kept

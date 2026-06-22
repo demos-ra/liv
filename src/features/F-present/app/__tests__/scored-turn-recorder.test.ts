@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @governing-spec COIN v1.0 (write-finalization + sprint-wire-economy claim+validate)
+// @governing-spec COIN v1.0 (write-finalization + S1 name-not-count claim+validate)
 // [F-present/app/__tests__/scored-turn-recorder.test.ts]
 // Built with LIV · livai.dev
 //
@@ -59,11 +59,11 @@ function stubDeps(replySc: number, wearerSc = 0) {
 const REPLY = 'Kyoto truly rivals Tokyo.'   // word-cells: 1=Kyoto 2=truly 3=rivals 4=Tokyo
 const WEARER = 'I toured Kyoto'             // word-cells: 1=I 2=toured 3=Kyoto
 
-// well-formed emission: identity on reply word 1 (Kyoto) and a priorMark on wearer word 3 (Kyoto).
+// well-formed emission: identity naming "Kyoto" in the reply and "Kyoto" in the wearer turn.
 const goodEmission = () => emissionFromStructured({
   reply: REPLY,
-  replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
-  priorMarks: [{ word: 3, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+  replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+  priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'identity' }] }],
 })
 
 // ── (A) one cut per turn ───────────────────────────────────────────────────────
@@ -108,12 +108,12 @@ test('wire ({ text }): writes BOTH turns, homes priorMarks on the freshly-writte
   assert.equal(prior.home.sc, 11)                             // the freshly-assigned wearer sc
 })
 
-// ── (D) validate before write — a surface mismatch is atomic (nothing persists) ─
+// ── (D) validate before write — a named-span-not-present is atomic (nothing persists) ─
 test('a surface-check failure throws and writes NOTHING (atomic)', async () => {
   const { deps, placed, writes } = stubDeps(9, 8)
   const bad = emissionFromStructured({
     reply: REPLY,
-    replyMarks: [{ word: 2, surface: 'rivals', marks: [{ op: 'identity' }] }],   // word 2 is "truly" — miscount
+    replyMarks: [{ surface: 'Osaka', marks: [{ op: 'identity' }] }],   // "Osaka" is not in the reply — named-span-not-present
     priorMarks: [],
   })
   await assert.rejects(

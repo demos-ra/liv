@@ -49,12 +49,12 @@ async function seedKyoto(h: ReturnType<typeof harness>) {
     emissionFromStructured({
       reply: 'Kyoto truly rivals Tokyo.',
       replyMarks: [
-        { word: 1, surface: 'Kyoto',  marks: [{ op: 'note' }] },
-        { word: 2, surface: 'truly',  marks: [{ op: 'expression', coloring: 'truly', target: 'Kyoto' }] },
-        { word: 3, surface: 'rivals', marks: [{ op: 'chord', peers: ['Kyoto', 'Tokyo'] }] },
-        { word: 4, surface: 'Tokyo',  marks: [{ op: 'note' }] },
+        { surface: 'Kyoto',  marks: [{ op: 'note' }] },
+        { surface: 'truly',  marks: [{ op: 'expression', coloring: 'truly', target: 'Kyoto' }] },
+        { surface: 'rivals', marks: [{ op: 'chord', peers: ['Kyoto', 'Tokyo'] }] },
+        { surface: 'Tokyo',  marks: [{ op: 'note' }] },
       ],
-      priorMarks: [{ word: 3, surface: 'Kyoto', marks: [{ op: 'note' }] }],
+      priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }] }],
     }),
     'llm', 'u', 'sess', { text: 'I toured Kyoto' }, h.recDeps,
   )
@@ -151,7 +151,7 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
   const recorded = await recordScoredTurn(
     emissionFromStructured({
       reply: 'Kyoto stays central.',
-      replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: pin }] }],
+      replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: pin }] }],
       priorMarks: [],
     }),
     'llm', 'u', 'sess', { text: 'more on Kyoto' }, h.recDeps,

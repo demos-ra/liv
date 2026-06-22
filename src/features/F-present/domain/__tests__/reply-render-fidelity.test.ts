@@ -9,9 +9,9 @@
 // There is no token space-join, so a standalone-punctuation token can never inject a space
 // before punctuation. This is the §4 render gate — it does not change under claim+validate.
 //
-// The CLAIM + VALIDATE mark path (word-index + surface, both turns) is exercised here at the
-// happy path (index → canonical pos, surface verified); the adversarial LOUD-failure matrix
-// (miscount, cell-pos-as-index, out-of-range, duplicate-word) lives in surface-check.test.ts.
+// The CLAIM + VALIDATE mark path (name-not-count, both turns) is exercised here at the happy
+// path (named span → canonical pos); the adversarial LOUD-failure matrix (named-span-not-present,
+// empty-of-words, duplicate-word first-occurrence) lives in surface-check.test.ts.
 //
 // Load note: warm the F-present R3 graph first (db client is lazy), then import coin-score.
 // Run: npx tsx --test src/features/F-present/domain/__tests__/reply-render-fidelity.test.ts
@@ -56,14 +56,14 @@ test('no space-before-punctuation — the reply renders exactly as written', () 
   assert.ok(!renderReply('a, b, c.').includes(' ,'))             // no orphaned-space-before-comma anywhere
 })
 
-// ── replyMarks resolve word-index → canonical word-cell, surface verified ─────────
-test('replyMarks home on the canonical word-cell named by their word index (surface verified)', () => {
-  const reply = 'Kyoto truly rivals Tokyo.'                      // words: 1=Kyoto 2=truly 3=rivals 4=Tokyo
+// ── replyMarks locate their NAMED span → canonical word-cell (S1 name-not-count) ──
+test('replyMarks home on the canonical word-cell of the span they name', () => {
+  const reply = 'Kyoto truly rivals Tokyo.'                      // word-cells: Kyoto truly rivals Tokyo
   const emission = cs.emissionFromStructured({
     reply,
     replyMarks: [
-      { word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] },
-      { word: 4, surface: 'Tokyo', marks: [{ op: 'identity' }] },
+      { surface: 'Kyoto', marks: [{ op: 'identity' }] },
+      { surface: 'Tokyo', marks: [{ op: 'identity' }] },
     ],
     priorMarks: [],
   })
@@ -73,7 +73,7 @@ test('replyMarks home on the canonical word-cell named by their word index (surf
   const wordAt = (pos: number) => cut.cells.find((c: { pos: number }) => c.pos === pos)?.word
 
   assert.equal(placed.length, 2)
-  // word 1 → first word-cell ("Kyoto"); word 4 → fourth word-cell ("Tokyo")
+  // "Kyoto" → first word-cell; "Tokyo" → fourth word-cell — located by name, not by count.
   assert.equal(placed[0].home.pos, cut.wordCellPos[0])
   assert.equal(wordAt(placed[0].home.pos), 'Kyoto')
   assert.equal(placed[1].home.pos, cut.wordCellPos[3])

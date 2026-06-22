@@ -1,5 +1,5 @@
 // @liv-standard v1.5.2
-// @governing-spec MCP-wire (connector) + COIN v1.0 (§FORK-A) + sprint-wire-economy R1
+// @governing-spec MCP-wire (connector) + COIN v1.0 (§FORK-A) + S1 name-not-count R1
 // [F-mcp/domain/__tests__/wire-turn.test.ts]
 // Built with LIV · livai.dev
 //
@@ -43,8 +43,8 @@ const REPLY = 'Kyoto truly rivals Tokyo.'
 const goodArgs = () => ({
   wearerText: WEARER,
   reply: REPLY,
-  replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
-  priorMarks: [{ word: 3, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+  replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+  priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'identity' }] }],
 })
 
 // ── (A) the door is TRANSPORT (cognition-turn contract) ──────────────────────────
@@ -176,10 +176,10 @@ test('a well-formed turn lands both turns and its marks; scope is the stamped se
   assert.ok(homes.includes('wearer:11'), 'the prior mark homes on the freshly-written wearer turn (sc 11)')
 })
 
-test('a turn whose mark surface mismatches is rejected loud + atomic (nothing written)', async () => {
+test('a turn whose mark names a span not in the reply is rejected loud + atomic (nothing written)', async () => {
   const plan = planToolCall('compose', {
     wearerText: WEARER, reply: REPLY,
-    replyMarks: [{ word: 2, surface: 'rivals', marks: [{ op: 'identity' }] }],   // word 2 is "truly"
+    replyMarks: [{ surface: 'Osaka', marks: [{ op: 'identity' }] }],   // "Osaka" is not in the reply
     priorMarks: [],
   })
   assert.equal(plan.ok, true)
@@ -200,7 +200,7 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
   const plan = planToolCall('compose', {
     wearerText: 123,                                              // not a string — the door admits it
     reply: REPLY,
-    replyMarks: [{ word: 1, surface: 'Kyoto', marks: [{ op: 'identity' }] }],
+    replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'identity' }] }],
     priorMarks: [],
   })
   assert.equal(plan.ok, true, 'the door (transport) admits it — shape is the core\'s concern')

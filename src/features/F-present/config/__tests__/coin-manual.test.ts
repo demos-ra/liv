@@ -1,15 +1,15 @@
 // @liv-standard v1.5.2
-// @governing-spec COIN v1.0 (M1 — the manual cannot teach a false index)
+// @governing-spec COIN v1.0 (M1 — the manual cannot teach a span that isn't there)
 // [F-present/config/__tests__/coin-manual.test.ts]
 // Built with LIV · livai.dev
 //
-// DELTA FIX-1 (sprint-wire-economy) — the worked example's taught WORD-INDICES are pinned
-// to the LIVE cutter. The manual's prose renders FROM the exported COIN_EXAMPLE_* constants
-// (one home, no duplication); this test runs the real cutCells on both example texts, takes
-// the WORD-CELLS in order, and asserts every taught index↔surface is the cutter's actual
-// word-cell. If anyone edits a sentence or a taught index without re-running the cutter, this
-// fails — the manual is incapable of silently teaching a false coordinate (now: a false
-// word-index, the new home shape) again.
+// S1 name-not-count — the worked example's NAMED SPANS are pinned to the LIVE cutter. The
+// manual no longer teaches a word-index (there is no index to pin); a mark NAMES the span it
+// sits on and LIV locates it. The manual's prose renders FROM the exported COIN_EXAMPLE_*
+// sentence constants (one home, no duplication); this test runs the real cutCells/locateWordMarks
+// on both example texts and asserts every span the example names actually OCCURS there (byte-exact,
+// no throw). If anyone edits a sentence or names a span the cutter cannot find, this fails — the
+// manual is incapable of silently teaching a span that isn't in its own text.
 //
 // Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first so the
 // F-memory R3 barrel resolves cleanly under bare `tsx` (db client is lazy).
@@ -21,34 +21,37 @@ import { test, before } from 'node:test'
 import {
   COIN_MANUAL,
   COIN_EXAMPLE_WEARER, COIN_EXAMPLE_REPLY,
-  COIN_EXAMPLE_WEARER_WORDS, COIN_EXAMPLE_REPLY_WORDS,
   COIN_NATIVE_FIELDS, COIN_WIRE_FIELDS,
 } from '../coin-manual'
 
 let cutCells: (t: string) => { pos: number; word: string }[]
-let wordCells: (cells: { pos: number; word: string }[]) => { pos: number; word: string }[]
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let projectEmissionSchema: any, NATIVE_SITUATION: any
+let locateWordMarks: any, projectEmissionSchema: any, NATIVE_SITUATION: any
 
 before(async () => {
   await import('@/features/F-present/contract/present-contract')          // warm the graph
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ wordCells, projectEmissionSchema, NATIVE_SITUATION } = await import('@/features/F-present/domain/coin-score'))
+  ;({ locateWordMarks, projectEmissionSchema, NATIVE_SITUATION } = await import('@/features/F-present/domain/coin-score'))
 })
 
-// ── every taught word-index equals the live cutter's word-cell (both texts) ──────
-test('the worked example teaches the cutter\'s real word-indices, byte-exact surfaces', () => {
-  const wcWearer = wordCells(cutCells(COIN_EXAMPLE_WEARER))
-  for (const [word, idx] of Object.entries(COIN_EXAMPLE_WEARER_WORDS)) {
-    assert.equal(wcWearer[idx - 1]?.word, word, `wearer word-index ${idx} should be "${word}" but the cutter has "${wcWearer[idx - 1]?.word}"`)
-  }
-  const wcReply = wordCells(cutCells(COIN_EXAMPLE_REPLY))
-  for (const [word, idx] of Object.entries(COIN_EXAMPLE_REPLY_WORDS)) {
-    assert.equal(wcReply[idx - 1]?.word, word, `reply word-index ${idx} should be "${word}" but the cutter has "${wcReply[idx - 1]?.word}"`)
-  }
-  // the documented fact: "Kyoto" is the 3rd WORD-cell of the wearer turn (a word-index,
-  // NOT canonical position 5 — word-indices skip the space slots).
-  assert.equal(COIN_EXAMPLE_WEARER_WORDS.Kyoto, 3)
+// the named spans the worked example marks — the SAME `surface` strings the manual emits.
+const REPLY_SPANS = ['Kyoto', 'truly', 'rivals', 'Tokyo']
+const WEARER_SPANS = ['Kyoto']
+
+// ── every named span in the example OCCURS in its text (the live cutter locates it) ──
+// locateWordMarks throws MarkSurfaceError if a named span is not present; a clean resolve
+// proves the example names only spans the cutter can find — byte-exact, both texts.
+test('the worked example names only spans the live cutter can locate (both texts)', () => {
+  const replyCells = cutCells(COIN_EXAMPLE_REPLY)
+  const located = locateWordMarks(REPLY_SPANS.map(surface => ({ surface, marks: [{ op: 'identity' }] })), replyCells, 'reply')
+  assert.equal(located.length, REPLY_SPANS.length, 'every reply span resolves to a canonical position (no throw)')
+
+  const wearerCells = cutCells(COIN_EXAMPLE_WEARER)
+  const wLocated = locateWordMarks(WEARER_SPANS.map(surface => ({ surface, marks: [{ op: 'identity' }] })), wearerCells, 'prior')
+  assert.equal(wLocated.length, WEARER_SPANS.length, 'every priorMark span resolves in the wearer turn (no throw)')
+
+  // the documented fact: "Kyoto" is named in BOTH turns and locates in each.
+  assert.ok(REPLY_SPANS.includes('Kyoto') && WEARER_SPANS.includes('Kyoto'))
 })
 
 // ── HOW TO RETURN renders its field names FROM the one contract (no fourth home) ──
@@ -74,7 +77,7 @@ test('the manual field lists ARE the core contract\'s projected property keys', 
 // The four op tokens the manual teaches (note · tie · chord · expression) ARE the musical
 // content register (register-map). Pinned by its op-form ("op": "<token>") so a substring
 // can't false-match. If the register renames an op, this fails — the manual can never teach
-// an op the register does not carry, the same guarantee fields and indices already have.
+// an op the register does not carry, the same guarantee fields and spans already have.
 test('the manual teaches exactly the MUSICAL_OPS vocabulary (by op-form)', async () => {
   const { MUSICAL_OPS } = await import('../register-map')
   for (const op of MUSICAL_OPS) {
@@ -82,11 +85,15 @@ test('the manual teaches exactly the MUSICAL_OPS vocabulary (by op-form)', async
   }
 })
 
-// ── the prose actually renders from those constants (no drift between text & test) ─
-test('the manual prose renders the pinned word-indices', () => {
-  const w = COIN_EXAMPLE_WEARER_WORDS, r = COIN_EXAMPLE_REPLY_WORDS
-  assert.ok(COIN_MANUAL.includes(`${w.I}=I, ${w.toured}=toured, ${w.Kyoto}=Kyoto`), 'wearer word-cells line renders from constants')
-  assert.ok(COIN_MANUAL.includes(`${r.Kyoto}=Kyoto, ${r.truly}=truly, ${r.rivals}=rivals, ${r.Tokyo}=Tokyo`), 'reply word-cells line renders from constants')
+// ── the prose actually renders from the sentence constants AND the named-span shape ─
+// no `word` field anywhere; the example marks carry { surface, marks } only, and the
+// sentences render from the exported constants (no drift between text & test).
+test('the manual prose renders the named-span shape (no word-index) from the constants', () => {
+  assert.ok(COIN_MANUAL.includes(`Your reply: "${COIN_EXAMPLE_REPLY}"`), 'reply sentence renders from the constant')
   assert.ok(COIN_MANUAL.includes(`[7] (—): ${COIN_EXAMPLE_WEARER}`), 'transcript line renders the sentence constant')
-  assert.ok(COIN_MANUAL.includes(`"word": ${w.Kyoto}, "surface": "Kyoto"`), 'the priorMark renders word-index + surface from the constant')
+  // the named-span shape: a mark entry is { "surface": …, "marks": … } — the priorMark renders it.
+  assert.ok(COIN_MANUAL.includes('{ "surface": "Kyoto", "marks": [ { "op": "note" } ] }'), 'the priorMark renders the named-span shape')
+  // the index era is GONE: no "word": <n> home key, no "word-index" prose anywhere.
+  assert.ok(!/"word":\s*\d/.test(COIN_MANUAL), 'no { "word": <n> } home key remains (name-not-count)')
+  assert.ok(!/word-index/i.test(COIN_MANUAL), 'no "word-index" language remains')
 })

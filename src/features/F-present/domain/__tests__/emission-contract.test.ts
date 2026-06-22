@@ -4,7 +4,7 @@
 // Built with LIV · livai.dev
 //
 // THE EMISSION CONTRACT IS PROJECTED, NOT HAND-DECLARED. coin-score owns ONE shape
-// (COORD/REF/MARK_ITEM/WORD_MARK_ITEM) and projects it per MarkingSituation. This suite pins
+// (COORD/REF/MARK_ITEM/SPAN_MARK_ITEM) and projects it per MarkingSituation. This suite pins
 // the projector's invariants at the CORE:
 //   - NATIVE byte-identical: projectEmissionSchema(NATIVE_SITUATION) is the old hand-written
 //     SCORE_SCHEMA, unchanged (containment-proof regression pin) — and SCORE_SCHEMA IS it;

@@ -9,6 +9,18 @@
 // amended:    mark-gate-placement (isMark + isRef + isCoord extracted from
 //             coin-score.ts — the single home for the gate, beside the vocabulary
 //             it guards; coin-score and the store-read perimeter both import here)
+//             S1 mark-contract (block = object-identity): a BLOCK is its own first-class
+//             identity at the SAME geometry as a word-identity — the model marks the block's
+//             named span `identity` and it homes at the block's appearance Coord. The gate
+//             admits an `identity` (and every op) homed on a BLOCK coordinate UNCHANGED: the
+//             home is a plain Coord {who,sc,pos} whether it points at a word-cell or a block,
+//             so NO home-type gating is needed and NONE is added. Ref stays string | Coord
+//             (a block is NOT a new Ref arm — it is a normal identity-home, located by name
+//             like any span); the closed mark set (identity·RELATE·QUALIFY·IDENTIFY) and the
+//             honest per-op payload checks are UNCHANGED. False testimony still rejects loud:
+//             a named span that isn't in the cut is caught upstream (coin-score.locateWordMarks,
+//             MarkSurfaceError); a malformed mark is dropped here, fail-closed. SEAL: S1 OPENS
+//             the engine seal (F-present/domain edited); re-seal is TH2, not here.
 // slice:      F-present
 // layer:      R1
 // wires-in:
@@ -61,6 +73,8 @@ export function isMark(m: unknown): m is Mark {
   if (!m || typeof m !== 'object') return false
   const o = m as Record<string, unknown>
   switch (o.op) {
+    // identity — the marked span IS a thing. Admits a WORD-identity and a BLOCK-identity
+    // alike (S1): the home is a plain Coord either way, so identity needs no home-type gate.
     case 'identity': return true
     case 'RELATE':   return Array.isArray(o.peers) && o.peers.length > 0 && o.peers.every(isRef)
     case 'QUALIFY':  return typeof o.coloring === 'string' && isRef(o.target)

@@ -9,6 +9,19 @@
 // substrate is byte-unchanged.
 //
 // THE CLOSED SET (coin-spec §10): identity · RELATE · QUALIFY · IDENTIFY.
+//
+// @manifest
+// standard:   LIV-Standard v1.5.2
+// amended:    S1 mark-contract (block = object-identity): a BLOCK (code/data/scaffold/
+//             payload) is its OWN first-class identity at the SAME geometry as a word —
+//             the model names the block's span and marks it `identity`, homing it at the
+//             block's appearance Coord, then attaches it with the ordinary ops (RELATE/
+//             QUALIFY/IDENTIFY). This widens the SUBJECT a mark can sit on (a block becomes
+//             a thing), NOT the vocabulary: Ref stays `string | Coord` (a block is NOT a new
+//             Ref arm — it is a normal identity-home, located by name like any span), the
+//             closed mark set is UNCHANGED, no new op, no new label. Types are byte-unchanged
+//             this is a SEMANTIC note for the R0 vocabulary; the located home lives in
+//             coin-score (locate-by-name) and the gate (mark-gate) admits it.
 
 import type { Coord } from '@/core/types/substrate-raw.types'
 
@@ -24,7 +37,7 @@ export type Ref = string | Coord
 // A mark points AT substrate coordinates (Coord) — the addressing is F-present's;
 // the coordinates it names are the substrate's intrinsic facts.
 export type Mark =
-  | { op: 'identity' }                                    // the anchored word is a thing
+  | { op: 'identity' }                                    // the marked span is a thing — a WORD or a BLOCK alike (S1)
   | { op: 'RELATE';   peers: Ref[] }                      // link 2+ symmetric peers → a connection
   | { op: 'QUALIFY';  coloring: string; target: Ref }     // one open coloring on one target; distinct
   | { op: 'IDENTIFY'; target: Ref }                       // this IS the thing at target → merge

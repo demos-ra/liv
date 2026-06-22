@@ -8,28 +8,35 @@
 // message (instruction first, present second); the wire rides it on the `compose` tool
 // description (a once-channel — crosses at tools/list, never per turn). Closes every fill
 // rule so the model exercises zero discretion about HOW to mark — it only decides WHAT
-// each word performs. Versioning lives HERE (COIN_MANUAL_DATE); there is no per-mark stamp.
+// each span performs. Versioning lives HERE (COIN_MANUAL_DATE); there is no per-mark stamp.
 //
-// sprint-wire-economy (CLAIM + VALIDATE): both turns are marked by 1-based WORD-INDEX into
-// the text of THIS call (count word-cells left to right), each mark carrying its SURFACE
-// word. LIV cuts, resolves the index to a canonical position, and VERIFIES the surface
-// byte-exact — a mismatch is rejected loud. The model never numbers cells and never copies
-// coordinates for a home; a canonical coordinate appears only INSIDE a Ref (a mark's
-// target/peer), copied from search. The worked example below teaches exactly this.
+// @manifest
+// standard:   LIV-Standard v1.5.2
+// amended:    S1 mark-contract (name-not-count, M4): the manual is rewritten ENTIRELY off
+//             word-index. A mark NAMES the span it sits on (`surface` — a verbatim word or
+//             short span the model reproduces exactly) and LIV LOCATES it; the model emits NO
+//             index and NEVER counts cells. The "POINT — by word-index" rule, "count the
+//             words", "a home is always a word-index", and the { word, surface, marks } shape
+//             are GONE — a mark entry is now { surface, marks }. A coordinate appears ONLY
+//             inside a Ref (target/peer), copied from search, never as a home. Two teach-lines
+//             added in the Host register (the weld; naming a block as a thing). A repeated span
+//             resolves to its FIRST occurrence; name a longer unique span to mean a later one.
+//             A named span that isn't in the relevant text is rejected LOUD (MarkSurfaceError —
+//             "you named text that isn't there"). The worked example carries no `word` field;
+//             its sentences are pinned to the live cutter by coin-manual.test (the index maps
+//             COIN_EXAMPLE_*_WORDS are gone — there is no index to pin).
 //
-// The example's sentences + their WORD-INDICES are exported constants; the prose renders
-// FROM them and coin-manual's test pins them against the live cutter (cutCells word-cells)
-// — so the manual can never silently teach a false index again.
+// The example's sentences are exported constants; the prose renders FROM them and coin-manual's
+// test pins them against the live cutter (cutCells word-cells) — every span the example names is
+// proven to occur in its text, so the manual can never silently teach a span that isn't there.
 
-export const COIN_MANUAL_DATE = '2026-06-12'
+export const COIN_MANUAL_DATE = '2026-06-22'
 
-// The worked example. WORD-INDEX = the 1-based position of a word-cell counting word-cells
-// only (spaces/punctuation are NOT counted — unlike a canonical position, which counts every
-// cell). The test pins each index against cutCells(...)'s word-cell order, both texts.
+// The worked example. The model NAMES a span it reproduces exactly; LIV locates it. The test
+// runs the real cutCells on both texts and asserts every named span occurs there (byte-exact),
+// both texts — so the manual can never teach a span the cutter cannot find.
 export const COIN_EXAMPLE_WEARER = 'I toured Kyoto'
 export const COIN_EXAMPLE_REPLY = 'Kyoto truly rivals Tokyo.'
-export const COIN_EXAMPLE_WEARER_WORDS = { I: 1, toured: 2, Kyoto: 3 } as const
-export const COIN_EXAMPLE_REPLY_WORDS = { Kyoto: 1, truly: 2, rivals: 3, Tokyo: 4 } as const
 
 // The emission field names. HOW TO RETURN renders FROM these (one home — the prose never
 // re-types a field name). Pinned by test to the core contract's PROJECTED property keys
@@ -43,13 +50,14 @@ export const COIN_MANUAL =
 `FILL MANUAL (v${COIN_MANUAL_DATE} ; the complete rules — nothing about marking lives outside this)
 
 You are with a person. In one pass: compose your reply, then mark both turns — theirs and yours.
-LIV cuts and numbers the words; you say what each one carries.
+You name the spans; LIV finds them. You never count anything.
 
-POINT — by word-index + surface
-Count the words of the text left to right from 1 (words only; skip spaces and punctuation).
-Give the word's index and its surface — the exact word there. LIV verifies the surface and
-rejects a mismatch loud, naming the index, your word, and the actual one. The surface is your
-safety: miscount, and the words disagree and LIV tells you. You never count cells for a home.
+NAME — by span, not by number
+Quote the span a mark sits on, exactly as it appears in the text — a word ("Kyoto") or a short
+span ("truly rivals"). LIV locates it. If you name a span the text does not contain, LIV rejects
+it loud, naming the span you wrote. Reproduce the span byte-for-byte; that exactness is your
+safety. If a word repeats, the first one is meant — to mean a later one, name a longer span that
+appears only once ("rivals Tokyo" instead of a second "Kyoto").
 
 THE FOUR MARKS (the whole set)
   note        names a thing                                    { "op": "note" }
@@ -60,37 +68,44 @@ THE FOUR MARKS (the whole set)
               (pronoun, co-reference, typo)                    { "op": "tie", "target": T }
 One coloring per expression. Never on punctuation.
 
+A variant of a thing is the same thing: name its span "note" AND "tie" it to the thing —
+"it"/"they", a second mention, a typo ("buidl"→"build") — so it folds into the one thing
+instead of splitting into many.
+
+A block is a thing: a code block, a table, a payload — name its leading span "note", then
+attach it with the ordinary marks (chord it to what it relates to, expression to color it).
+
 A, B, T — a name or a coordinate, nothing else
   a NAME ("Kyoto") — clusters across the whole present; prefer it.
   a COORDINATE { "who": "wearer"|"llm", "sc": <n>, "pos": <n> } — to pin one exact past
-  appearance; copied from search, never counted. It lives only inside a Ref; a home is always
-  a word-index. Every target/peer must resolve to something in the present or this reply.
+  appearance; copied from search, never counted. A coordinate lives ONLY inside a Ref; it is
+  never a home. Every target/peer must resolve to something in the present or this reply.
 
 To pin one exact earlier appearance: search { region:{ kind:"thing", name:"Kyoto" }, lens:{ view:"raw" } }
 returns numbered cells; copy a cell's { who, sc, pos } into your Ref —
   { "op": "tie", "target": { "who": "wearer", "sc": 7, "pos": 5 } }   (copied from search, never counted)
 
-THE PERSON'S TURN — "priorMarks", by word-index into their most-recent turn
-  { "word": <index into their turn>, "surface": "<that word>", "marks": [ ... ] }
+THE PERSON'S TURN — "priorMarks", naming spans of their most-recent turn
+  { "surface": "<a span their turn contains>", "marks": [ ... ] }
 
-YOUR REPLY — "reply" + "replyMarks", by word-index into your reply
+YOUR REPLY — "reply" + "replyMarks", naming spans of your reply
   Put your reply in "reply" as ONE plain text string — your exact words and punctuation; do not
-  split it. Then mark its words. Mark fully, not only the highlights; a word may carry several
+  split it. Then mark its spans. Mark fully, not only the highlights; a span may carry several
   marks; overlap is fine — the geometry settles across turns.
 
 WORKED EXAMPLE
-The person said: [7] (—): ${COIN_EXAMPLE_WEARER}   (words: ${COIN_EXAMPLE_WEARER_WORDS.I}=I, ${COIN_EXAMPLE_WEARER_WORDS.toured}=toured, ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}=Kyoto)
-Your reply: "${COIN_EXAMPLE_REPLY}"       (words: ${COIN_EXAMPLE_REPLY_WORDS.Kyoto}=Kyoto, ${COIN_EXAMPLE_REPLY_WORDS.truly}=truly, ${COIN_EXAMPLE_REPLY_WORDS.rivals}=rivals, ${COIN_EXAMPLE_REPLY_WORDS.Tokyo}=Tokyo)
+The person said: [7] (—): ${COIN_EXAMPLE_WEARER}
+Your reply: "${COIN_EXAMPLE_REPLY}"
 {
   "reply": "${COIN_EXAMPLE_REPLY}",
   "replyMarks": [
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Kyoto},  "surface": "Kyoto",  "marks": [ { "op": "note" }, { "op": "tie", "target": "Kyoto" } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.truly},  "surface": "truly",  "marks": [ { "op": "expression", "coloring": "truly", "target": "Kyoto" } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.rivals}, "surface": "rivals", "marks": [ { "op": "chord", "peers": [ "Kyoto", "Tokyo" ] } ] },
-    { "word": ${COIN_EXAMPLE_REPLY_WORDS.Tokyo},  "surface": "Tokyo",  "marks": [ { "op": "note" } ] }
+    { "surface": "Kyoto",  "marks": [ { "op": "note" }, { "op": "tie", "target": "Kyoto" } ] },
+    { "surface": "truly",  "marks": [ { "op": "expression", "coloring": "truly", "target": "Kyoto" } ] },
+    { "surface": "rivals", "marks": [ { "op": "chord", "peers": [ "Kyoto", "Tokyo" ] } ] },
+    { "surface": "Tokyo",  "marks": [ { "op": "note" } ] }
   ],
   "priorMarks": [
-    { "word": ${COIN_EXAMPLE_WEARER_WORDS.Kyoto}, "surface": "Kyoto", "marks": [ { "op": "note" } ] }
+    { "surface": "Kyoto", "marks": [ { "op": "note" } ] }
   ]
 }
 
