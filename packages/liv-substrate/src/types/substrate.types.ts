@@ -4,6 +4,8 @@
 // The relational record atoms read back by readScope. Faithful copy; only the
 // header differs. Marks and present-state are NOT here — they recompose in the
 // engine, never travel in the store (Law 2).
+// th1-flag-field (TH1): StateFlag + metadata.flag mirrored from canonical to keep
+//   the faithful-copy invariant (capture-integrity flag — Mechanics M8 / R10 / R12).
 
 import type { Result, AppError } from './primitives'
 
@@ -56,6 +58,14 @@ export function deriveContentClassFromChannel(channel: SourceChannel): ContentCl
   }
 }
 
+// ─── StateFlag (TH1: capture-integrity flag — binary pass/fail) ───────────────
+// 'pass' = clean first-hand capture; 'fail' = reconstructed / could-not-cleanly
+// capture (R12 save-and-flag). Capture integrity only — distinct from WriteAck
+// (transport honesty). Carried on StateChangeRecord.metadata.flag.
+export type StateFlag =
+  | 'pass'
+  | 'fail'
+
 // ─── SubstrateSourceRef ────────────────────────────────────────────────────────
 // Origin channel + content class + scope attribute on every state-change.
 export type SubstrateSourceRef = {
@@ -101,6 +111,7 @@ export type SubstrateWriteInput = {
   metadata: {
     time:   number
     source: SubstrateSourceRef
+    flag?:  StateFlag           // TH1: omitted ⇒ clean first-hand ⇒ 'pass'
   }
 }
 
@@ -128,6 +139,7 @@ export type StateChangeRecord = {
     time:     number
     source:   SubstrateSourceRef
     position: PositionRef
+    flag?:    StateFlag         // TH1: capture-integrity flag (R10/R12). Optional in the vendored copy — the package store (substrate-repository.ts here) is out of TH1 scope (tsconfig excludes packages/); wiring it is a separate integration. Canonical (src/) makes this required.
   }
 }
 

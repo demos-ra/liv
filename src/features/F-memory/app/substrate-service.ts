@@ -4,7 +4,8 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through), present-rederive-shot-1 (LM v3.4/v3.5: TQ3 threads contentClass? + asOfPosition? to repository reads; identityRecurrence/rolePattern/adjacency wrappers gain the optional parameters), fixround-position-sequence (sw1Validate position:0 sentinel removed — position is DB-owned, assigned at INSERT in R4)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId SW1 validation + thread-through), present-rederive-shot-1 (LM v3.4/v3.5: TQ3 threads contentClass? + asOfPosition? to repository reads; identityRecurrence/rolePattern/adjacency wrappers gain the optional parameters), fixround-position-sequence (sw1Validate position:0 sentinel removed — position is DB-owned, assigned at INSERT in R4), th1-flag-field (TH1: sw1Validate threads metadata.flag? through to SubstrateWriteValidated.flag — capture-integrity flag, default 'pass' stamped at R4; Mechanics M8 / Rulings R10/R12)
+// compliance: Living Memory (SW1 thread-through); Mechanics M8 (capture-integrity flag carried, not WriteAck — WriteAck untouched); Rulings R10 (binary pass/fail) / R12 (save-and-flag). Seal: none (Storage schema).
 // slice:      F-memory
 // layer:      R2
 // wires-in:
@@ -211,6 +212,7 @@ function sw1Validate(input: SubstrateWriteInput): Result<SubstrateWriteValidated
       relations:  content.relations,
       time:       typeof metadata.time === 'number' ? metadata.time : Date.now(),
       source:     metadata.source,
+      flag:       metadata.flag,   // TH1: carry capture-integrity flag through. Omitted ⇒ 'pass' stamped at the R4 write door (R12).
     },
   }
 }

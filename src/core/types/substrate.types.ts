@@ -3,7 +3,8 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard: LIV-Standard v1.5.1
-// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields), sprint-b2-shot-5 (SourceChannel: 'system-l0' added), side-quest-shot-1 (substrate v1.8.3: A-24 ContentClass added, SubstrateSourceRef.contentClass field added), side-quest-shot-2 (LM v3.4: ThreadQueryInput.contentClass? optional filter added for LMA13), present-rederive-shot-1 (LM v3.5: ThreadQueryInput.asOfPosition? optional position-ceiling filter added for Reading-A snapshot)
+// amended: sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: userId fields), sprint-b2-shot-5 (SourceChannel: 'system-l0' added), side-quest-shot-1 (substrate v1.8.3: A-24 ContentClass added, SubstrateSourceRef.contentClass field added), side-quest-shot-2 (LM v3.4: ThreadQueryInput.contentClass? optional filter added for LMA13), present-rederive-shot-1 (LM v3.5: ThreadQueryInput.asOfPosition? optional position-ceiling filter added for Reading-A snapshot), th1-flag-field (TH1: StateFlag pass/fail capture-integrity flag added; StateChangeRecord.metadata.flag required, SubstrateWriteInput.metadata.flag? optional — Mechanics M8, Rulings R10/R12)
+// compliance: Living Memory (substrate atom shape); Mechanics M8 (StateFlag = capture integrity, distinct from WriteAck = transport honesty); Ruling R10 (binary pass/fail); Ruling R12 (save-and-flag replaces dropping). Seal: none (Storage schema, not engine).
 // slice: core
 // layer: R5
 // wires-in:
@@ -25,6 +26,7 @@
 //   W-ATOM StateChangeId        → substrate-internal + thread query consumers
 //   W-ATOM ThreadKind           → thread query consumers
 //   W-ATOM SourceChannel        → perimeter (channel enum)
+//   W-ATOM StateFlag            → all substrate consumers (TH1: capture-integrity flag, carried on StateChangeRecord.metadata.flag)
 //   W-ATOM ContentClass         → all substrate consumers (substrate v1.8.3 A-24; carried on SubstrateSourceRef.contentClass)
 //   W-FUNC deriveContentClassFromChannel → Path A Boundary stampers + variable-channel Path B callers (default-derivation rule per substrate §4.2 A-24)
 //   W-CONST REVOKE_REF          → SW3 RevokeRef detection (LMA2)
@@ -166,6 +168,30 @@ export function deriveContentClassFromChannel(channel: SourceChannel): ContentCl
   }
 }
 
+// ─── StateFlag (TH1: capture-integrity flag — binary pass/fail) ───────────────
+// StateFlag: a binary pass/fail honesty bit on every state change (Ruling R10:
+//   binary pass/fail). It records CAPTURE INTEGRITY — whether the recorded atom
+//   is clean first-hand cognition or something reconstructed.
+//     'pass' — clean first-hand capture (the live write door; cognition as it
+//              actually crossed).
+//     'fail' — reconstructed / could not be cleanly captured (import, or a turn
+//              that could not be cleanly marked).
+//
+// Ruling R12 (save-and-flag replaces dropping, Mechanics M8): a turn that cannot
+//   be cleanly captured is SAVED with 'fail', not dropped. The only true drop
+//   left is a transport failure (see below).
+//
+// Mechanics M8 — TWO ORTHOGONAL HONESTIES, kept distinct:
+//   - StateFlag is CAPTURE INTEGRITY: a field on the stored atom (this type).
+//   - WriteAck (F-present, pre-existing) is TRANSPORT HONESTY: did the bytes
+//     land. StateFlag does NOT touch, mirror, or duplicate WriteAck — they are
+//     separate layers. A 'fail' atom can land cleanly (WriteAck landed:true);
+//     a 'pass' atom can fail to transport (WriteAck landed:false).
+
+export type StateFlag =
+  | 'pass'   // clean first-hand capture
+  | 'fail'   // reconstructed / could-not-cleanly-capture (R12 save-and-flag)
+
 // ─── SubstrateSourceRef (LM v3.1 §2.1 SourceRef; renamed for codebase) ────────
 // Origin channel + scope attribute on every state-change.
 // v1.8.3: `contentClass` field added (substrate A-24); sibling on origin-axis
@@ -235,6 +261,7 @@ export type SubstrateWriteInput = {
   metadata: {
     time:   number              // write-time ms epoch (timestamp)
     source: SubstrateSourceRef
+    flag?:  StateFlag           // TH1: capture-integrity flag. Omitted ⇒ clean first-hand ⇒ 'pass' (default). Imports / could-not-cleanly-mark set 'fail' (R12).
     // PositionRef NOT in input — auto-assigned at SW1 (monotonic)
   }
 }
@@ -283,6 +310,7 @@ export type StateChangeRecord = {
     time:     number              // ms epoch as recorded at SW1
     source:   SubstrateSourceRef
     position: PositionRef         // assigned at SW1, persisted at SW3
+    flag:     StateFlag           // TH1: capture-integrity flag on the stored atom (R10 binary pass/fail; R12 save-and-flag). 'pass' for clean first-hand; 'fail' for reconstructed.
   }
 }
 

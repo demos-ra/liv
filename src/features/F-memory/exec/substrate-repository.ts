@@ -5,6 +5,8 @@
 // @manifest
 // standard:   LIV-Standard v1.5.1
 // amended:    sprint-8-shot-1 (substrate authoring), sprint-12-shot-2 (LM v3.2: user_id column), sprint-b2-shot-3 (exportByScope: §3.11 userId index scan), side-quest-shot-1 (substrate v1.8.3: source_content_class column read/written; row→record populates contentClass per A-24), present-rederive-shot-1 (LM v3.4/v3.5: readIdentityRecurrence/readRolePattern/readAdjacency gain contentClass? + asOfPosition? optional WHERE conjuncts — v3.4 contentClass? deferred plumbing landed; v3.5 asOfPosition? Reading-A ceiling added), fixround-position-sequence (nextPosition deleted; commitStateChange INSERT omits position, DB assigns via state_change_position_seq DEFAULT, RETURNING position reads it back — migration 022), fixround-core-loop-read-restore (F10: exportByScope renamed readScopeRows — the canonical scope-ordered read, wrapped by R2 readScope), scope-a-027-hydrator (rowToRecord: NULL identities/relations from post-027 cognition rows represented as empty arrays — read-side mirror of write; single seam fix, all readers inherit)
+//             th1-flag-field (TH1: state_flag column read in all five rowToRecord SELECTs + written at commitStateChange INSERT; rowToRecord populates metadata.flag; flag stamped 'pass' clean first-hand unless validated.flag carries 'fail' — Mechanics M8 / Rulings R10/R12, migration 029)
+// compliance: Living Memory (substrate I/O); Mechanics M8 (capture-integrity flag at the write/read door, distinct from WriteAck transport honesty — WriteAck untouched here); Rulings R10 (binary pass/fail) / R12 (save-and-flag replaces dropping). Seal: none (Storage schema, R4 I/O).
 // slice:      F-memory
 // layer:      R4
 // wires-in:
@@ -55,6 +57,7 @@ import type {
   Relation,
   SubstrateSourceRef,
   ContentClass,
+  StateFlag,
 } from '@/core/types/substrate.types'
 import type {
   StateChangeRow,
@@ -88,6 +91,7 @@ function rowToRecord(row: StateChangeRow): StateChangeRecord {
         scope:        row.source_scope as ScopeRef,    // brand: external origin
       },
       position: Number(row.position) as PositionRef,   // bigint string → number (mirrors time_ms)
+      flag:     row.state_flag as StateFlag,           // brand: external origin — TH1 capture-integrity flag (DEFAULT 'pass' at column, migration 029)
     },
   }
 }
@@ -118,10 +122,17 @@ export async function commitStateChange(
       // database assigns it via the state_change_position_seq DEFAULT (nextval,
       // migration 022). RETURNING position reads back the assigned value. No
       // app-side position computation, no read-then-write race.
+      // TH1: capture-integrity flag (Mechanics M8 / Ruling R10 binary pass/fail).
+      // The live write door is clean first-hand cognition → 'pass' unless the
+      // caller explicitly carried a 'fail' (e.g. import, or a turn that could not
+      // be cleanly marked — Ruling R12 save-and-flag replaces dropping). This is
+      // capture integrity ONLY; transport honesty stays with WriteAck (untouched).
+      const flag: StateFlag = validated.flag ?? 'pass'
+
       const inserted = await tx.query<{ position: string }>(
         `INSERT INTO ${SUBSTRATE_TABLE_NAME}
-           (id, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
+           (id, time_ms, source_channel, source_content_class, source_scope, user_id, identities, relations, state_flag)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
          RETURNING position::text AS position`,
         [
           id,
@@ -132,6 +143,7 @@ export async function commitStateChange(
           validated.userId,
           JSON.stringify(validated.identities),
           JSON.stringify(validated.relations),
+          flag,                            // TH1: capture-integrity flag stamped at the write door
         ],
       )
 
@@ -154,6 +166,7 @@ export async function commitStateChange(
           time:     validated.time,
           source:   validated.source,
           position: position as PositionRef,
+          flag,                            // TH1: same flag stamped into the INSERT — record mirrors the stored atom
         },
       }
       return built
@@ -227,7 +240,7 @@ export async function readByPosition(
   try {
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations
+              user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position = $1`,
       [position],
@@ -262,7 +275,7 @@ export async function iterateAxisRows(
   try {
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations
+              user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position ${op} $1
         ORDER BY position ${order}
@@ -331,7 +344,7 @@ export async function readIdentityRecurrence(
 
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations
+              user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE identities @> $1::jsonb${scopeClause}${contentClassClause}${asOfClause}
         ORDER BY position ASC${limitClause}`,
@@ -425,7 +438,7 @@ export async function readAdjacency(
 
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations
+              user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}${contentClassClause}${asOfClause}
         ORDER BY position ASC`,
@@ -470,7 +483,7 @@ export async function readScopeRows(
     }
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations
+              user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
         WHERE user_id = $1${contentClassClause}
         ORDER BY position ASC`,

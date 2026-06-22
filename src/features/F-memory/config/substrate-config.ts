@@ -4,7 +4,8 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields), fixround-position-sequence (SubstrateWriteValidated.position sentinel field removed — position is DB-owned via state_change_position_seq, assigned at INSERT), scope-a-027-hydrator (StateChangeRow.identities/relations typed as nullable — mirrors 027 schema change; NULL on post-027 cognition rows)
+// amended:    sprint-8-shot-1 (substrate authoring), present-rederive-shot-1 (LM v3.4/v3.5: ThreadQueryValidated gains contentClass? + asOfPosition? optional read-filter fields), fixround-position-sequence (SubstrateWriteValidated.position sentinel field removed — position is DB-owned via state_change_position_seq, assigned at INSERT), scope-a-027-hydrator (StateChangeRow.identities/relations typed as nullable — mirrors 027 schema change; NULL on post-027 cognition rows), th1-flag-field (TH1: StateChangeRow.state_flag column-shape added; SubstrateWriteValidated.flag? optional — capture-integrity flag, migration 029, Mechanics M8 / Rulings R10/R12)
+// compliance: Living Memory (substrate row/validated shape); Mechanics M8 (capture-integrity flag, distinct from WriteAck transport honesty); Rulings R10 (binary pass/fail) / R12 (save-and-flag). Seal: none (Storage schema).
 // slice:      F-memory
 // layer:      R0
 // wires-in:
@@ -43,6 +44,7 @@ import type {
   Relation,
   ThreadKind,
   ContentClass,
+  StateFlag,
 } from '@/core/types/substrate.types'
 
 // ─── DB row shape (raw Postgres) ──────────────────────────────────────────────
@@ -56,6 +58,7 @@ export type StateChangeRow = {
   source_channel:      string
   source_content_class: string                         // v1.8.3 A-24: ContentClass column on state_change
   source_scope:        string
+  state_flag:          string                          // TH1: capture-integrity flag column ('pass'|'fail'; DEFAULT 'pass' — migration 029)
   user_id:             string                          // v3.2: authentication identity of writer
   identities:          string[] | null                 // JSONB array of IdentityRef strings; NULL on post-027 cognition rows
   relations:           unknown | null                   // JSONB array of Relation objects; NULL on post-027 cognition rows
@@ -74,6 +77,7 @@ export type SubstrateWriteValidated = {
   relations:  Relation[]
   time:       number
   source:     SubstrateSourceRef
+  flag?:      StateFlag          // TH1: carried from SubstrateWriteInput.metadata.flag. Omitted ⇒ clean first-hand ⇒ 'pass' at the write door (R12).
 }
 
 // ─── SW2 gate output ──────────────────────────────────────────────────────────
