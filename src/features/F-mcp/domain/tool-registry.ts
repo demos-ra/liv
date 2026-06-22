@@ -63,7 +63,12 @@ export function initializeResult(): {
 // door stamps the writing connection (session.sessionId) at R3. A turn that still sends
 // `scope` (or any field outside TURN_ARGS) is rejected as an unknown field by firstUnknownField.
 export type ToolIntention =
-  | { tool: 'present' }
+  // present (summary) — the read. E1: at the turn's ENTRY (UserPromptSubmit) it ALSO carries the
+  // submitted wearer prompt (wearerText), which the R3 door CAPTURES (captureWearerTurn →
+  // writeRawTurn, native's exact mechanism) before delivering the present — capture + deliver, one
+  // op. A bare summary (no wearerText, e.g. a mid-turn re-read) is pure read, no capture. The read
+  // door still ignores ALL OTHER extras (RD law); wearerText is the one carried capture payload.
+  | { tool: 'present'; wearerText: unknown }
   | { tool: 'turn'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown }
   // search (the text-pivot) — region × lens. The door is TRANSPORT: it carries the raw args
   // through; the CORE (parseSearchSpec, F-present) is the sole validator (region defaults to
@@ -97,8 +102,13 @@ function unknownFieldReject(tool: string, field: string): PlanResult {
 
 export function planToolCall(name: unknown, args: unknown): PlanResult {
   if (name === TOOL_PRESENT) {
-    // read door — no selectors, no testimony; ignores any extras (lifecycle envelopes).
-    return { ok: true, intention: { tool: 'present' } }
+    // read door — no selectors; ignores any extras (lifecycle envelopes), RD law. E1: it carries
+    // ONE optional capture payload — wearerText, the submitted prompt the entry-hook hands in. When
+    // present, R3 CAPTURES it (captureWearerTurn) before delivering; when absent, it is a pure read.
+    // Still TRANSPORT: the core (captureWearerTurn) is the sole shape validator (a non-string is
+    // absorbed → empty). Extras beyond wearerText stay ignored — no fail-closed gate on a read.
+    const wearerText = isObject(args) ? args.wearerText : undefined
+    return { ok: true, intention: { tool: 'present', wearerText } }
   }
 
   if (name === TOOL_TURN) {

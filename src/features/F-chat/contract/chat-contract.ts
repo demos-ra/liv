@@ -24,6 +24,15 @@
 //               modelId forward-derived from PROVIDER_DEFAULT_MODEL[resolvedProvider];
 //               both baseline and cognition paths unified on same resolved modelId;
 //               NO_PROVIDER_KEY 422 when no key stored; MODELS body-validation removed)
+//             A2 (native driver thinning): the SSE byte-framing — hand-rolled at FOUR sites here
+//               (programResultStream, builderNoJobResponse, the pipeline-guard stream, the default
+//               AI stream) — is consolidated to the R1 sseStream helper (F-chat's own pure-logic
+//               home; no new cross-tree dir). The R3 driver now COMPOSES the framing: it runs the
+//               loop and holds the model (run(send) IS the driver's work); the encoder/stream/
+//               headers/close live once at R1. The named provider/rate-limit/routing/UI-store
+//               extractions were already homed in this spine (foundation-group amendments):
+//               provider → F-ai-adapter R3, rate-limit → core R1, routing → F-router R3, UI store
+//               → F-chat R4 — this driver imports them via R3 surfaces, performs no engine work.
 // slice:      F-chat
 // category:   Modality
 // layer:      R3
@@ -166,7 +175,7 @@ import { sendMessage, getMessages }              from '../app/chat-workflow'
 import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/contract/perimeter-consultation'
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
-import { validateMessageContent }                from '../domain/chat-logic'
+import { validateMessageContent, sseStream }     from '../domain/chat-logic'
 import { writeRawTurn, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { readTranscript }                        from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
@@ -238,77 +247,53 @@ type DispatchContext = {
   projectId: string
   turnId:    string
   modelId:   string
-  encoder:   TextEncoder
 }
 
-// D1 — SSE stream wrapping typed program result.
-function programResultStream(result: unknown, encoder: TextEncoder, dispatchCtx: { projectId: string }): Response {
-  const stream = new ReadableStream({
-    start(controller) {
-      const send = (data: unknown) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-      send({ result })
-      send({ done: true })
-      // Dispatch crossing — reference disposition (rendering accumulated content to wearer).
-      // dispatchCrossing is async (returns Promise<void>); its internal substrate
-      // write inspects the Result and logs on !ok (F6 fixround). Called as a
-      // bare statement — fire-and-forget at this call site by design.
-      dispatchCrossing({
-        dispatchId:       generateId('dx') as DispatchId,
-        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
-        payload:          result,
-        channelTarget:    'wearer-message',
-        dispositionClaim: 'reference',
-        scopeContext:     dispatchCtx.projectId,
-        authorityContext: { level: 'L0', actor: 'wearer', source: null },
-        correlationRef:   null,
-        reversibility:    'n/a',
-        requestedAt:      Date.now() as EpochMs,
-      })
-      controller.close()
-    },
-  })
-  return new Response(stream, {
-    headers: {
-      'Content-Type':  'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection:      'keep-alive',
-    },
+// D1 — SSE stream wrapping typed program result. (A2: the byte-framing is the native
+// transport, now the R1 sseStream helper; this driver only chooses what to send.)
+function programResultStream(result: unknown, dispatchCtx: { projectId: string }): Response {
+  return sseStream((send) => {
+    send({ result })
+    send({ done: true })
+    // Dispatch crossing — reference disposition (rendering accumulated content to wearer).
+    // dispatchCrossing is async (returns Promise<void>); its internal substrate
+    // write inspects the Result and logs on !ok (F6 fixround). Called as a
+    // bare statement — fire-and-forget at this call site by design.
+    dispatchCrossing({
+      dispatchId:       generateId('dx') as DispatchId,
+      source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+      payload:          result,
+      channelTarget:    'wearer-message',
+      dispositionClaim: 'reference',
+      scopeContext:     dispatchCtx.projectId,
+      authorityContext: { level: 'L0', actor: 'wearer', source: null },
+      correlationRef:   null,
+      reversibility:    'n/a',
+      requestedAt:      Date.now() as EpochMs,
+    })
   })
 }
 
-// D3 — F-builder typed rejection.
-function builderNoJobResponse(encoder: TextEncoder, dispatchCtx: { projectId: string }): Response {
-  const stream = new ReadableStream({
-    start(controller) {
-      const send = (data: unknown) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-      send({
-        chunk: 'Building requires an active plan. Use F-plan first — describe what you want to build, then confirm to emit a plan artifact. F-builder can proceed once a plan artifact exists.',
-      })
-      send({ done: true })
-      // Dispatch crossing — act disposition (rejection produces effect on wearer request).
-      dispatchCrossing({
-        dispatchId:       generateId('dx') as DispatchId,
-        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
-        payload:          { rejection: 'builder-no-job' },
-        channelTarget:    'wearer-message',
-        dispositionClaim: 'act',
-        scopeContext:     dispatchCtx.projectId,
-        authorityContext: { level: 'L0', actor: 'wearer', source: null },
-        correlationRef:   null,
-        reversibility:    'irreversible',
-        requestedAt:      Date.now() as EpochMs,
-      })
-      controller.close()
-    },
-  })
-  return new Response(stream, {
-    headers: {
-      'Content-Type':  'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection:      'keep-alive',
-    },
+// D3 — F-builder typed rejection. (A2: SSE framing via the R1 sseStream helper.)
+function builderNoJobResponse(dispatchCtx: { projectId: string }): Response {
+  return sseStream((send) => {
+    send({
+      chunk: 'Building requires an active plan. Use F-plan first — describe what you want to build, then confirm to emit a plan artifact. F-builder can proceed once a plan artifact exists.',
+    })
+    send({ done: true })
+    // Dispatch crossing — act disposition (rejection produces effect on wearer request).
+    dispatchCrossing({
+      dispatchId:       generateId('dx') as DispatchId,
+      source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+      payload:          { rejection: 'builder-no-job' },
+      channelTarget:    'wearer-message',
+      dispositionClaim: 'act',
+      scopeContext:     dispatchCtx.projectId,
+      authorityContext: { level: 'L0', actor: 'wearer', source: null },
+      correlationRef:   null,
+      reversibility:    'irreversible',
+      requestedAt:      Date.now() as EpochMs,
+    })
   })
 }
 
@@ -325,14 +310,14 @@ async function dispatchToProgram(
   destination: Destination,
   ctx:         DispatchContext,
 ): Promise<Response | null> {
-  const { content, userId, projectId, turnId, modelId, encoder } = ctx
+  const { content, userId, projectId, turnId, modelId } = ctx
 
   switch (destination.slice) {
 
     // ── F-plan ──────────────────────────────────────────────────────────────
     case 'F-plan': {
       const result = await executePlan(content, userId, projectId, turnId, modelId)
-      return programResultStream(result, encoder, { projectId: ctx.projectId })
+      return programResultStream(result, { projectId: ctx.projectId })
     }
 
     // ── F-discover ──────────────────────────────────────────────────────────
@@ -381,7 +366,7 @@ async function dispatchToProgram(
         classification: defaultClassification(),
       }
       const result = await executeResearchFromInput(input)
-      return programResultStream(result, encoder, { projectId: ctx.projectId })
+      return programResultStream(result, { projectId: ctx.projectId })
     }
 
     // ── F-verify ────────────────────────────────────────────────────────────
@@ -423,14 +408,14 @@ async function dispatchToProgram(
         classification:    defaultClassification(),
       }
       const result = await executeVerificationFromInput(input)
-      return programResultStream(result, encoder, { projectId: ctx.projectId })
+      return programResultStream(result, { projectId: ctx.projectId })
     }
 
     // ── F-builder ───────────────────────────────────────────────────────────
     // executeBuild requires a jobId from a prior F-plan artifact.
     // No jobId available from a bare chat message. Typed rejection — D3.
     case 'F-builder': {
-      return builderNoJobResponse(encoder, { projectId: ctx.projectId })
+      return builderNoJobResponse({ projectId: ctx.projectId })
     }
 
     // ── Default ─────────────────────────────────────────────────────────────
@@ -581,8 +566,6 @@ export async function POST_message(
   // absent → call never reached → baseline. Mirror of route() → ensureDomainPrograms().
   ensureCognitionOnRequest()
 
-  const encoder = new TextEncoder()
-
   // ── Wearer-side substrate write (HR-LM1) — sprint-11-shot-2 ───────────────
   // CA3: wearer-side write (turnId shared with ai-side write below)
   // Generate turnId once per exchange; shared with ai-side write below.
@@ -634,34 +617,23 @@ export async function POST_message(
   const pipelineState = await isPipelineActive(projectId)
 
   if (pipelineState.active && pipelineState.status === 'running') {
-    const stream = new ReadableStream({
-      start(controller) {
-        const send = (data: unknown) =>
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-        send({ chunk: 'A build is currently in progress. Track it in the dashboard.' })
-        send({ done: true })
-        // Dispatch crossing — reference disposition (pipeline status rendered to wearer; sprint-13c-shot-1).
-        dispatchCrossing({
-          dispatchId:       generateId('dx') as DispatchId,
-          source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
-          payload:          { pipelineStatus: 'running' },
-          channelTarget:    'wearer-message',
-          dispositionClaim: 'reference',
-          scopeContext:     projectId,
-          authorityContext: { level: 'L0', actor: 'wearer', source: null },
-          correlationRef:   null,
-          reversibility:    'n/a',
-          requestedAt:      Date.now() as EpochMs,
-        })
-        controller.close()
-      },
-    })
-    return new Response(stream, {
-      headers: {
-        'Content-Type':  'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection:      'keep-alive',
-      },
+    // A2: SSE framing via the R1 sseStream helper; the driver only chooses what to send.
+    return sseStream((send) => {
+      send({ chunk: 'A build is currently in progress. Track it in the dashboard.' })
+      send({ done: true })
+      // Dispatch crossing — reference disposition (pipeline status rendered to wearer; sprint-13c-shot-1).
+      dispatchCrossing({
+        dispatchId:       generateId('dx') as DispatchId,
+        source:           { programId: 'F-chat', programVersion: '1.0.0' as Semver },
+        payload:          { pipelineStatus: 'running' },
+        channelTarget:    'wearer-message',
+        dispositionClaim: 'reference',
+        scopeContext:     projectId,
+        authorityContext: { level: 'L0', actor: 'wearer', source: null },
+        correlationRef:   null,
+        reversibility:    'n/a',
+        requestedAt:      Date.now() as EpochMs,
+      })
     })
   }
 
@@ -724,7 +696,6 @@ export async function POST_message(
       projectId,
       turnId,
       modelId,
-      encoder,
     })
     // null means unhandled destination slice — fall through to LLM.
     if (dispatched !== null) return dispatched
@@ -740,11 +711,10 @@ export async function POST_message(
   }
 
   // ── Default: AI chat ───────────────────────────────────────────────────────
-  const stream = new ReadableStream({
-    async start(controller) {
-      const send = (data: unknown) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-
+  // A2: the SSE byte-framing is the R1 sseStream helper; this driver runs the loop and
+  // holds the model — `run(send)` IS the native driver's work (compose/baseline, deliver,
+  // the completion crossing). The helper owns the stream, the encoder, and the close.
+  return sseStream(async (send) => {
       // ── Cognition write — the write-compose SEAM (I1) ─────────────────────
       // BASELINE (F-present absent): get a plain reply (sendMessage), token-stream it
       // to the UI, and write it as raw words via R2a — words only, no marks. Core-only;
@@ -841,17 +811,6 @@ export async function POST_message(
           requestedAt:      Date.now() as EpochMs,
         })
       }
-
-      controller.close()
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type':  'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection:      'keep-alive',
-    },
   })
 }
 

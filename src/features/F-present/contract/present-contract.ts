@@ -28,6 +28,9 @@
 //   W-FN  search/parseSearchSpec →  F-mcp (search tool — the text-pivot: region × lens)
 //   W-ATOM SearchRegion/Lens/Spec/Result  →  F-mcp (search tool — type-only)
 //   W-ATOM PRESENT_BUNDLES       →  F-mcp (present/turn — R7 rail-aware bundle: wire = tables only)
+//   W-FN  recordWireTurn         →  F-mcp (compose door) + /api/compose (REST) — the one wire turn-service (A1)
+//   W-FN  captureWearerTurn      →  F-mcp (summary door) + /api/compose (REST) — E1 capture-at-submit (writeRawTurn, native's mechanism)
+//   W-ATOM WireTurn*/WireCapture*/AbsentCaptureFlag  →  F-mcp + REST (the wire turn-service carriers/outcomes/mode, type-only)
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
 //   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission, MarkSurfaceError)
@@ -109,3 +112,17 @@ export type { MarkingSituation } from '../domain/coin-score'
 export { search, parseSearchSpec } from '../app/lookup'
 export type { SearchRegion, SearchLens, SearchSpec, SearchResult } from '../app/lookup'
 export { PRESENT_BUNDLES } from '../config/read-engine-types'
+
+// A1 — the ONE wire turn-service (capture · deliver · record · ack), surfaced for the agent-driven
+// write surfaces (the MCP `summary`/`compose` doors and the REST /api/compose plug). E1: the wire
+// captures the wearer turn at submit (captureWearerTurn — writeRawTurn, native's exact mechanism)
+// and records the reply at Stop (recordWireTurn — wearer:{written}, no wearerText re-carry). Both
+// drivers call these and map the discriminated outcomes to their own envelope (JSON-RPC codes /
+// HTTP codes — the per-surface variable). wire-turn-service composes the in-layer turn-services
+// (emissionFromStructured / recordScoredTurn / presentOrDegraded / readPresent) re-exported above
+// plus the entitlement crossing decision and the substrate capture — one home, the driver stays thin.
+export { recordWireTurn, captureWearerTurn } from './wire-turn-service'
+export type {
+  WireTurnInput, WireTurnIdentity, WireTurnOutcome,
+  WireCaptureInput, WireCaptureOutcome, WireCaptureMode, AbsentCaptureFlag,
+} from './wire-turn-service'

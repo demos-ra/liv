@@ -12,17 +12,14 @@
 //   W-FN     parseRequest / buildResult / buildError   F-mcp/R1 json-rpc
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R1 tool-registry
 //   W-FN     readPresent        F-present/R3 present-contract   (present tool — the read)
-//   W-FN     presentOrDegraded  F-present/R3 present-contract   (turn response — post-write present-or-degraded, A2.2/§1b)
-//   W-FN     recordScoredTurn   F-present/R3 present-contract   (turn door — records BOTH turns, returns WriteAck)
-//   W-FN     emissionFromStructured  F-present/R3 present-contract  (the narrowing/gate)
+//   W-FN     captureWearerTurn  F-present/R3 present-contract   (E1 — summary at submit CAPTURES the wearer prompt (writeRawTurn) + delivers; this door maps the outcome)
+//   W-FN     recordWireTurn     F-present/R3 present-contract   (A1/E1 — the ONE wire turn-service: WP1 gate + deliver + record reply against wearer:{written} + ack; this door maps the outcome)
 //   W-FN     projectEmissionSchema   F-present/R3 present-contract  (turn inputSchema = projectEmissionSchema(MCP_SITUATION))
 //   W-ATOM   MarkingSituation        F-present/R3 present-contract  (MCP_SITUATION — the wire's contract choices, type-only)
-//   W-ATOM   MarkSurfaceError   F-present/R3 present-contract   (claim+validate — loud, atomic reject)
 //   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (manual rides the turn description — once-channel)
 //   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
 //   W-FN     lookup             F-present/R3 present-contract   (R8 read control — turn|span|thing)
-//   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only)
-//   W-FN     entitlementAdmits  F-entitlement/R3 entitlement-contract   (WP1 — the write-door crossing decision)
+//   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only; the present-read path)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
@@ -30,9 +27,7 @@
 //   R1  ../domain/json-rpc
 //   R1  ../domain/tool-registry
 //   config  ../config/mcp-protocol
-//   R3  @/features/F-present/contract/present-contract
-//   R3  @/features/F-entitlement/contract/entitlement-contract
-//   R3  @/features/F-memory/contract/substrate-contract
+//   R3  @/features/F-present/contract/present-contract  (A1 — recordWireTurn folds in the WP1 entitlement gate; F-mcp no longer imports F-entitlement directly)
 //   R3  @/features/F-identity/contract/perimeter-consultation
 // validated:  pending
 
@@ -47,9 +42,8 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordScoredTurn, presentOrDegraded, emissionFromStructured, MarkSurfaceError, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
+import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordWireTurn, captureWearerTurn, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
-import { entitlementAdmits } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
@@ -125,11 +119,26 @@ export async function handleMcpRequest(
         if (!plan.ok) return buildError(id, plan.code, plan.message)
         const intention = plan.intention
 
-        // present → the fresh present, ONLY, in the WIRE bundle (R7: both tables, no
-        // transcript — the transcript is fetched via lookup, never carried per turn). The
-        // manual rides the `turn` description (a once-channel, R2), so zero manual tokens here.
+        // present (summary) → the fresh present in the WIRE bundle (R7: both tables, no transcript
+        // — fetched via search, never carried per turn). E1: at the turn's ENTRY the hook hands the
+        // submitted wearer prompt in (intention.wearerText); the door then CAPTURES it
+        // (captureWearerTurn → writeRawTurn, native's EXACT mechanism — the wire's perimeter
+        // pre-write) AND delivers the fresh present in ONE op (capture + deliver). compose at Stop
+        // records the reply against this already-stored wearer turn (wearer:{written}), never
+        // re-carrying the words — uniform with native. A bare summary (no wearerText: a mid-turn
+        // re-read) stays a pure read. 'denied' (WP1) maps to the entitlement-denied code, symmetric
+        // with compose. The manual rides the `compose` description (a once-channel, R2), zero here.
         if (intention.tool === 'present') {
-          return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
+          if (intention.wearerText === undefined) {
+            return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
+          }
+          const captured = await captureWearerTurn(
+            { wearerText: intention.wearerText },
+            { userId: session.userId, scope: session.sessionId, resolvedEntitlement: session.resolvedEntitlement },
+          )
+          return captured.kind === 'denied'
+            ? buildError(id, JSONRPC_ENTITLEMENT_DENIED, captured.message)
+            : buildResult(id, toolText(captured.present))
         }
 
         // lookup (R8) → numbered cells (turn | span | thing) so the caller COPIES coordinates
@@ -153,44 +162,36 @@ export async function handleMcpRequest(
           return buildResult(id, toolText(out))
         }
 
-        // ENTITLEMENT GATE (WP1) — the boundary crossing DECISION at the write-door. A turn is a
-        // write crossing; admit it only if the perimeter-stamped attribute admits (paid|trial).
-        // Switchable + dormant by default: no provider → proxy stamps 'trial' → admit. The decision
-        // READS session.resolvedEntitlement (stamped once at the perimeter, PA-I) and re-resolves
-        // nothing; a not-admitted crossing is denied HERE, before the recorder is ever reached. It
-        // is a gate, not a meter (no count). Reads (present/search) are not gated — only the write.
-        if (!entitlementAdmits(session.resolvedEntitlement)) {
-          return buildError(id, JSONRPC_ENTITLEMENT_DENIED, 'entitlement lapsed: this write crossing is not admitted')
-        }
-
-        // turn — DEMANDED (R1): ONE call carries BOTH turns. userId is ALWAYS the session's;
-        // scope = stamped circumstance (session.sessionId), symmetric with native's
-        // route-stamped projectId — speakers never declare circumstance. emissionFromStructured
-        // narrows through the SAME gate the native path uses (one gate, no copy); the recorder
-        // cuts + writes BOTH turns and surface-validates both mark sets.
-        const emission = emissionFromStructured({
-          reply: intention.reply, replyMarks: intention.replyMarks, priorMarks: intention.priorMarks,
+        // turn — DEMANDED (R1): ONE call carries BOTH turns. The whole write turn-service (the WP1
+        // entitlement crossing decision, capture wearerText, deliver/narrow through the SAME gate
+        // the native path uses, record BOTH turns, the honest post-write present-or-degraded ack)
+        // is the ONE core recordWireTurn (A1 — F-present R3). userId is ALWAYS the session's; scope
+        // = stamped circumstance (session.sessionId), symmetric with native's route-stamped
+        // projectId — speakers never declare circumstance.
+        //
+        // The DRIVER (this door) is the per-surface variable (Mechanics §F): it maps the typed
+        // WireTurnOutcome to the JSON-RPC envelope. 'denied' → the entitlement-denied code (the
+        // write was never reached); 'invalid-testimony' → INVALID_PARAMS (law-named — a false mark
+        // claim, loud + atomic, not an internal error to be masked, so the agent re-emits);
+        // 'present' → the fresh present (WIRE bundle, tables only) straight through; 'degraded' →
+        // the honest ack JSON (a committed-but-unrendered write STILL STANDS; a dropped no-write is
+        // reported not-persisted — never masked). The REST /api/compose plug derives the same core
+        // and maps the same outcome to HTTP codes — one home, two thin drivers.
+        const outcome = await recordWireTurn(intention, {
+          userId:              session.userId,
+          scope:               session.sessionId,
+          resolvedEntitlement: session.resolvedEntitlement,
         })
-        let ack
-        try {
-          ack = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, { text: intention.wearerText })
-        } catch (err) {
-          // CLAIM + VALIDATE failure (R3): a word-index↔surface mismatch is rejected LOUD and
-          // ATOMIC — nothing persisted. Name it (law-named, invalid params) so the agent
-          // re-emits; this is invalid testimony, not an internal error to be masked.
-          if (err instanceof MarkSurfaceError) return buildError(id, JSONRPC_INVALID_PARAMS, err.message)
-          throw err
+        switch (outcome.kind) {
+          case 'denied':
+            return buildError(id, JSONRPC_ENTITLEMENT_DENIED, outcome.message)
+          case 'invalid-testimony':
+            return buildError(id, JSONRPC_INVALID_PARAMS, outcome.message)
+          case 'present':
+            return buildResult(id, toolText(outcome.present))
+          case 'degraded':
+            return buildResult(id, toolText(JSON.stringify(outcome.degraded)))
         }
-
-        // Response = the fresh present in the WIRE bundle (R7: tables only), rendered POST-write
-        // (the turn door is a write door whose response carries the present). The HONEST
-        // ACKNOWLEDGEMENT (§0) is owned by the rehomed read-door unit presentOrDegraded (F-present
-        // R3, §1b): it takes the WriteAck and forms the truthful ack — a committed write whose
-        // render failed STILL STANDS (ok:true, sc; the turn is never masked), and a dropped no-write
-        // (empty reply → landed:false) is reported as not-persisted (ok:false, sc:null), never as a
-        // value that looks persisted when it wasn't. The door stays thin — no try/catch, no inference.
-        const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, ack)
-        return buildResult(id, toolText(typeof out === 'string' ? out : JSON.stringify(out)))
       }
 
       default:
