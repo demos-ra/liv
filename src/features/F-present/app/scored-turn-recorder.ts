@@ -16,6 +16,14 @@
 //               and nothing persists (the wire is atomic; native's wearer turn is E1's
 //               pre-write, untouched). "feeds it", not "moves inside": E1's perimeter
 //               stamping is never disturbed (§7).)
+//             Wing-B E3 REWORK (block + payload are first-class CELLS): the Y-seam's two-arm
+//               convergence is GONE — both arms are now ONE cut. cutReply uses shapeAwareCut, so
+//               each block/payload region is ONE cell at its own coordinate; locateCellIdentities
+//               places an `identity` mark DIRECTLY on each home-capable block/payload cell, at its
+//               OWN pos — no naming, no leading-word collision, no convergeArms. A payload-cell's
+//               `word` IS the livbyte:// handle (the sidecar PayloadAppearance.handle / arms.payloads
+//               are superseded — y-seam.ts removed); bytes resolve lazily via the §3b socket on
+//               read, never a Ref. locateWordMarks still serves the model's OWN named spans only.
 //             cognition-turn contract (the door is transport): the `{ text }` WearerSource
 //               intake now takes `unknown` and guards a non-string → empty wearer text. The
 //               MCP door sheds emission-SHAPE validation (mis-owned at R1); this contract is
@@ -23,7 +31,7 @@
 // slice:      F-present
 // layer:      R2
 // wires-in:
-//   W-FN    cutReply/wordCells/locateWordMarks/homeMarks/verifyGrid/validateSharedUniverse  ../domain/coin-score
+//   W-FN    cutReply/wordCells/locateWordMarks/locateCellIdentities/homeMarks/verifyGrid/validateSharedUniverse  ../domain/coin-score
 //   W-ATOM  ScoredEmission                                             ../domain/coin-score (type-only)
 //   W-FN    buildFactTable                                             ../domain/fact-table
 //   W-FN    resolveDimension                                           ../domain/resolve-dimension
@@ -38,7 +46,7 @@
 //   W-FN    recordScoredTurn  →  ../app/cognition-orchestrator (R2), ../contract/present-contract (R3 → F-mcp wire)
 //   W-ATOM  WearerSource      →  ../app/cognition-orchestrator (R2), F-mcp wire (R3)
 // deps:
-//   R1  ../domain/coin-score
+//   R1  ../domain/coin-score          (Wing-B E3 — shapeAwareCut via cutReply + locateCellIdentities)
 //   R1  ../domain/fact-table
 //   R1  ../domain/resolve-dimension
 //   R1  ../domain/chain-ping
@@ -72,7 +80,7 @@
 // and get the real wires; tests inject stubs to run DB-free and to COUNT the single cut.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { cutReply, wordCells, locateWordMarks, homeMarks, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
+import { cutReply, wordCells, locateWordMarks, locateCellIdentities, homeMarks, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
 import type { ScoredEmission } from '@/features/F-present/domain/coin-score'
 import { buildFactTable } from '@/features/F-present/domain/fact-table'
 import { resolveDimension } from '@/features/F-present/domain/resolve-dimension'
@@ -150,10 +158,21 @@ export async function recordScoredTurn(
     wearerSc = null
   }
 
-  // 3. CLAIM + VALIDATE — locate BOTH mark sets by word-index↔surface, byte-exact. A false
+  // 3. CLAIM + VALIDATE — locate the model's NAMED marks by span↔surface, byte-exact. A false
   //    claim throws MarkSurfaceError HERE, before any write: the turn is rejected loud and
   //    nothing persists. `pos` is intrinsic to the cut (no sc yet), so this precedes the write.
-  const replyLocated = locateWordMarks(emission.replyMarks, replyCells, 'reply')
+  //
+  //    Wing-B E3 (block + payload are first-class CELLS): there is no two-arm convergence to run.
+  //    The reply was cut with shapeAwareCut (cutReply), so each block/payload region is ALREADY
+  //    ONE cell at its own coordinate. locateCellIdentities places an `identity` mark DIRECTLY on
+  //    each home-capable block/payload cell — at the cell's OWN pos, no naming, no leading word.
+  //    A payload-cell's CONTENT is its own `word` (the livbyte:// handle); bytes resolve lazily
+  //    via the §3b socket on read, never a Ref. The model's own named replyMarks/priorMarks still
+  //    locate by name (locateWordMarks). Both home-paths return { pos, marks } and merge into one.
+  const replyLocated = [
+    ...locateWordMarks(emission.replyMarks, replyCells, 'reply'),
+    ...locateCellIdentities(replyCells),
+  ]
   const priorLocated = locateWordMarks(emission.priorMarks, wearerWordCells, 'prior')
 
   // 4. session window (Shot 2): the M4 universe is the windowed run from the EXISTING
