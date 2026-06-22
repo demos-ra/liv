@@ -31,6 +31,7 @@
     "F-memory",
     "F-multi-instance",
     "F-output",
+    "F-payload-store",
     "F-permissions",
     "F-plan",
     "F-present",

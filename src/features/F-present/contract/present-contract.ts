@@ -31,6 +31,10 @@
 //   W-FN  recordWireTurn         →  F-mcp (compose door) + /api/compose (REST) — the one wire turn-service (A1)
 //   W-FN  captureWearerTurn      →  F-mcp (summary door) + /api/compose (REST) — E1 capture-at-submit (writeRawTurn, native's mechanism)
 //   W-ATOM WireTurn*/WireCapture*/AbsentCaptureFlag  →  F-mcp + REST (the wire turn-service carriers/outcomes/mode, type-only)
+//   W-FN  classifyLine/classifyBlocks/isBlockClass/shapeAwareCut/classOfCell/isHomeCapableCell →  Wing-B E3 content-class + shape-cut consumers + tests
+//   W-FN  locateCellIdentities →  Wing-B E3 write-door consumers (block/payload identities on their own coordinate)
+//   W-FN  storePayload/resolvePayload/isPayloadHandle →  Wing-B E3 payload write/read doors (§3b socket, re-exposed; handle is a cell's content, never a Ref)
+//   W-ATOM StoreHandle/PayloadKind/PayloadDescriptor/RenderClass/ClassifiedRegion/SignatureWitness →  Wing-B consumers (type-only)
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
 //   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission, MarkSurfaceError)
@@ -43,6 +47,9 @@
 //   R2  ../app/lookup            (search, parseSearchSpec, Search* types)
 //   R3  ./read-surface
 //   R3  ./present-or-degraded    (presentOrDegraded, DegradedPresent — the post-write read-door, §1b)
+//   R1  ../domain/content-signature    (Wing-B E3 — classify*/isBlockClass/shapeAwareCut/classOfCell/isHomeCapableCell/RenderClass…)
+//   R1  ../domain/coin-score           (Wing-B E3 — locateCellIdentities; also emissionFromStructured/ScoredEmission/MarkSurfaceError above)
+//   R3  @/features/F-payload-store/contract/payload-store-contract  (Wing-B E3 — §3b byte-store socket, re-exposed; handle is a cell's content, never a Ref)
 //   core @/core/types/substrate-raw.types  (Who — recordScoredTurn wrapper param)
 
 // The read surface — the removable lens, rendered to context text.
@@ -126,3 +133,22 @@ export type {
   WireTurnInput, WireTurnIdentity, WireTurnOutcome,
   WireCaptureInput, WireCaptureOutcome, WireCaptureMode, AbsentCaptureFlag,
 } from './wire-turn-service'
+
+// ── Wing-B (intake widening, E3) — block + payload are first-class CELLS (R3 surface) ──
+// E3 REWORK: a block and a payload are the SAME citizen as a word-cell, larger — each a
+// RawWord cell at its own coordinate, home-capable, read through the same cell-agnostic path.
+// The engine's shape-aware cut (shapeAwareCut) coalesces each block/payload region into ONE
+// cell; the widened home-gate (isHomeCapableCell, E2-derived — NO atom field) admits it; an
+// `identity` mark homes DIRECTLY on the cell (locateCellIdentities). The Y-seam's two-arm
+// convergence is GONE (both arms are one cut); PayloadAppearance/convergeArms are superseded.
+// A payload-cell's CONTENT is its own `word` (a livbyte:// StoreHandle uri); bytes resolve
+// lazily via the §3b socket (storePayload/resolvePayload), NEVER a Ref. NONE of this alters
+// the frozen S1 contract — SpanMark/Ref/the mark set are untouched; the widening is on the mark
+// SUBJECT (a block/payload becomes a thing) and at the byte-socket (Law 2), not on Ref.
+export { classifyLine, classifyBlocks, isBlockClass, shapeAwareCut, classOfCell, isHomeCapableCell } from '../domain/content-signature'
+export type { RenderClass, ClassifiedRegion, SignatureWitness } from '../domain/content-signature'
+export { locateCellIdentities } from '../domain/coin-score'
+// The §3b byte-store socket, re-exposed through F-present's boundary for write-door consumers.
+// The StoreHandle is a payload-cell's CONTENT (its `word`), fetched via this socket — NEVER a Ref.
+export { storePayload, resolvePayload, isPayloadHandle, PAYLOAD_HANDLE_SCHEME } from '@/features/F-payload-store/contract/payload-store-contract'
+export type { StoreHandle, PayloadKind, PayloadDescriptor } from '@/features/F-payload-store/contract/payload-store-contract'

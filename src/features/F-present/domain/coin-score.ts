@@ -25,10 +25,18 @@
 //               LOUD (MarkSurfaceError, byte-exact — the failure shifts from "you miscounted" to
 //               "you named text that isn't there"). Home-disambiguation for a repeated span: the
 //               FIRST occurrence (M4 within-contract — name a longer unique span to disambiguate;
-//               `surface` already carries multi-word text, no new field). A BLOCK is its own
-//               identity at the SAME geometry: the model names the block's span and marks it
-//               `identity`; LIV homes it at the block's appearance coordinate (the span's first
-//               word-cell). Ref is UNCHANGED (string | Coord); no new op, no new field.
+//               `surface` already carries multi-word text, no new field).
+//             E3 REWORK (block + payload are first-class CELLS): a BLOCK or PAYLOAD is no longer
+//               a mark on a leading word — it is its OWN cell at its OWN coordinate. cutReply now
+//               cuts the reply with shapeAwareCut (the engine's shape step over the dumb cut):
+//               each block/payload region is ONE cell whose `word` is the verbatim region text
+//               (a payload-cell's word IS the livbyte:// handle). The old routeBlockIdentities
+//               `{ surface: lead.word }` home is REMOVED — that collision welded a block into a
+//               word and broke object-identity (L0-forbidden). Block/payload-identities are now
+//               located DIRECTLY on the home-capable block/payload cells (locateCellIdentities),
+//               at the cell's own pos — no naming, no leading word. The home-gate widens to
+//               isHomeCapableCell (E2-derived, no atom field). Ref is UNCHANGED (string | Coord);
+//               no new op, no new field, no new atom kind, no new Ref form.
 // slice:      F-present
 // layer:      R1
 // wires-in:
@@ -37,10 +45,11 @@
 //   W-ATOM  JsonSchema / StructuredEmitConfig @/features/F-ai-adapter/contract/ai-contract (type-only)
 //   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
 //   W-FN    isMark                            ../domain/mark-gate
+//   W-FN    shapeAwareCut / isHomeCapableCell / classOfCell / isBlockClass  ../domain/content-signature  (Wing-B E3 — shape-aware cut + widened gate)
 //   W-ATOM  MUSICAL_OPS / toEngineMark        ../config/register-map                     (R9 register seam — emit enum + intake translate)
 // wires-out:
 //   W-FN    emissionFromStructured / cutReply / wordCells / locateWordMarks / homeMarks
-//           / verifyGrid / validateSharedUniverse  →  ../app/scored-turn-recorder (R2)
+//           / verifyGrid / validateSharedUniverse / locateCellIdentities  →  ../app/scored-turn-recorder (R2)
 //   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / SpanMark / MarkSurfaceError
 //                                                    →  ../app/cognition-orchestrator (R2), ../app/scored-turn-recorder (R2)
 //   W-FN    projectEmissionSchema  W-ATOM MarkingSituation  →  ../contract/present-contract (R3 → F-mcp R3 mcp-contract:
@@ -52,6 +61,7 @@
 //   R3  @/features/F-ai-adapter/contract/ai-contract
 //   R3  @/features/F-memory/contract/substrate-contract
 //   R1  ../domain/mark-gate
+//   R1  ../domain/content-signature   (Wing-B E3 — shape-aware cut + widened home-gate)
 //
 // COIN scoring write-path. The model emits its reply as ONE plain text field (`reply`)
 // PLUS replyMarks (marks on its own reply) and priorMarks (marks on the person's turn) —
@@ -72,10 +82,12 @@
 // this safe: a named span that does not occur in the relevant cut is rejected loud
 // (MarkSurfaceError) — "you named text that isn't there." A repeated span resolves to its
 // FIRST occurrence; to mean a later one the model names a longer span that is unique (within
-// the contract — `surface` already carries multi-word text). A BLOCK is the SAME geometry: the
-// model names the block's leading span and marks it `identity`; LIV homes it at that span's
-// appearance coordinate. No new op, no new field, no Ref change — the widening is on the
-// SUBJECT a mark can sit on (a block becomes a first-class thing), not on Ref.
+// the contract — `surface` already carries multi-word text). A BLOCK or PAYLOAD is a FIRST-CLASS
+// CELL (E3): the reply is cut with shapeAwareCut, so each block/payload region is ONE cell at its
+// OWN coordinate; an `identity` mark homes DIRECTLY on that cell (locateCellIdentities) — no naming,
+// no leading word. The home-gate widens to admit those cells (isHomeCapableCell, E2-derived — no
+// atom field). No new op, no new field, no new atom kind, no Ref change — the widening is on the
+// SUBJECT a mark sits on (a block/payload becomes a first-class thing), not on Ref.
 
 import type { Who, RawWord, Coord } from '@/core/types/substrate-raw.types'
 import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-types'
@@ -83,6 +95,7 @@ import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/c
 import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
 import { MUSICAL_OPS, toEngineMark } from '@/features/F-present/config/register-map'   // R9 register seam (translate names; the gate validates)
+import { shapeAwareCut, isHomeCapableCell, classOfCell, isBlockClass } from '@/features/F-present/domain/content-signature'   // Wing-B E3: shape-aware cut + widened home-gate
 
 // The emission the model fills (structured output) — both turns. `reply` is the model's
 // reply as plain text (authoritative for the river grid). replyMarks score the reply;
@@ -201,14 +214,16 @@ export function emissionFromStructured(structured: unknown): ScoredEmission {
   return { reply, replyMarks: narrowSpanMarks(s.replyMarks), priorMarks: narrowSpanMarks(s.priorMarks) }
 }
 
-// ── §FORK A — G1 cuts the AUTHORITATIVE reply text; word-index → canonical position ──
-// The reply text is the model's own, verbatim. cutCells(reply) is the canonical grid:
-// joinCells(cells) === reply byte-for-byte (the cutter's exact inverse), so the rendered
-// reply carries the model's exact spacing — no re-join, no space-before-punct. There is
-// no alignment problem to solve: the reply IS the text. The only mapping is for marks —
-// the k-th WORD-CELL (word cells in order, 1-based) has a canonical position.
+// ── §FORK A — G1 cuts the AUTHORITATIVE reply text (E3: the SHAPE-AWARE cut) ──────────
+// The reply text is the model's own, verbatim. The canonical grid is shapeAwareCut(reply):
+// F-memory's dumb cut, then each block/payload region coalesced to ONE cell. It is STILL an
+// exact inverse — joinCells(cells) === reply byte-for-byte — so the rendered reply carries
+// the model's exact spacing (no re-join, no space-before-punct). There is no alignment
+// problem to solve: the reply IS the text. A block/payload is now a first-class cell at its
+// own coordinate; an `identity` mark homes directly on it (locateCellIdentities). `wordCellPos`
+// stays the prose word-cells' canonical positions (a block/payload cell is not a word-cell).
 export function cutReply(reply: string): { cells: RawWord[]; wordCellPos: number[] } {
-  const cells = cutCells(reply)
+  const cells = shapeAwareCut(reply)
   const wordCellPos = cells.filter(c => isWordCell(c.word)).map(c => c.pos)
   return { cells, wordCellPos }
 }
@@ -258,6 +273,39 @@ function findSpan(hay: string[], needle: string[]): number {
     return i
   }
   return -1
+}
+
+// ── E3 — block/payload cells → object-identities ON THEIR OWN COORDINATE ──────────────
+// The reply was cut with shapeAwareCut, so each BLOCK/PAYLOAD region (code/data/scaffold/
+// payload) is already ONE cell at its OWN coordinate. A block/payload cell is a first-class
+// thing: an `identity` mark homes DIRECTLY on it — at the cell's own `pos`, NOT a leading word
+// (the old `{ surface: lead.word }` home welded a block into a word and broke object-identity;
+// it is gone). No naming step, no locate-by-name — the cell IS the home; locateWordMarks is
+// for the model's own NAMED spans only.
+//
+// The home-gate is isHomeCapableCell (E2-derived from the cell's own content — NO field on the
+// atom): a block/payload cell with an inner word is admitted; pure chrome (a block-cell with no
+// word at all, e.g. a bare box rule) is NOT — it has no coordinate to name, renders as structure
+// (the render flag is Present-Standard debt ★). A plain prose word-cell is NOT a block-identity
+// (the model marks those by name); only block/payload cells get an auto object-identity here.
+//
+// Returns located identities ({ pos, marks }) keyed on the cell's own canonical pos — the SAME
+// shape locateWordMarks returns, so the recorder homes both through one homeMarks path. The
+// payload-cell's CONTENT (its `word` is the livbyte:// handle) needs no special arm: it is the
+// cell itself; bytes resolve lazily through the §3b socket on read, never a Ref. Pure: reads
+// only the already-cut cells. NOTHING in the frozen contract changes (SpanMark/Ref/mark set).
+export function locateCellIdentities(cells: RawWord[]): { pos: number; marks: Mark[] }[] {
+  const out: { pos: number; marks: Mark[] }[] = []
+  for (const cell of cells) {
+    // E2 is the discriminator — NOT isWordCell. A coalesced block/payload cell can BEGIN with a
+    // word char (e.g. "an image: livbyte://…"), so first-char is not enough; classOfCell reads
+    // the whole content back to its class. Only a BLOCK/PAYLOAD class gets an auto object-identity
+    // (prose word-cells are marked by the model BY NAME, not here).
+    if (!isBlockClass(classOfCell(cell))) continue   // prose cell (word/space/punct) — never an auto-identity
+    if (!isHomeCapableCell(cell)) continue           // pure chrome (no inner word) — no coordinate to sit on
+    out.push({ pos: cell.pos, marks: [{ op: 'identity' }] })
+  }
+  return out
 }
 
 // Home located marks at a turn's coordinate — trivial once `sc` is assigned (the write
