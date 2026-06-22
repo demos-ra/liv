@@ -344,11 +344,23 @@ test('search: a non-object arguments is rejected (the one structural door check)
 })
 
 // ── (G) read-door law (RD) — reads ignore extras ──────────────────────────────────
-test('present: extra lifecycle-envelope fields are ignored (read door succeeds)', () => {
+// E1: present (summary) carries ONE optional capture payload (wearerText, the submitted prompt);
+// every OTHER extra is still ignored. A bare summary (no wearerText) plans wearerText:undefined —
+// the R3 door reads it as a pure read (no capture); a summary WITH wearerText plans the capture.
+test('present: extra lifecycle-envelope fields are ignored; a bare summary is a pure read (wearerText undefined)', () => {
   const r = planToolCall('summary', { source: 'startup', session_id: 'x' })
   assert.equal(r.ok, true)
-  if (!r.ok) return
-  assert.deepEqual(r.intention, { tool: 'present' })
+  if (!r.ok || r.intention.tool !== 'present') return
+  assert.equal(r.intention.wearerText, undefined, 'no wearerText carried → pure read at R3 (no capture)')
+})
+
+// E1: summary at the turn's ENTRY carries the submitted wearer prompt — the door plans it as the
+// capture payload; R3 fires captureWearerTurn (writeRawTurn) then delivers the present.
+test('present: a summary carrying wearerText plans the capture payload (E1 capture-at-submit)', () => {
+  const r = planToolCall('summary', { wearerText: 'I toured Kyoto', source: 'UserPromptSubmit' })
+  assert.equal(r.ok, true)
+  if (!r.ok || r.intention.tool !== 'present') return
+  assert.equal(r.intention.wearerText, 'I toured Kyoto', 'the submitted prompt rides as the capture payload')
 })
 
 test('search: a raw payload plus extra envelope fields rides through (read door ignores extras)', () => {

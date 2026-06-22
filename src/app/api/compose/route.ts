@@ -7,29 +7,27 @@
 // REST POST handler for /api/compose — the write sibling of /api/present, the
 // matching REST plug owed to make REST a true sibling of MCP (Blueprint §2.4).
 // THE SEAL'S PROOF (§2.3): this route bolts onto the R3 contract alone
-// (present-contract: emissionFromStructured / recordScoredTurn / presentOrDegraded) —
-// it reaches NO engine internal. That it can be written as a thin adapter with no
-// reach inside confirms the door's seal holds.
+// (present-contract: recordWireTurn) — it reaches NO engine internal. That it can be
+// written as a thin adapter with no reach inside confirms the door's seal holds.
 //
-// Thin (R4 discipline): consult the perimeter, 401 if absent; narrow the body
-// through the SAME gate the native + MCP paths use (emissionFromStructured), record
-// BOTH turns (recordScoredTurn — who:'llm', scope = the stamped session.sessionId,
-// userId = session.userId, never the body), and derive the post-write present-or-degraded
-// ack (§1b — REST now owns the SAME guard as MCP: a committed write whose present-render
-// throws STILL STANDS, no longer masked as a 500). A false claim (word-index↔surface
-// mismatch) is rejected loud + atomic as 400 (invalid testimony, named) — symmetric with
-// the MCP door's MarkSurfaceError → INVALID_PARAMS.
+// A1 (turn-services → one core) + E1 (capture-at-submit): the wire write turn-service —
+// the WP1 entitlement crossing decision, deliver/narrow through the SAME gate the native +
+// MCP paths use, record the reply + both mark sets (who:'llm', scope = the stamped
+// session.sessionId, userId = session.userId, never the body), and the honest post-write
+// present-or-degraded ack (§1b) — is the ONE core recordWireTurn (F-present R3). REST has no
+// lifecycle submit phase, so it cannot capture at submit: it carries wearerText inline and
+// captures at compose under the honest 'compose-fallback' mode (an AbsentCaptureFlag — the only
+// remaining {text}-at-compose carry; the MCP rail captures at submit, reply-only at Stop). This
+// route is the per-surface DRIVER
+// (Mechanics §F): consult the perimeter (401 if absent), call the core, and MAP the typed
+// WireTurnOutcome to HTTP codes. The MCP door derives the same core and maps the same outcome
+// to JSON-RPC codes — one home, two thin drivers. A committed write whose present-render throws
+// STILL STANDS (no masked 500); a false mark claim is a named 400 (invalid testimony), symmetric
+// with the MCP door's INVALID_PARAMS.
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
-import { entitlementAdmits } from '@/features/F-entitlement/contract/entitlement-contract'
-import {
-  emissionFromStructured,
-  recordScoredTurn,
-  MarkSurfaceError,
-  presentOrDegraded,
-  PRESENT_BUNDLES,
-} from '@/features/F-present/contract/present-contract'
+import { recordWireTurn } from '@/features/F-present/contract/present-contract'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = getPerimeterSession(req)
@@ -40,49 +38,66 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
 
-  // ENTITLEMENT GATE (WP1) — the SAME boundary crossing decision as the MCP turn door (REST↔MCP
-  // symmetry). A compose is a write crossing; admit only if the perimeter-stamped attribute admits
-  // (paid|trial). Switchable + dormant by default: no provider → 'trial' → admit. Reads the stamp
-  // (session.resolvedEntitlement), re-resolves nothing (PA-I); a not-admitted crossing is denied
-  // here, before the recorder. A gate, not a meter.
-  if (!entitlementAdmits(session.resolvedEntitlement)) {
-    return NextResponse.json(
-      { ok: false, error: { code: 'COMPOSE_ENTITLEMENT_DENIED', message: 'entitlement lapsed: this write crossing is not admitted' } },
-      { status: 402 },
-    )
-  }
-
   const body = (await req.json().catch(() => null)) as
     | { wearerText?: unknown; reply?: unknown; replyMarks?: unknown; priorMarks?: unknown }
     | null
 
-  // The core contract is the sole validator (the door is transport): narrow reply/marks
-  // through the same gate, absorb a non-string wearerText gracefully at the recorder.
-  const emission = emissionFromStructured({
-    reply: body?.reply, replyMarks: body?.replyMarks, priorMarks: body?.priorMarks,
-  })
+  // A1/E1 — the wire write turn-service (the WP1 entitlement crossing decision, deliver/narrow
+  // through the SAME gate the native + MCP paths use, record the reply + both mark sets, the honest
+  // post-write present-or-degraded ack) is the ONE core recordWireTurn (F-present R3). userId/scope
+  // come from the stamped session (never the body). This REST plug is the per-surface DRIVER
+  // (Mechanics §F): it maps the typed WireTurnOutcome to HTTP codes — symmetric with the MCP door.
+  //
+  // E1 CAPTURE MODE — REST is a SINGLE POST with no lifecycle submit phase: it cannot capture the
+  // wearer turn at submit, so it carries wearerText INLINE and captures at compose. That is the
+  // honest NO-LIFECYCLE FALLBACK ('compose-fallback' + an AbsentCaptureFlag) — the only remaining
+  // {text}-at-compose carry. The MCP rail (with its UserPromptSubmit hook) captures at submit and
+  // records reply-only; REST, lacking that hook, is the flagged degraded-but-named path.
+  const outcome = await recordWireTurn(
+    {
+      wearerText: body?.wearerText,
+      reply:      body?.reply,
+      replyMarks: body?.replyMarks,
+      priorMarks: body?.priorMarks,
+    },
+    {
+      userId:              session.userId,
+      scope:               session.sessionId,
+      resolvedEntitlement: session.resolvedEntitlement,
+    },
+    {
+      mode: 'compose-fallback',
+      absentCapture: {
+        absentCapture: true,
+        reason: 'REST /api/compose: no lifecycle submit phase — capture(M1) is not enforced at submit; the wearer turn is captured at compose from inline wearerText (flagged, not silent)',
+      },
+    },
+  )
 
-  let ack
-  try {
-    ack = await recordScoredTurn(emission, 'llm', session.userId, session.sessionId, { text: body?.wearerText })
-  } catch (err) {
-    if (err instanceof MarkSurfaceError) {
+  switch (outcome.kind) {
+    // WP1: a not-admitted crossing — denied before the recorder, mapped to HTTP 402.
+    case 'denied':
       return NextResponse.json(
-        { ok: false, error: { code: 'COMPOSE_INVALID_TESTIMONY', message: err.message } },
+        { ok: false, error: { code: 'COMPOSE_ENTITLEMENT_DENIED', message: outcome.message } },
+        { status: 402 },
+      )
+    // A false mark claim (word-index↔surface mismatch) — loud + atomic, nothing persisted. Named
+    // (law-named) so the caller re-emits — invalid testimony, not an internal error (HTTP 400).
+    case 'invalid-testimony':
+      return NextResponse.json(
+        { ok: false, error: { code: 'COMPOSE_INVALID_TESTIMONY', message: outcome.message } },
         { status: 400 },
       )
-    }
-    throw err
+    // The happy path — the fresh present (the resulting memory) straight through, the read sibling's shape.
+    case 'present':
+      return NextResponse.json({ ok: true, data: { present: outcome.present } })
+    // The honest ack (§1b / A2.2): a committed write whose render threw STILL STANDS (ok:true,
+    // present:null, sc) at 200 — no longer a masked 500; a dropped no-op is ok:false, present
+    // (unchanged), sc:null. Never a value that looks persisted when it wasn't.
+    case 'degraded':
+      return NextResponse.json({
+        ok:   outcome.degraded.ok,
+        data: { present: outcome.degraded.present, sc: outcome.degraded.sc, note: outcome.degraded.note },
+      })
   }
-
-  // The response carries the fresh present (the resulting memory) — the read sibling's shape.
-  // REST derives the SAME post-write present-or-degraded guard as MCP (§1b): the honest write-ack
-  // (landed/dropped, never a fake coordinate) and the failure-ordering (A2.2). A pass-through
-  // present (string) is the happy path → { ok:true, data:{ present } }; otherwise the honest ack —
-  // a committed write whose render threw stays { ok:true, present:null, sc } at 200 (no longer a
-  // masked 500), and a dropped no-op is { ok:false, present (unchanged), sc:null }.
-  const out = await presentOrDegraded(session.userId, PRESENT_BUNDLES.wire, ack)
-  return typeof out === 'string'
-    ? NextResponse.json({ ok: true, data: { present: out } })
-    : NextResponse.json({ ok: out.ok, data: { present: out.present, sc: out.sc, note: out.note } })
 }
