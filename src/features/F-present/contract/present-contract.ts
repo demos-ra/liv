@@ -24,7 +24,8 @@
 //   W-FN  emissionFromStructured →  F-mcp (turn tool, who:'llm') — the narrowing/gate filter
 //   W-FN  projectEmissionSchema  →  F-mcp (turn tool — the `turn` inputSchema is a derived view)
 //   W-ATOM MarkingSituation      →  F-mcp (MCP_SITUATION — the wire's per-surface contract choices, type-only)
-//   W-ATOM COIN_MANUAL           →  F-mcp (turn tool — manual rides the description, one home)
+//   W-FN  projectManual          →  F-mcp (turn tool — the R0-leaf manual; the wire renders
+//                                    projectManual(opts) from MCP_SITUATION + its schema, paired — one home)
 //   W-FN  search/parseSearchSpec →  F-mcp (search tool — the text-pivot: region × lens)
 //   W-ATOM SearchRegion/Lens/Spec/Result  →  F-mcp (search tool — type-only)
 //   W-ATOM PRESENT_BUNDLES       →  F-mcp (present/turn — R7 rail-aware bundle: wire = tables only)
@@ -34,7 +35,7 @@
 // re-export deps:
 //   R1  ../domain/mark-gate      (isMark)
 //   R1  ../domain/coin-score     (emissionFromStructured, ScoredEmission, MarkSurfaceError)
-//   R0  ../config/coin-manual    (COIN_MANUAL)
+//   R0  ../config/coin-manual    (projectManual — the situation-projected manual)
 //   R0  ../config/read-engine-types  (PRESENT_BUNDLES)
 //   R0  ../config/write-ack-types    (WriteAck)
 //   R2  ../app/cognition-orchestrator
@@ -66,30 +67,35 @@ export { isMark } from '../domain/mark-gate'
 // (§1a): it WRAPS it — keeping the name `recordScoredTurn` — so every rail derives the ONE honest
 // acknowledgement. The wrapper returns the R3 WriteAck (toWriteAck reads the write evidence — cells
 // — never sc; landed:false carries no sc). MarkSurfaceError — the loud, ATOMIC reject — propagates
-// THROUGH the wrapper unchanged, ahead of any ack (only a RETURNED RecordedTurn is folded). COIN_MANUAL
-// is surfaced for the present tool's manual-with-present return (one home — config/coin-manual).
+// THROUGH the wrapper unchanged, ahead of any ack (only a RETURNED RecordedTurn is folded). projectManual
+// is surfaced for the wire's manual-on-the-turn-description (one home — config/coin-manual, the R0-leaf
+// manual the wire renders from primitives it computes from MCP_SITUATION + its schema).
 import { recordScoredTurn as recordScoredTurnRaw } from '../app/scored-turn-recorder'
-import type { WearerSource, ScoredTurnDeps } from '../app/scored-turn-recorder'
+import type { WearerSource, ScoredTurnDeps, ReplyMarking } from '../app/scored-turn-recorder'
 import { toWriteAck } from '../app/write-ack'
 import type { WriteAck } from '../config/write-ack-types'
 import type { ScoredEmission } from '../domain/coin-score'
 import type { Who } from '@/core/types/substrate-raw.types'
 
+// `replyMarking` (inline-marking Touch 2) is the FORMAT axis — it comes from the calling surface's
+// SITUATION (the wire passes MCP_SITUATION.replyMarking), never a surface name. Absent ≡ 'separate'
+// (byte-identical to today); the param forwards straight to the raw recorder ahead of deps.
 export async function recordScoredTurn(
   emission: ScoredEmission,
   who: Who,
   userId: string,
   scope: string,
   wearer: WearerSource,
+  replyMarking: ReplyMarking = 'separate',
   deps?: ScoredTurnDeps,
 ): Promise<WriteAck> {
-  const recorded = await recordScoredTurnRaw(emission, who, userId, scope, wearer, deps)
+  const recorded = await recordScoredTurnRaw(emission, who, userId, scope, wearer, replyMarking, deps)
   return toWriteAck(recorded)
 }
 export type { WriteAck }
 export { emissionFromStructured, MarkSurfaceError } from '../domain/coin-score'
 export type { ScoredEmission } from '../domain/coin-score'
-export { COIN_MANUAL } from '../config/coin-manual'
+export { projectManual } from '../config/coin-manual'
 
 // The post-write present-or-degraded (R3 read-door, §1b — rehomed here from F-mcp so REST gains
 // the same guard MCP has, and so it imports readPresent in-layer). The turn door (MCP) and the
@@ -103,6 +109,9 @@ export type { DegradedPresent } from './present-or-degraded'
 // (carry wearerText? demand all? field descriptions?). One contract, surfaces derive.
 export { projectEmissionSchema } from '../domain/coin-score'
 export type { MarkingSituation } from '../domain/coin-score'
+// the FORMAT axis (inline-marking Touch 2) — surfaced so the wire driver can pass its situation's
+// replyMarking through recordWireTurn → the recorder. Sourced from the situation, never a surface name.
+export type { ReplyMarking } from '../app/scored-turn-recorder'
 
 // search (region × lens — the text-pivot): the one read door, exposing both the raw cells
 // (cellsOf) and the rendered grid (pivot → renderGrid) through region × lens. The wire `search`

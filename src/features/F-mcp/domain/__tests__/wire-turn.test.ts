@@ -94,8 +94,10 @@ test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, zero 
   for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
     assert.equal(s.properties[f].description, undefined, `${f} carries no field hint (zero — the manual teaches)`)
   }
-  // DRIFT GONE: the wire's mark item is the SAME geometry the native projection advertises.
-  assert.deepEqual(s.properties.replyMarks.items, SCORE_SCHEMA.properties.replyMarks.items)
+  // DRIFT GONE: the wire's mark item is the SAME geometry the core advertises. Native is now
+  // inline (no replyMarks of its own), so the shared-item proof rides priorMarks — the prior
+  // side is named-span in EVERY situation, so SCORE_SCHEMA.priorMarks.items is the one geometry.
+  assert.deepEqual(s.properties.replyMarks.items, SCORE_SCHEMA.properties.priorMarks.items)
   assert.deepEqual(s.properties.priorMarks.items, s.properties.replyMarks.items)
 })
 
@@ -159,7 +161,7 @@ test('a well-formed turn lands both turns and its marks; scope is the stamped se
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, seam.deps)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, 'separate', seam.deps)
 
   assert.equal(recorded.sc, 12)
   // both turns written: wearer THEN reply; scope stamped = sessionId, never sent.
@@ -188,7 +190,7 @@ test('a turn whose mark names a span not in the reply is rejected loud + atomic 
   const emission = emissionFromStructured({ reply, replyMarks, priorMarks })
   const seam = stubDeps(12, 11)
   await assert.rejects(
-    () => recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: wearerText }, seam.deps),
+    () => recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: wearerText }, 'separate', seam.deps),
     (e: unknown) => e instanceof MarkSurfaceError,
   )
   assert.equal(seam.writes.length, 0, 'atomic — the loud rejection precedes every write')
@@ -209,7 +211,7 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, seam.deps)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, 'separate', seam.deps)
   assert.equal(recorded.sc, 12, 'the reply still records — the non-string wearerText did not throw')
   assert.equal(seam.placed.length, 1, 'only the reply mark lands; the wearer turn is empty (graceful)')
   assert.equal(seam.placed[0].home.who, 'llm')

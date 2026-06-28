@@ -7,8 +7,12 @@
 // are keyed by WORD-INDEX into the wearer's transcript text + surface, validated by the
 // recorder — the model no longer copies <pos>:<word> pairs, so the scoring context is just
 // the manual (M1) first, then the present. This pins:
-//   - with a present: `${COIN_MANUAL}\n\n${present}`;
-//   - without a present: `COIN_MANUAL` alone.
+//   - with a present: `${nativeManual}\n\n${present}`;
+//   - without a present: the native manual alone.
+//
+// inline-marking Touch 3 — the COIN_MANUAL constant is gone (coin-manual is a strict R0 leaf).
+// The native manual is RENDERED from primitives the caller computes from NATIVE_SITUATION; this
+// test builds it the SAME way the orchestrator does, so it pins what buildScoringContext produces.
 //
 // Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first.
 // Run: npx tsx --test src/features/F-present/app/__tests__/scoring-context.test.ts
@@ -17,21 +21,27 @@ import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
 
 let buildScoringContext: (sp: string | null) => string
-let COIN_MANUAL: string
+let nativeManual: string
 
 before(async () => {
   await import('@/features/F-present/contract/present-contract')          // warm the graph
   ;({ buildScoringContext } = await import('@/features/F-present/app/cognition-orchestrator'))
-  ;({ COIN_MANUAL } = await import('@/features/F-present/config/coin-manual'))
+  const { projectManual } = await import('@/features/F-present/config/coin-manual')
+  const { NATIVE_SITUATION, projectEmissionSchema } = await import('@/features/F-present/domain/coin-score')
+  nativeManual = projectManual({
+    inline: NATIVE_SITUATION.replyMarking === 'inline',
+    includeWearerText: NATIVE_SITUATION.includeWearerText,
+    fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
+  })
 })
 
 // ── the context is manual-first, present-second — no cells block ────────────────
-test('with a present, the context is `${COIN_MANUAL}\\n\\n${present}`', () => {
-  assert.equal(buildScoringContext('PRESENT-BODY'), `${COIN_MANUAL}\n\nPRESENT-BODY`)
+test('with a present, the context is `${nativeManual}\\n\\n${present}`', () => {
+  assert.equal(buildScoringContext('PRESENT-BODY'), `${nativeManual}\n\nPRESENT-BODY`)
 })
 
 test('without a present, the context is the manual alone', () => {
-  assert.equal(buildScoringContext(null), COIN_MANUAL)
+  assert.equal(buildScoringContext(null), nativeManual)
 })
 
 // ── the deleted block leaves no residue — no WEARER-TURN CELLS rendering ────────

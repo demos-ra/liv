@@ -16,7 +16,7 @@
 //   W-FN     recordWireTurn     F-present/R3 present-contract   (A1/E1 — the ONE wire turn-service: WP1 gate + deliver + record reply against wearer:{written} + ack; this door maps the outcome)
 //   W-FN     projectEmissionSchema   F-present/R3 present-contract  (turn inputSchema = projectEmissionSchema(MCP_SITUATION))
 //   W-ATOM   MarkingSituation        F-present/R3 present-contract  (MCP_SITUATION — the wire's contract choices, type-only)
-//   W-ATOM   COIN_MANUAL        F-present/R3 present-contract   (manual rides the turn description — once-channel)
+//   W-FN     projectManual      F-present/R3 present-contract   (R0-leaf manual rides the turn description — once-channel; rendered from primitives we compute from MCP_SITUATION + its schema)
 //   W-ATOM   TOOL_TURN          F-mcp/config mcp-tools          (manual injection target at tools/list)
 //   W-FN     lookup             F-present/R3 present-contract   (R8 read control — turn|span|thing)
 //   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only; the present-read path)
@@ -29,6 +29,11 @@
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract  (A1 — recordWireTurn folds in the WP1 entitlement gate; F-mcp no longer imports F-entitlement directly)
 //   R3  @/features/F-identity/contract/perimeter-consultation
+// amended:    inline-marking Touch 3 (wire delivery wired to the R0-leaf manual): the COIN_MANUAL
+//             import becomes projectManual(opts); tools/list computes the schema ONCE and feeds
+//             BOTH the `turn` inputSchema AND the manual opts (inline?, includeWearerText, the
+//             projected field list) — so manual + schema cannot drift, and coin-manual stays a strict
+//             R0 leaf. MCP_SITUATION stays 'separate' (named form) — wire migrates per-agent (§3).
 // validated:  pending
 
 import { parseRequest, buildResult, buildError } from '../domain/json-rpc'
@@ -42,7 +47,7 @@ import {
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
-import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordWireTurn, captureWearerTurn, COIN_MANUAL, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
+import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordWireTurn, captureWearerTurn, projectManual, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
@@ -97,18 +102,30 @@ export async function handleMcpRequest(
       case 'ping':
         return buildResult(id, {})
 
-      case 'tools/list':
+      case 'tools/list': {
         // The `turn` tool's advertisement is DERIVED here, not hand-declared at config: its
         // inputSchema is projectEmissionSchema(MCP_SITUATION) — the one core emission contract,
         // projected for the wire (all four required, the full mark shape, field descriptions).
         // The fill manual rides its description — a ONCE-channel (R2): the client fetches
         // tools/list once at session start, so the manual crosses the wire once, never per
-        // turn. One home each (COIN_MANUAL + the contract, via F-present R3), injected together.
+        // turn. One home each (the manual + the contract, via F-present R3), injected together.
+        // inline-marking Touch 3: ONE schema computation feeds BOTH the manual and the inputSchema,
+        // so what the wire teaches and what it accepts cannot drift. coin-manual is a strict R0
+        // leaf — it renders from primitives we hand it (inline?, includeWearerText, the projected
+        // field list), never re-deriving the schema. MCP_SITUATION stays 'separate' (the named
+        // { surface, marks } form) until this agent proves clean [[ ]] under load (§3 wire-per-agent).
+        const schema = projectEmissionSchema(MCP_SITUATION)
+        const manual = projectManual({
+          inline: MCP_SITUATION.replyMarking === 'inline',
+          includeWearerText: MCP_SITUATION.includeWearerText,
+          fields: Object.keys(schema.properties ?? {}),
+        })
         return buildResult(id, {
           tools: listTools().map(t => t.name === TOOL_TURN
-            ? { ...t, description: `${t.description}\n\n${COIN_MANUAL}`, inputSchema: projectEmissionSchema(MCP_SITUATION) }
+            ? { ...t, description: `${t.description}\n\n${manual}`, inputSchema: schema }
             : t),
         })
+      }
 
       case 'tools/call': {
         const p = (typeof params === 'object' && params !== null ? params : {}) as {
@@ -177,11 +194,15 @@ export async function handleMcpRequest(
         // the honest ack JSON (a committed-but-unrendered write STILL STANDS; a dropped no-write is
         // reported not-persisted — never masked). The REST /api/compose plug derives the same core
         // and maps the same outcome to HTTP codes — one home, two thin drivers.
+        // the reply-marking FORMAT is the wire's OWN situation (MCP_SITUATION.replyMarking) — the
+        // SAME situation that projects the `turn` inputSchema above, so what the wire advertises and
+        // how it records can never drift. Absent ≡ 'separate' today; the per-agent migration (§3)
+        // flips it on MCP_SITUATION alone. Never a surface name.
         const outcome = await recordWireTurn(intention, {
           userId:              session.userId,
           scope:               session.sessionId,
           resolvedEntitlement: session.resolvedEntitlement,
-        })
+        }, { mode: 'submit-captured' }, MCP_SITUATION.replyMarking ?? 'separate')
         switch (outcome.kind) {
           case 'denied':
             return buildError(id, JSONRPC_ENTITLEMENT_DENIED, outcome.message)

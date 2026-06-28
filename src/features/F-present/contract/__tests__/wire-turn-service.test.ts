@@ -67,7 +67,7 @@ test("WP1: a lapsed entitlement yields { kind: 'denied' } — the recorder is ne
   const seam = captureSeam()
   const out = await recordWireTurn(goodInput(), {
     userId: 'u', scope: 's', resolvedEntitlement: 'lapsed',
-  }, { mode: 'submit-captured' }, seam.deps)
+  }, { mode: 'submit-captured' }, 'separate', seam.deps)
   assert.equal(out.kind, 'denied')
   assert.match(out.message, /not admitted/i)
 })
@@ -86,7 +86,7 @@ test("invalid-testimony: a mark naming an absent span yields { kind: 'invalid-te
       priorMarks: [],
     },
     { userId: 'u', scope: 's', resolvedEntitlement: 'trial' },
-    { mode: 'submit-captured' }, seam.deps,
+    { mode: 'submit-captured' }, 'separate', seam.deps,
   )
   assert.equal(out.kind, 'invalid-testimony')
   assert.match(out.message, /Osaka/)
@@ -99,7 +99,7 @@ test("invalid-testimony: a mark naming an absent span yields { kind: 'invalid-te
 // ── the four outcome kinds are the closed driver-mapping surface ───────────────────
 // Every recordWireTurn return is one of the four tags — the driver's switch is exhaustive.
 test('the outcome is always one of the four kinds (the driver switch is exhaustive)', async () => {
-  const denied = await recordWireTurn(goodInput(), { userId: 'u', scope: 's', resolvedEntitlement: 'lapsed' }, undefined, captureSeam().deps)
+  const denied = await recordWireTurn(goodInput(), { userId: 'u', scope: 's', resolvedEntitlement: 'lapsed' }, undefined, 'separate', captureSeam().deps)
   assert.ok(['denied', 'invalid-testimony', 'present', 'degraded'].includes(denied.kind))
 })
 
@@ -156,7 +156,7 @@ test('enforced compose resolves priorMarks against the STORED wearer turn, not t
   // With the stored turn present, the priorMark surface-check PASSES (no invalid-testimony) — it
   // proceeds to the recorder's write (real DB). With NO stored turn, the SAME priorMark fails loud.
   const seamNoStore = captureSeam([])
-  const outNoStore = await recordWireTurn(input, { userId: 'u', scope: 's', resolvedEntitlement: 'trial' }, { mode: 'submit-captured' }, seamNoStore.deps)
+  const outNoStore = await recordWireTurn(input, { userId: 'u', scope: 's', resolvedEntitlement: 'trial' }, { mode: 'submit-captured' }, 'separate', seamNoStore.deps)
   assert.equal(outNoStore.kind, 'invalid-testimony', 'no stored wearer turn → the priorMark fails loud (not silent)')
   assert.match(outNoStore.message, /Kyoto/)
   assert.equal(seamNoStore.writes.length, 0, 'enforced compose never captures — and the loud reject is atomic')
@@ -183,6 +183,7 @@ test('fallback compose ({text}) resolves priorMarks against the CARRIED text (th
     input,
     { userId: 'u', scope: 's', resolvedEntitlement: 'trial' },
     { mode: 'compose-fallback', absentCapture: { absentCapture: true, reason: 'no-lifecycle: capture at compose' } },
+    'separate',
     seam.deps,
   )
   // the reply mark 'Osaka' is the loud failure (atomic, before any write) — but the priorMark

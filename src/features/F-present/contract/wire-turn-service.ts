@@ -97,7 +97,7 @@ import {
   readPresent,
   PRESENT_BUNDLES,
 } from './present-contract'
-import type { DegradedPresent } from './present-contract'
+import type { DegradedPresent, ReplyMarking } from './present-contract'
 import { writeRawTurn, cutCells, isWordCell, readTranscript } from '@/features/F-memory/contract/substrate-contract'
 import type { RawWord } from '@/core/types/substrate-raw.types'
 
@@ -240,10 +240,15 @@ async function latestWearerWritten(userId: string, deps: WireCaptureDeps): Promi
 //     EXACTLY native's composeAndWrite. priorMarks resolve against the stored wearer cells.
 //   - 'compose-fallback' (no-lifecycle): the wearer turn was NOT captured at submit, so capture it
 //     here from input.wearerText → wearer:{text} (the ONLY remaining {text} carry), flagged honest.
+// `replyMarking` (inline-marking Touch 2) is the wire's reply-marking FORMAT — it comes from the
+// wire's SITUATION (MCP_SITUATION.replyMarking), passed by the driver, NEVER a surface name. Absent
+// ≡ 'separate' (byte-identical to today); the wire flips per-agent in the migration (§3), at which
+// point the driver hands 'inline' here and the recorder consumes the parsed inline spans.
 export async function recordWireTurn(
   input:       WireTurnInput,
   identity:    WireTurnIdentity,
   capture:     WireCaptureMode = { mode: 'submit-captured' },
+  replyMarking: ReplyMarking = 'separate',
   deps:        WireCaptureDeps = defaultCaptureDeps(),
 ): Promise<WireTurnOutcome> {
   // (WP1) the crossing decision — before the recorder is ever reached. Reads the stamped
@@ -283,7 +288,7 @@ export async function recordWireTurn(
   // without re-importing the error class.
   let ack
   try {
-    ack = await recordScoredTurn(emission, 'llm', identity.userId, identity.scope, wearer)
+    ack = await recordScoredTurn(emission, 'llm', identity.userId, identity.scope, wearer, replyMarking)
   } catch (err) {
     if (err instanceof MarkSurfaceError) return { kind: 'invalid-testimony', message: err.message }
     throw err

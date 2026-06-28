@@ -28,10 +28,20 @@
 //               intake now takes `unknown` and guards a non-string → empty wearer text. The
 //               MCP door sheds emission-SHAPE validation (mis-owned at R1); this contract is
 //               the sole validator, so the wearerText-is-usable-text guard homes HERE.
+//             inline-marking Touch 2 (additive recorder fork by FORMAT): recordScoredTurn gains a
+//               `replyMarking: 'separate' | 'inline'` param (absent ≡ 'separate' — the SpanMark[]
+//               path, byte-identical to today). It reaches the recorder from the caller's SITUATION
+//               (native NATIVE_SITUATION / wire MCP_SITUATION), NEVER from a surface name. When
+//               'inline' the reply carries its marks in its text: parseInlineReply STRIPS the markup
+//               → the CLEAN reply (cut by the SAME deps.cutReply — no second cutter) + each wrap's
+//               span offsets, and the reply-side locate consumes those offsets (locateInlineMarks)
+//               instead of locateWordMarks-by-name. locateCellIdentities (block/payload auto-identity)
+//               runs UNCHANGED on the inline path. The PRIOR side, the cut, homeMarks, verifyGrid,
+//               validateSharedUniverse, the write order and the WriteAck are all UNTOUCHED.
 // slice:      F-present
 // layer:      R2
 // wires-in:
-//   W-FN    cutReply/wordCells/locateWordMarks/locateCellIdentities/homeMarks/verifyGrid/validateSharedUniverse  ../domain/coin-score
+//   W-FN    cutReply/wordCells/locateWordMarks/locateCellIdentities/homeMarks/verifyGrid/validateSharedUniverse/parseInlineReply/locateInlineMarks  ../domain/coin-score
 //   W-ATOM  ScoredEmission                                             ../domain/coin-score (type-only)
 //   W-FN    buildFactTable                                             ../domain/fact-table
 //   W-FN    resolveDimension                                           ../domain/resolve-dimension
@@ -80,7 +90,7 @@
 // and get the real wires; tests inject stubs to run DB-free and to COUNT the single cut.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { cutReply, wordCells, locateWordMarks, locateCellIdentities, homeMarks, verifyGrid, validateSharedUniverse } from '@/features/F-present/domain/coin-score'
+import { cutReply, wordCells, locateWordMarks, locateCellIdentities, homeMarks, verifyGrid, validateSharedUniverse, parseInlineReply, locateInlineMarks } from '@/features/F-present/domain/coin-score'
 import type { ScoredEmission } from '@/features/F-present/domain/coin-score'
 import { buildFactTable } from '@/features/F-present/domain/fact-table'
 import { resolveDimension } from '@/features/F-present/domain/resolve-dimension'
@@ -104,6 +114,13 @@ export type WearerSource =
   | { written: { sc: number; wordCells: RawWord[] } }   // native — E1 wrote it (perimeter-stamped, untouched)
   | { text: unknown }                                   // wire — the turn door's wearerText (the door sheds shape-validation;
                                                         //   this contract is the sole validator); recorder cuts + writes
+
+// How the reply carries its marks — the FORMAT axis, mirroring MarkingSituation.replyMarking
+// (coin-score R1). It reaches the recorder from the SITUATION the caller is in (native →
+// NATIVE_SITUATION, wire → MCP_SITUATION), NOT from any surface name: the recorder branches on
+// the format, never on which surface called. Absent ≡ 'separate' (the SpanMark[] path,
+// byte-identical to today). 'inline' selects the parsed-span reply-side homer (locateInlineMarks).
+export type ReplyMarking = 'separate' | 'inline'
 
 // The injected I/O + cutter seam (A4). Default-bound to the live wires.
 export type ScoredTurnDeps = {
@@ -129,13 +146,21 @@ export async function recordScoredTurn(
   userId: string,
   scope: string,
   wearer: WearerSource,
+  replyMarking: ReplyMarking = 'separate',
   deps: ScoredTurnDeps = defaultDeps(),
 ): Promise<RecordedTurn> {
   // Empty / malformed reply → honest non-write (byte-identical to the prior guard).
   if (emission.reply.length === 0) return EMPTY
 
   // 1. cut the reply ONCE — the canonical grid (the reply text is authoritative, §FORK = A).
-  const replyCut = deps.cutReply(emission.reply)
+  //    INLINE (format, never surface): the reply carries its marks in its text ([[ … ]] + musical),
+  //    so parseInlineReply STRIPS the markup → the CLEAN reply (what gets cut) + each wrap's span
+  //    offsets. The cut stays deps.cutReply — the SAME ONE cutter, run on the clean text (no second
+  //    cutter). SEPARATE (absent/today): cut the reply text as-is. The parsed inline spans (if any)
+  //    feed the reply-side locate in step 3; the prior side is unchanged in both formats.
+  const parsedInline = replyMarking === 'inline' ? parseInlineReply(emission.reply) : null
+  const replyText = parsedInline ? parsedInline.clean : emission.reply
+  const replyCut = deps.cutReply(replyText)
   const replyCells = replyCut.cells
   if (replyCells.length === 0) return EMPTY
 
@@ -169,8 +194,18 @@ export async function recordScoredTurn(
   //    A payload-cell's CONTENT is its own `word` (the livbyte:// handle); bytes resolve lazily
   //    via the §3b socket on read, never a Ref. The model's own named replyMarks/priorMarks still
   //    locate by name (locateWordMarks). Both home-paths return { pos, marks } and merge into one.
+  //
+  //    INLINE vs SEPARATE is the reply-side FORK, by FORMAT (never surface): under 'inline' the
+  //    reply's own marks were folded into its text, so they home from the PARSED SPAN OFFSETS
+  //    (locateInlineMarks over the same replyCells) instead of locateWordMarks-by-name. Both
+  //    return the SAME { pos, marks } shape. locateCellIdentities (block/payload auto-identity)
+  //    runs UNCHANGED on the inline path. The PRIOR side is UNCHANGED in both formats — priorMarks
+  //    always resolve against the wearer cells by name.
+  const replyWordLocated = parsedInline
+    ? locateInlineMarks(parsedInline.marks, replyCells)
+    : locateWordMarks(emission.replyMarks, replyCells, 'reply')
   const replyLocated = [
-    ...locateWordMarks(emission.replyMarks, replyCells, 'reply'),
+    ...replyWordLocated,
     ...locateCellIdentities(replyCells),
   ]
   const priorLocated = locateWordMarks(emission.priorMarks, wearerWordCells, 'prior')

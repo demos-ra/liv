@@ -9,17 +9,25 @@ import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let search: any, parseSearchSpec: any, recordScoredTurn: any, emissionFromStructured: any, COIN_MANUAL: any
+let search: any, parseSearchSpec: any, recordScoredTurn: any, emissionFromStructured: any, projectManual: any
+let NATIVE_SITUATION: any, projectEmissionSchema: any, COIN_MANUAL: string
 let handleMcpRequest: any
 let cutCells: (t: string) => { pos: number; word: string }[]
 let wordCells: (cells: any[]) => { pos: number }[]
 
 before(async () => {
-  ;({ search, parseSearchSpec, recordScoredTurn, emissionFromStructured, COIN_MANUAL } =
+  ;({ search, parseSearchSpec, recordScoredTurn, emissionFromStructured, projectManual } =
     await import('@/features/F-present/contract/present-contract'))
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
+  ;({ wordCells, NATIVE_SITUATION, projectEmissionSchema } = await import('@/features/F-present/domain/coin-score'))
   ;({ handleMcpRequest } = await import('@/features/F-mcp/contract/mcp-contract'))
+  // the native rendering (the manual the compose path rides) — built the way the caller builds it:
+  // primitives from native's situation + its own projected schema fields (coin-manual is an R0 leaf).
+  COIN_MANUAL = projectManual({
+    inline: NATIVE_SITUATION.replyMarking === 'inline',
+    includeWearerText: NATIVE_SITUATION.includeWearerText,
+    fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
+  })
 })
 
 // ── an in-memory substrate (DB-free): the recorder writes here; search reads here ──
@@ -56,7 +64,7 @@ async function seedKyoto(h: ReturnType<typeof harness>) {
       ],
       priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }] }],
     }),
-    'llm', 'u', 'sess', { text: 'I toured Kyoto' }, h.recDeps,
+    'llm', 'u', 'sess', { text: 'I toured Kyoto' }, 'separate', h.recDeps,
   )
 }
 
@@ -154,7 +162,7 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
       replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: pin }] }],
       priorMarks: [],
     }),
-    'llm', 'u', 'sess', { text: 'more on Kyoto' }, h.recDeps,
+    'llm', 'u', 'sess', { text: 'more on Kyoto' }, 'separate', h.recDeps,
   )
   log('\n=========== (d+e) compose — pin the coordinate in a tie mark ===========')
   // the R3 door returns the WriteAck (§1a): landed → { landed:true, sc, text } (markCount dropped).

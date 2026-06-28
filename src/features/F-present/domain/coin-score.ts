@@ -26,6 +26,50 @@
 //               "you named text that isn't there"). Home-disambiguation for a repeated span: the
 //               FIRST occurrence (M4 within-contract — name a longer unique span to disambiguate;
 //               `surface` already carries multi-word text, no new field).
+//             inline-marking Touch 1 (situation-axis + parseInlineReply, ADDITIVE): MarkingSituation
+//               gains one orthogonal optional field replyMarking?: 'separate' | 'inline' (absent ≡
+//               'separate' — the SpanMark[] path, byte-identical to today). projectEmissionSchema is
+//               ONE contract with a new COLUMN, never a forked schema: when 'inline' it OMITS the
+//               replyMarks field and rides the inline-form teaching on the `reply` description, keeping
+//               priorMarks UNCHANGED (the prior side is always named-span). parseInlineReply(reply)
+//               strips [[ ]] + the trailing op-clause ]](musical-op targets), returns the CLEAN reply
+//               (what cutCells cuts) and each wrap's CHARACTER-OFFSET span (start,end into the clean
+//               text) + op (MusicalOp, validated via isMusicalOp — no second musical→engine map) +
+//               parsed targets (Ref[]: bare names as strings, who:sc:pos as Coord; parsed not resolved).
+//               It is a BOUNDARY-supplier only — no cell coord, no tokenize-into-cells, no word-count,
+//               no re-cut (the cut stays cutCells, Touch 2). Malformed tag / unknown op / unclosed
+//               clause → MarkSurfaceError, loud, naming the span (the well-formedness check in the
+//               surface-check's slot). SpanMark/SPAN_MARK_ITEM/priorMarks/the gate are UNTOUCHED.
+//             inline-marking ruling B (expression coloring RESTORED — a dropped field, not a layer):
+//               named QUALIFY is { coloring, target } (mark-types.ts:42, TWO values); the original
+//               inline grammar wrote only the target, so coloring had no channel and an expression
+//               mark dropped at the gate. ParsedSpan gains coloring?: string; parseInlineReply parses
+//               (expression <coloring> <target>) — coloring = the FIRST whitespace token (a single
+//               quality word the model STATES, or a CLAIM_STATUS value), target = the remainder Ref;
+//               missing either → MarkSurfaceError, named. inlineMusicalMark now builds
+//               { op:'expression'(→QUALIFY), coloring, target } so expression HOMES. The 4-mark
+//               uniformity holds with nothing added/dropped: note=home only, chord=peers, tie=target,
+//               expression=coloring+target. note/chord/tie parsing + locate UNCHANGED; toEngineMark
+//               stays the sole musical→engine home.
+//             inline-marking uncap (marks-per-span ARRAY — inline mirrors the named SpanMark): the
+//               accidental single-mark cap is removed. ParsedSpan was { start, end, op, coloring?,
+//               targets }; it is now { start, end, marks: ParsedMark[] } where ParsedMark = { op,
+//               coloring?, targets } — the inline analog of SpanMark { surface, marks: Mark[] }.
+//               parseInlineReply LOOPS every immediately-adjacent (...) clause (the `if` became a
+//               `while`), each clause → one ParsedMark; a bare wrap → the implicit single note; a
+//               wrap WITH clauses carries EXACTLY those clauses' marks (a chord-only wrap is ONE
+//               mark — no implicit note over-minting a thing). locateInlineMarks homes the span ONCE
+//               (offsets→cell) and attaches ALL its marks (each via toEngineMark + isMark), symmetric
+//               with locateWordMarks. The B coloring fix rides as one mark in the array.
+//             inline-marking Touch 2 (locateInlineMarks — the inline reply-side homer, ADDITIVE):
+//               the inline counterpart to locateWordMarks. Maps each parseInlineReply span's CHARACTER
+//               offsets onto cutReply(clean).cells (the ONE cut — no second cutter; cell char-ranges
+//               reconstructed from cell.word lengths, joinCells===clean byte-exact) and homes the mark
+//               at the span's FIRST WORD-CELL — the SAME homing + the SAME { pos, marks } shape the
+//               named path returns. op→engine reuses toEngineMark (its sole home) + the ONE gate
+//               (isMark drops a gate-rejected payload fail-closed). The recorder selects this over
+//               locateWordMarks by FORMAT (situation.replyMarking), never by surface name. locateWordMarks
+//               / locateCellIdentities / the prior side / the gate are UNTOUCHED.
 //             E3 REWORK (block + payload are first-class CELLS): a BLOCK or PAYLOAD is no longer
 //               a mark on a leading word — it is its OWN cell at its OWN coordinate. cutReply now
 //               cuts the reply with shapeAwareCut (the engine's shape step over the dumb cut):
@@ -37,6 +81,14 @@
 //               at the cell's own pos — no naming, no leading word. The home-gate widens to
 //               isHomeCapableCell (E2-derived, no atom field). Ref is UNCHANGED (string | Coord);
 //               no new op, no new field, no new atom kind, no new Ref form.
+//             inline-marking Touch 3 (native migrates to inline — the situation flip, ONE value):
+//               NATIVE_SITUATION.replyMarking is set to 'inline' (native controls its own model;
+//               the manager ruled native migrates now — §3 native-first). This is the SOLE value
+//               change here; projectEmissionSchema/parseInlineReply/locateInlineMarks are untouched.
+//               MCP_SITUATION (F-mcp R3) stays 'separate' — each wire agent migrates later on its
+//               own proof-under-load. The native projection now OMITS replyMarks ({reply,priorMarks});
+//               the manual + schema stay paired at each delivery site (projectManual(situation) +
+//               projectEmissionSchema(situation) carry the SAME situation, so they cannot drift).
 // slice:      F-present
 // layer:      R1
 // wires-in:
@@ -46,11 +98,12 @@
 //   W-FN    cutCells / isWordCell             @/features/F-memory/contract/substrate-contract
 //   W-FN    isMark                            ../domain/mark-gate
 //   W-FN    shapeAwareCut / isHomeCapableCell / classOfCell / isBlockClass  ../domain/content-signature  (Wing-B E3 — shape-aware cut + widened gate)
-//   W-ATOM  MUSICAL_OPS / toEngineMark        ../config/register-map                     (R9 register seam — emit enum + intake translate)
+//   W-ATOM  MUSICAL_OPS / toEngineMark / isMusicalOp / MusicalOp  ../config/register-map  (R9 register seam — emit enum + intake translate + inline op validate)
 // wires-out:
 //   W-FN    emissionFromStructured / cutReply / wordCells / locateWordMarks / homeMarks
-//           / verifyGrid / validateSharedUniverse / locateCellIdentities  →  ../app/scored-turn-recorder (R2)
-//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / SpanMark / MarkSurfaceError
+//           / verifyGrid / validateSharedUniverse / locateCellIdentities / parseInlineReply
+//           / locateInlineMarks  →  ../app/scored-turn-recorder (R2)
+//   W-ATOM  SCORE_EMIT_CONFIG / SCORE_SCHEMA / ScoredEmission / SpanMark / ParsedSpan / MarkSurfaceError
 //                                                    →  ../app/cognition-orchestrator (R2), ../app/scored-turn-recorder (R2)
 //   W-FN    projectEmissionSchema  W-ATOM MarkingSituation  →  ../contract/present-contract (R3 → F-mcp R3 mcp-contract:
 //           the wire's `turn` inputSchema is projectEmissionSchema(MCP_SITUATION) — one contract, two derived views)
@@ -94,7 +147,7 @@ import type { Mark, PlacedMark, Ref } from '@/features/F-present/config/mark-typ
 import type { JsonSchema, StructuredEmitConfig } from '@/features/F-ai-adapter/contract/ai-contract'
 import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
-import { MUSICAL_OPS, toEngineMark } from '@/features/F-present/config/register-map'   // R9 register seam (translate names; the gate validates)
+import { MUSICAL_OPS, toEngineMark, isMusicalOp, type MusicalOp } from '@/features/F-present/config/register-map'   // R9 register seam (translate names; the gate validates)
 import { shapeAwareCut, isHomeCapableCell, classOfCell, isBlockClass } from '@/features/F-present/domain/content-signature'   // Wing-B E3: shape-aware cut + widened home-gate
 
 // The emission the model fills (structured output) — both turns. `reply` is the model's
@@ -155,8 +208,20 @@ const SPAN_MARK_ITEM: JsonSchema = {
 export type MarkingSituation = {
   includeWearerText: boolean                  // wire carries the person's turn inline (wearerText); native does not
   demand: 'reply-only' | 'all-present'        // native demands only `reply`; the wire demands every present field
+  replyMarking?: 'separate' | 'inline'        // how the reply carries its marks — absent ≡ 'separate' (the SpanMark[] path);
+                                              // 'inline' folds the reply's marks into the reply text ([[ … ]] + musical),
+                                              // so the projection OMITS replyMarks. The prior side is ALWAYS named-span.
   descriptions?: Partial<Record<'wearerText' | 'reply' | 'replyMarks' | 'priorMarks', string>>
 }
+
+// The field-level teaching for the INLINE reply (replyMarking:'inline'): the reply carries
+// its own marks in the text, so the `reply` description tells the model the form. Spare and
+// concrete — the full manual is the dated home (coin-manual); this is only enough for the
+// inline schema to be self-describing.
+const INLINE_REPLY_DESCRIPTION =
+  'Mark as you write: wrap each thing in [[ ]] — [[span]] = note; [[span]](chord a, b) = chord ' +
+  '(the wrapped span names the relation); [[span]](tie t); [[span]](expression t). Targets are ' +
+  'on-table names or a who:sc:pos coord. Do not wrap code/data blocks (they auto-mark).'
 
 // Compose the emission schema from a situation. Fields are inserted present-order (wearerText
 // first iff carried, then reply/replyMarks/priorMarks); `required` is ['reply'] for the
@@ -164,15 +229,23 @@ export type MarkingSituation = {
 // always (the emission admits no extras). A field's `description` rides only when the
 // situation names it — absent on native, so the native projection stays minimal; the mark
 // item is SPAN_MARK_ITEM uniformly, the one mark geometry.
+//
+// replyMarking is the inline AXIS (a column on this ONE contract, never a forked schema):
+// when 'inline', the reply carries its marks in its text, so replyMarks is OMITTED and the
+// inline-form teaching rides the `reply` description; priorMarks is UNCHANGED (the prior side
+// is always named-span). Absent / 'separate' → behaviour byte-identical to today.
 export function projectEmissionSchema(situation: MarkingSituation): JsonSchema {
   const d = situation.descriptions ?? {}
+  const inline = situation.replyMarking === 'inline'
   const field = (base: JsonSchema, key: 'wearerText' | 'reply' | 'replyMarks' | 'priorMarks'): JsonSchema =>
     d[key] === undefined ? base : { ...base, description: d[key] }
   const properties: Record<string, JsonSchema> = {}
   if (situation.includeWearerText) properties.wearerText = field({ type: 'string' }, 'wearerText')
-  properties.reply = field({ type: 'string' }, 'reply')
-  properties.replyMarks = field({ type: 'array', items: SPAN_MARK_ITEM }, 'replyMarks')
-  properties.priorMarks = field({ type: 'array', items: SPAN_MARK_ITEM }, 'priorMarks')
+  // inline reply: the form teaching rides `reply` (unless the situation names its own); the
+  // situation's own description still wins (field() applies it last) — same precedence as today.
+  properties.reply = field(inline ? { type: 'string', description: INLINE_REPLY_DESCRIPTION } : { type: 'string' }, 'reply')
+  if (!inline) properties.replyMarks = field({ type: 'array', items: SPAN_MARK_ITEM }, 'replyMarks')   // inline omits replyMarks
+  properties.priorMarks = field({ type: 'array', items: SPAN_MARK_ITEM }, 'priorMarks')                 // prior side unchanged
   const required = situation.demand === 'reply-only' ? ['reply'] : Object.keys(properties)
   return { type: 'object', properties, required, additionalProperties: false }
 }
@@ -181,7 +254,7 @@ export function projectEmissionSchema(situation: MarkingSituation): JsonSchema {
 // the wearer turn), only `reply` demanded (marks may be absent), and no field descriptions.
 // NATIVE stays MINIMAL (reply-only, no wearerText, no descriptions); after S1 its mark item is
 // the named-span SPAN_MARK_ITEM (surface + marks) — the single mark geometry, no index field.
-export const NATIVE_SITUATION: MarkingSituation = { includeWearerText: false, demand: 'reply-only' }
+export const NATIVE_SITUATION: MarkingSituation = { includeWearerText: false, demand: 'reply-only', replyMarking: 'inline' }
 export const SCORE_SCHEMA: JsonSchema = projectEmissionSchema(NATIVE_SITUATION)
 // streamField names the reply text for a later incremental surface; advisory today
 // (the transport parses the whole object — structured-stream.ts).
@@ -339,4 +412,197 @@ export function validateSharedUniverse(placedMarks: PlacedMark[], known: Set<str
     const ts: Ref[] = m.op === 'RELATE' ? m.peers : (m.op === 'QUALIFY' || m.op === 'IDENTIFY') ? [m.target] : []
     return ts.every(t => known.has(refKey(t)))
   })
+}
+
+// ── INLINE MARKING — parseInlineReply (the inline situation's reply parser) ────────────
+// The inline counterpart to locateWordMarks: when a surface's situation is replyMarking
+// 'inline', the model marks AS it writes — each thing wrapped in [[ … ]], the musical op +
+// targets riding a trailing clause. parseInlineReply STRIPS the markup, returns the CLEAN
+// reply (what LIV's cutCells will cut, Touch 2) and, for each wrap, the span's CHARACTER
+// OFFSETS into that clean text plus its op + parsed targets.
+//
+// HARD BOUNDARY (Blueprint §2.1): this is a boundary-supplier ONLY. It carries no cell
+// coordinate, never tokenizes into LIV's cells, never counts words, never re-cuts. The
+// offsets are positions in the clean STRING; the recorder maps offsets→cells over cutReply
+// (Touch 2). cutCells does the one cut; this never re-implements it.
+//
+// FORM: [[span]] = note (bare ]]); [[span]](chord a, b) = chord (the wrapped span IS the
+// relation's name); [[span]](tie t); [[span]](expression <coloring> <target>) — expression
+// carries BOTH named-QUALIFY fields (the coloring is the FIRST token the model states, then one
+// target). A span may carry SEVERAL marks — every immediately-adjacent clause is one mark, so
+// [[span]](note)(tie t) is two marks; a span with clauses carries EXACTLY those (no implicit
+// note). This mirrors the named SpanMark { surface, marks: Mark[] } — no one-mark cap. The op
+// is the MUSICAL word
+// (validated against MUSICAL_OPS via isMusicalOp — no second musical→engine map; the engine
+// translation stays toEngineMark, used downstream at intake). Targets are bare names (kept as
+// strings) or who:sc:pos coords (parsed to the Coord form) — parsed, NOT resolved against any
+// present. Malformed tag / unknown op / unresolvable clause → MarkSurfaceError, loud, naming
+// the offending span (the well-formedness check that takes the surface-check's slot).
+// A parsed span is the inline analog of the named SpanMark { surface, marks: Mark[] }: a span
+// (here its CLEAN-TEXT offsets, not a name) carrying an ARRAY of marks — there is NO cap of one
+// mark per span (the named form has none). Each mark is the parsed-musical form { op, coloring?,
+// targets } the gate later narrows; coloring rides only expression.
+export type ParsedMark = { op: MusicalOp; coloring?: string; targets: Ref[] }
+export type ParsedSpan = { start: number; end: number; marks: ParsedMark[] }
+
+// Parse one comma-separated target token: a who:sc:pos coord (three colon-separated parts,
+// who ∈ {wearer,llm,program}, sc/pos numeric) becomes a Coord; anything else is a bare name
+// (string). Names cluster across records; coords pin one appearance (mark-types.Ref).
+function parseTarget(tok: string): Ref {
+  const t = tok.trim()
+  const m = /^(wearer|llm|program):(\d+):(\d+)$/.exec(t)
+  if (m) return { who: m[1] as Who, sc: Number(m[2]), pos: Number(m[3]) }
+  return t
+}
+
+// Parse ONE op-clause body (the text inside one "( … )" after a wrap) into one ParsedMark.
+// `span` names the offending span in any error. Forms: `note` (or empty) → bare note; `chord a, b`
+// → comma-separated peers; `tie t` → one target; `expression <coloring> <target>` → the named-
+// QUALIFY pair (coloring = first whitespace token the model STATES; target = the remainder Ref).
+// Unknown op / expression missing coloring or target → MarkSurfaceError, loud, naming the span.
+function parseInlineClause(clause: string, span: string): ParsedMark {
+  const sp = clause.indexOf(' ')
+  const opTok = sp === -1 ? clause : clause.slice(0, sp)
+  const rest = sp === -1 ? '' : clause.slice(sp + 1).trim()
+  if (!isMusicalOp(opTok)) {
+    throw new MarkSurfaceError(
+      `inline reply names unknown op "${opTok}" on span "${span}" — the op is one of ${MUSICAL_OPS.join(' · ')} (a bare ]] is a note).`,
+    )
+  }
+  if (opTok === 'expression') {
+    // expression carries the named-QUALIFY fields { coloring, target } (mark-types.ts:42 — TWO
+    // values). The model STATES the coloring (a single open quality word or a CLAIM_STATUS value)
+    // as the FIRST whitespace token; the target is the REMAINDER. Missing either → loud, named.
+    const cs = rest.indexOf(' ')
+    const coloring = cs === -1 ? rest : rest.slice(0, cs)
+    const tgtTok = cs === -1 ? '' : rest.slice(cs + 1).trim()
+    if (coloring.length === 0) {
+      throw new MarkSurfaceError(
+        `inline expression on span "${span}" names no coloring — write (expression <coloring> <target>), the coloring a single quality word the model states, then one target.`,
+      )
+    }
+    if (tgtTok.length === 0) {
+      throw new MarkSurfaceError(
+        `inline expression on span "${span}" names a coloring "${coloring}" but no target — write (expression <coloring> <target>), one target (a name or who:sc:pos coord) after the coloring.`,
+      )
+    }
+    return { op: 'expression', coloring, targets: [parseTarget(tgtTok)] }
+  }
+  // note (bare) / chord (comma-separated peers) / tie (one target).
+  const targets = rest.length === 0 ? [] : rest.split(',').map(parseTarget).filter(t => typeof t !== 'string' || t.length > 0)
+  return { op: opTok, targets }
+}
+
+export function parseInlineReply(reply: string): { clean: string; marks: ParsedSpan[] } {
+  let clean = ''
+  const marks: ParsedSpan[] = []
+  let i = 0
+  while (i < reply.length) {
+    // a wrap opens at "[[" (a lone "[" is ordinary text and copies through)
+    if (reply[i] === '[' && reply[i + 1] === '[') {
+      const open = i + 2
+      const close = reply.indexOf(']]', open)
+      if (close === -1) {
+        throw new MarkSurfaceError(
+          `inline reply has an unclosed "[[" at offset ${i} — every [[ must be closed by ]]. Wrap a span as [[span]] (note) or [[span]](musical-op targets).`,
+        )
+      }
+      const span = reply.slice(open, close)
+      if (span.length === 0 || span.includes('[[') || span.includes(']]')) {
+        throw new MarkSurfaceError(
+          `inline reply has a malformed wrap "[[${span}]]" — a wrap names exactly one non-empty span between [[ and ]], with no nested brackets.`,
+        )
+      }
+      // the wrapped span's CLEAN-TEXT offsets: start = current clean length, end after the span
+      const start = clean.length
+      clean += span
+      const end = clean.length
+
+      // Loop EVERY immediately-adjacent op-clause "(musical-op …)" after "]]" — a span carries an
+      // ARRAY of marks (the inline analog of the named SpanMark.marks[]; no one-mark cap). A bare
+      // wrap (no clause at all) is the implicit single note; a wrap WITH clauses carries EXACTLY
+      // those clauses' marks — never an extra implicit note (a chord home must not over-mint a thing).
+      const spanMarks: ParsedMark[] = []
+      let next = close + 2
+      while (reply[next] === '(') {
+        const rparen = reply.indexOf(')', next + 1)
+        if (rparen === -1) {
+          throw new MarkSurfaceError(
+            `inline reply has an unclosed op-clause "(" after [[${span}]] — close it as (musical-op targets), e.g. (chord a, b).`,
+          )
+        }
+        spanMarks.push(parseInlineClause(reply.slice(next + 1, rparen).trim(), span))
+        next = rparen + 1
+      }
+      // bare wrap → the implicit single note (preserves "bare ]] = note").
+      if (spanMarks.length === 0) spanMarks.push({ op: 'note', targets: [] })
+      marks.push({ start, end, marks: spanMarks })
+      i = next
+    } else {
+      clean += reply[i]
+      i++
+    }
+  }
+  return { clean, marks }
+}
+
+// ── INLINE MARKING — locateInlineMarks (the inline counterpart to locateWordMarks) ─────
+// Touch 2's reply-side homer for the inline situation. parseInlineReply gives each wrap a
+// CHARACTER span [start,end) into the clean reply; `cells` is cutReply(clean).cells (the
+// ONE canonical cut — never a second cutter). Map each span's char offsets onto the cut and
+// home the mark at the span's FIRST WORD-CELL — the SAME homing semantics the named path
+// (locateWordMarks) uses, and the SAME { pos, marks } return shape, so the recorder homes
+// inline marks, named marks (prior side) and block/payload identities through ONE homeMarks
+// path. No re-cut, no second tokenizer: a cell's char-range is reconstructed by accumulating
+// cell.word lengths (joinCells(cells) === clean byte-exact, §FORK A) — positions are read off
+// the existing cut, never re-derived.
+//
+// op → engine: each of a ParsedSpan's marks (the MUSICAL op + parsed fields) is assembled into the
+// SAME musical MARK_ITEM shape the named path emits ({ op, peers/coloring/target }), then run through
+// the ONE intake translate (toEngineMark — its sole home; no second musical→engine map) and the ONE
+// gate (isMark). A mark whose payload the gate rejects (e.g. a chord with no peers) is dropped
+// fail-closed — identical to the named path, where narrowSpanMarks→isMark drops a malformed mark. The
+// well-formedness of the TAGS themselves (malformed [[ ]], unknown op) is already rejected LOUD upstream
+// by parseInlineReply (the surface-check's slot). This is SYMMETRIC with locateWordMarks: home the
+// span ONCE (offsets→cell) and carry its whole marks array — a span may bear several marks.
+export function locateInlineMarks(marks: ParsedSpan[], cells: RawWord[]): { pos: number; marks: Mark[] }[] {
+  // each cell occupies the contiguous clean-text range [offset, offset+word.length); a word-cell
+  // is a home (isWordCell), matching locateWordMarks (which resolves over word-cells only).
+  type Ranged = { pos: number; start: number; end: number; isWord: boolean }
+  const ranged: Ranged[] = []
+  let offset = 0
+  for (const c of cells) {
+    ranged.push({ pos: c.pos, start: offset, end: offset + c.word.length, isWord: isWordCell(c.word) })
+    offset += c.word.length
+  }
+  const out: { pos: number; marks: Mark[] }[] = []
+  for (const span of marks) {
+    // the span's FIRST word-cell — the first WORD cell whose char-range overlaps [start,end).
+    // (A well-formed [[span]] wraps a word; this skips any leading space/punct cell, exactly as
+    // locateWordMarks homes at the span's first word-cell.)
+    const home = ranged.find(r => r.isWord && r.start < span.end && r.end > span.start)
+    if (!home) continue   // no word-cell under the span (e.g. wrapped pure punctuation) — nothing to home
+    // home ONCE; attach ALL the span's marks — each through the ONE translate + ONE gate.
+    const located: Mark[] = []
+    for (const pm of span.marks) {
+      const mark = toEngineMark(inlineMusicalMark(pm))
+      if (!isMark(mark)) continue   // gate-rejected payload → drop fail-closed (same as the named path)
+      located.push(mark)
+    }
+    if (located.length > 0) out.push({ pos: home.pos, marks: located })
+  }
+  return out
+}
+
+// Build the musical-register MARK_ITEM ({ op, peers/coloring/target }) for one parsed mark —
+// the SAME shape the model emits on the named path, so it flows through the one toEngineMark +
+// isMark. note → bare; chord → peers; tie → target; expression → coloring + target (the
+// named-QUALIFY fields, mark-types.ts:42 — BOTH carried). Nothing added, nothing dropped.
+function inlineMusicalMark(pm: ParsedMark): Record<string, unknown> {
+  switch (pm.op) {
+    case 'note':       return { op: 'note' }
+    case 'chord':      return { op: 'chord', peers: pm.targets }
+    case 'tie':        return { op: 'tie', target: pm.targets[0] }
+    case 'expression': return { op: 'expression', coloring: pm.coloring, target: pm.targets[0] }
+  }
 }

@@ -1,47 +1,94 @@
 // @liv-standard v1.5.2
-// @governing-spec COIN v1.0 (M1 — the manual cannot teach a span that isn't there)
+// @governing-spec COIN v1.0 (M1 — the manual cannot teach a span that isn't there, nor a field the contract doesn't project)
 // [F-present/config/__tests__/coin-manual.test.ts]
 // Built with LIV · livai.dev
 //
 // S1 name-not-count — the worked example's NAMED SPANS are pinned to the LIVE cutter. The
 // manual no longer teaches a word-index (there is no index to pin); a mark NAMES the span it
 // sits on and LIV locates it. The manual's prose renders FROM the exported COIN_EXAMPLE_*
-// sentence constants (one home, no duplication); this test runs the real cutCells/locateWordMarks
-// on both example texts and asserts every span the example names actually OCCURS there (byte-exact,
-// no throw). If anyone edits a sentence or names a span the cutter cannot find, this fails — the
-// manual is incapable of silently teaching a span that isn't in its own text.
+// sentence constants (one home, no duplication).
 //
-// Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first so the
-// F-memory R3 barrel resolves cleanly under bare `tsx` (db client is lazy).
+// inline-marking Touch 3 — the manual is RENDERED from primitives (projectManual(opts)). coin-manual
+// is a strict R0 LEAF (imports nothing from coin-score/R1): the CALLER computes the schema and feeds
+// { inline, includeWearerText, fields }. The test builds opts via a local helper from the LIVE
+// projectEmissionSchema, exactly as the caller sites do. This test pins:
+//   - the inline worked example to the LIVE parser+cutter (parseInlineReply.clean === the reply,
+//     every wrapped span byte-exact in cutReply's cells, all four marks survive the gate);
+//   - the named worked example spans to the live cutter (locateWordMarks, no throw);
+//   - HOW TO RETURN's field list IS Object.keys(projectEmissionSchema(situation).properties) — both
+//     projections (native = inline → {reply, priorMarks}; wire = separate → all four);
+//   - ATTRIBUTION per surface (FIX 3): native's HOW TO RETURN is the "return ONLY the JSON object"
+//     line with {reply, priorMarks} and NO "call compose" line; the wire's is "call compose ONCE"
+//     with {wearerText, reply, replyMarks, priorMarks} and NO "return ONLY the JSON object" line —
+//     each field list pinned ON its correctly-attributed instruction;
+//   - projectManual teaches the matching FORM (inline [[ ]] vs named { surface, marks });
+//   - the MUSICAL_OPS vocabulary pin (both forms name the four marks); the no-word-index guarantees.
+//
+// Load note: coin-manual is a leaf (static import is clean). Warm the F-present R3 graph in before()
+// for the coin-score/cutter machinery (the F-memory R3 barrel + db client are lazy under bare tsx).
 //
 // Run: npx tsx --test src/features/F-present/config/__tests__/coin-manual.test.ts
 
 import assert from 'node:assert/strict'
 import { test, before } from 'node:test'
 import {
-  COIN_MANUAL,
-  COIN_EXAMPLE_WEARER, COIN_EXAMPLE_REPLY,
-  COIN_NATIVE_FIELDS, COIN_WIRE_FIELDS,
+  COIN_EXAMPLE_WEARER, COIN_EXAMPLE_REPLY, COIN_EXAMPLE_INLINE,
+  projectManual,
 } from '../coin-manual'
 
 let cutCells: (t: string) => { pos: number; word: string }[]
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let locateWordMarks: any, projectEmissionSchema: any, NATIVE_SITUATION: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let parseInlineReply: any, cutReply: any, locateInlineMarks: any
 
 before(async () => {
   await import('@/features/F-present/contract/present-contract')          // warm the graph
   ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ locateWordMarks, projectEmissionSchema, NATIVE_SITUATION } = await import('@/features/F-present/domain/coin-score'))
+  ;({ locateWordMarks, projectEmissionSchema, NATIVE_SITUATION, parseInlineReply, cutReply, locateInlineMarks } =
+    await import('@/features/F-present/domain/coin-score'))
+})
+
+// a separate (named-form) situation — the wire's shape: carry wearerText + demand all present.
+const SEPARATE_SITUATION = { includeWearerText: true, demand: 'all-present' as const }
+
+// the CALLER's opts derivation — exactly what cognition-orchestrator (native) and mcp-contract
+// (wire) do: compute the schema, hand projectManual the primitives. R0 renders what it is handed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const optsFor = (s: any) => ({
+  inline: s.replyMarking === 'inline',
+  includeWearerText: s.includeWearerText,
+  fields: Object.keys(projectEmissionSchema(s).properties ?? {}),
 })
 
 // the named spans the worked example marks — the SAME `surface` strings the manual emits.
 const REPLY_SPANS = ['Kyoto', 'truly', 'rivals', 'Tokyo']
 const WEARER_SPANS = ['Kyoto']
 
-// ── every named span in the example OCCURS in its text (the live cutter locates it) ──
-// locateWordMarks throws MarkSurfaceError if a named span is not present; a clean resolve
-// proves the example names only spans the cutter can find — byte-exact, both texts.
-test('the worked example names only spans the live cutter can locate (both texts)', () => {
+// ── the INLINE worked example round-trips through the LIVE parser + cutter ──────────
+test('the inline worked example: clean === reply, every wrapped span byte-exact in the cut', () => {
+  const { clean, marks } = parseInlineReply(COIN_EXAMPLE_INLINE)
+  assert.equal(clean, COIN_EXAMPLE_REPLY, 'parseInlineReply(inline).clean reproduces the reply sentence byte-exact')
+  assert.equal(marks.length, REPLY_SPANS.length, 'the inline example wraps exactly the four example spans')
+
+  for (let i = 0; i < marks.length; i++) {
+    const span = clean.slice(marks[i].start, marks[i].end)
+    assert.equal(span, REPLY_SPANS[i], `wrapped span ${i} is "${REPLY_SPANS[i]}" byte-exact`)
+  }
+
+  const { cells } = cutReply(clean)
+  const located = locateInlineMarks(marks, cells)
+  assert.equal(located.length, REPLY_SPANS.length, 'every wrapped span homes on a word-cell in the live cut')
+  // all four musical marks pass the gate (the example demonstrates the whole set + a coloring;
+  // Kyoto carries note+tie, so identity appears twice — five marks across four spans).
+  const ops = located.flatMap((l: { marks: { op: string }[] }) => l.marks.map(m => m.op))
+  assert.equal(ops.length, 5, 'five marks home (note+tie on Kyoto, expression, chord, note)')
+  assert.deepEqual([...new Set(ops)].sort(), ['IDENTIFY', 'QUALIFY', 'RELATE', 'identity'].sort(),
+    'all four engine marks (note/tie/chord/expression → identity/IDENTIFY/RELATE/QUALIFY) survive the gate')
+})
+
+// ── the NAMED worked example names only spans the live cutter can locate ────────────
+test('the named worked example names only spans the live cutter can locate (both texts)', () => {
   const replyCells = cutCells(COIN_EXAMPLE_REPLY)
   const located = locateWordMarks(REPLY_SPANS.map(surface => ({ surface, marks: [{ op: 'identity' }] })), replyCells, 'reply')
   assert.equal(located.length, REPLY_SPANS.length, 'every reply span resolves to a canonical position (no throw)')
@@ -50,50 +97,69 @@ test('the worked example names only spans the live cutter can locate (both texts
   const wLocated = locateWordMarks(WEARER_SPANS.map(surface => ({ surface, marks: [{ op: 'identity' }] })), wearerCells, 'prior')
   assert.equal(wLocated.length, WEARER_SPANS.length, 'every priorMark span resolves in the wearer turn (no throw)')
 
-  // the documented fact: "Kyoto" is named in BOTH turns and locates in each.
   assert.ok(REPLY_SPANS.includes('Kyoto') && WEARER_SPANS.includes('Kyoto'))
 })
 
-// ── HOW TO RETURN renders its field names FROM the one contract (no fourth home) ──
-// (cognition-turn contract) The manual no longer hand-types field names in free prose: HOW
-// TO RETURN renders them from COIN_NATIVE_FIELDS / COIN_WIRE_FIELDS, and those lists are
-// pinned to the CORE contract's projected property keys (projectEmissionSchema). The schema
-// and the manual share one logical source — the manual can never name a field the contract
-// does not carry, nor drop one it does.
-test('HOW TO RETURN renders the field names from the contract lists', () => {
-  assert.ok(COIN_MANUAL.includes(`{ ${COIN_NATIVE_FIELDS.join(', ')} }`), 'native return renders from COIN_NATIVE_FIELDS')
-  assert.ok(COIN_MANUAL.includes(`{ ${COIN_WIRE_FIELDS.join(', ')} }`), 'wire call renders from COIN_WIRE_FIELDS')
+// ── the field list IS the contract's projected property keys (per situation) ────────
+test('the projected field list IS the contract\'s property keys (per situation)', () => {
+  assert.deepEqual(optsFor(NATIVE_SITUATION).fields, ['reply', 'priorMarks'],
+    'native inline projects exactly {reply, priorMarks} (no replyMarks)')
+  assert.deepEqual(optsFor(SEPARATE_SITUATION).fields, ['wearerText', 'reply', 'replyMarks', 'priorMarks'],
+    'the wire separate projection carries all four')
 })
 
-test('the manual field lists ARE the core contract\'s projected property keys', () => {
-  // native: projectEmissionSchema(NATIVE_SITUATION) — reply + the two mark arrays.
-  assert.deepEqual([...COIN_NATIVE_FIELDS], Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties))
-  // wire: the all-present + wearerText projection (the wire's situation) — all four.
-  const wire = projectEmissionSchema({ includeWearerText: true, demand: 'all-present' })
-  assert.deepEqual([...COIN_WIRE_FIELDS], Object.keys(wire.properties))
+// ── FIX 3 — HOW TO RETURN is ATTRIBUTED per surface, field list pinned ON its own line ──
+// native (includeWearerText:false) → the "return ONLY the JSON object" instruction with its own
+// fields, and NO "call compose" line. The wire is the mirror. The bug this guards: a field list
+// printed under the WRONG instruction, or both instructions in one projection.
+test('native HOW TO RETURN: "return ONLY the JSON object" with {reply, priorMarks}, no compose line', () => {
+  const m = projectManual(optsFor(NATIVE_SITUATION))
+  assert.ok(m.includes('return ONLY the JSON object, exactly these fields: { reply, priorMarks }.'),
+    'native field list pinned ON the "return ONLY the JSON object" instruction')
+  assert.ok(!m.includes('call compose ONCE'), 'native carries NO wire "call compose" instruction')
 })
 
-// ── F6: the manual's mark vocabulary is pinned to MUSICAL_OPS (the register) ───────
-// The four op tokens the manual teaches (note · tie · chord · expression) ARE the musical
-// content register (register-map). Pinned by its op-form ("op": "<token>") so a substring
-// can't false-match. If the register renames an op, this fails — the manual can never teach
-// an op the register does not carry, the same guarantee fields and spans already have.
-test('the manual teaches exactly the MUSICAL_OPS vocabulary (by op-form)', async () => {
+test('wire HOW TO RETURN: "call compose ONCE" with all four fields, no return-JSON line', () => {
+  const m = projectManual(optsFor(SEPARATE_SITUATION))
+  assert.ok(m.includes('call compose ONCE with exactly these fields: { wearerText, reply, replyMarks, priorMarks }'),
+    'wire field list pinned ON the "call compose ONCE" instruction')
+  assert.ok(!m.includes('return ONLY the JSON object'), 'the wire carries NO native "return ONLY the JSON object" instruction')
+})
+
+// ── projectManual teaches the matching FORM per situation ───────────────────────────
+test('the inline form (opts.inline true) teaches the [[ ]] form', () => {
+  const m = projectManual(optsFor(NATIVE_SITUATION))
+  assert.ok(m.includes('[[span]]'), 'the inline manual teaches the [[span]] wrap')
+  assert.ok(m.includes('[[span]](chord A, B)'), 'the inline manual teaches the chord clause')
+  assert.ok(m.includes('[[span]](expression <coloring> <target>)'), 'the inline manual teaches the expression clause (coloring + target — ruling B)')
+  assert.ok(m.includes(COIN_EXAMPLE_INLINE), 'the inline worked example renders from the constant')
+  assert.ok(!m.includes('{ "surface": "Kyoto",  "marks":'), 'the inline manual does not render the named replyMarks JSON')
+})
+
+test('the named form (opts.inline false) teaches the { surface, marks } form', () => {
+  const m = projectManual(optsFor(SEPARATE_SITUATION))
+  // the named emission shape — VERBATIM from the current manual prose.
+  assert.ok(m.includes('{ "surface": "Kyoto", "marks": [ { "op": "note" } ] }'), 'the named manual renders the named-span shape')
+  assert.ok(m.includes('{ "op": "chord", "peers": [A, B] }'), 'the named manual renders the chord JSON form')
+  assert.ok(m.includes(`Your reply: "${COIN_EXAMPLE_REPLY}"`), 'the named worked example renders the reply sentence constant')
+  assert.ok(!m.includes('[[span]]'), 'the named manual does not teach the [[ ]] wrap')
+})
+
+// ── F6: the manual's mark vocabulary is the MUSICAL_OPS register (both forms) ────────
+test('both projections teach exactly the MUSICAL_OPS vocabulary', async () => {
   const { MUSICAL_OPS } = await import('../register-map')
+  const named = projectManual(optsFor(SEPARATE_SITUATION))
+  const inline = projectManual(optsFor(NATIVE_SITUATION))
   for (const op of MUSICAL_OPS) {
-    assert.ok(COIN_MANUAL.includes(`"op": "${op}"`), `the manual names the "${op}" mark in its op-form (MUSICAL_OPS)`)
+    assert.ok(named.includes(`"op": "${op}"`), `the named manual names the "${op}" mark in its op-form`)
+    assert.ok(inline.includes(op), `the inline manual names the "${op}" mark`)
   }
 })
 
-// ── the prose actually renders from the sentence constants AND the named-span shape ─
-// no `word` field anywhere; the example marks carry { surface, marks } only, and the
-// sentences render from the exported constants (no drift between text & test).
-test('the manual prose renders the named-span shape (no word-index) from the constants', () => {
-  assert.ok(COIN_MANUAL.includes(`Your reply: "${COIN_EXAMPLE_REPLY}"`), 'reply sentence renders from the constant')
-  assert.ok(COIN_MANUAL.includes(`[7] (—): ${COIN_EXAMPLE_WEARER}`), 'transcript line renders the sentence constant')
-  // the named-span shape: a mark entry is { "surface": …, "marks": … } — the priorMark renders it.
-  assert.ok(COIN_MANUAL.includes('{ "surface": "Kyoto", "marks": [ { "op": "note" } ] }'), 'the priorMark renders the named-span shape')
-  // the index era is GONE: no "word": <n> home key, no "word-index" prose anywhere.
-  assert.ok(!/"word":\s*\d/.test(COIN_MANUAL), 'no { "word": <n> } home key remains (name-not-count)')
-  assert.ok(!/word-index/i.test(COIN_MANUAL), 'no "word-index" language remains')
+// ── the no-word-index guarantees hold in BOTH forms ─────────────────────────────────
+test('no word-index home key or language remains in either projection', () => {
+  for (const m of [projectManual(optsFor(NATIVE_SITUATION)), projectManual(optsFor(SEPARATE_SITUATION))]) {
+    assert.ok(!/"word":\s*\d/.test(m), 'no { "word": <n> } home key remains (name-not-count)')
+    assert.ok(!/word-index/i.test(m), 'no "word-index" language remains')
+  }
 })

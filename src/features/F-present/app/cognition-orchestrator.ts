@@ -30,13 +30,20 @@
 //               fetched, never rendered; per-word positions reverted)
 //             sprint-wire-cognition 3R.5 (composeAndWrite renders the WEARER-TURN CELLS
 //               data block into the scoring context — one render home; backward-compatible)
+//             inline-marking Touch 3 (native delivery wired to the R0-leaf manual): the COIN_MANUAL
+//               constant import becomes projectManual(opts); buildScoringContext computes opts from
+//               NATIVE_SITUATION — inline (replyMarking==='inline'), includeWearerText:false, and the
+//               field list Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties). coin-manual
+//               is a strict R0 leaf (imports nothing from R1); the schema lives HERE (R2→R1 downward),
+//               so manual + schema are paired at the caller and cannot drift. Native is the inline form.
 // slice:      F-present
 // layer:      R2
 // wires-in:
 //   W-FN    streamStructuredEmit                         @/features/F-ai-adapter/contract/ai-contract       (Group 1: R3 surface)
 //   W-ATOM  ChatMessage                                  @/features/F-ai-adapter/contract/ai-contract       (Group 2: R3 surface)
 //   W-FN    SCORE_EMIT_CONFIG/emissionFromStructured     ../domain/coin-score
-//   W-ATOM  COIN_MANUAL                                  ../config/coin-manual
+//   W-FN    projectManual                                ../config/coin-manual   (inline-marking Touch 3 — the R0-leaf manual rendered from primitives the caller computes)
+//   W-FN    projectEmissionSchema                        ../domain/coin-score    (the native field list = Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties))
 //   W-FN    recordScoredTurn                             ../app/scored-turn-recorder   (sprint-wire-cognition Shot 1)
 //   W-FN    toWriteAck                                   ../app/write-ack              (§1a — the shared ack deriver)
 //   W-FN    buildFactTable                               ../domain/fact-table
@@ -80,8 +87,8 @@
 
 import { streamStructuredEmit }                          from '@/features/F-ai-adapter/contract/ai-contract'
 import type { ChatMessage }                              from '@/features/F-ai-adapter/contract/ai-contract'
-import { SCORE_EMIT_CONFIG, emissionFromStructured }     from '@/features/F-present/domain/coin-score'
-import { COIN_MANUAL } from '@/features/F-present/config/coin-manual'
+import { SCORE_EMIT_CONFIG, emissionFromStructured, NATIVE_SITUATION, projectEmissionSchema } from '@/features/F-present/domain/coin-score'
+import { projectManual } from '@/features/F-present/config/coin-manual'
 import { recordScoredTurn }                              from '@/features/F-present/app/scored-turn-recorder'
 import type { WearerSource }                             from '@/features/F-present/app/scored-turn-recorder'
 import { toWriteAck }                                    from '@/features/F-present/app/write-ack'
@@ -116,11 +123,20 @@ import type { ReplyComposer, ContextReader }             from '@/core/domain/cog
 // render. CognitionInput.wearerTurn survives, but ONLY as the recorder's wearer SOURCE (its
 // word-cells resolve priorMarks); it is never rendered into the scoring context.
 
-// Assemble the scoring system message: manual (M1) first, then the present. One source
-// (COIN_MANUAL), two deliveries — the wire rides the same manual on the `turn` tool
-// description (R2). Absent present → the manual alone.
+// Assemble the scoring system message: manual (M1) first, then the present. ONE source
+// (projectManual), rendered from PRIMITIVES the caller computes from native's situation: the
+// inline form (NATIVE_SITUATION.replyMarking==='inline'), native's HOW TO RETURN
+// (includeWearerText:false → "return ONLY the JSON object"), and the field list derived from
+// native's OWN schema (projectEmissionSchema(NATIVE_SITUATION)). The schema lives at R1 (here, R2,
+// a downward import) — coin-manual stays a strict R0 leaf, so manual + schema are paired HERE and
+// cannot drift. The wire pairs its own at its delivery site. Absent present → the manual alone.
 export function buildScoringContext(systemPrompt: string | null): string {
-  return systemPrompt ? `${COIN_MANUAL}\n\n${systemPrompt}` : COIN_MANUAL
+  const manual = projectManual({
+    inline: NATIVE_SITUATION.replyMarking === 'inline',
+    includeWearerText: NATIVE_SITUATION.includeWearerText,
+    fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
+  })
+  return systemPrompt ? `${manual}\n\n${systemPrompt}` : manual
 }
 
 export const composeAndWrite: ReplyComposer = async (input) => {
@@ -153,7 +169,9 @@ export const composeAndWrite: ReplyComposer = async (input) => {
   // toWriteAck — the one ack deriver every rail uses, none reconstructing (§1a). The seam now
   // carries only text (F5): landed → { text }; dropped (empty/malformed reply) → { text:'' },
   // the live empty-text signal F-chat already handles at chat-contract.
-  const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer)
+  // the reply-marking FORMAT comes from native's SITUATION (NATIVE_SITUATION), never a surface name —
+  // absent ≡ 'separate' today; the native-first migration (§3) flips it on the situation, here unchanged.
+  const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer, NATIVE_SITUATION.replyMarking ?? 'separate')
   const ack = toWriteAck(recorded)
   return { text: ack.landed ? ack.text : '' }
 }

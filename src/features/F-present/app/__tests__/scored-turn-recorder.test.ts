@@ -70,7 +70,7 @@ const goodEmission = () => emissionFromStructured({
 test('cutReply runs exactly once per recorded turn (no double work)', async () => {
   const { deps, cutCount } = stubDeps(5, 3)
   const wearer = { written: { sc: 3, wordCells: wordCells(cutCells(WEARER)) } }
-  await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer, deps)
+  await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer, 'separate', deps)
   assert.equal(cutCount(), 1, 'the recorder must cut the reply exactly once')
 })
 
@@ -78,7 +78,7 @@ test('cutReply runs exactly once per recorded turn (no double work)', async () =
 test('native ({ written }): writes only the reply, homes priorMarks on the given wearer sc', async () => {
   const { deps, placed, writes } = stubDeps(7, 3)
   const wearer = { written: { sc: 3, wordCells: wordCells(cutCells(WEARER)) } }
-  const result = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer, deps)
+  const result = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer, 'separate', deps)
 
   assert.equal(result.sc, 7)
   assert.equal(result.text, REPLY)                              // byte-identical render
@@ -96,7 +96,7 @@ test('native ({ written }): writes only the reply, homes priorMarks on the given
 // ── (C) wire rail — wearer text cut + written here, then the reply ──────────────
 test('wire ({ text }): writes BOTH turns, homes priorMarks on the freshly-written wearer turn', async () => {
   const { deps, placed, writes } = stubDeps(12, 11)
-  const result = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'sess-1', { text: WEARER }, deps)
+  const result = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'sess-1', { text: WEARER }, 'separate', deps)
 
   assert.equal(result.sc, 12)
   assert.equal(writes.length, 2)                               // wearer THEN reply
@@ -117,7 +117,7 @@ test('a surface-check failure throws and writes NOTHING (atomic)', async () => {
     priorMarks: [],
   })
   await assert.rejects(
-    () => recordScoredTurn(bad, 'llm', 'user-1', 'sess-1', { text: WEARER }, deps),
+    () => recordScoredTurn(bad, 'llm', 'user-1', 'sess-1', { text: WEARER }, 'separate', deps),
     (e: unknown) => e instanceof MarkSurfaceError,
   )
   assert.equal(writes.length, 0, 'no turn was written — the rejection precedes every write')
@@ -127,9 +127,69 @@ test('a surface-check failure throws and writes NOTHING (atomic)', async () => {
 // ── (E) empty reply → honest non-write ─────────────────────────────────────────
 test('empty reply records nothing (honest non-write)', async () => {
   const { deps, placed, writes, cutCount } = stubDeps(9, 8)
-  const result = await recordScoredTurn(emissionFromStructured({}), 'llm', 'user-1', 'scope-1', { text: WEARER }, deps)
+  const result = await recordScoredTurn(emissionFromStructured({}), 'llm', 'user-1', 'scope-1', { text: WEARER }, 'separate', deps)
   assert.deepEqual(result, { sc: 0, cells: [], markCount: 0, text: '' })
   assert.equal(placed.length, 0)
   assert.equal(writes.length, 0)
   assert.equal(cutCount(), 0)                                  // no reply → no cut, no write
+})
+
+// ── (F) INLINE reply + NAMED prior — both record correctly (Touch 2) ────────────
+// The inline format ('inline'): the reply carries its OWN marks in its text ([[ … ]] + musical),
+// so the reply-side homes from the PARSED SPAN OFFSETS (locateInlineMarks), NEVER by name. The
+// PRIOR side is UNCHANGED — priorMarks always resolve against the wearer cells BY NAME. The path
+// is selected by FORMAT (the 'inline' arg = the situation's replyMarking), never a surface name.
+test('inline reply + named prior: reply marks home from offsets, prior marks home by name', async () => {
+  const { deps, placed, writes } = stubDeps(7, 3)
+  // the reply carries its marks inline; the CLEAN reply is "I think Kyoto truly rivals Tokyo." (markup stripped).
+  // [[Kyoto]] = note; [[rivals]](chord Kyoto, Tokyo) = a relation named "rivals"; [[Tokyo]] = note.
+  const emission = emissionFromStructured({
+    reply: 'I think [[Kyoto]] truly [[rivals]](chord Kyoto, Tokyo) [[Tokyo]].',
+    replyMarks: [],                                          // inline: replyMarks is OMITTED — the marks ride the text
+    priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }] }],   // the prior side is ALWAYS named-span
+  })
+  const wearer = { written: { sc: 3, wordCells: wordCells(cutCells('I toured Kyoto')) } }
+  const result = await recordScoredTurn(emission, 'llm', 'user-1', 'scope-1', wearer, 'inline', deps)
+
+  // the stored reply is the CLEAN text (markup stripped); joinCells renders it byte-identical.
+  assert.equal(result.text, 'I think Kyoto truly rivals Tokyo.')
+  assert.equal(writes.length, 1)                             // native: E1 wrote the wearer turn; only the reply here
+  assert.equal(writes[0].who, 'llm')
+  assert.deepEqual(writes[0].words, cutCells('I think Kyoto truly rivals Tokyo.'), 'the reply cells are the CLEAN cut (no markup)')
+
+  // reply marks homed from OFFSETS — a 'note'→identity on "Kyoto" + on "Tokyo", and a 'chord'→RELATE on "rivals".
+  const replyMarks = placed.filter((p: { home: { who: string } }) => p.home.who === 'llm')
+  const cleanCells = wordCells(cutCells('I think Kyoto truly rivals Tokyo.'))
+  const posOf = (w: string) => cleanCells.find((c: { word: string }) => c.word === w)!.pos
+  const relate = replyMarks.find((p: { mark: { op: string } }) => p.mark.op === 'RELATE')
+  assert.ok(relate, 'the inline chord became an engine RELATE (toEngineMark), placed by offset')
+  assert.equal(relate.home.sc, 7)
+  assert.equal(relate.home.pos, posOf('rivals'), 'the relation homes at its wrapped span "rivals" (offset → cell)')
+  assert.deepEqual(relate.mark.peers, ['Kyoto', 'Tokyo'], 'the chord targets parsed from the inline clause')
+  const identities = replyMarks.filter((p: { mark: { op: string } }) => p.mark.op === 'identity')
+  assert.equal(identities.length, 2, 'two inline notes → two identity marks (Kyoto, Tokyo), homed by offset')
+  assert.deepEqual(
+    identities.map((p: { home: { pos: number } }) => p.home.pos).sort((a: number, b: number) => a - b),
+    [posOf('Kyoto'), posOf('Tokyo')].sort((a, b) => a - b),
+  )
+
+  // the PRIOR mark homed BY NAME against the wearer cells — unchanged from the named path.
+  const prior = placed.find((p: { home: { who: string } }) => p.home.who === 'wearer')
+  assert.equal(prior.home.sc, 3)                             // the E1 wearer sc
+  assert.equal(prior.home.pos, wordCells(cutCells('I toured Kyoto'))[2].pos)   // "Kyoto" = 3rd wearer word-cell
+  assert.equal(prior.mark.op, 'identity')                   // note → identity (named path, untouched)
+})
+
+// ── (G) the SEPARATE path is byte-identical whether the format is explicit or defaulted ──
+// (B) above already exercises 'separate' via the default param; this pins that explicit 'separate'
+// equals omitting the format arg (the regression guard for the additive fork).
+test('separate path is byte-identical whether the format is explicit or defaulted (regression)', async () => {
+  const a = stubDeps(7, 3)
+  const b = stubDeps(7, 3)
+  const wearer = () => ({ written: { sc: 3, wordCells: wordCells(cutCells(WEARER)) } })
+  const explicit = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer(), 'separate', a.deps)
+  const defaulted = await recordScoredTurn(goodEmission(), 'llm', 'user-1', 'scope-1', wearer(), undefined, b.deps)
+  assert.deepEqual(explicit, defaulted, 'explicit "separate" === defaulted')
+  assert.deepEqual(a.placed, b.placed, 'identical marks placed')
+  assert.equal(a.placed.length, 2)                           // reply identity + prior identity (the named path)
 })
