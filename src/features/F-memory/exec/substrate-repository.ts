@@ -64,7 +64,7 @@ import type {
   SubstrateWriteValidated,
 } from '../config/substrate-config'
 import { SUBSTRATE_TABLE_NAME } from '../config/substrate-config'
-import { isolationFloor } from './isolation-floor'
+import { scopeClause, mine } from './scope-clause'
 
 // ─── Row inflation ────────────────────────────────────────────────────────────
 
@@ -470,7 +470,7 @@ export async function readAdjacency(
 // implied a source_scope filter it never applied; this is the user_id floor.)
 
 export async function readIsolatedRows(
-  userId: string,
+  principals: string | string[],
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
   try {
@@ -479,10 +479,11 @@ export async function readIsolatedRows(
     // / readAdjacency above). Omitted → no class predicate (all classes,
     // backward-compatible — the export route relies on this). Present →
     // `AND source_content_class = $n`.
-    // §2.2: the isolation rule comes from the one helper; the floor owns $1, so
-    // the optional contentClass conjunct starts at $2.
-    const floor = isolationFloor(userId)
-    const params: unknown[] = [...floor.params]
+    // The WHERE comes from the one builder (scopeClause). This is the ISOLATION read
+    // (the relational floor) — always `mine`, so user_id is always bound (a single id,
+    // or ANY($1) for the alias-fold). The floor owns $1; the contentClass conjunct → $2.
+    const sc = scopeClause(mine(principals))
+    const params: unknown[] = [...sc.params]
     let contentClassClause = ''
     if (contentClass !== undefined) {
       params.push(contentClass)
@@ -492,7 +493,7 @@ export async function readIsolatedRows(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE ${floor.clause}${contentClassClause}
+        WHERE ${sc.clause}${contentClassClause}
         ORDER BY position ASC`,
       params,
     )

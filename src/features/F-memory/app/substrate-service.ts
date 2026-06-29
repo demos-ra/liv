@@ -100,6 +100,7 @@ import {
 import { SUBSTRATE_EVENTS } from '../config/substrate-events'
 import { readTranscript } from '../exec/transcript-read'
 import { writeRawTurn } from '../exec/raw-turn-write'
+import type { ScopeSpec } from '../exec/scope-clause'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
 // ═══════════════════════════════════════════════════════════════
@@ -599,10 +600,13 @@ export async function iterateAxis(
 // (backward-compatible; the export route relies on this). The core-loop read
 // passes 'wearer-life' to filter apparatus crossing-records out of cognition.
 export async function readScope(
-  userId: string,
+  principals: string | string[],
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
-  return readIsolatedRows(userId, contentClass)
+  // the relational read is always `mine` (isolation) — principals is a single id or the
+  // reader's alias-set (the principal-set fold, user_id = ANY). readIsolatedRows builds the
+  // WHERE through the one builder (scopeClause).
+  return readIsolatedRows(principals, contentClass)
 }
 
 // ── gather — the one scope-resolving cognition read (the scope un-weld) ──────────
@@ -610,18 +614,16 @@ export async function readScope(
 // the "only mine" that was baked into every read. 1c: the only scope is 'mine' — the
 // reader's own substrate. Wave 2 adds { kind: 'public' } (cross-author, bounded to
 // source_scope='public') and inbox AS NEW MEMBERS HERE.
-export type ReadScope = { kind: 'mine'; reader: string }
+// ReadScope is the scope dial — unified with the one builder's ScopeSpec (mine | public).
+export type ReadScope = ScopeSpec
 
-// gather resolves the scope knob THROUGH the isolation floor and returns the
-// transcript. This is the v2 §4 fill-point — co-located with isolationFloor (1a) so
-// the ONE place "only mine" relaxes (Wave 2's bounded public mode) is the EXACT place
-// it is enforced. Every product read (present, search, core-loop) fetches through here.
-// 1c: scope='mine' → readTranscript binds user_id=$1 via the floor; identical rows to
-// the prior direct call — pure indirection, no behavior change. The breach appears once,
-// later, at this same point — never scattered.
+// gather — the one scope-resolving cognition read. It hands the scope DIAL to readTranscript,
+// which builds the WHERE through the one builder (scopeClause): 'mine' binds user_id (single or
+// the alias-set), 'public' drops it for source_scope='public' (the forum's cross-author read).
+// This is the v2 §4 fill-point. Every product read (present, search, core-loop) fetches through
+// here; the public relaxation appears ONLY via the one builder, audited, never scattered.
 export async function gather(scope: ReadScope): Promise<RawTurn[]> {
-  // 1c: 'mine' only. Wave 2 dispatches scope.kind here (adding the 'public' relaxation).
-  return readTranscript(scope.reader)
+  return readTranscript(scope)
 }
 
 // ── admitWrite — the WRITE face of the one wall (F-009) ──────────────────────────

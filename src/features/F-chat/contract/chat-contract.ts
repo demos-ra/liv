@@ -177,7 +177,7 @@ import type { DispatchId, EpochMs }              from '@/core/types/perimeter-st
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent, sseStream }     from '../domain/chat-logic'
 import { admitWriteRaw, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
-import { gather }                                from '@/features/F-memory/contract/substrate-contract'
+import { gather, mine }                          from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
@@ -652,7 +652,7 @@ export async function POST_message(
     if (reader) {
       systemPrompt = await reader(session.userId)
     } else {
-      const scopeTurns = await gather({ kind: 'mine', reader: session.userId })   // scope seam — 'mine' = user_id=$1, same rows
+      const scopeTurns = await gather(mine(session.userId))   // scope dial — 'mine' = user_id bound, same rows
       if (scopeTurns.length > 0) systemPrompt = serializeTranscript(scopeTurns)
     }
   } catch (err) {

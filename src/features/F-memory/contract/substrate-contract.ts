@@ -76,6 +76,8 @@ export {
   onBoot,
 } from '../app/substrate-service'
 export type { ReadScope } from '../app/substrate-service'
+export { mine } from '../exec/scope-clause'
+export type { ScopeSpec } from '../exec/scope-clause'
 
 // F10: exportByScope (was R4-direct-wired) is subsumed — the scope-ordered read
 // is first-class as readScope, exposed here from the R2 service. The export

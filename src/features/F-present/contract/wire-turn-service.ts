@@ -98,7 +98,7 @@ import {
   PRESENT_BUNDLES,
 } from './present-contract'
 import type { DegradedPresent, ReplyMarking } from './present-contract'
-import { admitWriteRaw, cutCells, isWordCell, readTranscript } from '@/features/F-memory/contract/substrate-contract'
+import { admitWriteRaw, cutCells, isWordCell, readTranscript, mine } from '@/features/F-memory/contract/substrate-contract'
 import type { RawWord } from '@/core/types/substrate-raw.types'
 
 // The wire's raw turn payload — exactly the four fields the cognition-turn contract carries (the
@@ -184,7 +184,7 @@ export type WireCaptureDeps = {
 function defaultCaptureDeps(): WireCaptureDeps {
   // the production capture write routes through the F-009 seam (admit + writeRawTurn); the dep key
   // stays `writeRawTurn` (its shape) so tests inject their own. Pure indirection (admits today).
-  return { writeRawTurn: admitWriteRaw, cutCells, isWordCell, readTranscript, readPresent }
+  return { writeRawTurn: admitWriteRaw, cutCells, isWordCell, readTranscript: (userId: string) => readTranscript(mine(userId)), readPresent }
 }
 
 // captureWearerTurn — E1's CAPTURE-AT-SUBMIT (the wire's entry, UserPromptSubmit). It stores the

@@ -99,7 +99,7 @@ import { currentFocus, sessionWindow } from '@/features/F-present/domain/session
 import { createDbPresentMarkStore } from '@/features/F-present/exec/present-mark-store-db'
 import type { PresentMarkStore } from '@/features/F-present/app/present-store'
 import type { PlacedMark } from '@/features/F-present/config/mark-types'
-import { admitWriteRaw, readTranscript, joinCells, cutCells } from '@/features/F-memory/contract/substrate-contract'
+import { admitWriteRaw, readTranscript, mine, joinCells, cutCells } from '@/features/F-memory/contract/substrate-contract'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
 // What the recorder returns — the substrate position (sc) of the reply, the CANONICAL cut
@@ -134,7 +134,9 @@ export type ScoredTurnDeps = {
 function defaultDeps(): ScoredTurnDeps {
   // the production reply/wearer writes route through the F-009 seam (admit + writeRawTurn); the dep
   // key stays `writeRawTurn` (its shape) so tests inject their own. Pure indirection (admits today).
-  return { readTranscript, writeRawTurn: admitWriteRaw, store: createDbPresentMarkStore(), cutReply, cutCells }
+  // self-read (the writer's own last turn) — always `mine`; the dep keeps its (userId) shape so
+  // tests inject their own. The default wraps the scope-dialled read (mine = user_id bound).
+  return { readTranscript: (userId: string) => readTranscript(mine(userId)), writeRawTurn: admitWriteRaw, store: createDbPresentMarkStore(), cutReply, cutCells }
 }
 
 const EMPTY: RecordedTurn = { sc: 0, cells: [], markCount: 0, text: '' }

@@ -22,14 +22,15 @@
 // — the flat transcript the core loop feeds the LLM and coin-read derives over.
 // Imports only substrate-raw.types (+ infra db); no relational types, no F-present.
 //
-// Reads by user_id — the substrate isolation floor (matching the prior readScope),
-// `words IS NOT NULL` selecting cognition rows (system-introspection rows have NULL
-// words and stay on the relational read path). sc = the substrate position (one
-// coordinate). The marks placed for a turn (R2b, home_sc) key on the SAME position,
-// so coin-read's coordinates match across the substrate↔store seam.
+// Reads by the SCOPE DIAL (Wave-2 keystone) — the WHERE comes from the one builder
+// (scopeClause): scope='mine' binds user_id (the isolation read); scope='public' drops
+// it for source_scope='public' (the cross-author forum read). `words IS NOT NULL` selects
+// cognition rows (system-introspection rows have NULL words). sc = the substrate position;
+// the marks placed for a turn key on the SAME position, so coin-read's coordinates match.
 
 import { db }                          from '@/core/db/client'
-import { isolationFloor }              from './isolation-floor'
+import { scopeClause }                 from './scope-clause'
+import type { ScopeSpec }              from './scope-clause'
 import type { RawTurn, RawWord, Who }  from '@/core/types/substrate-raw.types'
 
 const SUBSTRATE_TABLE = 'state_change'
@@ -38,17 +39,17 @@ const SUBSTRATE_TABLE = 'state_change'
 // rather than throwing (the read never breaks the loop).
 const WHO_OF: Record<string, Who> = { wearer: 'wearer', ai: 'llm', 'internal-derivation': 'program' }
 
-export async function readTranscript(userId: string): Promise<RawTurn[]> {
-  // §2.2: the isolation rule (`user_id = $1`) is built from the one helper, no
-  // longer inlined here. `words IS NOT NULL` (the cognition-row conjunct) is
-  // appended after the floor — the floor owns $1, this predicate carries no param.
-  const floor = isolationFloor(userId)
+export async function readTranscript(scope: ScopeSpec): Promise<RawTurn[]> {
+  // The WHERE comes from the one builder (scopeClause) — the sole place a substrate read's
+  // scope-clause is constructed. `words IS NOT NULL` (the cognition-row conjunct) is appended
+  // after it; positions follow the builder's params length (mine owns $1; public carries none).
+  const sc = scopeClause(scope)
   const r = await db.query<{ position: string; source_channel: string; source_scope: string; words: unknown }>(
     `SELECT position::text AS position, source_channel, source_scope, words
        FROM ${SUBSTRATE_TABLE}
-      WHERE ${floor.clause} AND words IS NOT NULL
+      WHERE ${sc.clause} AND words IS NOT NULL
       ORDER BY position ASC`,
-    floor.params,
+    sc.params,
   )
   return r.rows.map(row => ({
     sc:    Number(row.position),
