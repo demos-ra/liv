@@ -163,7 +163,7 @@ function buildSetCookieHeader(name: string, value: string, options: {
 const ROUTE_DISPOSITION_MAP: Array<{ pattern: RegExp; method?: string; disposition: DispositionKind }> = [
   // Acts — substrate mutation or world effect
   { pattern: /^\/api\/chat\/[^/]+\/message$/,  method: 'POST',   disposition: 'act' },
-  { pattern: /^\/api\/memory\/action$/,        method: 'POST',   disposition: 'act' },
+  // (completion-wave1) /api/memory/action removed — F-codec-dissolution 501 stub deleted.
   { pattern: /^\/api\/planner\/start$/,        method: 'POST',   disposition: 'act' },
   { pattern: /^\/api\/planner\/[^/]+\/[^/]+$/, method: 'POST',   disposition: 'act' },
   { pattern: /^\/api\/output\/[^/]+\/push$/,   method: 'POST',   disposition: 'act' },
