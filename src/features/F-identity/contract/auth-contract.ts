@@ -54,3 +54,6 @@ export async function getUserEmail(userId: string): Promise<string | null> {
   if (!result.success || !result.data) return null
   return result.data.email
 }
+
+// ─── aliasesOf (Wave-2 keystone — the principal-set producer; DATA, not a decision) ───────────
+export { aliasesOf } from '../app/principal-aliases'

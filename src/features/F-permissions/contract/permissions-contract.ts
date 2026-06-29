@@ -82,3 +82,6 @@ export { usePermissions } from './permissions-hook'
 
 // ── enforceSubstrateReadScope (sprint-12-shot-3) ──────────────────────────────
 export { enforceSubstrateReadScope } from '../app/permissions-workflow'
+
+// ── readableScopesFor (Wave-2 keystone — the scope-set producer; DATA, not a decision) ──────────
+export { readableScopesFor } from '../app/permissions-workflow'

@@ -478,6 +478,7 @@ export async function readAdjacency(
 export async function readIsolatedRows(
   principals: string | string[],
   contentClass?: ContentClass,
+  scopeSet?: string[],
 ): Promise<Result<StateChangeRecord[]>> {
   try {
     // contentclass-coreloop: optional class filter. Identical pattern to the
@@ -487,7 +488,7 @@ export async function readIsolatedRows(
     // `AND source_content_class = $n`.
     // The WHERE comes from the one builder (scopeClause). This is the ISOLATION read
     // (the relational floor) — always `mine`, so user_id is always bound (a single id,
-    // or ANY($1) for the alias-fold). The floor owns $1; the contentClass conjunct → $2.
+    // or ANY($1) for the alias-fold). The floor owns $1; conjuncts follow by params.length.
     const sc = scopeClause(mine(principals))
     const params: unknown[] = [...sc.params]
     let contentClassClause = ''
@@ -495,11 +496,19 @@ export async function readIsolatedRows(
       params.push(contentClass)
       contentClassClause = ` AND source_content_class = $${params.length}`
     }
+    // scope-set bound (Wave 2): the readableScopesFor producer's DATA, when provided — narrow the
+    // read to the scopes the reader may read. `AND source_scope = ANY($n)` (the scopeFilter pattern,
+    // widened to a set). Omitted/empty (today, fill deferred → OPEN-B) → no predicate, unchanged.
+    let scopeSetClause = ''
+    if (scopeSet !== undefined && scopeSet.length > 0) {
+      params.push(scopeSet)
+      scopeSetClause = ` AND source_scope = ANY($${params.length})`
+    }
     const result = await db.query<StateChangeRow>(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE ${sc.clause}${contentClassClause}
+        WHERE ${sc.clause}${contentClassClause}${scopeSetClause}
         ORDER BY position ASC`,
       params,
     )

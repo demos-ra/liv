@@ -602,11 +602,26 @@ export async function iterateAxis(
 export async function readScope(
   principals: string | string[],
   contentClass?: ContentClass,
+  scopeSet?: string[],
 ): Promise<Result<StateChangeRecord[]>> {
-  // the relational read is always `mine` (isolation) — principals is a single id or the
-  // reader's alias-set (the principal-set fold, user_id = ANY). readIsolatedRows builds the
-  // WHERE through the one builder (scopeClause).
-  return readIsolatedRows(principals, contentClass)
+  // READ-ADMIT — the read face's substrate_read gate (mirror of admitWrite). The reader is the
+  // principal (this is always `mine`). Permissive today; Wave 2/3 fills the check.
+  admitRead(Array.isArray(principals) ? principals[0] : principals)
+  // the relational read is always `mine` (isolation) — principals is a single id or the reader's
+  // alias-set (the principal-set fold, user_id = ANY). scopeSet (the readableScopesFor producer's
+  // data, when provided) bounds the read to the reader's readable scopes via source_scope = ANY.
+  // readIsolatedRows builds the WHERE through the one builder (scopeClause).
+  return readIsolatedRows(principals, contentClass, scopeSet)
+}
+
+// ── admitRead — the READ face's authority gate (F-009 read side) ─────────────────
+// Mirror of admitWrite: gather/readScope admit the READER before the read, IN FRONT of the
+// builder + floors (HR-LM1 — the store stays dumb). substrate_read is the token (owner+member,
+// viewer excluded — permissions-config.ts:62-63/95), the symmetric twin of substrate_write.
+// Permissive today (admits); Wave 2/3 fills the check from the reader's connect-time identity —
+// exactly as admitWrite's substrate_write fill. One read-admit, never scattered.
+export function admitRead(_readerUserId: string): void {
+  // Wave 2/3 fills the substrate_read check HERE. Today: admit.
 }
 
 // ── gather — the one scope-resolving cognition read (the scope un-weld) ──────────
@@ -623,6 +638,10 @@ export type ReadScope = ScopeSpec
 // This is the v2 §4 fill-point. Every product read (present, search, core-loop) fetches through
 // here; the public relaxation appears ONLY via the one builder, audited, never scattered.
 export async function gather(scope: ReadScope): Promise<RawTurn[]> {
+  // READ-ADMIT (mirror of admitWrite) on the mine path — the reader is the principal. The public
+  // read's reader is the session user (not in scope.public); its admit rides the F-forum read door
+  // (Wave 4) where the session is known. Permissive today either way.
+  if (scope.kind === 'mine') admitRead(Array.isArray(scope.principals) ? scope.principals[0] : scope.principals)
   return readTranscript(scope)
 }
 

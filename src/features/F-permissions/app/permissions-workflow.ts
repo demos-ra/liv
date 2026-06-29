@@ -130,3 +130,13 @@ export function enforceSubstrateReadScope(
     )
   }
 }
+
+// ── readableScopesFor (Wave-2 keystone — the scope-set producer) ──────────────────
+// Returns the source_scopes this reader may read, as DATA for the one read builder's scope-set
+// bound (the seam appends `AND source_scope = ANY($n)`). It SUPPLIES data only — it makes NO
+// scoping decision; the seam (readScope/readIsolatedRows) decides the bound from this data. `null`
+// = no scope-set bound (the reader's full own substrate, unchanged). Today returns null — the fill
+// (resolving the reader's granted scopes from memberships) is connect-time identity, OPEN-B.
+export async function readableScopesFor(_reader: string): Promise<string[] | null> {
+  return null
+}
