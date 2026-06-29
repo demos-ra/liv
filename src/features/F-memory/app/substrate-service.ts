@@ -100,6 +100,7 @@ import {
 import { SUBSTRATE_EVENTS } from '../config/substrate-events'
 import { readTranscript } from '../exec/transcript-read'
 import { writeRawTurn } from '../exec/raw-turn-write'
+import { readerOf } from '../exec/scope-clause'
 import type { ScopeSpec } from '../exec/scope-clause'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
@@ -638,10 +639,10 @@ export type ReadScope = ScopeSpec
 // This is the v2 §4 fill-point. Every product read (present, search, core-loop) fetches through
 // here; the public relaxation appears ONLY via the one builder, audited, never scattered.
 export async function gather(scope: ReadScope): Promise<RawTurn[]> {
-  // READ-ADMIT (mirror of admitWrite) on the mine path — the reader is the principal. The public
-  // read's reader is the session user (not in scope.public); its admit rides the F-forum read door
-  // (Wave 4) where the session is known. Permissive today either way.
-  if (scope.kind === 'mine') admitRead(Array.isArray(scope.principals) ? scope.principals[0] : scope.principals)
+  // READ-ADMIT in front of EVERY read (mirror of admitWrite) — mine AND public. readerOf carries
+  // the reader (the principal for mine, the session user for public), so F-forum's public read
+  // (Wave 4) INHERITS this gate at the seam — it never re-adds it. Permissive today.
+  admitRead(readerOf(scope))
   return readTranscript(scope)
 }
 

@@ -45,7 +45,7 @@ export type ScopeClause = { clause: string; params: string[] }
 // the relaxation needs no identity (source_scope='public' is cross-author by construction).
 export type ScopeSpec =
   | { kind: 'mine'; principals: string | string[] }
-  | { kind: 'public' }
+  | { kind: 'public'; reader: string }   // reader = the session user, carried for the READ-ADMIT (not the clause)
   // Wave: | { kind: 'inbox'; reader: string }
 
 export function scopeClause(scope: ScopeSpec): ScopeClause {
@@ -75,4 +75,24 @@ export function scopeClause(scope: ScopeSpec): ScopeClause {
 // substrate). A single id, or the reader's resolved alias-set (the principal-set fold).
 export function mine(principals: string | string[]): ScopeSpec {
   return { kind: 'mine', principals }
+}
+
+// publicScope(reader) — the forum's cross-author read (Wave 4). reader = the session user, carried
+// ONLY for the read-admit (the clause drops user_id). `public` is a reserved word, hence the name.
+export function publicScope(reader: string): ScopeSpec {
+  return { kind: 'public', reader }
+}
+
+// readerOf — the READER a scope is asked by (for the read-admit). mine → the principal; public →
+// the session user. Exhaustive/fail-closed, like scopeClause: a new kind without a reader fails to
+// compile (the `never`), then throws — never silently "no reader" past the admit.
+export function readerOf(scope: ScopeSpec): string {
+  switch (scope.kind) {
+    case 'mine':   return Array.isArray(scope.principals) ? scope.principals[0] : scope.principals
+    case 'public': return scope.reader
+    default: {
+      const _exhaustive: never = scope
+      throw new Error(`readerOf: unhandled scope kind for the read-admit — ${JSON.stringify(_exhaustive)}`)
+    }
+  }
 }

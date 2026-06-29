@@ -21,8 +21,8 @@
 //   W-ATOM   SUBSTRATE_EVENTS      F-memory/R0 substrate-events
 //   W-ATOM   SubstrateEventType    F-memory/R0 substrate-events
 //   W-FN     admitWriteRaw         F-memory/R2 substrate-service  (F-009 cognition write face — admit + writeRawTurn)
+//   W-FN     gather                F-memory/R2 substrate-service  (Wave-2 read face — admitRead + readTranscript via scopeClause)
 //   W-FN     tokenize              F-memory/R4 raw-turn-write     (Group 1)
-//   W-FN     readTranscript        F-memory/R4 transcript-read    (Group 1)
 // wires-out:
 //   W-HOOK  writeStateChange    →  perimeter/intake (HR-LM1, Sprint 9 wiring)
 //   W-HOOK  threadQuery         →  F-chat, F-plan, F-verify, F-discover, F-router (Sprint 9 wiring)
@@ -36,7 +36,7 @@
 //   W-HOOK  readScope           →  src/app/api/substrate/export/route.ts, F-chat core-loop read (F10)
 //   W-HOOK  admitWriteRaw       →  F-chat/R3 chat-contract, F-present wire-turn-service + scored-turn-recorder (F-009 — the one write entry; writeRawTurn is R4-internal, no R3 re-export)
 //   W-HOOK  tokenize            →  F-chat/R3 chat-contract (Group 1)
-//   W-HOOK  readTranscript      →  F-chat/R3 chat-contract, F-present/R2 cognition-orchestrator (Group 1)
+//   W-HOOK  gather              →  F-chat core-loop, F-present cognition-orchestrator + lookup + recorder + wire-turn-service (the one read entry; readTranscript is R4-internal, no R3 re-export — admitRead in front of all)
 // deps:
 //   R2  ../app/substrate-service
 //   R0  ../config/substrate-events
@@ -114,13 +114,13 @@ export { SUBSTRATE_EVENTS } from '../config/substrate-events'
 export type { SubstrateEventType } from '../config/substrate-events'
 
 // ─── Cognition rail (Group 1 — foundation-group1) ─────────────────────────────
-// The cut helpers + the read are exposed here as the single R3 gate. The raw write
-// primitive writeRawTurn is NO LONGER re-exported (F-009 seal, 1e): the ONLY R3 write
-// entry is admitWriteRaw (above, the one-wall write face) — so no writer can reach the
-// dumb-store primitive without passing the admit gate. writeRawTurn stays R4-internal,
-// reached only by admitWriteRaw. I1: this file holds no F-present logic.
+// Only the cut helpers cross here. Both substrate primitives are SEALED behind their
+// one-wall seams (no R3 re-export): the write primitive writeRawTurn is reached only by
+// admitWriteRaw (F-009 write seal, 1e); the read primitive readTranscript is reached only
+// by gather (the read seam, Wave-2 keystone) — so NO reader can reach the dumb-store read
+// without passing admitRead, exactly as no writer reaches the write without admitWrite.
+// Both primitives stay R4-internal. I1: this file holds no F-present logic.
 export { cutCells, joinCells, isWordCell } from '../exec/raw-turn-write'
-export { readTranscript }         from '../exec/transcript-read'
 
 // Re-export substrate-raw types so spine consumers need not reach into core/R5.
 export type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
