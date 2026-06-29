@@ -20,7 +20,7 @@
 //   W-CONST   SUBSTRATE_TABLE_NAME    F-memory/R0 substrate-config
 //   W-INJECT  db                      core/R5
 // wires-out:  none (consumed by R2 substrate-service)
-//   W-FN      readScopeRows           →  F-memory/R2 substrate-service (F10: readScope wrapper)
+//   W-FN      readIsolatedRows        →  F-memory/R2 substrate-service (F10: readScope wrapper)
 // deps:
 //   R0  ../config/substrate-config
 //   R5  @/core/db/client
@@ -64,6 +64,7 @@ import type {
   SubstrateWriteValidated,
 } from '../config/substrate-config'
 import { SUBSTRATE_TABLE_NAME } from '../config/substrate-config'
+import { isolationFloor } from './isolation-floor'
 
 // ─── Row inflation ────────────────────────────────────────────────────────────
 
@@ -457,15 +458,18 @@ export async function readAdjacency(
 }
 
 // ─── Scope-ordered read (§3.11 userId index scan) ─────────────────────────────
-// readScopeRows: the canonical substrate read — every StateChangeRecord for a
+// readIsolatedRows: the canonical substrate read — every StateChangeRecord for a
 // userId, position ASC. Uses the userId index declared at LM v3.1 §3.11
-// (scope → positions). userId-scoped: the substrate isolation floor.
+// (scope → positions). userId-scoped: the substrate isolation floor, built from
+// the one isolationFloor helper (§2.2 — the rule no longer inlined here).
 // R4 I/O only — zero domain logic. The R2 service wraps this as readScope();
 // both the core-loop read and the export route consume it through R2/R3.
 // (F10: was exportByScope, R4-direct-wired for the export path only. The read
-// is not export-specific — it is THE scope read; promoted to first-class.)
+// is not export-specific — it is THE isolation read; promoted to first-class.
+// completion-wave1: renamed readScopeRows → readIsolatedRows — the prior name
+// implied a source_scope filter it never applied; this is the user_id floor.)
 
-export async function readScopeRows(
+export async function readIsolatedRows(
   userId: string,
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
@@ -475,7 +479,10 @@ export async function readScopeRows(
     // / readAdjacency above). Omitted → no class predicate (all classes,
     // backward-compatible — the export route relies on this). Present →
     // `AND source_content_class = $n`.
-    const params: unknown[] = [userId]
+    // §2.2: the isolation rule comes from the one helper; the floor owns $1, so
+    // the optional contentClass conjunct starts at $2.
+    const floor = isolationFloor(userId)
+    const params: unknown[] = [...floor.params]
     let contentClassClause = ''
     if (contentClass !== undefined) {
       params.push(contentClass)
@@ -485,7 +492,7 @@ export async function readScopeRows(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE user_id = $1${contentClassClause}
+        WHERE ${floor.clause}${contentClassClause}
         ORDER BY position ASC`,
       params,
     )

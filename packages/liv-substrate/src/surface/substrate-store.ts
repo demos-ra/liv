@@ -11,7 +11,7 @@
 
 import type { Result } from '../types/primitives'
 import type { StateChangeRecord, ContentClass } from '../types/substrate.types'
-import { readScopeRows } from '../store/substrate-repository'
+import { readIsolatedRows } from '../store/substrate-repository'
 
 // ─── Cognition rail (raw words in, raw turns out) ─────────────────────────────
 export { writeRawTurn, cutCells, joinCells, isWordCell } from '../store/raw-turn-write'
@@ -19,7 +19,7 @@ export { readTranscript }                                from '../store/transcri
 
 // ─── Scope-ordered read ───────────────────────────────────────────────────────
 // readScope: the canonical scope-ordered substrate read — every StateChangeRecord
-// for a userId, position ASC. A thin wrapper over the store body's readScopeRows.
+// for a userId, position ASC. A thin wrapper over the store body's readIsolatedRows.
 // Scope ACCESS CONTROL is a perimeter responsibility applied above the store; the
 // store reads whatever userId arrives (the same line the canonical contract holds:
 // "scope access control are perimeter responsibilities; LM writes/reads whatever
@@ -28,5 +28,5 @@ export async function readScope(
   userId: string,
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
-  return readScopeRows(userId, contentClass)
+  return readIsolatedRows(userId, contentClass)
 }

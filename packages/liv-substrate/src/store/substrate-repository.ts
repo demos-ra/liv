@@ -7,7 +7,7 @@
 // Result<T> on all fallible operations. DB reads are the external-origin ingress
 // boundary; raw row strings are cast to branded substrate refs at this layer.
 //
-// The portable store's scope-ordered read (readScopeRows) lives here. Scope
+// The portable store's scope-ordered read (readIsolatedRows) lives here. Scope
 // ACCESS CONTROL is a perimeter responsibility, not the store's — the store reads
 // whatever userId arrives, exactly as the canonical home does.
 
@@ -347,12 +347,14 @@ export async function readAdjacency(
 }
 
 // ─── Scope-ordered read ───────────────────────────────────────────────────────
-// readScopeRows: the canonical substrate read — every StateChangeRecord for a
+// readIsolatedRows: the canonical substrate read — every StateChangeRecord for a
 // userId, position ASC. userId-scoped: the substrate isolation floor. Optional
 // contentClass filter. The store surface wraps this as readScope; the perimeter
 // applies scope ACCESS CONTROL above the store, not here.
+// (completion-wave1: renamed from readScopeRows — the name implied a source_scope
+// filter it never applied; this is the user_id isolation read.)
 
-export async function readScopeRows(
+export async function readIsolatedRows(
   userId: string,
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {

@@ -16,7 +16,7 @@
 // rowToRecord; all readers inherit the fix through the single seam.
 //
 // Live-DB path (CI): replace mockDb with a real pg connection + seed fixture rows.
-// The WHERE clause in readScopeRows returns all row-kinds; assert content fields.
+// The WHERE clause in readIsolatedRows returns all row-kinds; assert content fields.
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -71,7 +71,7 @@ test('027 hydrator — empty array identities (legacy empty write): not treated 
 })
 
 // ── Integration path note ─────────────────────────────────────────────────────
-// Full R4 integration test (live DB) seeds one row per kind, calls readScopeRows,
+// Full R4 integration test (live DB) seeds one row per kind, calls readIsolatedRows,
 // and asserts content.identities/relations on each returned record. Seed SQL:
 //
 //   INSERT INTO state_change (id, time_ms, source_channel, source_content_class,
@@ -80,6 +80,6 @@ test('027 hydrator — empty array identities (legacy empty write): not treated 
 //     '["hello","world"]'::jsonb);
 //   -- identities and relations are omitted (DB assigns NULL, post-027 constraint)
 //
-// Then: const result = await readScopeRows('user_test')
+// Then: const result = await readIsolatedRows('user_test')
 // Assert: result.data[0].content.identities deepEqual []
 //         result.data[0].content.relations  deepEqual []

@@ -29,6 +29,7 @@
 // so coin-read's coordinates match across the substrate↔store seam.
 
 import { db }                          from '@/core/db/client'
+import { isolationFloor }              from './isolation-floor'
 import type { RawTurn, RawWord, Who }  from '@/core/types/substrate-raw.types'
 
 const SUBSTRATE_TABLE = 'state_change'
@@ -38,12 +39,16 @@ const SUBSTRATE_TABLE = 'state_change'
 const WHO_OF: Record<string, Who> = { wearer: 'wearer', ai: 'llm', 'internal-derivation': 'program' }
 
 export async function readTranscript(userId: string): Promise<RawTurn[]> {
+  // §2.2: the isolation rule (`user_id = $1`) is built from the one helper, no
+  // longer inlined here. `words IS NOT NULL` (the cognition-row conjunct) is
+  // appended after the floor — the floor owns $1, this predicate carries no param.
+  const floor = isolationFloor(userId)
   const r = await db.query<{ position: string; source_channel: string; words: unknown }>(
     `SELECT position::text AS position, source_channel, words
        FROM ${SUBSTRATE_TABLE}
-      WHERE user_id = $1 AND words IS NOT NULL
+      WHERE ${floor.clause} AND words IS NOT NULL
       ORDER BY position ASC`,
-    [userId],
+    floor.params,
   )
   return r.rows.map(row => ({
     sc:    Number(row.position),

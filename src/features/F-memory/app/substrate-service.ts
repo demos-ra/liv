@@ -91,7 +91,7 @@ import {
   commitRevocation,
   readByPosition,
   iterateAxisRows,
-  readScopeRows,
+  readIsolatedRows,
   readIdentityRecurrence,
   readRolePattern,
   readAdjacency,
@@ -585,7 +585,7 @@ export async function iterateAxis(
 // substrate isolation floor; never iterateAxis (unscoped).
 //
 // contentclass-coreloop: optional contentClass filter, threaded to
-// readScopeRows. Mirrors the TQ3 contentClass filter on the thread primitives
+// readIsolatedRows. Mirrors the TQ3 contentClass filter on the thread primitives
 // (identityRecurrence / rolePattern / adjacency). Omitted → all classes
 // (backward-compatible; the export route relies on this). The core-loop read
 // passes 'wearer-life' to filter apparatus crossing-records out of cognition.
@@ -593,7 +593,7 @@ export async function readScope(
   userId: string,
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
-  return readScopeRows(userId, contentClass)
+  return readIsolatedRows(userId, contentClass)
 }
 
 export async function identityRecurrence(
