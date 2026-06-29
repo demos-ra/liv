@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "liv": {
+      "type": "http",
+      "url": "${LIV_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${LIV_AGENT_TOKEN}"
+      }
+    }
+  }
+}

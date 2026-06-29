@@ -25,10 +25,12 @@ test('opsForRole: capture-deliver → the dedicated capture op (1d un-weld); wri
   assert.deepEqual(opsForRole('write'), [TOOL_TURN])
 })
 
-// ── the CLAIM-CODE binding: the turn boundary is UserPromptSubmit…Stop ──────────────
-test('UserPromptSubmit fires capture (the submit primitive); Stop fires write (compose)', () => {
+// ── the CLAIM-CODE binding: the ONE hook-fired boundary is UserPromptSubmit (capture) ──────────
+// M10 redline (L0-sealed): there is NO Stop hook — write-with-marks is the model's own compose
+// call (marks are cognition, not substitutable), so Stop is unbound and fires nothing.
+test('UserPromptSubmit fires capture (the submit primitive); Stop is unbound (write is the model\'s compose)', () => {
   assert.deepEqual(enforcementPlan('UserPromptSubmit', CLAIM_CODE_BINDING), [TOOL_CAPTURE])
-  assert.deepEqual(enforcementPlan('Stop', CLAIM_CODE_BINDING), [TOOL_TURN])
+  assert.deepEqual(enforcementPlan('Stop', CLAIM_CODE_BINDING), [])
 })
 
 // ── NOT SessionStart / SessionEnd — per-turn, not per-session ───────────────────────

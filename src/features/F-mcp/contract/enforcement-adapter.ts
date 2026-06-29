@@ -45,14 +45,16 @@
 //                        the wearer prompt EXACTLY as native's perimeter pre-write, then delivers
 //                        the present. One phase: capture the prompt + set the present in front of
 //                        the model before it replies.)
-//   Stop              →  write(M7)                    — the agent's turn is complete; the reply +
-//                        marks are written via compose AGAINST the already-stored wearer turn
-//                        (wearer:{written}) — compose never re-carries the wearer's words (E1).
+//   Stop              →  (NO HOOK — M10 redline, L0-sealed)   — write-with-marks is the MODEL's
+//                        compose call: it marks AS it composes, and that call IS the write, AGAINST
+//                        the already-stored wearer turn (wearer:{written}, E1). Marks are cognition,
+//                        not an event field a hook can substitute — so write is NOT hook-fired. M10's
+//                        Stop binding was aspirational; it is not built. The loop closes via the
+//                        capture floor (above) + the model's own compose, no Stop trigger.
 //
 // NOT SessionStart / SessionEnd: enforcement is PER-TURN, not per-session. SessionStart
-// would deliver once and capture nothing per turn; SessionEnd would write once at the end,
-// losing every intermediate turn. The turn boundary is UserPromptSubmit…Stop — that is the
-// unit memory is kept at. (A read-door law consequence too: a SessionStart hook that passed
+// would deliver once and capture nothing per turn. The one hook-fired boundary is
+// UserPromptSubmit (capture+deliver); the write closes the turn as the model's compose. (A read-door law consequence too: a SessionStart hook that passed
 // its event envelope as tool arguments is exactly the lifecycle baggage the read doors now
 // ignore — see tool-registry RD — but binding to it at all is the wrong granularity.)
 //
@@ -121,11 +123,43 @@ export function enforcementPlan(event: EnforcementEvent, binding: EnforcementBin
 export type EnforcementBinding = Record<EnforcementEvent, EnforcementRole>
 
 // The CLAIM-CODE adapter binding (the first client; M10 worked example). UserPromptSubmit opens the
-// turn (capture + deliver); Stop closes it (write). SessionStart/SessionEnd are deliberately ABSENT
-// — per-turn granularity, not per-session (see header).
+// turn (capture + deliver) — the ONE mechanical trigger: the wearer's words are an event field
+// (${prompt}), so a zero-logic hook fires it. M10 REDLINE (L0-sealed): there is NO Stop binding.
+// write-with-marks is the MODEL's compose call (it marks AS it composes; that call IS the write) —
+// marks are cognition, not an event field a hook can substitute (grounded: wire-turn-service
+// records the reply+marks from the compose call PAYLOAD, mcp-contract → recordWireTurn). M10's Stop
+// was aspirational; it is not built. The loop closes via the capture floor + the model's compose.
+// SessionStart/SessionEnd are also absent — per-turn granularity, not per-session (see header).
 export const CLAIM_CODE_BINDING: EnforcementBinding = {
   UserPromptSubmit: 'capture-deliver',
-  Stop:             'write',
+}
+
+// ── The universal derivation: the contract EMITS the per-agent auto-fire plug ────────
+// THE HARD REQUIREMENT (L0): the capture hook is universal BY DERIVATION — one source (this
+// contract) → a derived artifact → installed once, zero per-machine hand-config. The contract is
+// the AGNOSTIC floor (the capture + compose tools are callable by any MCP agent); this emitter is
+// the THIN Claude-Code plug: it derives Claude Code's plugin hooks.json PURELY from the binding
+// (the event), opsForRole (the op), and the one CC-specific arg map (below). The plugin's
+// hooks/hooks.json IS this output — pinned equal by test, so it can never drift from the contract.
+//
+// Only 'capture-deliver' is hook-fired (the mechanical trigger). 'write' is the model's compose,
+// never a hook (M10 redline) — so a role that is not capture-deliver emits nothing here.
+const LIV_MCP_SERVER = 'liv' as const
+// The ONE per-agent mapping: UserPromptSubmit exposes `prompt` (hooks.md); the capture op takes
+// `wearerText`. ${prompt} is Claude Code's hook-input substitution syntax. This is the sole
+// CC-specific value — the event and the op are contract-derived.
+const CAPTURE_INPUT_MAP: Readonly<Record<string, string>> = { wearerText: '${prompt}' }
+
+export function deriveClaudeCodePluginHooks(): { hooks: Record<string, Array<{ hooks: Array<Record<string, unknown>> }>> } {
+  const hooks: Record<string, Array<{ hooks: Array<Record<string, unknown>> }>> = {}
+  for (const event of Object.keys(CLAIM_CODE_BINDING)) {
+    const role = CLAIM_CODE_BINDING[event]
+    if (role !== 'capture-deliver') continue   // write is the model's compose, not a hook (M10 redline)
+    hooks[event] = opsForRole(role).map(tool => ({
+      hooks: [{ type: 'mcp_tool', server: LIV_MCP_SERVER, tool, input: CAPTURE_INPUT_MAP }],
+    }))
+  }
+  return { hooks }
 }
 
 // ── No-lifecycle fallback — voluntary compose + a fail flag ─────────────────────────

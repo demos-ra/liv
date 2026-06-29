@@ -1,0 +1,5 @@
+{
+  "name": "liv",
+  "description": "LIV memory — at each turn's submit, captures the wearer's prompt to their substrate (capture+deliver). The capture hook is DERIVED from LIV's in-tree contract (one source, zero hand-config); write is the model's own compose call. Bundles the LIV MCP server (summary/search/compose + the capture submit primitive).",
+  "version": "0.1.0"
+}
