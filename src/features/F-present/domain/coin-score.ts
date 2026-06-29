@@ -149,6 +149,7 @@ import { cutCells, isWordCell } from '@/features/F-memory/contract/substrate-con
 import { isMark } from '@/features/F-present/domain/mark-gate'   // the gate (W-FN; see @manifest)
 import { MUSICAL_OPS, toEngineMark, isMusicalOp, type MusicalOp } from '@/features/F-present/config/register-map'   // R9 register seam (translate names; the gate validates)
 import { shapeAwareCut, isHomeCapableCell, classOfCell, isBlockClass } from '@/features/F-present/domain/content-signature'   // Wing-B E3: shape-aware cut + widened home-gate
+import { MarkSurfaceError } from '../config/mark-surface-error'   // moved to a zero-dep R0 leaf; thrown locally + re-exported below
 
 // The emission the model fills (structured output) — both turns. `reply` is the model's
 // reply as plain text (authoritative for the river grid). replyMarks score the reply;
@@ -161,11 +162,11 @@ export type ScoredEmission = { reply: string; replyMarks: SpanMark[]; priorMarks
 
 // A surface-check failure — the model's claim (word-index → surface) disagrees with the
 // machine's cut. Loud, named, byte-exact: index, claimed surface, actual surface (or the
-// out-of-range count). Distinct class so the perimeters (native composer, wire turn door)
-// can catch THIS specifically and state it truthfully, separate from any other failure.
-export class MarkSurfaceError extends Error {
-  constructor(message: string) { super(message); this.name = 'MarkSurfaceError' }
-}
+// out-of-range count). The class moved to a zero-dep R0 leaf (config/mark-surface-error)
+// so the R1 name-tie weld (resolve-dimension, R4b §F) can throw the SAME class without
+// importing this module's graph. Imported here for the local `throw new` sites AND
+// re-exported, so every existing importer (and `instanceof` at the wire door) is unchanged.
+export { MarkSurfaceError }
 
 // COIN schema (owned here, single-source). A mark is a permissive object {op + the fields
 // that op uses}; the receiver narrows. Targets/peers are NAMES or COORDS (copied from

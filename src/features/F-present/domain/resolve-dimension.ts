@@ -27,6 +27,7 @@
 import type { Coord } from '@/core/types/substrate-raw.types'
 import type { Ref } from '@/features/F-present/config/mark-types'
 import type { FactRow, ThingId, Thing, Dimension } from '@/features/F-present/config/read-engine-types'
+import { MarkSurfaceError } from '../config/mark-surface-error'   // R4b (§F) — same class as the surface-mark guard, zero-dep leaf (no graph drag)
 
 const keyOf = (c: Coord) => `${c.who}:${c.sc}:${c.pos}`
 
@@ -68,6 +69,19 @@ export function resolveDimension(rows: FactRow[]): Dimension {
     const target = r.refs[0]
     const tIsIdentityCoord = typeof target !== 'string' && identityKeys.has(keyOf(target))
     if (identityKeys.has(home) && tIsIdentityCoord) union(home, keyOf(target as Coord))
+    else if (identityKeys.has(home) && typeof target === 'string') {
+      // R4b (infra §F) — same-turn name-tie: an identity home IDENTIFYs another
+      // identity by NAME (not coord). Resolve the named span to its identity-
+      // home(s) by surface and weld. A non-resolving tie silent-dropped before
+      // (a silent split); now it is LOUD — mirroring MarkSurfaceError, naming the
+      // unresolved span. Never a nearest-attach, a guess, or a faked coord.
+      const tk = surfaceToIdentityKeys.get(target.toLowerCase()) ?? []
+      if (tk.length === 0)
+        throw new MarkSurfaceError(
+          `IDENTIFY names surface "${target}" but no identity-home in this turn carries it — the tie does not resolve (no nearest-attach, no guess).`,
+        )
+      for (const k of tk) union(home, k)
+    }
     else if (!identityKeys.has(home)) hostRedirect.set(home, target) // word redirects to target's host
   }
   for (const r of rows) {                                    // QUALIFY value coords sit on their target's host thing
