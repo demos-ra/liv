@@ -49,16 +49,26 @@ export type ScopeSpec =
   // Wave: | { kind: 'inbox'; reader: string }
 
 export function scopeClause(scope: ScopeSpec): ScopeClause {
-  if (scope.kind === 'public') {
-    // THE ONE RELAXATION — the user_id bound is dropped, and ONLY here. Bounded to the literal
-    // 'public' source_scope (cross-author); never any other scope, never private.
-    return { clause: "source_scope = 'public'", params: [] }
+  switch (scope.kind) {
+    case 'mine':
+      // user_id is ALWAYS bound. A set folds to ANY($1) (the alias-resolved read); a single id
+      // stays `= $1`. This branch can never omit user_id.
+      return Array.isArray(scope.principals)
+        ? { clause: 'user_id = ANY($1)', params: scope.principals }
+        : { clause: 'user_id = $1',      params: [scope.principals] }
+    case 'public':
+      // THE ONE RELAXATION — the user_id bound is dropped, and ONLY here. Bound to the literal
+      // 'public' source_scope (cross-author); never any other scope, never private.
+      return { clause: "source_scope = 'public'", params: [] }
+    default: {
+      // FAIL-CLOSED. A new ScopeSpec kind that reaches here is a COMPILE error — the `never`
+      // assignment fails until this switch decides that kind's bound, so a kind cannot ship
+      // without a bound. At runtime the default THROWS (loud) — it is NEVER "no clause" / all
+      // rows. The floor is bind-or-throw; there is no fall-through to an unbounded read.
+      const _exhaustive: never = scope
+      throw new Error(`scopeClause: unhandled scope kind — no bound decided for ${JSON.stringify(_exhaustive)}`)
+    }
   }
-  // mine — user_id is ALWAYS bound. A set folds to ANY($1) (the alias-resolved read); a single id
-  // stays `= $1`. This branch can never omit user_id.
-  return Array.isArray(scope.principals)
-    ? { clause: 'user_id = ANY($1)', params: scope.principals }
-    : { clause: 'user_id = $1',      params: [scope.principals] }
 }
 
 // mine(reader) — the terse constructor for the overwhelmingly common scope (a reader's own

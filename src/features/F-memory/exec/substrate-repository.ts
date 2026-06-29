@@ -322,10 +322,13 @@ export async function readIdentityRecurrence(
 ): Promise<Result<StateChangeRecord[]>> {
   try {
     const params: unknown[] = [JSON.stringify([anchor])]
-    let scopeClause = ''
+    // scopeFilter: an OPTIONAL single source_scope conjunct on this metadata read (thread
+    // primitive). Renamed from a local `scopeClause` to avoid shadowing the imported scopeClause
+    // builder (the one read-WHERE-builder) — distinct concern, distinct name.
+    let scopeFilter = ''
     if (scope !== undefined) {
       params.push(scope)
-      scopeClause = ` AND source_scope = $${params.length}`
+      scopeFilter = ` AND source_scope = $${params.length}`
     }
     let contentClassClause = ''
     if (contentClass !== undefined) {
@@ -347,7 +350,7 @@ export async function readIdentityRecurrence(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE identities @> $1::jsonb${scopeClause}${contentClassClause}${asOfClause}
+        WHERE identities @> $1::jsonb${scopeFilter}${contentClassClause}${asOfClause}
         ORDER BY position ASC${limitClause}`,
       params,
     )
@@ -421,10 +424,13 @@ export async function readAdjacency(
 
   try {
     const params: unknown[] = [anchor, window]
-    let scopeClause = ''
+    // scopeFilter: an OPTIONAL single source_scope conjunct on this metadata read (thread
+    // primitive). Renamed from a local `scopeClause` to avoid shadowing the imported scopeClause
+    // builder (the one read-WHERE-builder) — distinct concern, distinct name.
+    let scopeFilter = ''
     if (scope !== undefined) {
       params.push(scope)
-      scopeClause = ` AND source_scope = $${params.length}`
+      scopeFilter = ` AND source_scope = $${params.length}`
     }
     let contentClassClause = ''
     if (contentClass !== undefined) {
@@ -441,7 +447,7 @@ export async function readAdjacency(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeClause}${contentClassClause}${asOfClause}
+        WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeFilter}${contentClassClause}${asOfClause}
         ORDER BY position ASC`,
       params,
     )
@@ -460,8 +466,8 @@ export async function readAdjacency(
 // ─── Scope-ordered read (§3.11 userId index scan) ─────────────────────────────
 // readIsolatedRows: the canonical substrate read — every StateChangeRecord for a
 // userId, position ASC. Uses the userId index declared at LM v3.1 §3.11
-// (scope → positions). userId-scoped: the substrate isolation floor, built from
-// the one isolationFloor helper (§2.2 — the rule no longer inlined here).
+// (scope → positions). userId-scoped: the WHERE is built from the one builder
+// (scopeClause(mine(...)) — §2.2 one-home; always `mine`, so user_id is always bound).
 // R4 I/O only — zero domain logic. The R2 service wraps this as readScope();
 // both the core-loop read and the export route consume it through R2/R3.
 // (F10: was exportByScope, R4-direct-wired for the export path only. The read
