@@ -52,6 +52,15 @@ export const TOOL_PRESENT = 'summary' as const
 export const TOOL_TURN = 'compose' as const
 export const TOOL_LOOKUP = 'search' as const
 
+// TOOL_CAPTURE — the submit-capture primitive (the capture un-weld, 1d). Capture is
+// its OWN op now, no longer a job riding the read (summary's wearerText branch). It is
+// DISPATCHABLE but NOT advertised in MCP_TOOLS — the lifecycle hook fires it at the
+// turn's entry (UserPromptSubmit), the model never picks it from the menu. So the model
+// surface stays the read/record verbs; capture is plumbing the hook drives. It stores the
+// submitted wearer prompt (captureWearerTurn → writeRawTurn) and delivers the present —
+// the same store+deliver, now lifted off the read so the read becomes pure.
+export const TOOL_CAPTURE = 'capture' as const
+
 // The `turn` write-door's arg names — the allow-list the door rejects extras against
 // (planToolCall, R1). The four WIRE fields, in present order. Pinned by test to the projected
 // schema's property keys (projectEmissionSchema(MCP_SITUATION)): the door's extras-check and

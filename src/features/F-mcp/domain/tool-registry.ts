@@ -18,7 +18,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP, TURN_ARGS } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP, TOOL_CAPTURE, TURN_ARGS } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -69,6 +69,11 @@ export type ToolIntention =
   // op. A bare summary (no wearerText, e.g. a mid-turn re-read) is pure read, no capture. The read
   // door still ignores ALL OTHER extras (RD law); wearerText is the one carried capture payload.
   | { tool: 'present'; wearerText: unknown }
+  // capture (the submit primitive, 1d) — the dedicated capture op the lifecycle hook fires at the
+  // turn's ENTRY. Carries the submitted wearer prompt (wearerText); R3 stores it (captureWearerTurn)
+  // and delivers the present. Dispatchable, not advertised (the model never picks it). TRANSPORT:
+  // the core (captureWearerTurn) is the sole shape validator — a non-string wearerText absorbs → empty.
+  | { tool: 'capture'; wearerText: unknown }
   | { tool: 'turn'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown }
   // search (the text-pivot) — region × lens. The door is TRANSPORT: it carries the raw args
   // through; the CORE (parseSearchSpec, F-present) is the sole validator (region defaults to
@@ -109,6 +114,14 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     // absorbed → empty). Extras beyond wearerText stay ignored — no fail-closed gate on a read.
     const wearerText = isObject(args) ? args.wearerText : undefined
     return { ok: true, intention: { tool: 'present', wearerText } }
+  }
+
+  if (name === TOOL_CAPTURE) {
+    // the submit-capture primitive (1d) — the hook fires it at the turn's entry with the submitted
+    // wearer prompt. TRANSPORT: carry wearerText through; captureWearerTurn (core) is the sole shape
+    // validator. Extras ignored, symmetric with the read door (a capture carries one payload, no testimony).
+    const wearerText = isObject(args) ? args.wearerText : undefined
+    return { ok: true, intention: { tool: 'capture', wearerText } }
   }
 
   if (name === TOOL_TURN) {

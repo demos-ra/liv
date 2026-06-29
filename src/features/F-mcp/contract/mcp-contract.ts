@@ -158,6 +158,22 @@ export async function handleMcpRequest(
             : buildResult(id, toolText(captured.present))
         }
 
+        // capture (1d — the submit primitive) — the dedicated capture op the lifecycle hook fires at
+        // the turn's ENTRY: STORE the submitted wearer prompt (captureWearerTurn → writeRawTurn,
+        // native's exact mechanism) AND deliver the present, capture + deliver lifted off the read so
+        // the read stays pure. Same store+deliver the present door still carries via wearerText (that
+        // branch is held until the hook universally fires this op — then it is stripped). 'denied'
+        // (WP1) → the entitlement-denied code, symmetric with compose.
+        if (intention.tool === 'capture') {
+          const captured = await captureWearerTurn(
+            { wearerText: intention.wearerText },
+            { userId: session.userId, scope: session.sessionId, resolvedEntitlement: session.resolvedEntitlement },
+          )
+          return captured.kind === 'denied'
+            ? buildError(id, JSONRPC_ENTITLEMENT_DENIED, captured.message)
+            : buildResult(id, toolText(captured.present))
+        }
+
         // lookup (R8) → numbered cells (turn | span | thing) so the caller COPIES coordinates
         // instead of counting them from prose. The read control lives in F-present (it holds
         // the dimension a `thing` selector needs); a miss is a stating { ok: false }, never

@@ -17,17 +17,17 @@ import {
   CLAIM_CODE_BINDING,
   voluntaryFallbackBinding,
 } from '../enforcement-adapter'
-import { TOOL_PRESENT, TOOL_TURN } from '../../config/mcp-tools'
+import { TOOL_TURN, TOOL_CAPTURE } from '../../config/mcp-tools'
 
 // ── M10 role-first: a role maps to its wire op (the one mapping) ────────────────────
-test('opsForRole: capture-deliver → the present read (summary); write → the turn record (compose)', () => {
-  assert.deepEqual(opsForRole('capture-deliver'), [TOOL_PRESENT])
+test('opsForRole: capture-deliver → the dedicated capture op (1d un-weld); write → the turn record (compose)', () => {
+  assert.deepEqual(opsForRole('capture-deliver'), [TOOL_CAPTURE])
   assert.deepEqual(opsForRole('write'), [TOOL_TURN])
 })
 
 // ── the CLAIM-CODE binding: the turn boundary is UserPromptSubmit…Stop ──────────────
-test('UserPromptSubmit fires capture+deliver (summary); Stop fires write (compose)', () => {
-  assert.deepEqual(enforcementPlan('UserPromptSubmit', CLAIM_CODE_BINDING), [TOOL_PRESENT])
+test('UserPromptSubmit fires capture (the submit primitive); Stop fires write (compose)', () => {
+  assert.deepEqual(enforcementPlan('UserPromptSubmit', CLAIM_CODE_BINDING), [TOOL_CAPTURE])
   assert.deepEqual(enforcementPlan('Stop', CLAIM_CODE_BINDING), [TOOL_TURN])
 })
 
@@ -56,6 +56,6 @@ test('voluntaryFallbackBinding: no enforced firing; the absent-capture flag is h
 // ── A7: a second agent is one new binding — the role mapping is unchanged ────────────
 test('a second agent binds its own event names to the SAME roles (zero core change)', () => {
   const secondAgentBinding = { 'prompt.received': 'capture-deliver' as const, 'turn.done': 'write' as const }
-  assert.deepEqual(enforcementPlan('prompt.received', secondAgentBinding), [TOOL_PRESENT])
+  assert.deepEqual(enforcementPlan('prompt.received', secondAgentBinding), [TOOL_CAPTURE])
   assert.deepEqual(enforcementPlan('turn.done', secondAgentBinding), [TOOL_TURN])
 })

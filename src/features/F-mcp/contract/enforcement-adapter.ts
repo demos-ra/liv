@@ -68,14 +68,16 @@
 // A client with NO lifecycle hooks at all falls back to the voluntary binding below.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { TOOL_PRESENT, TOOL_TURN } from '../config/mcp-tools'
+import { TOOL_PRESENT, TOOL_TURN, TOOL_CAPTURE } from '../config/mcp-tools'
 
-// The wire ops a lifecycle phase can fire — the PUBLIC verbs (DIST vocabulary). 'summary' at the
-// turn's ENTRY CAPTURES (stores the submitted wearer prompt — captureWearerTurn → writeRawTurn,
-// native's exact mechanism) AND delivers the present (E1: capture is no longer implicit); 'compose'
-// at Stop writes the reply + marks against that stored wearer turn. These are exactly the tool
-// names the wire advertises — the adapter cannot fire an op the wire does not expose.
-export type WireOp = typeof TOOL_PRESENT | typeof TOOL_TURN
+// The wire ops a lifecycle phase can fire. 'capture' at the turn's ENTRY STORES the submitted
+// wearer prompt (captureWearerTurn → writeRawTurn, native's exact mechanism) AND delivers the
+// present — its OWN submit primitive now (the capture un-weld, 1d), no longer a job riding the
+// read. 'compose' at Stop writes the reply + marks against that stored wearer turn. 'summary' (the
+// read) stays a WireOp — a lifecycle may deliver a bare present — but it no longer carries capture.
+// (capture is dispatchable but NOT advertised in MCP_TOOLS: the hook fires it, the model never
+// picks it.)
+export type WireOp = typeof TOOL_PRESENT | typeof TOOL_TURN | typeof TOOL_CAPTURE
 
 // The lifecycle ROLES (M10 — role-first). A client's lifecycle event maps to a role; a role maps
 // to its wire ops. The role is the stable axis — clients differ in event NAMES, never in roles.
@@ -88,12 +90,13 @@ export type WireOp = typeof TOOL_PRESENT | typeof TOOL_TURN
 export type EnforcementRole = 'capture-deliver' | 'write'
 
 // The role → wire ops mapping (M10, role-first). The ONE place a role's wire ops are named; every
-// client adapter derives its firing from this, never hand-listing ops. capture-deliver fires
-// summary (which STORES the wearer prompt then delivers the present, E1); write fires the turn
-// record (compose, reply-only).
+// client adapter derives its firing from this, never hand-listing ops — this is the contract a
+// universal, generated hook reads (no per-machine hand-config). capture-deliver fires the dedicated
+// capture op (which STORES the wearer prompt then delivers the present — its own submit primitive,
+// 1d); write fires the turn record (compose, reply-only).
 export function opsForRole(role: EnforcementRole): readonly WireOp[] {
   switch (role) {
-    case 'capture-deliver': return [TOOL_PRESENT]
+    case 'capture-deliver': return [TOOL_CAPTURE]
     case 'write':           return [TOOL_TURN]
   }
 }

@@ -365,6 +365,15 @@ test('present: a summary carrying wearerText plans the capture payload (E1 captu
   assert.equal(r.intention.wearerText, 'I toured Kyoto', 'the submitted prompt rides as the capture payload')
 })
 
+// 1d capture un-weld: the dedicated capture op (the submit primitive the hook fires) plans the
+// wearer prompt as its payload — dispatchable though not advertised. R3 stores it + delivers.
+test('capture: the submit-capture op plans the wearer prompt payload (1d un-weld, off the read)', () => {
+  const r = planToolCall('capture', { wearerText: 'I toured Kyoto', source: 'UserPromptSubmit' })
+  assert.equal(r.ok, true)
+  if (!r.ok || r.intention.tool !== 'capture') return
+  assert.equal(r.intention.wearerText, 'I toured Kyoto', 'the submitted prompt rides as the capture payload')
+})
+
 test('search: a raw payload plus extra envelope fields rides through (read door ignores extras)', () => {
   const args = { lens: { view: 'raw' }, source: 'startup', session_id: 'x' }
   const r = planToolCall('search', args)
