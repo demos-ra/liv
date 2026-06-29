@@ -20,7 +20,7 @@
 //   W-FN     onBoot                F-memory/R2 substrate-service
 //   W-ATOM   SUBSTRATE_EVENTS      F-memory/R0 substrate-events
 //   W-ATOM   SubstrateEventType    F-memory/R0 substrate-events
-//   W-FN     writeRawTurn          F-memory/R4 raw-turn-write     (cognition rail — Group 1)
+//   W-FN     admitWriteRaw         F-memory/R2 substrate-service  (F-009 cognition write face — admit + writeRawTurn)
 //   W-FN     tokenize              F-memory/R4 raw-turn-write     (Group 1)
 //   W-FN     readTranscript        F-memory/R4 transcript-read    (Group 1)
 // wires-out:
@@ -34,7 +34,7 @@
 //   W-HOOK  onBoot              →  F-event-system/R2 startup (Sprint 8 Shot 4 wiring)
 //   W-ATOM  SUBSTRATE_EVENTS    →  F-event-system/R0 event-schema (cross-slice via R3 per A2)
 //   W-HOOK  readScope           →  src/app/api/substrate/export/route.ts, F-chat core-loop read (F10)
-//   W-HOOK  writeRawTurn        →  F-chat/R3 chat-contract, F-present/R2 cognition-orchestrator (Group 1)
+//   W-HOOK  admitWriteRaw       →  F-chat/R3 chat-contract, F-present wire-turn-service + scored-turn-recorder (F-009 — the one write entry; writeRawTurn is R4-internal, no R3 re-export)
 //   W-HOOK  tokenize            →  F-chat/R3 chat-contract (Group 1)
 //   W-HOOK  readTranscript      →  F-chat/R3 chat-contract, F-present/R2 cognition-orchestrator (Group 1)
 // deps:
@@ -68,6 +68,7 @@ export {
   iterateAxis,
   readScope,
   gather,
+  admitWriteRaw,
   identityRecurrence,
   rolePattern,
   adjacency,
@@ -111,11 +112,12 @@ export { SUBSTRATE_EVENTS } from '../config/substrate-events'
 export type { SubstrateEventType } from '../config/substrate-events'
 
 // ─── Cognition rail (Group 1 — foundation-group1) ─────────────────────────────
-// writeRawTurn, tokenize, readTranscript were reached directly from the spine
-// via F-memory/exec/ (A2 violation). Exposed here as the single R3 gate.
-// Same functions, same signatures — one indirection only. I1: this file has
-// zero F-present imports; the core write path still holds no F-present logic.
-export { writeRawTurn, cutCells, joinCells, isWordCell } from '../exec/raw-turn-write'
+// The cut helpers + the read are exposed here as the single R3 gate. The raw write
+// primitive writeRawTurn is NO LONGER re-exported (F-009 seal, 1e): the ONLY R3 write
+// entry is admitWriteRaw (above, the one-wall write face) — so no writer can reach the
+// dumb-store primitive without passing the admit gate. writeRawTurn stays R4-internal,
+// reached only by admitWriteRaw. I1: this file holds no F-present logic.
+export { cutCells, joinCells, isWordCell } from '../exec/raw-turn-write'
 export { readTranscript }         from '../exec/transcript-read'
 
 // Re-export substrate-raw types so spine consumers need not reach into core/R5.

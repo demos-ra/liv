@@ -99,7 +99,8 @@ import {
 } from '../exec/substrate-repository'
 import { SUBSTRATE_EVENTS } from '../config/substrate-events'
 import { readTranscript } from '../exec/transcript-read'
-import type { RawTurn } from '@/core/types/substrate-raw.types'
+import { writeRawTurn } from '../exec/raw-turn-write'
+import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
 // ═══════════════════════════════════════════════════════════════
 // SW1 — Validation + position/time assignment (mechanical, stage 2)
@@ -338,6 +339,12 @@ async function sw3Commit(
 export async function writeStateChange(
   input: SubstrateWriteInput,
 ): Promise<Result<StateChangeRecord | { revoked: StateChangeId; position: PositionRef | null }>> {
+  // F-009 — the WRITE face of the one wall (the relational write path). admitWrite runs IN FRONT
+  // of SW1→SW3 (never inside commitStateChange; HR-LM1 keeps the store dumb). Every writeStateChange
+  // caller (perimeter, proxy, F-plan/verify/discover/builder/artifact) routes through this one gate.
+  // Pure indirection today (admits); Wave 2/3 fills substrate_write from connect-time identity.
+  admitWrite(input.userId)
+
   // SW1
   const validated = sw1Validate(input)
   if (!validated.ok) return validated
@@ -615,6 +622,29 @@ export type ReadScope = { kind: 'mine'; reader: string }
 export async function gather(scope: ReadScope): Promise<RawTurn[]> {
   // 1c: 'mine' only. Wave 2 dispatches scope.kind here (adding the 'public' relaxation).
   return readTranscript(scope.reader)
+}
+
+// ── admitWrite — the WRITE face of the one wall (F-009) ──────────────────────────
+// F-memory R2 is THE ONE WALL: gather/readScope admits READS by scope; admitWrite admits WRITES
+// by authority; the isolation floor is shared. One audited home, both faces. The gate sits IN
+// FRONT OF the substrate primitives (writeRawTurn / writeStateChange→commitStateChange), never
+// inside them — the substrate stays a dumb store (HR-LM1: authority is the perimeter's, not the
+// store's). substrate_write is enforced ONCE, here. 1e: the SEAM lands and every write routes
+// through it (pure indirection — admits today, behavior unchanged); the per-deployment
+// substrate_write FILL is connect-time identity (Wave 2/3), exactly as the read side's scope-fill.
+// The writer's id is received now; only the permission check is deferred — never scattered.
+export function admitWrite(_writerUserId: string): void {
+  // Wave 2/3 fills the substrate_write check HERE (Permissions-Standard token), resolved from the
+  // writer's connect-time identity. Today: admit (no provider wired → permissive, like the gate).
+}
+
+// admitWriteRaw — the cognition write face: admit, then the dumb-store primitive. Every cognition
+// writer (capture, the compose recorder, chat intake) routes through here instead of writeRawTurn
+// directly, so the seam is the ONLY path to the primitive (no bypass). Signature-identical to
+// writeRawTurn (pure indirection — same write out).
+export async function admitWriteRaw(input: { who: Who; words: RawWord[]; userId: string; scope: string }): Promise<number> {
+  admitWrite(input.userId)
+  return writeRawTurn(input)
 }
 
 export async function identityRecurrence(

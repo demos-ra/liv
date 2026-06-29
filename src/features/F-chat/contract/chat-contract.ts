@@ -176,7 +176,7 @@ import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/con
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent, sseStream }     from '../domain/chat-logic'
-import { writeRawTurn, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
+import { admitWriteRaw, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
 import { gather }                                from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
@@ -607,7 +607,7 @@ export async function POST_message(
   // CELLS data block so the model copies priorMark home coordinates (never counts).
   let wearerSc: number
   try {
-    wearerSc = await writeRawTurn({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
+    wearerSc = await admitWriteRaw({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
   } catch (err) {
     console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
@@ -770,7 +770,7 @@ export async function POST_message(
           // back (CognitionResult carries only text, F5); the write happens for its substrate
           // effect (skipped when the reply has no word-cells — an honest empty non-write).
           if (replyCells.some(c => isWordCell(c.word))) {
-            await writeRawTurn({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
+            await admitWriteRaw({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
           }
           aiResult = { text: reply }
         }
