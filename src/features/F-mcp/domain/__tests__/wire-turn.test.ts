@@ -346,23 +346,19 @@ test('search: a non-object arguments is rejected (the one structural door check)
 })
 
 // ── (G) read-door law (RD) — reads ignore extras ──────────────────────────────────
-// E1: present (summary) carries ONE optional capture payload (wearerText, the submitted prompt);
-// every OTHER extra is still ignored. A bare summary (no wearerText) plans wearerText:undefined —
-// the R3 door reads it as a pure read (no capture); a summary WITH wearerText plans the capture.
-test('present: extra lifecycle-envelope fields are ignored; a bare summary is a pure read (wearerText undefined)', () => {
-  const r = planToolCall('summary', { source: 'startup', session_id: 'x' })
-  assert.equal(r.ok, true)
-  if (!r.ok || r.intention.tool !== 'present') return
-  assert.equal(r.intention.wearerText, undefined, 'no wearerText carried → pure read at R3 (no capture)')
-})
+// 1d strip: present (summary) is a PURE read — capture is the dedicated `capture` op, un-welded
+// off it. summary plans NO payload; every extra (lifecycle envelope fields AND a stray wearerText)
+// is ignored. A wearerText on summary is no longer a capture — capture is `capture`, tested above.
+test('present: summary is a PURE read — extras and a stray wearerText are ignored, never a capture (1d strip)', () => {
+  const bare = planToolCall('summary', { source: 'startup', session_id: 'x' })
+  assert.equal(bare.ok, true)
+  if (!bare.ok || bare.intention.tool !== 'present') return
+  assert.deepEqual(bare.intention, { tool: 'present' }, 'no payload — a pure read')
 
-// E1: summary at the turn's ENTRY carries the submitted wearer prompt — the door plans it as the
-// capture payload; R3 fires captureWearerTurn (writeRawTurn) then delivers the present.
-test('present: a summary carrying wearerText plans the capture payload (E1 capture-at-submit)', () => {
-  const r = planToolCall('summary', { wearerText: 'I toured Kyoto', source: 'UserPromptSubmit' })
-  assert.equal(r.ok, true)
-  if (!r.ok || r.intention.tool !== 'present') return
-  assert.equal(r.intention.wearerText, 'I toured Kyoto', 'the submitted prompt rides as the capture payload')
+  const stray = planToolCall('summary', { wearerText: 'I toured Kyoto', source: 'UserPromptSubmit' })
+  assert.equal(stray.ok, true)
+  if (!stray.ok || stray.intention.tool !== 'present') return
+  assert.deepEqual(stray.intention, { tool: 'present' }, 'wearerText ignored — summary never captures (it is the `capture` op now)')
 })
 
 // 1d capture un-weld: the dedicated capture op (the submit primitive the hook fires) plans the

@@ -137,25 +137,12 @@ export async function handleMcpRequest(
         const intention = plan.intention
 
         // present (summary) → the fresh present in the WIRE bundle (R7: both tables, no transcript
-        // — fetched via search, never carried per turn). E1: at the turn's ENTRY the hook hands the
-        // submitted wearer prompt in (intention.wearerText); the door then CAPTURES it
-        // (captureWearerTurn → writeRawTurn, native's EXACT mechanism — the wire's perimeter
-        // pre-write) AND delivers the fresh present in ONE op (capture + deliver). compose at Stop
-        // records the reply against this already-stored wearer turn (wearer:{written}), never
-        // re-carrying the words — uniform with native. A bare summary (no wearerText: a mid-turn
-        // re-read) stays a pure read. 'denied' (WP1) maps to the entitlement-denied code, symmetric
-        // with compose. The manual rides the `compose` description (a once-channel, R2), zero here.
+        // — fetched via search, never carried per turn). PURE READ (1d strip): capture is un-welded
+        // off the read — it is the dedicated `capture` op below, fired at submit. summary carries no
+        // capture; it only delivers. The manual rides the `compose` description (a once-channel, R2),
+        // zero here.
         if (intention.tool === 'present') {
-          if (intention.wearerText === undefined) {
-            return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
-          }
-          const captured = await captureWearerTurn(
-            { wearerText: intention.wearerText },
-            { userId: session.userId, scope: session.sessionId, resolvedEntitlement: session.resolvedEntitlement },
-          )
-          return captured.kind === 'denied'
-            ? buildError(id, JSONRPC_ENTITLEMENT_DENIED, captured.message)
-            : buildResult(id, toolText(captured.present))
+          return buildResult(id, toolText(await readPresent(session.userId, PRESENT_BUNDLES.wire)))
         }
 
         // capture (1d — the submit primitive) — the dedicated capture op the lifecycle hook fires at

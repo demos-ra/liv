@@ -63,12 +63,10 @@ export function initializeResult(): {
 // door stamps the writing connection (session.sessionId) at R3. A turn that still sends
 // `scope` (or any field outside TURN_ARGS) is rejected as an unknown field by firstUnknownField.
 export type ToolIntention =
-  // present (summary) — the read. E1: at the turn's ENTRY (UserPromptSubmit) it ALSO carries the
-  // submitted wearer prompt (wearerText), which the R3 door CAPTURES (captureWearerTurn →
-  // writeRawTurn, native's exact mechanism) before delivering the present — capture + deliver, one
-  // op. A bare summary (no wearerText, e.g. a mid-turn re-read) is pure read, no capture. The read
-  // door still ignores ALL OTHER extras (RD law); wearerText is the one carried capture payload.
-  | { tool: 'present'; wearerText: unknown }
+  // present (summary) — the PURE read (1d strip): capture is un-welded off it (the dedicated
+  // `capture` op below). summary carries NO payload; it only delivers. The read door ignores all
+  // extras (RD law) — including a stray wearerText, which is no longer a capture payload here.
+  | { tool: 'present' }
   // capture (the submit primitive, 1d) — the dedicated capture op the lifecycle hook fires at the
   // turn's ENTRY. Carries the submitted wearer prompt (wearerText); R3 stores it (captureWearerTurn)
   // and delivers the present. Dispatchable, not advertised (the model never picks it). TRANSPORT:
@@ -107,13 +105,10 @@ function unknownFieldReject(tool: string, field: string): PlanResult {
 
 export function planToolCall(name: unknown, args: unknown): PlanResult {
   if (name === TOOL_PRESENT) {
-    // read door — no selectors; ignores any extras (lifecycle envelopes), RD law. E1: it carries
-    // ONE optional capture payload — wearerText, the submitted prompt the entry-hook hands in. When
-    // present, R3 CAPTURES it (captureWearerTurn) before delivering; when absent, it is a pure read.
-    // Still TRANSPORT: the core (captureWearerTurn) is the sole shape validator (a non-string is
-    // absorbed → empty). Extras beyond wearerText stay ignored — no fail-closed gate on a read.
-    const wearerText = isObject(args) ? args.wearerText : undefined
-    return { ok: true, intention: { tool: 'present', wearerText } }
+    // read door — no selectors, no payload; ignores ALL extras (lifecycle envelopes), RD law. 1d
+    // strip: summary is a PURE read — capture moved to the dedicated `capture` op, so a stray
+    // wearerText is just an ignored extra here, never a capture.
+    return { ok: true, intention: { tool: 'present' } }
   }
 
   if (name === TOOL_CAPTURE) {
