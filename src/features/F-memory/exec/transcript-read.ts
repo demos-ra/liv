@@ -43,8 +43,8 @@ export async function readTranscript(userId: string): Promise<RawTurn[]> {
   // longer inlined here. `words IS NOT NULL` (the cognition-row conjunct) is
   // appended after the floor — the floor owns $1, this predicate carries no param.
   const floor = isolationFloor(userId)
-  const r = await db.query<{ position: string; source_channel: string; words: unknown }>(
-    `SELECT position::text AS position, source_channel, words
+  const r = await db.query<{ position: string; source_channel: string; source_scope: string; words: unknown }>(
+    `SELECT position::text AS position, source_channel, source_scope, words
        FROM ${SUBSTRATE_TABLE}
       WHERE ${floor.clause} AND words IS NOT NULL
       ORDER BY position ASC`,
@@ -53,6 +53,7 @@ export async function readTranscript(userId: string): Promise<RawTurn[]> {
   return r.rows.map(row => ({
     sc:    Number(row.position),
     who:   WHO_OF[row.source_channel] ?? 'llm',
+    scope: row.source_scope,                 // the row's own visibility — intrinsic, write-stamped
     words: (typeof row.words === 'string' ? JSON.parse(row.words) : row.words) as RawWord[],
   }))
 }

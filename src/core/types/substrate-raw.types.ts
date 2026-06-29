@@ -27,8 +27,12 @@ export type Coord = { who: Who; sc: number; pos: number }
 export type RawWord = { pos: number; word: string }
 
 // A turn — attributed, ordered. Both the wearer's turn and the LLM's end response
-// land here as raw content.
-export type RawTurn = { sc: number; who: Who; words: RawWord[] }
+// land here as raw content. `scope` is the source_scope the turn was written under —
+// an intrinsic write-stamped fact (like who/sc), surfaced on the read so a row
+// carries its own visibility. Optional: only the substrate read (Floor A) populates
+// it; constructors that predate it stay valid. Wave 2's bounded public read selects
+// on it (source_scope='public'); 1c does not yet read it (scope='mine' only).
+export type RawTurn = { sc: number; who: Who; words: RawWord[]; scope?: string }
 
 // The substrate = an ordered transcript of turns. Nothing relational.
 export type Transcript = RawTurn[]

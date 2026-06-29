@@ -14,7 +14,7 @@
 //   W-FN    buildFactTable / resolveDimension   ../domain/fact-table, ../domain/resolve-dimension
 //   W-FN    createDbPresentMarkStore            ../exec/present-mark-store-db
 //   W-ATOM  PresentMarkStore                    ../app/present-store (type-only)
-//   W-FN    readTranscript                      @/features/F-memory/contract/substrate-contract (R3 surface)
+//   W-FN    gather                              @/features/F-memory/contract/substrate-contract (R3 surface — scope seam, default dep)
 //   W-ATOM  Who / Coord / RawTurn               @/core/types/substrate-raw.types (type-only)
 // wires-out:
 //   W-FN    lookup  →  ../contract/present-contract (R3 → F-mcp wire `lookup` tool)
@@ -39,7 +39,7 @@ import { renderGrid } from '@/features/F-present/domain/render-present'
 import { createDbPresentMarkStore } from '@/features/F-present/exec/present-mark-store-db'
 import type { PresentMarkStore } from '@/features/F-present/app/present-store'
 import type { PivotConfig, RowAxis, ColAxis, ValueField, PivotSort, Selection } from '@/features/F-present/config/read-engine-types'
-import { readTranscript } from '@/features/F-memory/contract/substrate-contract'
+import { gather } from '@/features/F-memory/contract/substrate-contract'
 import type { Who, Coord, RawTurn } from '@/core/types/substrate-raw.types'
 
 // what to fetch — by turn (one turn), by span (an sc range), or by thing (a name's cluster).
@@ -59,7 +59,11 @@ export type LookupDeps = {
   store:          PresentMarkStore
 }
 function defaultDeps(): LookupDeps {
-  return { readTranscript, store: createDbPresentMarkStore() }
+  // The production transcript fetch flows through the gather seam (scope='mine' →
+  // user_id=$1, same rows). The dep keeps its "fetch this reader's transcript"
+  // shape (tests inject their own); Wave 2 widens lookup/search to carry a scope
+  // and call gather(scope) directly when the bounded public read lands.
+  return { readTranscript: (userId: string) => gather({ kind: 'mine', reader: userId }), store: createDbPresentMarkStore() }
 }
 
 const cellsOf = (t: RawTurn): LookupCell[] => t.words.map(w => ({ who: t.who, sc: t.sc, pos: w.pos, word: w.word }))

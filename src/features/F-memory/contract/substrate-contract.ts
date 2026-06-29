@@ -16,6 +16,7 @@
 //   W-FN     adjacency             F-memory/R2 substrate-service
 //   W-FN     threadQuery           F-memory/R2 substrate-service
 //   W-FN     readScope             F-memory/R2 substrate-service  (F10: canonical scope-ordered read)
+//   W-FN     gather                F-memory/R2 substrate-service  (scope un-weld — the one scope-resolving cognition read / §4 fill-point)
 //   W-FN     onBoot                F-memory/R2 substrate-service
 //   W-ATOM   SUBSTRATE_EVENTS      F-memory/R0 substrate-events
 //   W-ATOM   SubstrateEventType    F-memory/R0 substrate-events
@@ -66,12 +67,14 @@ export {
   readStateChange,
   iterateAxis,
   readScope,
+  gather,
   identityRecurrence,
   rolePattern,
   adjacency,
   threadQuery,
   onBoot,
 } from '../app/substrate-service'
+export type { ReadScope } from '../app/substrate-service'
 
 // F10: exportByScope (was R4-direct-wired) is subsumed — the scope-ordered read
 // is first-class as readScope, exposed here from the R2 service. The export

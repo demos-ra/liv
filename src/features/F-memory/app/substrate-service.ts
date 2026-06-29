@@ -98,6 +98,8 @@ import {
   getLastPosition,
 } from '../exec/substrate-repository'
 import { SUBSTRATE_EVENTS } from '../config/substrate-events'
+import { readTranscript } from '../exec/transcript-read'
+import type { RawTurn } from '@/core/types/substrate-raw.types'
 
 // ═══════════════════════════════════════════════════════════════
 // SW1 — Validation + position/time assignment (mechanical, stage 2)
@@ -594,6 +596,25 @@ export async function readScope(
   contentClass?: ContentClass,
 ): Promise<Result<StateChangeRecord[]>> {
   return readIsolatedRows(userId, contentClass)
+}
+
+// ── gather — the one scope-resolving cognition read (the scope un-weld) ──────────
+// ReadScope is the visibility VALUE a read receives — the scope knob, un-welded from
+// the "only mine" that was baked into every read. 1c: the only scope is 'mine' — the
+// reader's own substrate. Wave 2 adds { kind: 'public' } (cross-author, bounded to
+// source_scope='public') and inbox AS NEW MEMBERS HERE.
+export type ReadScope = { kind: 'mine'; reader: string }
+
+// gather resolves the scope knob THROUGH the isolation floor and returns the
+// transcript. This is the v2 §4 fill-point — co-located with isolationFloor (1a) so
+// the ONE place "only mine" relaxes (Wave 2's bounded public mode) is the EXACT place
+// it is enforced. Every product read (present, search, core-loop) fetches through here.
+// 1c: scope='mine' → readTranscript binds user_id=$1 via the floor; identical rows to
+// the prior direct call — pure indirection, no behavior change. The breach appears once,
+// later, at this same point — never scattered.
+export async function gather(scope: ReadScope): Promise<RawTurn[]> {
+  // 1c: 'mine' only. Wave 2 dispatches scope.kind here (adding the 'public' relaxation).
+  return readTranscript(scope.reader)
 }
 
 export async function identityRecurrence(

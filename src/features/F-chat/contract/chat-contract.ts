@@ -46,7 +46,7 @@
 //   W-FN    readScope            F-memory/contract/substrate-contract  (F10: core-loop read step — replaces present())
 //   W-FN    writeRawTurn         F-memory/contract/substrate-contract  (Group 1: cognition rail — R3 surface)
 //   W-FN    tokenize             F-memory/contract/substrate-contract  (Group 1: R3 surface)
-//   W-FN    readTranscript       F-memory/contract/substrate-contract  (Group 1: R3 surface)
+//   W-FN    gather               F-memory/contract/substrate-contract  (scope seam — the one scope-resolving read)
 //   W-FN    route                F-router/contract/router-contract     (message routing)
 //   W-FN    generateId           core/types/primitives                 (turnId generation)
 //   W-ATOM  SubstrateWriteInput  core/types/substrate.types
@@ -177,7 +177,7 @@ import type { DispatchId, EpochMs }              from '@/core/types/perimeter-st
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent, sseStream }     from '../domain/chat-logic'
 import { writeRawTurn, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
-import { readTranscript }                        from '@/features/F-memory/contract/substrate-contract'
+import { gather }                                from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
 import type { RawTurn }                          from '@/core/types/substrate-raw.types'
@@ -652,7 +652,7 @@ export async function POST_message(
     if (reader) {
       systemPrompt = await reader(session.userId)
     } else {
-      const scopeTurns = await readTranscript(session.userId)
+      const scopeTurns = await gather({ kind: 'mine', reader: session.userId })   // scope seam — 'mine' = user_id=$1, same rows
       if (scopeTurns.length > 0) systemPrompt = serializeTranscript(scopeTurns)
     }
   } catch (err) {

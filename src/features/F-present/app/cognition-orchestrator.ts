@@ -54,7 +54,7 @@
 //   W-FN    currentFocus/sessionWindow                   ../domain/session-window      (sprint-wire-cognition Shot 2)
 //   W-ATOM  PRESENT_BUNDLES / PresentBundle                                      ../config/read-engine-types   (R7 rail-aware bundles)
 //   W-FN    createDbPresentMarkStore                     ../exec/present-mark-store-db
-//   W-FN    readTranscript                               @/features/F-memory/contract/substrate-contract    (Group 1: R3 surface)
+//   W-FN    gather                                       @/features/F-memory/contract/substrate-contract    (scope seam — the one scope-resolving read)
 //   W-FN    registerReplyComposer/registerContextReader  @/core/domain/cognition-seam                      (F-present -> core)
 // deps:
 //   R3  @/features/F-ai-adapter/contract/ai-contract
@@ -101,7 +101,7 @@ import { currentFocus, sessionWindow }                   from '@/features/F-pres
 import type { PresentBundle }                            from '@/features/F-present/config/read-engine-types'
 import { PRESENT_BUNDLES }                                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
-import { readTranscript }                                from '@/features/F-memory/contract/substrate-contract'
+import { gather }                                        from '@/features/F-memory/contract/substrate-contract'
 import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
 import type { ReplyComposer, ContextReader }             from '@/core/domain/cognition-seam'
 
@@ -189,7 +189,7 @@ export const composeAndWrite: ReplyComposer = async (input) => {
 // A section is a PresentView (assignment + render spec) consumed by two fixed mechanisms:
 // pivot(view.assignment, …) → Grid ; renderGrid(grid, view.render) → text.
 export async function presentContext(userId: string, bundle: PresentBundle = PRESENT_BUNDLES.native): Promise<string> {
-  const transcript = await readTranscript(userId)
+  const transcript = await gather({ kind: 'mine', reader: userId })   // scope seam — 'mine' = user_id=$1, same rows
   const store      = await createDbPresentMarkStore().read(userId)
 
   const rows = buildFactTable(transcript, store)
