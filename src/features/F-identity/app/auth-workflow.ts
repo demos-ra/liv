@@ -121,10 +121,12 @@ export async function requestMagicLink(
       }
     }
 
-    // R4: Upsert user (create if not exists, return existing if present)
-    const userResult = await deps.db.upsertUser(email);
+    // R4: Find-or-create the user. Magic-link's proof is the link round-trip at verify
+    // (verifyMagicLink, by-id) — this request-time row mints no session, grants no read. The merge
+    // primitive (ON CONFLICT DO UPDATE) is retired; this resolves by email without overwriting.
+    const userResult = await deps.db.findOrCreateUserByEmail(email);
     if (!userResult.success) {
-      log('error', 'auth.magic-link.request.db-error', toErrorLog(userResult.error, 'upsertUser'));
+      log('error', 'auth.magic-link.request.db-error', toErrorLog(userResult.error, 'findOrCreateUserByEmail'));
       return { success: false, error: userResult.error };
     }
 

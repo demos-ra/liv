@@ -7,7 +7,7 @@
 // slice:      F-identity
 // layer:      R3
 // wires-in:
-//   W-FN    completeOAuthLogin   ../app/oauth-workflow
+//   W-FN    completeVerifiedResolution / emailKeyedResolve / oauthVerifiedCompletion  ../app/oauth-workflow
 //   W-FN    generateOAuthState   ../domain/oauth-logic
 //   W-FN    verifyOAuthState     ../domain/oauth-logic
 //   W-FN    exchangeCodeForToken ../exec/oauth-io
@@ -42,7 +42,7 @@ import { OAUTH_PROVIDERS, isOAuthConfigured } from '../config/oauth-config'
 import { SESSION_COOKIE_NAME } from '../config/auth-types'
 import { AUTH_CONFIG } from '../domain/auth-session'
 import { generateOAuthState, verifyOAuthState } from '../domain/oauth-logic'
-import { completeOAuthLogin } from '../app/oauth-workflow'
+import { completeVerifiedResolution, emailKeyedResolve, oauthVerifiedCompletion } from '../app/oauth-workflow'
 import { exchangeCodeForToken, fetchOAuthEmail } from '../exec/oauth-io'
 import { createAuthDb } from '../exec/auth-db'
 import { db, taggedDb } from '@/core/db/client'
@@ -180,9 +180,12 @@ export async function handleOAuthCallback(
 
   const email = emailResult.data
 
-  // 5. Complete OAuth login (R2 — orchestration: upsert user → create session)
+  // 5. Verified resolution (R2 — proof-gate → resolve-via-port → session). The email is already
+  //    proven (step 4 enforces verified_email / a verified GitHub address); the adapter marks it
+  //    verified and the workflow asserts it. STAY: email-keyed resolve (find-or-create).
   const authDb = createAuthDb(taggedDb(db))
-  const loginResult = await completeOAuthLogin(email, { db: authDb })
+  const completion = oauthVerifiedCompletion(provider, email)
+  const loginResult = await completeVerifiedResolution(completion, { resolve: emailKeyedResolve(authDb), db: authDb })
   if (!loginResult.success) {
     log('error', 'auth.oauth.callback.login-failed', { provider, email, error: loginResult.error.code })
     return errorRedirect(req, 'server_error')

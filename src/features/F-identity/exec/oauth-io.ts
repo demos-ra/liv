@@ -132,6 +132,16 @@ async function fetchGoogleEmail(accessToken: string): Promise<AuthResult<string>
     }
   }
 
+  // Proof-of-control: Google's verified_email MUST be true. Previously read-and-discarded — an
+  // unverified email could resolve to (and read) the email-keyed principal. Mirrors the GitHub
+  // path (fetchGitHubEmail requires a verified address). Fail-closed: not-true → reject.
+  if (data.verified_email !== true) {
+    return {
+      success: false,
+      error: AuthErrors.oauthEmailNotVerified({ provider: 'google' }),
+    }
+  }
+
   return { success: true, data: data.email }
 }
 

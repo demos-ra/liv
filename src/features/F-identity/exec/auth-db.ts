@@ -29,7 +29,7 @@ import { AuthErrors } from '../config/auth-error-factory';
 
 // ─── Database Interface (R2 depends on this, not the implementation) ──────────
 
-export type UpsertUserResult = AuthResult<AuthUser & { isNew: boolean }>
+export type FindOrCreateUserResult = AuthResult<AuthUser & { isNew: boolean }>
 
 export interface CreateTokenResult {
   success: true;
@@ -47,7 +47,7 @@ export interface AliasAppend {
 }
 
 export interface IAuthDb {
-  upsertUser(email: string): Promise<UpsertUserResult>;
+  findOrCreateUserByEmail(email: string): Promise<FindOrCreateUserResult>;
   findUserById(id: string): Promise<AuthResult<AuthUser>>;
   findUserByEmail(email: string): Promise<AuthResult<AuthUser>>;
   updateLastLogin(userId: string): Promise<void>;
@@ -183,32 +183,41 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
   return {
     // ── Users ────────────────────────────────────────────────────────────────
 
-    async upsertUser(email: string): Promise<UpsertUserResult> {
+    // findOrCreateUserByEmail — STAY resolution (reconcile): a PROVEN email resolves to its
+    // canonical auth_users row, or creates one. The merge primitive (ON CONFLICT DO UPDATE) is
+    // RETIRED — this never overwrites an existing row. Proof-gating lives upstream (the verified-
+    // resolution workflow); this is pure resolution. Find-first; on a not-found, insert with
+    // ON CONFLICT (email) DO NOTHING — race-safety ONLY (a concurrent insert of the same new
+    // email), not a merge: a lost race re-selects the row another caller created.
+    async findOrCreateUserByEmail(email: string): Promise<FindOrCreateUserResult> {
+      const toUser = (row: UserRow, isNew: boolean) => ({
+        success: true as const,
+        data: { id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at, isNew },
+      });
       try {
-        // Atomic upsert — no race condition on concurrent registrations
-        const rows = await sql<UserRow>`
+        const existing = await sql<UserRow>`
+          SELECT * FROM auth_users WHERE email = ${email} LIMIT 1
+        `;
+        if (existing.length > 0) return toUser(existing[0], false);
+
+        const inserted = await sql<UserRow>`
           INSERT INTO auth_users (email)
           VALUES (${email})
-          ON CONFLICT (email) DO UPDATE
-            SET email = EXCLUDED.email  -- no-op update to get the row back
-          RETURNING *, (xmax = 0) AS is_new
+          ON CONFLICT (email) DO NOTHING
+          RETURNING *
         `;
+        if (inserted.length > 0) return toUser(inserted[0], true);
 
-        if (rows.length === 0) {
-          return { success: false, error: AuthErrors.dbError('upsertUser', 'no row returned') };
+        // Lost the insert race — the row exists now; resolve it (another caller created it).
+        const raced = await sql<UserRow>`
+          SELECT * FROM auth_users WHERE email = ${email} LIMIT 1
+        `;
+        if (raced.length === 0) {
+          return { success: false, error: AuthErrors.dbError('findOrCreateUserByEmail', 'no row after conflict') };
         }
-
-        const row = rows[0];
-        const user: AuthUser = {
-          id: row.id,
-          email: row.email,
-          createdAt: row.created_at,
-          lastLoginAt: row.last_login_at,
-        };
-
-        return { success: true, data: { ...user, isNew: Boolean(row.is_new) } };
+        return toUser(raced[0], false);
       } catch (err) {
-        return { success: false, error: AuthErrors.dbError('upsertUser', err) };
+        return { success: false, error: AuthErrors.dbError('findOrCreateUserByEmail', err) };
       }
     },
 
