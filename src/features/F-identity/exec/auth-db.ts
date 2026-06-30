@@ -36,6 +36,16 @@ export interface CreateTokenResult {
   data: { rawToken: string; tokenRecord: MagicLinkToken };
 }
 
+// Reconcile (alias-trust pass) — the proven-link append payload. canonicalUserId and
+// aliasUserId are both auth_users ids; sourceChannel + verifiedProvenance record the in-call
+// proof that authorized the link (audit provenance, never a read-authority input).
+export interface AliasAppend {
+  canonicalUserId: string;
+  aliasUserId: string;
+  sourceChannel: string;
+  verifiedProvenance: string;
+}
+
 export interface IAuthDb {
   upsertUser(email: string): Promise<UpsertUserResult>;
   findUserById(id: string): Promise<AuthResult<AuthUser>>;
@@ -58,6 +68,12 @@ export interface IAuthDb {
 
   // #9 Task E: Cleanup expired/used magic link tokens (A4 — I/O at R4 only)
   cleanupExpiredTokens(): Promise<AuthResult<{ deletedCount: number }>>;
+
+  // ── Identity aliases (reconcile — append-only join; DORMANT, no caller this pass) ──
+  // appendAlias links a principal to a canonical root (proven in-call by a verifier adapter);
+  // aliasPrincipalSet resolves a reader to its principal-set for the read-fold (user_id = ANY).
+  appendAlias(input: AliasAppend): Promise<AuthResult<void>>;
+  aliasPrincipalSet(reader: string): Promise<AuthResult<string[]>>;
 }
 
 // ─── Email Service Interface ──────────────────────────────────────────────────
@@ -240,6 +256,61 @@ export function createAuthDb(sql: PostgresClient): IAuthDb {
         `;
       } catch {
         // Logged at R2 level if needed, not blocking auth flow
+      }
+    },
+
+    // ── Identity aliases (reconcile — append-only; DORMANT: no caller this pass) ───
+    // appendAlias is INSERT-only (no update path). It roots the link before insert (flat star):
+    // the incoming canonical is resolved to its OWN root via the COALESCE subquery, so the join
+    // is never deeper than one union-find level. Re-appending an already-linked principal is
+    // ON CONFLICT(alias_user_id) DO NOTHING — a no-op, never a provenance rewrite.
+
+    async appendAlias(input: AliasAppend): Promise<AuthResult<void>> {
+      try {
+        await sql`
+          INSERT INTO auth_user_aliases
+            (canonical_user_id, alias_user_id, source_channel, verified_provenance)
+          VALUES (
+            COALESCE(
+              (SELECT canonical_user_id FROM auth_user_aliases WHERE alias_user_id = ${input.canonicalUserId}),
+              ${input.canonicalUserId}::uuid
+            ),
+            ${input.aliasUserId},
+            ${input.sourceChannel},
+            ${input.verifiedProvenance}
+          )
+          ON CONFLICT (alias_user_id) DO NOTHING
+        `;
+        return { success: true, data: undefined };
+      } catch (err) {
+        return { success: false, error: AuthErrors.dbError('appendAlias', err) };
+      }
+    },
+
+    // aliasPrincipalSet — the read-fold's principal-set producer (resolve read). Returns the
+    // reader's canonical root + every alias of that root (flat star, depth 1). An unlinked reader
+    // → [reader]. The set feeds scopeClause's user_id = ANY($ids); it is DATA, the seam decides
+    // the bound. Fail direction is narrow-to-self: never empty, never widened.
+
+    async aliasPrincipalSet(reader: string): Promise<AuthResult<string[]>> {
+      try {
+        const rows = await sql<{ user_id: string }>`
+          SELECT COALESCE(
+                   (SELECT canonical_user_id FROM auth_user_aliases WHERE alias_user_id = ${reader}),
+                   ${reader}::uuid
+                 ) AS user_id
+          UNION
+          SELECT alias_user_id AS user_id
+            FROM auth_user_aliases
+           WHERE canonical_user_id = COALESCE(
+                   (SELECT canonical_user_id FROM auth_user_aliases WHERE alias_user_id = ${reader}),
+                   ${reader}::uuid
+                 )
+        `;
+        const ids = rows.map(r => r.user_id);
+        return { success: true, data: ids.length > 0 ? ids : [reader] };
+      } catch (err) {
+        return { success: false, error: AuthErrors.dbError('aliasPrincipalSet', err) };
       }
     },
 
