@@ -23,8 +23,6 @@ test('paid key admits EVERY region×direction (§4: free + PRIVATE r+w · BROADC
       assert.equal(grantAdmits('paid', region, dir), true, `paid must admit ${region}:${dir}`)
 })
 
-test('grantKeyOf: paid|trial → paid (full access); lapsed → free (NOT a hard deny) — flagged for L0', () => {
-  assert.equal(grantKeyOf('paid'), 'paid')
-  assert.equal(grantKeyOf('trial'), 'paid')
-  assert.equal(grantKeyOf('lapsed'), 'free')
+test('grantKeyOf reads the tier off the grant — one job, source-blind, no status/lapsed branch', () => {
+  assert.equal(grantKeyOf({ tier: 'paid', grantedAt: new Date(0), durationDays: 30 }), 'paid')
 })

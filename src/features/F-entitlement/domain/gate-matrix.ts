@@ -17,11 +17,14 @@
 // matrix only CONSUMES the region value, it does not hardcode the access pair). Tier touches Grant
 // ONLY (§4 SHALL: the menu is tier-invariant); the difference surfaces solely as the locked result.
 
-import type { EntitlementStatus } from '@/features/F-entitlement/types/entitlement-types'
+import type { Tier } from '@/features/F-entitlement/types/tier-registry'
+import type { Grant } from '@/features/F-entitlement/types/grant-types'
 
 export type AccessRegion    = 'PRIVATE' | 'INBOX' | 'BROADCAST' | 'PUBLIC'
 export type AccessDirection = 'read' | 'write'
-export type GrantKey        = 'free' | 'paid'
+// The matrix's row id: the free FLOOR plus every registry Tier. 'free' is reached only by absence
+// (the floor), never carried on a grant; a Tier is reached by a live grant.
+export type GrantKey        = 'free' | Tier
 
 const cell = (region: AccessRegion, direction: AccessDirection) => `${region}:${direction}`
 
@@ -48,13 +51,10 @@ export function grantAdmits(key: GrantKey, region: AccessRegion, direction: Acce
   return false
 }
 
-// grantKeyOf — map the resolved entitlement STATUS to the access GRANT KEY. paid and trial both
-// grant the paid key (the trial is the time-boxed FULL-access trial that converts); lapsed falls
-// to the free key (the trial elapsed, unpaid → the free tier, NOT a hard deny — free still has
-// PUBLIC r+w etc).
-// ⚠ FLAG (deferred, L0): the spec §4 pins the free/paid CONTENTS but does NOT pin the
-// status→key mapping (paid|trial|lapsed → free|paid). This is my read; L0 confirms or overrides —
-// esp. whether `trial` is the full-access trial (paid key) or the free taste (free key).
-export function grantKeyOf(status: EntitlementStatus): GrantKey {
-  return status === 'lapsed' ? 'free' : 'paid'
+// grantKeyOf — the grant's access key, read STRAIGHT OFF the grant's tier. ONE job: grant → key,
+// source-blind (never knows the producer, never inspects a status). The `lapsed` branch is GONE —
+// expiry is absence, resolved by the FLOOR (grant-floor.ts), a separate home; this function is only
+// ever called with a live grant. No status, no trial branch, no embedded tier.
+export function grantKeyOf(grant: Grant): GrantKey {
+  return grant.tier
 }
