@@ -20,8 +20,9 @@
 // category:   Cognition
 // layer:      R3
 // wires-in:
-//   W-FN    entitlementAdmits        @/features/F-entitlement/contract/entitlement-contract  (WP1 — the crossing decision)
-//   W-ATOM  EntitlementStatus        @/features/F-entitlement/contract/entitlement-contract  (the stamped attribute, type-only)
+//   W-FN    grantAdmits / regionOfScope  @/features/F-entitlement/contract/entitlement-contract  (gate-wiring — the R3 CTA decision)
+//   W-ATOM  GrantKey                 @/features/F-entitlement/contract/entitlement-contract  (the stamped grant key, type-only)
+//   W-FN    lockedResult             ./locked-result  (the locked speech-act the CTA producer returns)
 //   W-FN    emissionFromStructured   ./present-contract   (the deliver/narrow gate — in-layer R3)
 //   W-FN    recordScoredTurn         ./present-contract   (the record — reply + marks, returns WriteAck — in-layer R3)
 //   W-ATOM  MarkSurfaceError         ./present-contract   (the loud, atomic reject — caught here, returned typed)
