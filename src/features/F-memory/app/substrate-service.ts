@@ -100,6 +100,11 @@ import {
 import { SUBSTRATE_EVENTS } from '../config/substrate-events'
 import { readTranscript } from '../exec/transcript-read'
 import { writeRawTurn } from '../exec/raw-turn-write'
+// gate-wiring-e — the cognition-door TIER FLOOR consults F-entitlement's gate (R3 contract, the
+// allowed cross-slice wire). grantAdmits = what a key can do; regionOfScope = the region from the
+// write's source_scope (the one producer). The floor is the cognition write face only; scopeClause
+// (the read keystone) is untouched and imports nothing from here.
+import { grantAdmits, regionOfScope, type GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
 import { readerOf } from '../exec/scope-clause'
 import type { ScopeSpec } from '../exec/scope-clause'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
@@ -660,13 +665,33 @@ export function admitWrite(_writerUserId: string): void {
   // writer's connect-time identity. Today: admit (no provider wired → permissive, like the gate).
 }
 
-// admitWriteRaw — the cognition write face: admit, then the dumb-store primitive. Every cognition
-// writer (capture, the compose recorder, chat intake) routes through here instead of writeRawTurn
-// directly, so the seam is the ONLY path to the primitive (no bypass). Signature-identical to
-// writeRawTurn (pure indirection — same write out).
-export async function admitWriteRaw(input: { who: Who; words: RawWord[]; userId: string; scope: string }): Promise<number> {
+// EntitlementFloorError — the tier floor's fail-closed throw (honest, typed). A denied cognition
+// write never lands; the wire/compose door never hits this (R3's CTA gates first), so it fires only
+// on a path that reached the floor without an admitting key — the native bypass close.
+export class EntitlementFloorError extends Error {
+  constructor(public readonly region: string) {
+    super(`entitlement floor: write to ${region} not admitted by grant`)
+    this.name = 'EntitlementFloorError'
+  }
+}
+
+// admitWriteRaw — the cognition write face: the TIER FLOOR + the substrate_write admit, then the
+// dumb-store primitive. Every cognition writer (capture, the compose recorder, chat intake) routes
+// through here — THE ONE PATH the three doors (native/wire/connector) cross, and only they (the
+// system state-change face writeStateChange does NOT cross here; tier does not leak onto it). The
+// floor is grantAdmits at the write's region (regionOfScope(scope) — the one producer), fail-closed:
+// a denied tier THROWS, the write never lands. `grantKey` is REQUIRED (compile-enforced no-bypass) —
+// the perimeter-resolved key handed down; the floor RE-RESOLVES NOTHING (region from scope, key from
+// the door). substrate_write (the permission token) stays at admitWrite (shared, permissive).
+export async function admitWriteRaw(
+  input: { who: Who; words: RawWord[]; userId: string; scope: string; grantKey: GrantKey },
+): Promise<number> {
+  const region = regionOfScope(input.scope)
+  if (!grantAdmits(input.grantKey, region, 'write')) {
+    throw new EntitlementFloorError(region)
+  }
   admitWrite(input.userId)
-  return writeRawTurn(input)
+  return writeRawTurn({ who: input.who, words: input.words, userId: input.userId, scope: input.scope })
 }
 
 export async function identityRecurrence(

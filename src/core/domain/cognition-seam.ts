@@ -46,6 +46,10 @@ export type CognitionInput = {
   who:          Who
   userId:       string
   scope:        string
+  // gate-wiring-(e): the perimeter-resolved grant key, carried to the recorder's tier floor
+  // (admitWriteRaw). Mirrors F-entitlement GrantKey ('free' | Tier); typed inline so the core seam
+  // takes no feature import (kept in sync — an N-th tier widens both).
+  grantKey:     'free' | 'paid'
   apiKey?:      string  // wearer's resolved provider key; undefined → transport falls back to env
   // The wearer turn being replied to, already cut at the write site — word cells only,
   // positions canonical. (sprint-wire-economy) This is no longer rendered into context:

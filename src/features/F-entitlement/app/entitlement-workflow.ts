@@ -3,36 +3,36 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    none
+// amended:    gate-wiring-e (resolveEntitlement(status) retired → resolveGrantKey: liveness once,
+//             grantKey out; the status model + computeTrialEntitlement + null→'trial' permissive retired)
 // slice:      F-entitlement
 // layer:      R2
 // wires-in:
-//   W-ATOM  Entitlement          @/features/F-entitlement/types/entitlement-types
-//   W-ATOM  EntitlementQuery     @/features/F-entitlement/types/entitlement-types
-//   W-ATOM  EntitlementProvider  @/features/F-entitlement/types/entitlement-types
-//   W-FN    hostedDefaultProvider  @/features/F-entitlement/exec/hosted-entitlement-provider
+//   W-ATOM  GrantKey       @/features/F-entitlement/domain/gate-matrix
+//   W-ATOM  TRIAL_SPEC     @/features/F-entitlement/domain/grant-issuance
+//   W-FN    makeGrant      @/features/F-entitlement/domain/grant-issuance
+//   W-FN    grantKeyForRead @/features/F-entitlement/domain/grant-floor
 // wires-out:
-//   W-FN    resolveEntitlement  →  F-entitlement/R3
+//   W-FN    resolveGrantKey  →  src/proxy.ts (the perimeter resolve, by principal)
 // deps:
-//   R0  @/features/F-entitlement/types/entitlement-types
-//   R4  @/features/F-entitlement/exec/hosted-entitlement-provider
+//   R1  @/features/F-entitlement/domain/grant-issuance, grant-floor
+//   R1  @/features/F-entitlement/domain/gate-matrix
 // validated: pending
 
-import type { Entitlement, EntitlementQuery, EntitlementProvider } from '@/features/F-entitlement/types/entitlement-types'
-import { hostedDefaultProvider } from '@/features/F-entitlement/exec/hosted-entitlement-provider'
+import type { GrantKey } from '../domain/gate-matrix'
+import { TRIAL_SPEC, makeGrant } from '../domain/grant-issuance'
+import { grantKeyForRead } from '../domain/grant-floor'
 
-// THE BINDING — the one line that names the live provider. To plug Polar: add
-// the R4 polar provider and repoint this to it. That is the whole swap; no
-// consumer changes, no engine/boundary/surface line is touched.
-const ACTIVE_ENTITLEMENT_PROVIDER: EntitlementProvider = hostedDefaultProvider
-
-// Resolve the attribute. Consumers call this; they never name a provider. The
-// provider override exists for tests (and for a caller that holds its own) —
-// proving the seam is provider-agnostic; production passes nothing and gets the
-// binding above.
-export function resolveEntitlement(
-  query:    EntitlementQuery,
-  provider: EntitlementProvider = ACTIVE_ENTITLEMENT_PROVIDER,
-): Promise<Entitlement> {
-  return provider(query)
+// resolveGrantKey — the perimeter's entitlement resolution, BY PRINCIPAL. Liveness is computed
+// ONCE here (the perimeter holds the wearer's grant + `now`); the resolved grantKey ('free'|'paid')
+// is what crosses — no Date through the header, R2 re-resolves nothing.
+//
+// Hosted default: a trial grant derived from the wearer's account anchor (accountCreatedAt). A null
+// anchor (no account resolved for this principal) → no grant → the FREE FLOOR. The retired
+// null→'trial' permissive is GONE: at enforcement, absence resolves to free uniformly (floor-by-
+// absence), there is no permissive carve-out. Polar plugs by emitting a Grant in place of the
+// trial-from-anchor default (the GrantProvider seam, grant-types) — this resolve is the swap point.
+export function resolveGrantKey(accountCreatedAt: Date | null, now: Date): GrantKey {
+  const grant = accountCreatedAt === null ? null : makeGrant(TRIAL_SPEC, accountCreatedAt)
+  return grantKeyForRead(grant, now)
 }

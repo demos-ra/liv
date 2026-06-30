@@ -171,7 +171,7 @@ export const composeAndWrite: ReplyComposer = async (input) => {
   // the live empty-text signal F-chat already handles at chat-contract.
   // the reply-marking FORMAT comes from native's SITUATION (NATIVE_SITUATION), never a surface name —
   // absent ≡ 'separate' today; the native-first migration (§3) flips it on the situation, here unchanged.
-  const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, wearer, NATIVE_SITUATION.replyMarking ?? 'separate')
+  const recorded = await recordScoredTurn(emission, input.who, input.userId, input.scope, input.grantKey, wearer, NATIVE_SITUATION.replyMarking ?? 'separate')
   const ack = toWriteAck(recorded)
   return { text: ack.landed ? ack.text : '' }
 }

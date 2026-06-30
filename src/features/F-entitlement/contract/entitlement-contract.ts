@@ -3,29 +3,27 @@
 // Built with LIV · livai.dev
 // @manifest
 // standard:   LIV-Standard v1.5.2
-// amended:    none
+// amended:    gate-wiring-e (status surface retired → grant surface: resolveGrantKey + GrantKey;
+//             resolveEntitlement/entitlementAdmits/EntitlementStatus removed — the status model is gone)
 // slice:      F-entitlement
 // layer:      R3
 // wires-in:
-//   W-FN    resolveEntitlement   @/features/F-entitlement/app/entitlement-workflow
-//   W-FN    entitlementAdmits    @/features/F-entitlement/domain/entitlement-logic
-//   W-ATOM  EntitlementStatus    @/features/F-entitlement/types/entitlement-types
-//   W-ATOM  Entitlement          @/features/F-entitlement/types/entitlement-types
-//   W-ATOM  EntitlementQuery     @/features/F-entitlement/types/entitlement-types
-//   W-ATOM  EntitlementProvider  @/features/F-entitlement/types/entitlement-types
+//   W-FN    resolveGrantKey  @/features/F-entitlement/app/entitlement-workflow
+//   W-ATOM  GrantKey         @/features/F-entitlement/domain/gate-matrix
+//   W-FN    grantAdmits      @/features/F-entitlement/domain/gate-matrix
+//   W-FN    regionOfScope    @/features/F-entitlement/domain/region-of-scope
 // wires-out:
-//   W-FN    resolveEntitlement  →  src/proxy.ts (the stamp site)
-//   W-FN    entitlementAdmits   →  crossing-decision consumers (integration)
-//   W-ATOM  EntitlementStatus   →  F-identity/R3 perimeter-consultation (the stamped field type)
+//   W-FN    resolveGrantKey  →  src/proxy.ts (the perimeter resolve + grantKey stamp)
+//   W-ATOM  GrantKey         →  F-identity/R3 perimeter-consultation (the stamped field type)
+//   W-FN    grantAdmits / regionOfScope  →  the R3 CTA producer + the R2 cognition-door floor
 // deps:
 //   R2  ../app/entitlement-workflow
-//   R1  ../domain/entitlement-logic
-//   R0  ../types/entitlement-types
+//   R1  ../domain/gate-matrix, ../domain/region-of-scope
 // validated: pending
 
-export { resolveEntitlement } from '../app/entitlement-workflow'
-// The seam's public boundary. proxy.ts resolves the attribute here (riding the
-// stamp); a crossing decision reads entitlementAdmits here. External consumers
-// import from this surface only — never from R0/R1/R2/R4 directly.
-export { entitlementAdmits } from '../domain/entitlement-logic'
-export type { EntitlementStatus, Entitlement, EntitlementQuery, EntitlementProvider } from '../types/entitlement-types'
+// The seam's public boundary. proxy.ts resolves the grantKey here (riding the stamp); the doors
+// read grantAdmits + regionOfScope here. External consumers import from this surface only.
+export { resolveGrantKey } from '../app/entitlement-workflow'
+export { grantAdmits } from '../domain/gate-matrix'
+export type { GrantKey, AccessRegion, AccessDirection } from '../domain/gate-matrix'
+export { regionOfScope } from '../domain/region-of-scope'

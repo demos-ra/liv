@@ -43,7 +43,6 @@ import {
   JSONRPC_METHOD_NOT_FOUND,
   JSONRPC_INTERNAL_ERROR,
   JSONRPC_INVALID_PARAMS,
-  JSONRPC_ENTITLEMENT_DENIED,
   type JsonRpcResponse,
   type McpToolResult,
 } from '../config/mcp-protocol'
@@ -154,10 +153,12 @@ export async function handleMcpRequest(
         if (intention.tool === 'capture') {
           const captured = await captureWearerTurn(
             { wearerText: intention.wearerText },
-            { userId: session.userId, scope: session.sessionId, resolvedEntitlement: session.resolvedEntitlement },
+            { userId: session.userId, scope: session.sessionId, grantKey: session.grantKey },
           )
-          return captured.kind === 'denied'
-            ? buildError(id, JSONRPC_ENTITLEMENT_DENIED, captured.message)
+          // gate-wiring-(6): a locked crossing relays the cta VERBATIM, in-band (a tool result),
+          // never a JSON-RPC error — the conversion event reaches the model as a stating, not a fault.
+          return captured.kind === 'locked'
+            ? buildResult(id, toolText(captured.locked.cta))
             : buildResult(id, toolText(captured.present))
         }
 
@@ -204,11 +205,12 @@ export async function handleMcpRequest(
         const outcome = await recordWireTurn(intention, {
           userId:              session.userId,
           scope:               session.sessionId,
-          resolvedEntitlement: session.resolvedEntitlement,
+          grantKey:            session.grantKey,
         }, { mode: 'submit-captured' }, MCP_SITUATION.replyMarking ?? 'separate')
         switch (outcome.kind) {
-          case 'denied':
-            return buildError(id, JSONRPC_ENTITLEMENT_DENIED, outcome.message)
+          case 'locked':
+            // gate-wiring-(6): relay the cta verbatim, in-band (tool result), not -32002.
+            return buildResult(id, toolText(outcome.locked.cta))
           case 'invalid-testimony':
             return buildError(id, JSONRPC_INVALID_PARAMS, outcome.message)
           case 'present':

@@ -161,7 +161,7 @@ test('a well-formed turn lands both turns and its marks; scope is the stamped se
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, 'separate', seam.deps)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
 
   assert.equal(recorded.sc, 12)
   // both turns written: wearer THEN reply; scope stamped = sessionId, never sent.
@@ -190,7 +190,7 @@ test('a turn whose mark names a span not in the reply is rejected loud + atomic 
   const emission = emissionFromStructured({ reply, replyMarks, priorMarks })
   const seam = stubDeps(12, 11)
   await assert.rejects(
-    () => recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: wearerText }, 'separate', seam.deps),
+    () => recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: wearerText }, 'separate', seam.deps),
     (e: unknown) => e instanceof MarkSurfaceError,
   )
   assert.equal(seam.writes.length, 0, 'atomic — the loud rejection precedes every write')
@@ -211,7 +211,7 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', { text: plan.intention.wearerText }, 'separate', seam.deps)
+  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
   assert.equal(recorded.sc, 12, 'the reply still records — the non-string wearerText did not throw')
   assert.equal(seam.placed.length, 1, 'only the reply mark lands; the wearer turn is empty (graceful)')
   assert.equal(seam.placed[0].home.who, 'llm')
@@ -223,16 +223,16 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
 // reached (no DB touched). The default stamp is 'trial' (no provider) → admit, so the gate
 // is dormant until a provider feeds 'lapsed' (entitlementAdmits is unit-tested for the
 // paid/trial/lapsed logic in F-entitlement; here we prove the door is wired to it).
-test('WP1: a lapsed crossing is denied at the turn door (entitlement), the write never reached', async () => {
+test('gate-wiring: a free-floor write to PRIVATE is LOCKED at the turn door — the cta relays in-band, not an error', async () => {
   const { handleMcpRequest } = await import('@/features/F-mcp/contract/mcp-contract')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const res: any = await handleMcpRequest(
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'compose', arguments: goodArgs() } },
-    { userId: 'u', sessionId: 's', resolvedEntitlement: 'lapsed' } as never,
+    { userId: 'u', sessionId: 's', grantKey: 'free' } as never,
   )
-  assert.ok(res.error, 'the lapsed crossing is denied (a JSON-RPC error, not a result)')
-  assert.equal(res.error.code, -32002, 'denied with the entitlement-denied code (write never reached)')
-  assert.match(res.error.message, /not admitted/i)
+  assert.ok(!res.error, 'a locked crossing is NOT a JSON-RPC error — the speech-act rides in-band (not -32002)')
+  assert.ok(res.result, 'the locked crossing returns a tool result carrying the cta')
+  assert.match(JSON.stringify(res.result), /livai\.dev/, 'the cta is relayed VERBATIM in-band (the conversion event)')
 })
 
 // ── (A2.2) failure-ordering — drives the REAL R3 read-door unit (present-or-degraded) ──

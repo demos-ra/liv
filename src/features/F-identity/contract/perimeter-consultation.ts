@@ -83,7 +83,7 @@ import {
   PERIMETER_HEADER_AUTHORITY,
   PERIMETER_HEADER_ENTITLEMENT,
 } from '@/core/constants/perimeter-headers'
-import type { EntitlementStatus } from '@/features/F-entitlement/types/entitlement-types'
+import type { GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
 import { CHANNEL_KIND_ENUM, DISPOSITION_KIND_ENUM, LIV_INSTANCE_PERIMETER_SITE_REF, FOUR_CELL_GOVERNANCE_MAP } from '@/core/constants/perimeter-standard'
 import type { ChannelKind, DispositionKind } from '@/core/types/perimeter-standard.types'
 import type { Who } from '@/core/types/substrate-raw.types'
@@ -158,16 +158,16 @@ function toPermittedAuthority(
   return out
 }
 
-// build-spec-part5: narrow the entitlement stamp. The header is one of the three
-// statuses; an absent or unknown value falls back to 'trial' — permissive, since
-// the attribute gates nothing yet and a missing stamp must not lock a wearer out.
-const ENTITLEMENT_STATUS_ENUM: readonly EntitlementStatus[] = ['paid', 'trial', 'lapsed']
+// gate-wiring-e: the entitlement stamp is now the resolved GRANT KEY. Narrow it; an absent or
+// unknown value falls to 'free' — FAIL-CLOSED (the retired permissive 'trial' default is gone;
+// absence resolves to the free floor, uniform, no carve-out).
+const GRANT_KEY_ENUM: readonly GrantKey[] = ['free', 'paid']
 
-function toEntitlementStatus(raw: string | null): EntitlementStatus {
-  if (raw && (ENTITLEMENT_STATUS_ENUM as readonly string[]).includes(raw)) {
-    return raw as EntitlementStatus
+function toGrantKey(raw: string | null): GrantKey {
+  if (raw && (GRANT_KEY_ENUM as readonly string[]).includes(raw)) {
+    return raw as GrantKey
   }
-  return 'trial'
+  return 'free'
 }
 
 /**
@@ -200,7 +200,7 @@ export interface PerimeterSession {
   // swappable seam (F-entitlement) and stamped. Carried downstream so a crossing
   // decision can read it without re-resolving (PA-I); the deny decision itself is
   // not made here. 'trial' on an absent/unknown stamp (permissive).
-  resolvedEntitlement: EntitlementStatus
+  grantKey: GrantKey
 }
 
 /**
@@ -265,8 +265,8 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
   // sprint-beta-shot-3: the channel's permitted-authority set, parsed from the
   // stamp. Absent/malformed → [] (no admitted authority — conservative).
   const resolvedAuthority                    = toPermittedAuthority(authorityRaw)
-  // build-spec-part5: the entitlement attribute, narrowed from its stamp.
-  const resolvedEntitlement: EntitlementStatus = toEntitlementStatus(entitlementRaw)
+  // gate-wiring-e: the resolved grant key, narrowed from its stamp (fail-closed to free).
+  const grantKey: GrantKey = toGrantKey(entitlementRaw)
 
   return {
     userId,
@@ -276,7 +276,7 @@ export function getPerimeterSession(req: NextRequest): PerimeterSession | null {
     crossedAt,
     resolvedDisposition,
     resolvedAuthority,
-    resolvedEntitlement,
+    grantKey,
   }
 }
 

@@ -72,6 +72,7 @@ export { isMark } from '../domain/mark-gate'
 // manual the wire renders from primitives it computes from MCP_SITUATION + its schema).
 import { recordScoredTurn as recordScoredTurnRaw } from '../app/scored-turn-recorder'
 import type { WearerSource, ScoredTurnDeps, ReplyMarking } from '../app/scored-turn-recorder'
+import type { GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
 import { toWriteAck } from '../app/write-ack'
 import type { WriteAck } from '../config/write-ack-types'
 import type { ScoredEmission } from '../domain/coin-score'
@@ -85,11 +86,12 @@ export async function recordScoredTurn(
   who: Who,
   userId: string,
   scope: string,
+  grantKey: GrantKey,
   wearer: WearerSource,
   replyMarking: ReplyMarking = 'separate',
   deps?: ScoredTurnDeps,
 ): Promise<WriteAck> {
-  const recorded = await recordScoredTurnRaw(emission, who, userId, scope, wearer, replyMarking, deps)
+  const recorded = await recordScoredTurnRaw(emission, who, userId, scope, grantKey, wearer, replyMarking, deps)
   return toWriteAck(recorded)
 }
 export type { WriteAck }

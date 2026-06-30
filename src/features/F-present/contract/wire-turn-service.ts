@@ -87,8 +87,9 @@
 // rides the cognition-seam composer (composeAndWrite); this core is the WIRE rail's one home.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { entitlementAdmits } from '@/features/F-entitlement/contract/entitlement-contract'
-import type { EntitlementStatus } from '@/features/F-entitlement/contract/entitlement-contract'
+import { grantAdmits, regionOfScope } from '@/features/F-entitlement/contract/entitlement-contract'
+import type { GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
+import { lockedResult, LOCKED_CTA_PRIVATE, type LockedResult } from './locked-result'
 import {
   emissionFromStructured,
   recordScoredTurn,
@@ -128,7 +129,7 @@ export type WireCaptureInput = {
 export type WireTurnIdentity = {
   userId:              string
   scope:               string
-  resolvedEntitlement: EntitlementStatus
+  grantKey:            GrantKey
 }
 
 // E1 — the wire's capture MODE, the one axis that decides where the wearer turn was captured:
@@ -155,7 +156,7 @@ export type AbsentCaptureFlag = { absentCapture: boolean; reason: string }
 //   - 'degraded'         — the honest ack (DegradedPresent): a committed-but-unrendered write
 //                          (ok:true), or a dropped no-write (ok:false) — never masked
 export type WireTurnOutcome =
-  | { kind: 'denied';            message: string }
+  | { kind: 'locked';            locked: LockedResult }
   | { kind: 'invalid-testimony'; message: string }
   | { kind: 'present';           present: string }
   | { kind: 'degraded';          degraded: DegradedPresent }
@@ -164,10 +165,15 @@ export type WireTurnOutcome =
 //   - 'denied'   — WP1: the crossing is not admitted (nothing stored)
 //   - 'captured' — the wearer turn was stored (sc) AND the fresh present delivered (capture+deliver)
 export type WireCaptureOutcome =
-  | { kind: 'denied';   message: string }
+  | { kind: 'locked';   locked: LockedResult }
   | { kind: 'captured'; sc: number; present: string }
 
-const ENTITLEMENT_DENIED = 'entitlement lapsed: this write crossing is not admitted'
+// The per-region cta values-list is DEFERRED to L0; only PRIVATE is pinned (locked-result.ts). Until
+// the list lands, a locked region relays the pinned PRIVATE line (the conversion cta). Flagged.
+const REGION_CTA: Record<string, string> = { PRIVATE: LOCKED_CTA_PRIVATE }
+function ctaFor(region: string): string {
+  return REGION_CTA[region] ?? LOCKED_CTA_PRIVATE
+}
 
 // The injected substrate seam (A4 — isolated execution), mirroring the recorder's deps. The
 // capture (writeRawTurn), the present deliver (readPresent), and the stored-wearer recovery
@@ -175,7 +181,7 @@ const ENTITLEMENT_DENIED = 'entitlement lapsed: this write crossing is not admit
 // stubs to run DB-free and to COUNT the single capture write. The recorder owns its own deps seam;
 // this is the seam for the wire's capture-at-submit + stored-wearer resolution.
 export type WireCaptureDeps = {
-  writeRawTurn:   (input: { who: 'wearer'; words: RawWord[]; userId: string; scope: string }) => Promise<number>
+  writeRawTurn:   (input: { who: 'wearer'; words: RawWord[]; userId: string; scope: string; grantKey: GrantKey }) => Promise<number>
   cutCells:       (text: string) => RawWord[]
   isWordCell:     (word: string) => boolean
   readTranscript: (userId: string) => Promise<{ sc: number; who: 'wearer' | 'llm' | 'program'; words: RawWord[] }[]>
@@ -200,8 +206,9 @@ export async function captureWearerTurn(
   deps:     WireCaptureDeps = defaultCaptureDeps(),
 ): Promise<WireCaptureOutcome> {
   // (WP1) the crossing decision — a capture is the wearer's words crossing the write boundary.
-  if (!entitlementAdmits(identity.resolvedEntitlement)) {
-    return { kind: 'denied', message: ENTITLEMENT_DENIED }
+  const region = regionOfScope(identity.scope)
+  if (!grantAdmits(identity.grantKey, region, 'write')) {
+    return { kind: 'locked', locked: lockedResult(region, ctaFor(region)) }
   }
 
   // cut + store the wearer turn — the SAME writeRawTurn native fires at the perimeter (the full
@@ -209,7 +216,7 @@ export async function captureWearerTurn(
   // the stamped circumstance. ONE write — the wearer turn is cut + stored ONCE, here.
   const text = typeof input.wearerText === 'string' ? input.wearerText : ''
   const wearerCells = deps.cutCells(text)
-  const sc = await deps.writeRawTurn({ who: 'wearer', words: wearerCells, userId: identity.userId, scope: identity.scope })
+  const sc = await deps.writeRawTurn({ who: 'wearer', words: wearerCells, userId: identity.userId, scope: identity.scope, grantKey: identity.grantKey })
 
   // deliver — set the fresh present in front of the model (the wire bundle, R7: tables only).
   const present = await deps.readPresent(identity.userId, PRESENT_BUNDLES.wire)
@@ -256,8 +263,9 @@ export async function recordWireTurn(
   // (WP1) the crossing decision — before the recorder is ever reached. Reads the stamped
   // attribute, re-resolves nothing (PA-I). Default 'trial' (no provider) → admit; dormant until
   // a provider feeds 'lapsed'. A gate, not a meter.
-  if (!entitlementAdmits(identity.resolvedEntitlement)) {
-    return { kind: 'denied', message: ENTITLEMENT_DENIED }
+  const region = regionOfScope(identity.scope)
+  if (!grantAdmits(identity.grantKey, region, 'write')) {
+    return { kind: 'locked', locked: lockedResult(region, ctaFor(region)) }
   }
 
   // deliver/narrow — the same gate the native path uses (one gate, no copy). The fields ride as
@@ -290,7 +298,7 @@ export async function recordWireTurn(
   // without re-importing the error class.
   let ack
   try {
-    ack = await recordScoredTurn(emission, 'llm', identity.userId, identity.scope, wearer, replyMarking)
+    ack = await recordScoredTurn(emission, 'llm', identity.userId, identity.scope, identity.grantKey, wearer, replyMarking)
   } catch (err) {
     if (err instanceof MarkSurfaceError) return { kind: 'invalid-testimony', message: err.message }
     throw err

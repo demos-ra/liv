@@ -63,7 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     {
       userId:              session.userId,
       scope:               session.sessionId,
-      resolvedEntitlement: session.resolvedEntitlement,
+      grantKey:            session.grantKey,
     },
     {
       mode: 'compose-fallback',
@@ -75,10 +75,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   )
 
   switch (outcome.kind) {
-    // WP1: a not-admitted crossing — denied before the recorder, mapped to HTTP 402.
-    case 'denied':
+    // gate-wiring-(6): a locked crossing relays the speech-act as the BODY (cta verbatim, relay:true),
+    // not a flattened error.message. HTTP 402 (payment-required) carries the conversion event in-band.
+    case 'locked':
       return NextResponse.json(
-        { ok: false, error: { code: 'COMPOSE_ENTITLEMENT_DENIED', message: outcome.message } },
+        { ok: false, locked: outcome.locked },
         { status: 402 },
       )
     // A false mark claim (word-index↔surface mismatch) — loud + atomic, nothing persisted. Named

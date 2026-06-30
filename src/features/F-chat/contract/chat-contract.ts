@@ -607,7 +607,7 @@ export async function POST_message(
   // CELLS data block so the model copies priorMark home coordinates (never counts).
   let wearerSc: number
   try {
-    wearerSc = await admitWriteRaw({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId })
+    wearerSc = await admitWriteRaw({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId, grantKey: session.grantKey })
   } catch (err) {
     console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
@@ -744,6 +744,7 @@ export async function POST_message(
             who:          'llm',
             userId:       session.userId,
             scope:        projectId,
+            grantKey:     session.grantKey,
             apiKey:       _apiKey,
             // 3R.5: the wearer turn just written — word cells only (homes land on word
             // cells; isWordCell already imported), canonical positions. The composer
@@ -770,7 +771,7 @@ export async function POST_message(
           // back (CognitionResult carries only text, F5); the write happens for its substrate
           // effect (skipped when the reply has no word-cells — an honest empty non-write).
           if (replyCells.some(c => isWordCell(c.word))) {
-            await admitWriteRaw({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId })
+            await admitWriteRaw({ who: 'llm', words: replyCells, userId: session.userId, scope: projectId, grantKey: session.grantKey })
           }
           aiResult = { text: reply }
         }

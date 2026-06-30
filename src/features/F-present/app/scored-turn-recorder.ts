@@ -100,6 +100,7 @@ import { createDbPresentMarkStore } from '@/features/F-present/exec/present-mark
 import type { PresentMarkStore } from '@/features/F-present/app/present-store'
 import type { PlacedMark } from '@/features/F-present/config/mark-types'
 import { admitWriteRaw, gather, mine, joinCells, cutCells } from '@/features/F-memory/contract/substrate-contract'
+import type { GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
 // What the recorder returns — the substrate position (sc) of the reply, the CANONICAL cut
@@ -125,7 +126,7 @@ export type ReplyMarking = 'separate' | 'inline'
 // The injected I/O + cutter seam (A4). Default-bound to the live wires.
 export type ScoredTurnDeps = {
   readTranscript: (userId: string) => Promise<RawTurn[]>
-  writeRawTurn:   (input: { who: Who; words: RawWord[]; userId: string; scope: string }) => Promise<number>
+  writeRawTurn:   (input: { who: Who; words: RawWord[]; userId: string; scope: string; grantKey: GrantKey }) => Promise<number>
   store:          PresentMarkStore
   cutReply:       (reply: string) => { cells: RawWord[]; wordCellPos: number[] }
   cutCells:       (text: string) => RawWord[]
@@ -149,6 +150,7 @@ export async function recordScoredTurn(
   who: Who,
   userId: string,
   scope: string,
+  grantKey: GrantKey,
   wearer: WearerSource,
   replyMarking: ReplyMarking = 'separate',
   deps: ScoredTurnDeps = defaultDeps(),
@@ -225,8 +227,8 @@ export async function recordScoredTurn(
 
   // 5. WRITE — wearer first (wire only; native's is already in the substrate), then the
   //    reply. The assigned position IS sc — one coordinate; the marks placed below key on it.
-  if (wearerFull) wearerSc = await deps.writeRawTurn({ who: 'wearer', words: wearerFull, userId, scope })
-  const sc = await deps.writeRawTurn({ who, words: replyCells, userId, scope })
+  if (wearerFull) wearerSc = await deps.writeRawTurn({ who: 'wearer', words: wearerFull, userId, scope, grantKey })
+  const sc = await deps.writeRawTurn({ who, words: replyCells, userId, scope, grantKey })
 
   // 6. HOME the located marks now both sc's are assigned (reply on this turn; prior on the
   //    wearer turn). `pos` was resolved+verified in step 3; who+sc complete the Coord.

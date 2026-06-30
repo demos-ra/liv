@@ -106,7 +106,7 @@ import {
   PERIMETER_HEADER_ENTITLEMENT,
   stampPerimeterHeaders,
 } from '@/core/constants/perimeter-headers'
-import { resolveEntitlement } from '@/features/F-entitlement/contract/entitlement-contract'
+import { resolveGrantKey, type GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
 import type { CrossingId, EpochMs, ChannelKind, DispositionKind, CellKind, CellGovernanceRecord, GovernanceLevel, ConfirmationStatus, AuditStatus, ReversibilityFlag } from '@/core/types/perimeter-standard.types'
 import { FOUR_CELL_GOVERNANCE_MAP, LIV_INSTANCE_PERIMETER_SITE_REF, DEFAULT_PERIMETER_BINDING } from '@/core/constants/perimeter-standard'
 import type { SubstrateWriteInput, IdentityRef, ScopeRef, RoleRef } from '@/core/types/substrate.types'
@@ -410,19 +410,18 @@ async function buildStampedResponse(args: {
       args.resolvedChannel as keyof typeof DEFAULT_PERIMETER_BINDING.permittedAuthorityByChannel
     ] ?? []
 
-  // build-spec-part5 (B↔E fold) — the entitlement attribute, resolved through the swappable
-  // seam (F-entitlement) once, here, at the unitary site (PA-I). It is site-originated and
-  // token-derived EXACTLY like the user-id, so it travels the same hardened path below: it is
-  // in PERIMETER_HEADERS (any forged x-perimeter-entitlement is stripped) and re-set here to
-  // the authoritative resolved value. No provider/payment logic lives here. A seam failure
-  // defaults to 'trial' (permissive: the attribute gates nothing yet, so a fault must not lock
-  // a wearer out).
-  let entitlementStatus = 'trial'
+  // gate-wiring-e — the entitlement attribute is now the resolved GRANT KEY ('free'|'paid'),
+  // resolved BY PRINCIPAL once, here, at the unitary site (PA-I). Liveness is computed ONCE here;
+  // the KEY crosses (no Date through the header), so R2 re-resolves nothing. Site-originated +
+  // token-derived like the user-id, so it rides the same hardened strip+stamp path below (a forged
+  // x-perimeter-entitlement is stripped, re-set authoritatively). A null anchor → the free floor
+  // (the retired null→'trial' permissive is gone — absence resolves to free, no carve-out). A seam
+  // failure FAILS CLOSED to free (a fault must not grant paid access).
+  let grantKey: GrantKey = 'free'
   try {
-    const entitlement = await resolveEntitlement({ userId: args.userId, accountCreatedAt: args.accountCreatedAt ?? null })
-    entitlementStatus = entitlement.status
+    grantKey = resolveGrantKey(args.accountCreatedAt ?? null, new Date())
   } catch (err) {
-    console.error('[perimeter] entitlement resolution failed', err instanceof Error ? err.message : 'unknown')
+    console.error('[perimeter] grant resolution failed — fail-closed to free', err instanceof Error ? err.message : 'unknown')
   }
 
   // PA-I ENFORCEMENT (the write-perimeter's teeth). Forward the request to the route with
@@ -437,7 +436,7 @@ async function buildStampedResponse(args: {
     [PERIMETER_HEADER_CROSSED_AT]:  String(crossedAt),
     [PERIMETER_HEADER_DISPOSITION]: resolvedDisposition,
     [PERIMETER_HEADER_AUTHORITY]:   JSON.stringify(permittedAuthority),
-    [PERIMETER_HEADER_ENTITLEMENT]: entitlementStatus,
+    [PERIMETER_HEADER_ENTITLEMENT]: grantKey,
   })
   const response = NextResponse.next({ request: { headers: stampedRequestHeaders } })
 
@@ -449,7 +448,7 @@ async function buildStampedResponse(args: {
   response.headers.set(PERIMETER_HEADER_CROSSED_AT, String(crossedAt))
   response.headers.set(PERIMETER_HEADER_DISPOSITION, resolvedDisposition)
   response.headers.set(PERIMETER_HEADER_AUTHORITY, JSON.stringify(permittedAuthority))
-  response.headers.set(PERIMETER_HEADER_ENTITLEMENT, entitlementStatus)
+  response.headers.set(PERIMETER_HEADER_ENTITLEMENT, grantKey)
 
   // Part A — re-set cookie if session was refreshed in DB.
   // Same token string; new Max-Age anchors browser expiry to DB expiry.
@@ -519,6 +518,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // Valid delegated token. Stamp the crossing on the external-agent channel.
     // The agent crosses as the wearer by delegation — userId is the wearer's,
     // sourced from the token's session row. No cookie refresh on the token path.
+    // gate-wiring-e: resolve the WEARER's account anchor by userId — the agent IS the wearer
+    // (standards: agent=wearer, entitlement per principal, no exempt door). The retired null anchor
+    // is gone; the connector path resolves the wearer's grant like any principal. A miss fails
+    // closed to null → free floor (never a permissive trial).
+    const wearerRec = await tokenAuthDb.findUserById(validated.userId)
     return buildStampedResponse({
       req,
       userId:           validated.userId,
@@ -527,8 +531,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       validationBasis:  'session-token-validated-by-middleware',
       sessionRefreshed: false,
       newToken:         undefined,
-      // Token path carries no account record — null anchor (build-spec-part5).
-      accountCreatedAt: null,
+      accountCreatedAt: wearerRec.success ? wearerRec.data.createdAt : null,
     })
   }
 

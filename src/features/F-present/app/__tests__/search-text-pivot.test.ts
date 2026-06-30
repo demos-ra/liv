@@ -64,7 +64,7 @@ async function seedKyoto(h: ReturnType<typeof harness>) {
       ],
       priorMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }] }],
     }),
-    'llm', 'u', 'sess', { text: 'I toured Kyoto' }, 'separate', h.recDeps,
+    'llm', 'u', 'sess', 'paid', { text:'I toured Kyoto' }, 'separate', h.recDeps,
   )
 }
 
@@ -162,7 +162,7 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
       replyMarks: [{ surface: 'Kyoto', marks: [{ op: 'note' }, { op: 'tie', target: pin }] }],
       priorMarks: [],
     }),
-    'llm', 'u', 'sess', { text: 'more on Kyoto' }, 'separate', h.recDeps,
+    'llm', 'u', 'sess', 'paid', { text:'more on Kyoto' }, 'separate', h.recDeps,
   )
   log('\n=========== (d+e) compose — pin the coordinate in a tie mark ===========')
   // the R3 door returns the WriteAck (§1a): landed → { landed:true, sc, text } (markCount dropped).
