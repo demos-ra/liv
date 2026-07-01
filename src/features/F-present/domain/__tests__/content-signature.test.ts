@@ -6,26 +6,15 @@
 // A block and a payload are the SAME citizen as a word-cell, larger: each ONE RawWord cell at
 // its own coordinate, home-capable, marked identity DIRECTLY on the cell (no leading-word home).
 //
-// Load note (mirrors scored-turn-recorder.test): warm the F-present R3 graph first,
-// then deferred-import the source — dodges the SUBSTRATE_EVENTS module-init cycle.
+// wave4-barrel-cycle: the SUBSTRATE_EVENTS module-init cycle is fixed at root (event-schema reads
+// the lean substrate-events-contract, not the full barrel), so the prior deferred-import dodge is
+// gone — these are clean static imports.
 
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import assert from 'node:assert/strict'
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-let classifyLine: any, classifyBlocks: any, isBlockClass: any, SIGNATURE_TABLE: any
-let shapeAwareCut: any, classOfCell: any, isHomeCapableCell: any
-let locateCellIdentities: any
-let cutCells: (t: string) => { pos: number; word: string }[]
-let joinCells: (c: { pos: number; word: string }[]) => string
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ classifyLine, classifyBlocks, isBlockClass, SIGNATURE_TABLE, shapeAwareCut, classOfCell, isHomeCapableCell } =
-    await import('@/features/F-present/domain/content-signature'))
-  ;({ locateCellIdentities } = await import('@/features/F-present/domain/coin-score'))
-  ;({ cutCells, joinCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { classifyLine, classifyBlocks, isBlockClass, SIGNATURE_TABLE, shapeAwareCut, classOfCell, isHomeCapableCell, type RenderClass } from '@/features/F-present/domain/content-signature'
+import { locateCellIdentities } from '@/features/F-present/domain/coin-score'
+import { cutCells, joinCells } from '@/features/F-memory/exec/raw-turn-write'
 
 test('prose with no signature → prose (word path)', () => {
   assert.equal(classifyLine('Kyoto truly rivals the old capital.').class, 'prose')
@@ -68,7 +57,7 @@ test('classifyBlocks coalesces a fenced region (pipe inside a fence is code, not
 
 test('isBlockClass: only prose is non-block', () => {
   assert.equal(isBlockClass('prose'), false)
-  for (const c of ['code', 'data', 'scaffold', 'payload']) assert.equal(isBlockClass(c), true)
+  for (const c of (['code', 'data', 'scaffold', 'payload'] as RenderClass[])) assert.equal(isBlockClass(c), true)
 })
 
 // ── THE SHAPE-AWARE CUT (E3) — round-trip + verifyGrid + one-cell-per-region ──────────
@@ -146,7 +135,7 @@ test('locateCellIdentities: a code fence cell gets identity ON its own pos (no l
   assert.equal(ids.length, 1)
   assert.deepEqual(ids[0].marks, [{ op: 'identity' }])
   // homed at the BLOCK CELL's own pos — the cell whose word is the verbatim block, NOT a word.
-  const blockCell = cells.find((c: any) => c.word.includes('print(42)'))
+  const blockCell = cells.find((c) => c.word.includes('print(42)'))!
   assert.equal(ids[0].pos, blockCell.pos)
 })
 
@@ -155,7 +144,7 @@ test('locateCellIdentities: a payload cell gets identity ON its own pos; its wor
   const cells = shapeAwareCut(reply)
   const ids = locateCellIdentities(cells)
   assert.equal(ids.length, 1)
-  const payloadCell = cells.find((c: any) => c.word.includes('livbyte://hosted/pic'))
+  const payloadCell = cells.find((c) => c.word.includes('livbyte://hosted/pic'))!
   assert.equal(ids[0].pos, payloadCell.pos)
   assert.ok(payloadCell.word.includes('livbyte://hosted/pic'))   // content IS the handle, no sidecar
 })

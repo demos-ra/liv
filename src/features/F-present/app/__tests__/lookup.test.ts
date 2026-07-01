@@ -10,28 +10,21 @@
 //   misses (turn not found / unknown thing) are a stating { ok:false }, never an exception.
 // I/O injected (A4 deps) so it runs DB-free.
 //
-// Load note: warm the F-present R3 graph first (db client lazy), then import.
 // Run: npx tsx --test src/features/F-present/app/__tests__/lookup.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let lookup: any
-let cutCells: (t: string) => { pos: number; word: string }[]
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ lookup } = await import('@/features/F-present/app/lookup'))
-  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { test } from 'node:test'
+import { lookup } from '@/features/F-present/app/lookup'
+import { cutCells } from '@/features/F-memory/exec/raw-turn-write'
+import type { RawTurn } from '@/core/types/substrate-raw.types'
+import type { PresentStore } from '@/features/F-present/config/mark-types'
 
 // fixture: two wearer turns; "Kyoto" (pos 5 of sc 7) is marked a thing (identity).
-const TRANSCRIPT = () => [
+const TRANSCRIPT = (): RawTurn[] => [
   { sc: 7, who: 'wearer', words: cutCells('I toured Kyoto') },        // Kyoto @ pos 5
   { sc: 9, who: 'llm', words: cutCells('Kyoto is lovely') },
 ]
-const STORE = () => [{ home: { who: 'wearer', sc: 7, pos: 5 }, mark: { op: 'identity' } }]
+const STORE = (): PresentStore => [{ home: { who: 'wearer', sc: 7, pos: 5 }, mark: { op: 'identity' } }]
 const deps = () => ({ readTranscript: async () => TRANSCRIPT(), store: { read: async () => STORE(), place: async () => {}, clear: async () => {} } })
 
 // ── turn ──────────────────────────────────────────────────────────────────────

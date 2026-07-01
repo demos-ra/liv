@@ -255,11 +255,11 @@ async function buildStampedResponse(args: {
     | { outcome: 'new-Ref-created';                ref: IdentityRef; ambiguityDetail?: never }
     | { outcome: 'ambiguous-pending-disambiguation'; ref: null;       ambiguityDetail: Array<{ reason: string }> }
 
-  async function resolveIdentity(surfaceForm: string, scope: ScopeRef): Promise<IdentityResolutionOutcome> {
+  async function resolveIdentity(surfaceForm: string): Promise<IdentityResolutionOutcome> {
     let queryResult: Awaited<ReturnType<typeof threadQuery>>
     try {
       queryResult = await threadQuery(
-        { threadKind: 'identity-recurrence', anchor: surfaceForm as IdentityRef, scope },
+        { threadKind: 'identity-recurrence', anchor: surfaceForm as IdentityRef },
         surfaceForm,
       )
     } catch (err) {
@@ -296,7 +296,7 @@ async function buildStampedResponse(args: {
     }
   }
 
-  const identityResolution = await resolveIdentity(args.userId, args.userId as ScopeRef)
+  const identityResolution = await resolveIdentity(args.userId)
 
   // PA-Co1 closure: crossingId self-correlates (no upstream MI correlation at v1.0).
   // PA-A1..PA-A6 closure: authority validated at session check above; record constructed here.

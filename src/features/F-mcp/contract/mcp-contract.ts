@@ -21,6 +21,8 @@
 //   W-FN     lookup             F-present/R3 present-contract   (R8 read control — turn|span|thing)
 //   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only; the present-read path)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
+//   W-FN     publishToForum     F-forum/R3 forum-contract   (publish tool — the public-forum write; the NORMAL marked compose stamped public, behind a wearer confirm)
+//   W-ATOM   TOOL_PUBLISH       F-mcp/config mcp-tools      (publish schema-injection target at tools/list)
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
 // deps:
@@ -29,6 +31,7 @@
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract  (A1 — recordWireTurn folds in the WP1 entitlement gate; F-mcp no longer imports F-entitlement directly)
 //   R3  @/features/F-identity/contract/perimeter-consultation
+//   R3  @/features/F-forum/contract/forum-contract  (publish tool → the forum's public write-orchestration)
 // amended:    inline-marking Touch 3 (wire delivery wired to the R0-leaf manual): the COIN_MANUAL
 //             import becomes projectManual(opts); tools/list computes the schema ONCE and feeds
 //             BOTH the `turn` inputSchema AND the manual opts (inline?, includeWearerText, the
@@ -38,7 +41,7 @@
 
 import { parseRequest, buildResult, buildError } from '../domain/json-rpc'
 import { listTools, initializeResult, planToolCall } from '../domain/tool-registry'
-import { TOOL_TURN } from '../config/mcp-tools'
+import { TOOL_TURN, TOOL_PUBLISH } from '../config/mcp-tools'
 import {
   JSONRPC_METHOD_NOT_FOUND,
   JSONRPC_INTERNAL_ERROR,
@@ -49,6 +52,7 @@ import {
 import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordWireTurn, captureWearerTurn, projectManual, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
+import { publishToForum, FORUM_ROOT } from '@/features/F-forum/contract/forum-contract'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
 // parses the JSON-RPC envelope (R1), dispatches the method, plans the tool call
@@ -119,10 +123,17 @@ export async function handleMcpRequest(
           includeWearerText: MCP_SITUATION.includeWearerText,
           fields: Object.keys(schema.properties ?? {}),
         })
+        // publish's advertisement is DERIVED the same way compose's is — the one core emission schema,
+        // projected, PLUS the `confirmed` phase flag (the two-phase confirm). Same mark shape as
+        // compose (no drift); the marking manual rides compose's description (a once-channel), so it
+        // is NOT re-attached here — publish's own description points the model back to compose.
+        const publishSchema = { ...schema, properties: { ...schema.properties, confirmed: { type: 'boolean' } } }
         return buildResult(id, {
-          tools: listTools().map(t => t.name === TOOL_TURN
-            ? { ...t, description: `${t.description}\n\n${manual}`, inputSchema: schema }
-            : t),
+          tools: listTools().map(t => {
+            if (t.name === TOOL_TURN) return { ...t, description: `${t.description}\n\n${manual}`, inputSchema: schema }
+            if (t.name === TOOL_PUBLISH) return { ...t, inputSchema: publishSchema }
+            return t
+          }),
         })
       }
 
@@ -181,6 +192,41 @@ export async function handleMcpRequest(
               ? result.text
               : JSON.stringify({ ok: true, view: 'raw', cells: result.cells })
           return buildResult(id, toolText(out))
+        }
+
+        // publish — surface a turn to the PUBLIC forum (F-forum R3). The forum AUTHORS NOTHING:
+        // publishing is the NORMAL marked compose stamped source_scope='public' (F-forum hands the
+        // draft to the SAME recordWireTurn, differing only by the stamped scope), behind a wearer
+        // confirm. This door is TRANSPORT, mirroring compose EXACTLY: it builds the draft from the
+        // four marked-turn fields and coerces `confirmed` to the phase boolean (true = proceed). The
+        // discriminated PublishOutcome maps to the SAME result shapes compose uses:
+        //   'confirm-required' → the verbatim confirm text the model surfaces (the locked-CTA
+        //                        precedent — a tool returns text, a second call carries confirmed:true);
+        //   'locked'           → the cta relayed verbatim, in-band (gate-wiring-(6));
+        //   'invalid-testimony'→ INVALID_PARAMS (a false mark claim, loud + atomic);
+        //   'present'          → the fresh present; 'degraded' → the honest ack JSON.
+        if (intention.tool === 'publish') {
+          const result = await publishToForum(session, {
+            wearerText: intention.wearerText,
+            reply:      intention.reply,
+            replyMarks: intention.replyMarks,
+            priorMarks: intention.priorMarks,
+            // the REQUIRED forum target: FORUM_ROOT — every publish is a top post until a reply-target
+            // arg is threaded through the tool schema (transport follow-up; the ref mechanism is whole).
+            target:     FORUM_ROOT,
+          }, intention.confirmed === true)
+          switch (result.kind) {
+            case 'confirm-required':
+              return buildResult(id, toolText(result.payload))
+            case 'locked':
+              return buildResult(id, toolText(result.locked.cta))
+            case 'invalid-testimony':
+              return buildError(id, JSONRPC_INVALID_PARAMS, result.message)
+            case 'present':
+              return buildResult(id, toolText(result.present))
+            case 'degraded':
+              return buildResult(id, toolText(JSON.stringify(result.degraded)))
+          }
         }
 
         // turn — DEMANDED (R1): ONE call carries BOTH turns. The whole write turn-service (the WP1

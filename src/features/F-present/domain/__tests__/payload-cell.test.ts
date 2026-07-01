@@ -5,23 +5,13 @@
 // ONE RawWord cell whose `word` IS the StoreHandle uri (livbyte://…). The sidecar is GONE
 // (no PayloadAppearance.handle, no arms.payloads). Bytes live behind the §3b socket and
 // resolve LAZILY on read (storePayload mints; resolvePayload fetches). The handle is the
-// cell's CONTENT, NEVER a Ref form. Load note: warm the F-present R3 graph first.
+// cell's CONTENT, NEVER a Ref form.
 
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import assert from 'node:assert/strict'
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-let shapeAwareCut: any, isHomeCapableCell: any, classOfCell: any
-let locateCellIdentities: any
-let storePayload: any, resolvePayload: any, isPayloadHandle: any, PAYLOAD_HANDLE_SCHEME: any
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ shapeAwareCut, isHomeCapableCell, classOfCell } = await import('@/features/F-present/domain/content-signature'))
-  ;({ locateCellIdentities } = await import('@/features/F-present/domain/coin-score'))
-  ;({ storePayload, resolvePayload, isPayloadHandle, PAYLOAD_HANDLE_SCHEME } =
-    await import('@/features/F-payload-store/contract/payload-store-contract'))
-})
+import { shapeAwareCut, isHomeCapableCell, classOfCell } from '@/features/F-present/domain/content-signature'
+import { locateCellIdentities } from '@/features/F-present/domain/coin-score'
+import { storePayload, resolvePayload, isPayloadHandle, PAYLOAD_HANDLE_SCHEME } from '@/features/F-payload-store/contract/payload-store-contract'
 
 test('§3b socket: storePayload mints a livbyte:// handle; resolvePayload fetches the bytes LAZILY', async () => {
   const bytes = new Uint8Array([1, 2, 3, 4])
@@ -54,7 +44,7 @@ test('a payload-cell takes identity ON ITS OWN coordinate (no leading-word home,
   const ids = locateCellIdentities(cells)
   assert.equal(ids.length, 1)
   assert.deepEqual(ids[0].marks, [{ op: 'identity' }])
-  const payloadCell = cells.find((c: any) => c.word.includes(handle.uri))
+  const payloadCell = cells.find((c: any) => c.word.includes(handle.uri))!
   assert.equal(ids[0].pos, payloadCell.pos)                // homed at the cell's OWN pos
 })
 

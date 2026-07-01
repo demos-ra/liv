@@ -37,6 +37,9 @@
 import type { AccessRegion } from './gate-matrix'
 
 export function regionOfScope(sourceScope: string): AccessRegion {
+  // 'public' is the substrate's PUBLIC_SCOPE (scope-clause.ts). Kept as a literal here, NOT imported:
+  // F-memory's tier floor already calls grantAdmits (F-memory → F-entitlement), so importing back
+  // would form an F-entitlement ↔ F-memory cycle. Billing's categorization knows the reserved value.
   if (sourceScope === 'public') return 'PUBLIC'
   // Wave-4: add 'inbox' → 'INBOX', 'broadcast' → 'BROADCAST' here when those scopes exist.
   return 'PRIVATE'

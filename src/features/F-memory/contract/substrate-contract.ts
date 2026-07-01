@@ -4,13 +4,11 @@
 
 // @manifest
 // standard:   LIV-Standard v1.5.1
-// amended:    sprint-8-shot-1 (substrate authoring), sprint-8-audit-patch (F-A: SUBSTRATE_EVENTS re-export), sprint-b2-shot-3 (exportByScope exposed), fixround-core-loop-read-restore (F10: exportByScope subsumed by first-class readScope, exposed from R2 — R4-direct wire removed), foundation-group1 (writeRawTurn/tokenize/readTranscript exposed at R3 — spine consumers import R3, not exec)
+// amended:    sprint-8-shot-1 (substrate authoring), sprint-8-audit-patch (F-A: SUBSTRATE_EVENTS re-export), sprint-b2-shot-3 (exportByScope exposed), fixround-core-loop-read-restore (F10: exportByScope subsumed by first-class readScope, exposed from R2 — R4-direct wire removed), foundation-group1 (tokenize exposed at R3; writeRawTurn + readTranscript stay R4-internal, reached only via admitWriteRaw / gather — no R3 re-export)
 // slice:      F-memory
 // layer:      R3
 // wires-in:
 //   W-FN     writeStateChange      F-memory/R2 substrate-service
-//   W-FN     readStateChange       F-memory/R2 substrate-service
-//   W-FN     iterateAxis           F-memory/R2 substrate-service
 //   W-FN     identityRecurrence    F-memory/R2 substrate-service
 //   W-FN     rolePattern           F-memory/R2 substrate-service
 //   W-FN     adjacency             F-memory/R2 substrate-service
@@ -18,25 +16,21 @@
 //   W-FN     readScope             F-memory/R2 substrate-service  (F10: canonical scope-ordered read)
 //   W-FN     gather                F-memory/R2 substrate-service  (scope un-weld — the one scope-resolving cognition read / §4 fill-point)
 //   W-FN     onBoot                F-memory/R2 substrate-service
-//   W-ATOM   SUBSTRATE_EVENTS      F-memory/R0 substrate-events
-//   W-ATOM   SubstrateEventType    F-memory/R0 substrate-events
 //   W-FN     admitWriteRaw         F-memory/R2 substrate-service  (F-009 cognition write face — admit + writeRawTurn)
-//   W-FN     gather                F-memory/R2 substrate-service  (Wave-2 read face — admitRead + readTranscript via scopeClause)
+//   W-FN     gather                F-memory/R2 substrate-service  (Wave-2 read face — readTranscript, WHERE built by scopeClause; no admit token)
 //   W-FN     tokenize              F-memory/R4 raw-turn-write     (Group 1)
 // wires-out:
 //   W-HOOK  writeStateChange    →  perimeter/intake (HR-LM1, Sprint 9 wiring)
 //   W-HOOK  threadQuery         →  F-chat, F-plan, F-verify, F-discover, F-router (Sprint 9 wiring)
-//   W-HOOK  readStateChange     →  general consumers
-//   W-HOOK  iterateAxis         →  general consumers
 //   W-HOOK  identityRecurrence  →  general consumers (convenience)
 //   W-HOOK  rolePattern         →  general consumers (convenience)
 //   W-HOOK  adjacency           →  general consumers (convenience)
 //   W-HOOK  onBoot              →  F-event-system/R2 startup (Sprint 8 Shot 4 wiring)
-//   W-ATOM  SUBSTRATE_EVENTS    →  F-event-system/R0 event-schema (cross-slice via R3 per A2)
+//   (SUBSTRATE_EVENTS now wires to event-schema from the lean substrate-events-contract, not this barrel — wave4-barrel-cycle)
 //   W-HOOK  readScope           →  src/app/api/substrate/export/route.ts, F-chat core-loop read (F10)
 //   W-HOOK  admitWriteRaw       →  F-chat/R3 chat-contract, F-present wire-turn-service + scored-turn-recorder (F-009 — the one write entry; writeRawTurn is R4-internal, no R3 re-export)
 //   W-HOOK  tokenize            →  F-chat/R3 chat-contract (Group 1)
-//   W-HOOK  gather              →  F-chat core-loop, F-present cognition-orchestrator + lookup + recorder + wire-turn-service (the one read entry; readTranscript is R4-internal, no R3 re-export — admitRead in front of all)
+//   W-HOOK  gather              →  F-chat core-loop, F-present cognition-orchestrator + lookup + recorder + wire-turn-service (the one read entry; readTranscript is R4-internal, no R3 re-export)
 // deps:
 //   R2  ../app/substrate-service
 //   R0  ../config/substrate-events
@@ -64,11 +58,10 @@
 
 export {
   writeStateChange,
-  readStateChange,
-  iterateAxis,
   readScope,
   gather,
   admitWriteRaw,
+  EntitlementFloorError,
   identityRecurrence,
   rolePattern,
   adjacency,
@@ -76,7 +69,7 @@ export {
   onBoot,
 } from '../app/substrate-service'
 export type { ReadScope } from '../app/substrate-service'
-export { mine } from '../exec/scope-clause'
+export { mine, PUBLIC_SCOPE } from '../exec/scope-clause'
 export type { ScopeSpec } from '../exec/scope-clause'
 
 // F10: exportByScope (was R4-direct-wired) is subsumed — the scope-ordered read
@@ -107,19 +100,18 @@ export type {
 
 export { REVOKE_REF } from '@/core/types/substrate.types'
 
-// audit-patch F-A: SUBSTRATE_EVENTS re-export for cross-slice consumers
-// (F-event-system/config/event-schema.ts imports from this R3 surface per A2).
-// Constant lives at F-memory/R0 substrate-events; this is a thin pass-through.
-export { SUBSTRATE_EVENTS } from '../config/substrate-events'
-export type { SubstrateEventType } from '../config/substrate-events'
+// SUBSTRATE_EVENTS / SubstrateEventType are wired cross-slice from the LEAN substrate-events-contract
+// (wave4-barrel-cycle) — NOT re-exported here. The full barrel pulling the events created the
+// load-cycle; the one home for the events wire is the lean contract.
 
 // ─── Cognition rail (Group 1 — foundation-group1) ─────────────────────────────
 // Only the cut helpers cross here. Both substrate primitives are SEALED behind their
 // one-wall seams (no R3 re-export): the write primitive writeRawTurn is reached only by
 // admitWriteRaw (F-009 write seal, 1e); the read primitive readTranscript is reached only
-// by gather (the read seam, Wave-2 keystone) — so NO reader can reach the dumb-store read
-// without passing admitRead, exactly as no writer reaches the write without admitWrite.
-// Both primitives stay R4-internal. I1: this file holds no F-present logic.
+// by gather (the read seam, Wave-2 keystone), whose WHERE is built by the one builder
+// scopeClause (mine binds user_id; public drops it for source_scope='public' — the one
+// relaxation). There is no read admit token. Both primitives stay R4-internal. I1: this
+// file holds no F-present logic.
 export { cutCells, joinCells, isWordCell } from '../exec/raw-turn-write'
 
 // Re-export substrate-raw types so spine consumers need not reach into core/R5.

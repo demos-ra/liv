@@ -33,20 +33,6 @@
 
 // @wire
 // type:    W-HOOK
-// id:      W-HOOK-substrate-read
-// payload: readStateChange(position: PositionRef) → ReadResult
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
-// id:      W-HOOK-substrate-iterate
-// payload: iterateAxis(start: PositionRef, direction: 'forward'|'backward', count: number) → IterateResult
-// version: 1
-// status:  active
-
-// @wire
-// type:    W-HOOK
 // id:      W-HOOK-substrate-thread-query
 // payload: threadQuery(input: ThreadQueryInput) → ThreadQueryResult
 // version: 1

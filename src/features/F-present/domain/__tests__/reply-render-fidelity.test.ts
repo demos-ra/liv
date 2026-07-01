@@ -13,20 +13,12 @@
 // path (named span → canonical pos); the adversarial LOUD-failure matrix (named-span-not-present,
 // empty-of-words, duplicate-word first-occurrence) lives in surface-check.test.ts.
 //
-// Load note: warm the F-present R3 graph first (db client is lazy), then import coin-score.
 // Run: npx tsx --test src/features/F-present/domain/__tests__/reply-render-fidelity.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cs: any, joinCells: (cells: { pos: number; word: string }[]) => string
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  cs = await import('@/features/F-present/domain/coin-score')
-  ;({ joinCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { test } from 'node:test'
+import * as cs from '@/features/F-present/domain/coin-score'
+import { joinCells } from '@/features/F-memory/exec/raw-turn-write'
 
 // the river render of a model reply, through the real pipeline (§FORK-A: the reply is the text)
 const renderReply = (reply: string): string => joinCells(cs.cutReply(reply).cells)

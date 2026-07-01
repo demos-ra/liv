@@ -40,6 +40,7 @@ import { createDbPresentMarkStore } from '@/features/F-present/exec/present-mark
 import type { PresentMarkStore } from '@/features/F-present/app/present-store'
 import type { PivotConfig, RowAxis, ColAxis, ValueField, PivotSort, Selection } from '@/features/F-present/config/read-engine-types'
 import { gather, mine } from '@/features/F-memory/contract/substrate-contract'
+import { aliasesOf } from '@/features/F-identity/contract/auth-contract'
 import type { Who, Coord, RawTurn } from '@/core/types/substrate-raw.types'
 
 // what to fetch — by turn (one turn), by span (an sc range), or by thing (a name's cluster).
@@ -63,7 +64,7 @@ function defaultDeps(): LookupDeps {
   // user_id=$1, same rows). The dep keeps its "fetch this reader's transcript"
   // shape (tests inject their own); Wave 2 widens lookup/search to carry a scope
   // and call gather(scope) directly when the bounded public read lands.
-  return { readTranscript: (userId: string) => gather(mine(userId)), store: createDbPresentMarkStore() }
+  return { readTranscript: async (userId: string) => gather(mine(await aliasesOf(userId))), store: createDbPresentMarkStore() }
 }
 
 const cellsOf = (t: RawTurn): LookupCell[] => t.words.map(w => ({ who: t.who, sc: t.sc, pos: w.pos, word: w.word }))

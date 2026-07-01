@@ -37,6 +37,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 import { readScope } from '@/features/F-memory/contract/substrate-contract'
+import { aliasesOf } from '@/features/F-identity/contract/auth-contract'
 
 const EXPORT_SCHEMA    = 'liv-substrate-export'
 const EXPORT_VERSION   = '1.0'
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Execute export.
-  const result = await readScope(session.userId)
+  const result = await readScope(await aliasesOf(session.userId))
   if (!result.ok) {
     return NextResponse.json(
       { error: 'export_failed', detail: result.error.message },

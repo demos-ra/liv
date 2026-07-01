@@ -14,25 +14,18 @@
 // The native manual is RENDERED from primitives the caller computes from NATIVE_SITUATION; this
 // test builds it the SAME way the orchestrator does, so it pins what buildScoringContext produces.
 //
-// Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first.
 // Run: npx tsx --test src/features/F-present/app/__tests__/scoring-context.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
+import { buildScoringContext } from '@/features/F-present/app/cognition-orchestrator'
+import { projectManual } from '@/features/F-present/config/coin-manual'
+import { NATIVE_SITUATION, projectEmissionSchema } from '@/features/F-present/domain/coin-score'
 
-let buildScoringContext: (sp: string | null) => string
-let nativeManual: string
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ buildScoringContext } = await import('@/features/F-present/app/cognition-orchestrator'))
-  const { projectManual } = await import('@/features/F-present/config/coin-manual')
-  const { NATIVE_SITUATION, projectEmissionSchema } = await import('@/features/F-present/domain/coin-score')
-  nativeManual = projectManual({
-    inline: NATIVE_SITUATION.replyMarking === 'inline',
-    includeWearerText: NATIVE_SITUATION.includeWearerText,
-    fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
-  })
+const nativeManual = projectManual({
+  inline: NATIVE_SITUATION.replyMarking === 'inline',
+  includeWearerText: NATIVE_SITUATION.includeWearerText,
+  fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
 })
 
 // ── the context is manual-first, present-second — no cells block ────────────────

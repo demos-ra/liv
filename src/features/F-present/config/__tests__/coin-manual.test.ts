@@ -24,30 +24,16 @@
 //   - projectManual teaches the matching FORM (inline [[ ]] vs named { surface, marks });
 //   - the MUSICAL_OPS vocabulary pin (both forms name the four marks); the no-word-index guarantees.
 //
-// Load note: coin-manual is a leaf (static import is clean). Warm the F-present R3 graph in before()
-// for the coin-score/cutter machinery (the F-memory R3 barrel + db client are lazy under bare tsx).
-//
 // Run: npx tsx --test src/features/F-present/config/__tests__/coin-manual.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import {
   COIN_EXAMPLE_WEARER, COIN_EXAMPLE_REPLY, COIN_EXAMPLE_INLINE,
   projectManual,
 } from '../coin-manual'
-
-let cutCells: (t: string) => { pos: number; word: string }[]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let locateWordMarks: any, projectEmissionSchema: any, NATIVE_SITUATION: any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let parseInlineReply: any, cutReply: any, locateInlineMarks: any
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ locateWordMarks, projectEmissionSchema, NATIVE_SITUATION, parseInlineReply, cutReply, locateInlineMarks } =
-    await import('@/features/F-present/domain/coin-score'))
-})
+import { cutCells } from '@/features/F-memory/exec/raw-turn-write'
+import { locateWordMarks, projectEmissionSchema, NATIVE_SITUATION, parseInlineReply, cutReply, locateInlineMarks } from '@/features/F-present/domain/coin-score'
 
 // a separate (named-form) situation — the wire's shape: carry wearerText + demand all present.
 const SEPARATE_SITUATION = { includeWearerText: true, demand: 'all-present' as const }
@@ -72,7 +58,7 @@ test('the inline worked example: clean === reply, every wrapped span byte-exact 
   assert.equal(marks.length, REPLY_SPANS.length, 'the inline example wraps exactly the four example spans')
 
   for (let i = 0; i < marks.length; i++) {
-    const span = clean.slice(marks[i].start, marks[i].end)
+    const span: string = clean.slice(marks[i].start, marks[i].end)
     assert.equal(span, REPLY_SPANS[i], `wrapped span ${i} is "${REPLY_SPANS[i]}" byte-exact`)
   }
 

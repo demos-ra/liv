@@ -9,7 +9,7 @@
 // category:   Modality
 // layer:      R1
 // wires-in:
-//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP   F-mcp/config mcp-tools
+//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP / TOOL_PUBLISH / TURN_ARGS / PUBLISH_ARGS   F-mcp/config mcp-tools
 // wires-out:
 //   W-FN     listTools / initializeResult / planToolCall   F-mcp/R3 contract
 // deps:
@@ -18,7 +18,7 @@
 //   R0      @/core/types/substrate-raw.types
 // validated:  pending
 
-import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP, TOOL_CAPTURE, TURN_ARGS } from '../config/mcp-tools'
+import { MCP_TOOLS, TOOL_PRESENT, TOOL_TURN, TOOL_LOOKUP, TOOL_CAPTURE, TOOL_PUBLISH, TURN_ARGS, PUBLISH_ARGS } from '../config/mcp-tools'
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_NAME,
@@ -73,6 +73,12 @@ export type ToolIntention =
   // the core (captureWearerTurn) is the sole shape validator — a non-string wearerText absorbs → empty.
   | { tool: 'capture'; wearerText: unknown }
   | { tool: 'turn'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown }
+  // publish (the public-forum write-door) — the SAME marked-turn payload as compose (carried through
+  // unchanged; the core recordWireTurn is the sole shape validator) plus `confirmed`, the two-phase
+  // flag. TRANSPORT + WIRE-HYGIENE only: extras rejected against PUBLISH_ARGS, the fields pass as
+  // unknown. R3 maps it to F-forum's publishToForum (phase one surfaces the confirm; phase two writes
+  // public). userId/grantKey are injected at R3 from the session; scope is stamped PUBLIC at R3.
+  | { tool: 'publish'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown; confirmed: unknown }
   // search (the text-pivot) — region × lens. The door is TRANSPORT: it carries the raw args
   // through; the CORE (parseSearchSpec, F-present) is the sole validator (region defaults to
   // all, lens required, bad zones named) — symmetric with compose. R1 stays pure: no F-present
@@ -134,6 +140,19 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     const extra = firstUnknownField(args, TURN_ARGS)
     if (extra) return unknownFieldReject('turn', extra)
     return { ok: true, intention: { tool: 'turn', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks } }
+  }
+
+  if (name === TOOL_PUBLISH) {
+    // WRITE door — mirrors compose's wire-hygiene EXACTLY: arguments must be an object, FOREIGN
+    // fields are rejected against PUBLISH_ARGS (the compose args + confirmed). The emission SHAPE is
+    // NOT validated here — that is the core's concern (F-forum → recordWireTurn, the sole validator);
+    // the fields pass through as unknown, `confirmed` included (R3 coerces it to the phase boolean).
+    if (!isObject(args)) {
+      return { ok: false, code: JSONRPC_INVALID_PARAMS, message: 'publish: arguments object required' }
+    }
+    const extra = firstUnknownField(args, PUBLISH_ARGS)
+    if (extra) return unknownFieldReject('publish', extra)
+    return { ok: true, intention: { tool: 'publish', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, confirmed: args.confirmed } }
   }
 
   if (name === TOOL_LOOKUP) {

@@ -18,19 +18,9 @@
 // Run: npx tsx --test src/features/F-present/contract/__tests__/wire-turn-service.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let recordWireTurn: any, captureWearerTurn: any
-// the substrate cutters (the live ones — DB-free; cutCells/isWordCell are pure F-memory helpers).
-let cutCells: (t: string) => { pos: number; word: string }[]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let isWordCell: (w: string) => boolean
-
-before(async () => {
-  ;({ recordWireTurn, captureWearerTurn } = await import('@/features/F-present/contract/present-contract'))
-  ;({ cutCells, isWordCell } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { test } from 'node:test'
+import { recordWireTurn, captureWearerTurn } from '@/features/F-present/contract/present-contract'
+import { cutCells, isWordCell } from '@/features/F-memory/exec/raw-turn-write'
 
 // A DB-free WireCaptureDeps seam (A4): the capture write, the present deliver, and the stored-wearer
 // transcript recovery are stubbed so the wire path runs without a DATABASE_URL. `writes` counts the

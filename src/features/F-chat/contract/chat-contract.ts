@@ -173,10 +173,12 @@
 import { NextRequest, NextResponse }             from 'next/server'
 import { sendMessage, getMessages }              from '../app/chat-workflow'
 import { getPerimeterSession, dispatchCrossing } from '@/features/F-identity/contract/perimeter-consultation'
+import { aliasesOf } from '@/features/F-identity/contract/auth-contract'
 import type { DispatchId, EpochMs }              from '@/core/types/perimeter-standard.types'
 import { CHAT_CONFIG, CHAT_RATE_LIMIT }          from '../config/chat-config'
 import { validateMessageContent, sseStream }     from '../domain/chat-logic'
-import { admitWriteRaw, cutCells, joinCells, isWordCell } from '@/features/F-memory/contract/substrate-contract'
+import { admitWriteRaw, cutCells, joinCells, isWordCell, EntitlementFloorError } from '@/features/F-memory/contract/substrate-contract'
+import { lockedResult, LOCKED_CTA_PRIVATE } from '@/features/F-present/contract/locked-result'
 import { gather, mine }                          from '@/features/F-memory/contract/substrate-contract'
 import { getReplyComposer, getContextReader, markCognitionEnsured } from '@/core/domain/cognition-seam'
 import type { CognitionResult }                  from '@/core/domain/cognition-seam'
@@ -609,6 +611,11 @@ export async function POST_message(
   try {
     wearerSc = await admitWriteRaw({ who: session.who, words: wearerCells, userId: session.userId, scope: projectId, grantKey: session.grantKey })
   } catch (err) {
+    // the tier floor (EntitlementFloorError) is a BILLING lock, not a write failure — relay the cta
+    // VERBATIM in-band (D2 speech-act), the same the wire/MCP doors relay, never an opaque 500.
+    if (err instanceof EntitlementFloorError) {
+      return new Response(lockedResult(err.region, LOCKED_CTA_PRIVATE).cta, { status: 402 })
+    }
     console.error('[chat] intake raw-word write failed', err instanceof Error ? err.message : err)
     return new Response('Could not record your message — please try again.', { status: 500 })
   }
@@ -652,7 +659,7 @@ export async function POST_message(
     if (reader) {
       systemPrompt = await reader(session.userId)
     } else {
-      const scopeTurns = await gather(mine(session.userId))   // scope dial — 'mine' = user_id bound, same rows
+      const scopeTurns = await gather(mine(await aliasesOf(session.userId)))   // alias-fold → user_id = ANY($1); empty table → [self], same rows
       if (scopeTurns.length > 0) systemPrompt = serializeTranscript(scopeTurns)
     }
   } catch (err) {

@@ -17,19 +17,11 @@
 //                              one, name a longer span that is unique.
 // And the loud check is ATOMIC: one bad span in a batch fails the whole locate (none silent).
 //
-// Load note: warm the F-present R3 graph first (db client is lazy), then import coin-score.
 // Run: npx tsx --test src/features/F-present/domain/__tests__/surface-check.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cs: any
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  cs = await import('@/features/F-present/domain/coin-score')
-})
+import { test } from 'node:test'
+import * as cs from '@/features/F-present/domain/coin-score'
 
 // full canonical cells of a text (cutReply gives the cut; locateWordMarks filters word-cells).
 const cells = (t: string) => cs.cutReply(t).cells

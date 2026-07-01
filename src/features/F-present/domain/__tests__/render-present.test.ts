@@ -16,27 +16,17 @@
 // Run: npx tsx --test src/features/F-present/domain/__tests__/render-present.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import type { RawTurn } from '@/core/types/substrate-raw.types'
 import type { PresentStore } from '@/features/F-present/config/mark-types'
-import type { Grid, RenderSpec } from '@/features/F-present/config/read-engine-types'
 import { buildFactTable } from '../fact-table'
 import { resolveDimension } from '../resolve-dimension'
 import { weighDimension } from '../chain-ping'
 import { currentFocus } from '../session-window'
 import { pivot, lineageView, timelineView } from '../pivot'
 import { transcript as travelTranscript, store as travelStore } from '../__fixtures__/travel-store'
-
-let renderTranscript: (turns: RawTurn[]) => string
-let renderGrid: (g: Grid, spec: RenderSpec) => string
-let joinCells: (cells: { pos: number; word: string }[]) => string
-let cutCells: (t: string) => { pos: number; word: string }[]
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ renderTranscript, renderGrid } = await import('@/features/F-present/domain/render-present'))
-  ;({ joinCells, cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { renderTranscript, renderGrid } from '@/features/F-present/domain/render-present'
+import { joinCells, cutCells } from '@/features/F-memory/exec/raw-turn-write'
 
 // ── (3R.1) transcript is byte-pure — no positional markup ───────────────────────
 test('the transcript line is exactly `[sc] (who): ` + joinCells(words), no tags', () => {

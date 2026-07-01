@@ -16,17 +16,10 @@
 // Run: npx tsx --test src/features/F-present/domain/__tests__/pivot-instrument.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import { pivot, lineageConfig, lineageView } from '../pivot'
 import type { Dimension, ThingId, Grid } from '../../config/read-engine-types'
-
-// renderGrid pulls the F-memory R3 barrel (joinCells) — warm the F-present R3 graph first
-// so it resolves cleanly under bare tsx (db client is lazy), then load it dynamically.
-let renderGrid: (g: Grid, spec: typeof lineageView.render) => string
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')
-  ;({ renderGrid } = await import('../render-present'))
-})
+import { renderGrid } from '../render-present'
 
 // build a Dimension from a flat spec (id, label, weight, parent). resolveRef by name.
 function mkDim(specs: { id: string; label: string; weight: number; parent: string | null }[]): Dimension {

@@ -15,19 +15,11 @@
 // The MCP projection's wire-specific pins (all-four required, wearerText, descriptions, item
 // === native item) live with the wire that owns its situation — F-mcp/__tests__/wire-turn.
 //
-// Load note (mirrors surface-check): warm the F-present R3 graph first (db client is lazy).
 // Run: npx tsx --test src/features/F-present/domain/__tests__/emission-contract.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cs: any
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  cs = await import('@/features/F-present/domain/coin-score')
-})
+import { test } from 'node:test'
+import * as cs from '@/features/F-present/domain/coin-score'
 
 // ── NATIVE is now INLINE (inline-marking Touch 3 — native-first migration) ──────────
 // NATIVE_SITUATION.replyMarking flipped to 'inline': the native projection OMITS replyMarks
@@ -42,20 +34,20 @@ test('SCORE_SCHEMA is projectEmissionSchema(NATIVE_SITUATION), the inline native
   // native inline: object · {reply, priorMarks} (NO replyMarks) · required ['reply'] ·
   // additionalProperties false · NO wearerText. The `reply` field carries the inline teaching.
   assert.equal(s.type, 'object')
-  assert.deepEqual(Object.keys(s.properties), ['reply', 'priorMarks'], 'native inline omits replyMarks')
+  assert.deepEqual(Object.keys(s.properties!), ['reply', 'priorMarks'], 'native inline omits replyMarks')
   assert.deepEqual(s.required, ['reply'])
   assert.equal(s.additionalProperties, false)
-  assert.ok(typeof s.properties.reply.description === 'string' && s.properties.reply.description.includes('[[ ]]'),
+  assert.ok(typeof s.properties!.reply.description === 'string' && s.properties!.reply.description.includes('[[ ]]'),
     'native inline rides the inline-form teaching on the reply description')
-  assert.equal(s.properties.priorMarks.description, undefined)
-  assert.equal(s.properties.reply.type, 'string')
-  assert.equal(s.properties.priorMarks.type, 'array')
+  assert.equal(s.properties!.priorMarks.description, undefined)
+  assert.equal(s.properties!.reply.type, 'string')
+  assert.equal(s.properties!.priorMarks.type, 'array')
 
   // the ONE shared mark geometry still holds across both mark arrays in the SEPARATE projection
   // (the prior side here; the reply side when separate) — a fresh separate situation proves it.
   const sep = cs.projectEmissionSchema({ includeWearerText: false, demand: 'all-present' })
-  assert.equal(sep.properties.replyMarks.items, sep.properties.priorMarks.items, 'one mark item, shared')
-  assert.equal(sep.properties.priorMarks.items, s.properties.priorMarks.items, 'native prior shares that one item too')
+  assert.equal(sep.properties!.replyMarks.items, sep.properties!.priorMarks.items, 'one mark item, shared')
+  assert.equal(sep.properties!.priorMarks.items, s.properties!.priorMarks.items, 'native prior shares that one item too')
 })
 
 // ── projector mechanics — demand, wearerText inclusion, descriptions ──────────────
@@ -67,7 +59,7 @@ test('reply-only demands only reply; all-present demands every present field', (
   assert.deepEqual(allNoWearer.required, ['reply', 'replyMarks', 'priorMarks'])
 
   const allWithWearer = cs.projectEmissionSchema({ includeWearerText: true, demand: 'all-present' })
-  assert.deepEqual(Object.keys(allWithWearer.properties), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+  assert.deepEqual(Object.keys(allWithWearer.properties!), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.deepEqual(allWithWearer.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.equal(allWithWearer.additionalProperties, false)
 })
@@ -75,16 +67,16 @@ test('reply-only demands only reply; all-present demands every present field', (
 test('descriptions ride only the fields the situation names; the mark item is unchanged', () => {
   const sit = {
     includeWearerText: true,
-    demand: 'all-present',
+    demand: 'all-present' as const,
     descriptions: { wearerText: 'WT', reply: 'R' },   // replyMarks/priorMarks unnamed
   }
   const s = cs.projectEmissionSchema(sit)
-  assert.equal(s.properties.wearerText.description, 'WT')
-  assert.equal(s.properties.reply.description, 'R')
-  assert.equal(s.properties.replyMarks.description, undefined, 'an unnamed field carries no description')
+  assert.equal(s.properties!.wearerText.description, 'WT')
+  assert.equal(s.properties!.reply.description, 'R')
+  assert.equal(s.properties!.replyMarks.description, undefined, 'an unnamed field carries no description')
   // a description never reaches into the shared mark geometry (a fresh separate projection's item).
   const sep = cs.projectEmissionSchema({ includeWearerText: true, demand: 'all-present' })
-  assert.equal(s.properties.replyMarks.items, sep.properties.replyMarks.items)
+  assert.equal(s.properties!.replyMarks.items, sep.properties!.replyMarks.items)
 })
 
 // ── punctuation boundary — against the LIVE cutter (cutCells/wordCells/isWordCell) ──

@@ -233,68 +233,6 @@ export async function commitRevocation(
   }
 }
 
-// ─── Read by position ─────────────────────────────────────────────────────────
-
-export async function readByPosition(
-  position: PositionRef,
-): Promise<Result<StateChangeRecord | null>> {
-  try {
-    const result = await db.query<StateChangeRow>(
-      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations, state_flag
-         FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE position = $1`,
-      [position],
-    )
-    const row = result.rows[0]
-    return { ok: true, data: row ? rowToRecord(row) : null }
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code:    'SUBSTRATE_READ_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-      },
-    }
-  }
-}
-
-// ─── Iterate Axis 1 (raw scan) ────────────────────────────────────────────────
-// iterateAxis: forward or backward from start position, up to count rows.
-// Used by adjacency thread query (TQ3) and by general axis-walking consumers.
-
-export async function iterateAxisRows(
-  start: PositionRef,
-  direction: 'forward' | 'backward',
-  count: number,
-): Promise<Result<StateChangeRecord[]>> {
-  if (count <= 0) return { ok: true, data: [] }
-
-  const op    = direction === 'forward' ? '>=' : '<='
-  const order = direction === 'forward' ? 'ASC' : 'DESC'
-
-  try {
-    const result = await db.query<StateChangeRow>(
-      `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
-              user_id, identities, relations, state_flag
-         FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE position ${op} $1
-        ORDER BY position ${order}
-        LIMIT $2`,
-      [start, count],
-    )
-    return { ok: true, data: result.rows.map(rowToRecord) }
-  } catch (err) {
-    return {
-      ok: false,
-      error: {
-        code:    'SUBSTRATE_ITERATE_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-      },
-    }
-  }
-}
-
 // ─── Identity recurrence (TQ3 thread kind: 'identity-recurrence') ─────────────
 // All state-changes whose identities array contains the anchor identity.
 // Optionally scope-filtered.
@@ -305,31 +243,27 @@ export async function iterateAxisRows(
 //     Applied as `AND source_content_class = $n`.
 //   asOfPosition? — LM v3.5 Reading-A position ceiling. Applied as
 //     `AND position <= $n` — an open-ended ceiling: every state-change at or
-//     before the standpoint position. NOT count-limited, NOT direction-dispatched
-//     (it is not the iterateAxisRows clause — that scan is LIMIT-bounded and
-//     direction='backward'/'forward' dispatched; this is a fresh conjunct on this
-//     function's own WHERE clause).
+//     before the standpoint position. NOT count-limited, NOT direction-dispatched —
+//     a fresh conjunct on this function's own WHERE clause.
 // Both conjuncts are independently optional: absent ⇒ no conjunct emitted.
 // They compose by AND with each other and with the existing scope and limit
 // clauses. Parameter indices assigned in the existing incremental-`params` style.
 
 export async function readIdentityRecurrence(
   anchor: IdentityRef,
-  scope?: ScopeRef,
+  userId: string,
   limit?: number,
   contentClass?: ContentClass,
   asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
   try {
-    const params: unknown[] = [JSON.stringify([anchor])]
-    // scopeFilter: an OPTIONAL single source_scope conjunct on this metadata read (thread
-    // primitive). Renamed from a local `scopeClause` to avoid shadowing the imported scopeClause
-    // builder (the one read-WHERE-builder) — distinct concern, distinct name.
-    let scopeFilter = ''
-    if (scope !== undefined) {
-      params.push(scope)
-      scopeFilter = ` AND source_scope = $${params.length}`
-    }
+    // Isolation via the ONE wall builder (scopeClause(mine(userId))) — user_id is the SOLE
+    // isolation, identical to readIsolatedRows. The wall owns the leading WHERE conjunct + its
+    // params ($1); this read's own conjuncts (identities @>, contentClass, asOfPosition, limit)
+    // follow, param indices renumbered after sc.params.length.
+    const sc = scopeClause(mine(userId))
+    const params: unknown[] = [...sc.params, JSON.stringify([anchor])]
+    const identitiesClause = `identities @> $${params.length}::jsonb`
     let contentClassClause = ''
     if (contentClass !== undefined) {
       params.push(contentClass)
@@ -350,7 +284,7 @@ export async function readIdentityRecurrence(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE identities @> $1::jsonb${scopeFilter}${contentClassClause}${asOfClause}
+        WHERE ${sc.clause} AND ${identitiesClause}${contentClassClause}${asOfClause}
         ORDER BY position ASC${limitClause}`,
       params,
     )
@@ -383,12 +317,12 @@ export async function readIdentityRecurrence(
 export async function readRolePattern(
   anchor: IdentityRef,
   role: string,
-  scope?: ScopeRef,
+  userId: string,
   limit?: number,
   contentClass?: ContentClass,
   asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
-  const recurrence = await readIdentityRecurrence(anchor, scope, limit, contentClass, asOfPosition)
+  const recurrence = await readIdentityRecurrence(anchor, userId, limit, contentClass, asOfPosition)
   if (!recurrence.ok) return recurrence
 
   const matches = recurrence.data.filter(record =>
@@ -416,22 +350,21 @@ export async function readRolePattern(
 export async function readAdjacency(
   anchor: PositionRef,
   window: number,
-  scope?: ScopeRef,
+  userId: string,
   contentClass?: ContentClass,
   asOfPosition?: PositionRef,
 ): Promise<Result<StateChangeRecord[]>> {
   if (window <= 0) return { ok: true, data: [] }
 
   try {
-    const params: unknown[] = [anchor, window]
-    // scopeFilter: an OPTIONAL single source_scope conjunct on this metadata read (thread
-    // primitive). Renamed from a local `scopeClause` to avoid shadowing the imported scopeClause
-    // builder (the one read-WHERE-builder) — distinct concern, distinct name.
-    let scopeFilter = ''
-    if (scope !== undefined) {
-      params.push(scope)
-      scopeFilter = ` AND source_scope = $${params.length}`
-    }
+    // Isolation via the ONE wall builder (scopeClause(mine(userId))) — user_id is the SOLE
+    // isolation, identical to readIsolatedRows. The wall owns the leading WHERE conjunct + its
+    // params ($1); the position window (anchor, window) and this read's own conjuncts follow,
+    // param indices renumbered after sc.params.length.
+    const sc = scopeClause(mine(userId))
+    const params: unknown[] = [...sc.params, anchor, window]
+    const anchorIdx = params.length - 1
+    const windowIdx = params.length
     let contentClassClause = ''
     if (contentClass !== undefined) {
       params.push(contentClass)
@@ -447,7 +380,7 @@ export async function readAdjacency(
       `SELECT id, position::text AS position, time_ms::text AS time_ms, source_channel, source_content_class, source_scope,
               user_id, identities, relations, state_flag
          FROM ${SUBSTRATE_TABLE_NAME}
-        WHERE position BETWEEN ($1::int - $2::int) AND ($1::int + $2::int)${scopeFilter}${contentClassClause}${asOfClause}
+        WHERE ${sc.clause} AND position BETWEEN ($${anchorIdx}::int - $${windowIdx}::int) AND ($${anchorIdx}::int + $${windowIdx}::int)${contentClassClause}${asOfClause}
         ORDER BY position ASC`,
       params,
     )

@@ -14,9 +14,10 @@
 // Run: npx tsx --test src/features/F-present/config/__tests__/register-map.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import { MUSICAL_OPS, toEngineMark, engineOpToMusical, isMusicalOp } from '../register-map'
 import type { Mark } from '../mark-types'
+import { emissionFromStructured } from '@/features/F-present/domain/coin-score'
 
 const ENGINE_OPS: Mark['op'][] = ['identity', 'RELATE', 'QUALIFY', 'IDENTIFY']
 
@@ -49,13 +50,6 @@ test('toEngineMark translates only the op name; payload passes through', () => {
 })
 
 // ── (C) integration — musical emission → engine marks via the gate ────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let emissionFromStructured: any
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  ;({ emissionFromStructured } = await import('@/features/F-present/domain/coin-score'))
-})
-
 test('a model emitting MUSICAL ops yields validated ENGINE marks', () => {
   const e = emissionFromStructured({
     reply: 'Kyoto truly rivals Tokyo.',

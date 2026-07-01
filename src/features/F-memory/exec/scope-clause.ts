@@ -30,8 +30,7 @@
 // ONE branch — `kind:'public'` — and 'public' is the ONLY kind that omits user_id. 'mine' (and the
 // alias-fold) ALWAYS bind user_id. Because this is the sole clause-builder (§2.2 one-home), no read
 // can lose its user_id bound except the public branch — private CANNOT, there is no other place a
-// substrate WHERE is built. Mirror of admitWrite (the write face): one place the bound is decided
-// is one place it can relax, audited.
+// substrate WHERE is built. One place the bound is decided is the one place it can relax, audited.
 //
 // Bare in, bare out: imports NOTHING relational — Floor A keeps its zero-relational-import
 // invariant (Law 2). Callers append their own conjuncts after this clause; positions follow the
@@ -40,12 +39,18 @@
 
 export type ScopeClause = { clause: string; params: string[] }
 
+// PUBLIC_SCOPE — the one reserved source_scope value: the visibility marker the read relaxes on and
+// the write stamps. Defined HERE because this is where the relaxation lives (the keystone owns the
+// value it relaxes on); re-exported via substrate-contract R3 for the write + billing sides, so the
+// literal is never hand-duplicated. A compile-time constant — no injection surface in the clause.
+export const PUBLIC_SCOPE = 'public' as const
+
 // The scope DIAL — the visibility value a read receives. 'mine' carries the principal(s): a single
 // id, or the reader's alias-set (string[]) for the principal-set fold. 'public' carries nothing —
 // the relaxation needs no identity (source_scope='public' is cross-author by construction).
 export type ScopeSpec =
   | { kind: 'mine'; principals: string | string[] }
-  | { kind: 'public'; reader: string }   // reader = the session user, carried for the READ-ADMIT (not the clause)
+  | { kind: 'public'; reader: string }   // reader = the session user carried on the dial; the public clause drops user_id and does NOT bind it
   // Wave: | { kind: 'inbox'; reader: string }
 
 export function scopeClause(scope: ScopeSpec): ScopeClause {
@@ -59,7 +64,7 @@ export function scopeClause(scope: ScopeSpec): ScopeClause {
     case 'public':
       // THE ONE RELAXATION — the user_id bound is dropped, and ONLY here. Bound to the literal
       // 'public' source_scope (cross-author); never any other scope, never private.
-      return { clause: "source_scope = 'public'", params: [] }
+      return { clause: `source_scope = '${PUBLIC_SCOPE}'`, params: [] }
     default: {
       // FAIL-CLOSED. A new ScopeSpec kind that reaches here is a COMPILE error — the `never`
       // assignment fails until this switch decides that kind's bound, so a kind cannot ship
@@ -75,24 +80,4 @@ export function scopeClause(scope: ScopeSpec): ScopeClause {
 // substrate). A single id, or the reader's resolved alias-set (the principal-set fold).
 export function mine(principals: string | string[]): ScopeSpec {
   return { kind: 'mine', principals }
-}
-
-// publicScope(reader) — the forum's cross-author read (Wave 4). reader = the session user, carried
-// ONLY for the read-admit (the clause drops user_id). `public` is a reserved word, hence the name.
-export function publicScope(reader: string): ScopeSpec {
-  return { kind: 'public', reader }
-}
-
-// readerOf — the READER a scope is asked by (for the read-admit). mine → the principal; public →
-// the session user. Exhaustive/fail-closed, like scopeClause: a new kind without a reader fails to
-// compile (the `never`), then throws — never silently "no reader" past the admit.
-export function readerOf(scope: ScopeSpec): string {
-  switch (scope.kind) {
-    case 'mine':   return Array.isArray(scope.principals) ? scope.principals[0] : scope.principals
-    case 'public': return scope.reader
-    default: {
-      const _exhaustive: never = scope
-      throw new Error(`readerOf: unhandled scope kind for the read-admit — ${JSON.stringify(_exhaustive)}`)
-    }
-  }
 }

@@ -10,10 +10,9 @@
 // wires-in:
 //   W-ATOM  IDENTITY_EVENTS     F-identity/R0 (auth-events)
 //   W-ATOM  SESSION_EVENTS      F-identity/R0 (auth-events)
-//   W-ATOM  PERMISSIONS_EVENTS  F-permissions/R0 (permissions-events)
 //   W-ATOM  AI_EVENTS           F-ai-adapter/R0 (ai-events)
 //   W-ATOM  CHAT_EVENTS         F-chat/R0 (chat-events)
-//   W-ATOM  SUBSTRATE_EVENTS    F-memory/contract/substrate-contract
+//   W-ATOM  SUBSTRATE_EVENTS    F-memory/contract/substrate-events-contract  (the LEAN events wire — not the full barrel; breaks the load-cycle)
 //   W-ATOM  PROJECT_EVENTS      F-project/R0 (project-events)
 //   W-ATOM  PLANNER_EVENTS      F-builder/R0 (builder-events)
 //   W-ATOM  OUTPUT_EVENTS       F-output/R0 (output-events)
@@ -22,7 +21,6 @@
 //   W-ATOM  ALL_EVENT_NAMES     →  F-event-system/R1 (bus)
 // deps:
 //   R0  @/features/F-identity/config/auth-events
-//   R0  @/features/F-permissions/config/permissions-events
 //   R0  @/features/F-ai-adapter/config/ai-events
 //   R0  @/features/F-chat/config/chat-events
 //   R0  @/features/F-project/types/project-events
@@ -37,10 +35,9 @@
 
 import { IDENTITY_EVENTS }    from '@/features/F-identity/config/auth-events'
 import { SESSION_EVENTS }     from '@/features/F-identity/config/auth-events'
-import { PERMISSIONS_EVENTS } from '@/features/F-permissions/config/permissions-events'
 import { AI_EVENTS }          from '@/features/F-ai-adapter/config/ai-events'
 import { CHAT_EVENTS }        from '@/features/F-chat/config/chat-events'
-import { SUBSTRATE_EVENTS }   from '@/features/F-memory/contract/substrate-contract'
+import { SUBSTRATE_EVENTS }   from '@/features/F-memory/contract/substrate-events-contract'
 import { PROJECT_EVENTS }     from '@/features/F-project/types/project-events'
 import { PLANNER_EVENTS }     from '@/features/F-builder/config/builder-events'
 import { OUTPUT_EVENTS }      from '@/features/F-output/types/output-events'
@@ -48,7 +45,6 @@ import { OUTPUT_EVENTS }      from '@/features/F-output/types/output-events'
 export const EVENTS = {
   IDENTITY:    IDENTITY_EVENTS,
   SESSION:     SESSION_EVENTS,
-  PERMISSIONS: PERMISSIONS_EVENTS,
   AI:          AI_EVENTS,
   CHAT:        CHAT_EVENTS,
   SUBSTRATE:   SUBSTRATE_EVENTS,

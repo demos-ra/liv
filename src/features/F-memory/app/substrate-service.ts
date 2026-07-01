@@ -25,8 +25,6 @@
 //   W-EVENT   substrate.boot-complete         → F-event-system
 // wires-out:
 //   W-FN      writeStateChange      → F-memory/R3 substrate-contract
-//   W-FN      readStateChange       → F-memory/R3 substrate-contract
-//   W-FN      iterateAxis           → F-memory/R3 substrate-contract
 //   W-FN      identityRecurrence    → F-memory/R3 substrate-contract
 //   W-FN      rolePattern           → F-memory/R3 substrate-contract
 //   W-FN      adjacency             → F-memory/R3 substrate-contract
@@ -66,7 +64,6 @@
 // happens here in SW3 unconditionally before commitStateChange.)
 
 import type { Result } from '@/core/types/primitives'
-import { enforceSubstrateReadScope } from '@/features/F-permissions/contract/permissions-contract'
 import type {
   SubstrateWriteInput,
   ThreadQueryInput,
@@ -89,8 +86,6 @@ import type {
 import {
   commitStateChange,
   commitRevocation,
-  readByPosition,
-  iterateAxisRows,
   readIsolatedRows,
   readIdentityRecurrence,
   readRolePattern,
@@ -105,7 +100,6 @@ import { writeRawTurn } from '../exec/raw-turn-write'
 // write's source_scope (the one producer). The floor is the cognition write face only; scopeClause
 // (the read keystone) is untouched and imports nothing from here.
 import { grantAdmits, regionOfScope, type GrantKey } from '@/features/F-entitlement/contract/entitlement-contract'
-import { readerOf } from '../exec/scope-clause'
 import type { ScopeSpec } from '../exec/scope-clause'
 import type { RawTurn, RawWord, Who } from '@/core/types/substrate-raw.types'
 
@@ -346,13 +340,9 @@ async function sw3Commit(
 export async function writeStateChange(
   input: SubstrateWriteInput,
 ): Promise<Result<StateChangeRecord | { revoked: StateChangeId; position: PositionRef | null }>> {
-  // F-009 — the WRITE face of the one wall (the relational write path). admitWrite runs IN FRONT
-  // of SW1→SW3 (never inside commitStateChange; HR-LM1 keeps the store dumb). Every writeStateChange
-  // caller (perimeter, proxy, F-plan/verify/discover/builder/artifact) routes through this one gate.
-  // Pure indirection today (admits); Wave 2/3 fills substrate_write from connect-time identity.
-  admitWrite(input.userId)
-
-  // SW1
+  // SW1 — the writer's identity is the perimeter's (proven once at the perimeter, carried); the
+  // substrate is a dumb store (HR-LM1). No separate authority token — that was force, a decision
+  // duplicating the perimeter's proof.
   const validated = sw1Validate(input)
   if (!validated.ok) return validated
 
@@ -454,12 +444,13 @@ function tq2Gates(_validated: ThreadQueryValidated): SubstrateGateResult[] {
 
 async function tq3Execute(
   validated: ThreadQueryValidated,
+  callerUserId: string,
 ): Promise<Result<ThreadResult>> {
   switch (validated.threadKind) {
     case 'identity-recurrence': {
       const records = await readIdentityRecurrence(
         validated.anchor as IdentityRef,
-        validated.scope,
+        callerUserId,
         validated.limit,
         validated.contentClass,
         validated.asOfPosition,
@@ -478,7 +469,7 @@ async function tq3Execute(
       const records = await readRolePattern(
         validated.anchor as IdentityRef,
         validated.roleFilter as RoleRef,
-        validated.scope,
+        callerUserId,
         validated.limit,
         validated.contentClass,
         validated.asOfPosition,
@@ -498,7 +489,7 @@ async function tq3Execute(
       const records = await readAdjacency(
         validated.anchor as PositionRef,
         validated.window as number,
-        validated.scope,
+        callerUserId,
         validated.contentClass,
         validated.asOfPosition,
       )
@@ -523,31 +514,14 @@ async function tq3Execute(
 // ═══════════════════════════════════════════════════════════════
 // threadQuery — R3-callable entry point composing TQ1 → TQ2 → TQ3
 // ═══════════════════════════════════════════════════════════════
-// sprint-12-shot-3: callerUserId added per Stream B scope isolation.
-// enforceSubstrateReadScope called when scope is present and represents
-// a userId scope (D7: callsite passes userId as scope for user-scoped reads).
+// callerUserId is REQUIRED — the wearer's userId. Every thread-read isolates on it through the
+// one wall builder (scopeClause(mine(callerUserId))): user_id is the SOLE isolation, folded onto
+// the wall exactly as readIsolatedRows. No source_scope value-filter, no owner-check decider.
 
 export async function threadQuery(
-  input:         ThreadQueryInput,
-  callerUserId?: string,
+  input:        ThreadQueryInput,
+  callerUserId: string,
 ): Promise<Result<ThreadResult>> {
-  // B3: enforce user-scope isolation when scope is present and callerUserId provided.
-  // Callsites that pass userId as scope (user-scoped reads) supply callerUserId.
-  // Project-scoped reads do not supply callerUserId — pass through per TQ3.
-  if (callerUserId !== undefined && input.scope !== undefined) {
-    try {
-      enforceSubstrateReadScope(callerUserId, String(input.scope))
-    } catch (err) {
-      return {
-        ok: false,
-        error: {
-          code:    'SUBSTRATE_READ_PERMISSION_DENIED',
-          message: err instanceof Error ? err.message : 'Substrate read scope denied',
-        },
-      }
-    }
-  }
-
   const validated = tq1Validate(input)
   if (!validated.ok) return validated
 
@@ -563,7 +537,7 @@ export async function threadQuery(
     }
   }
 
-  return tq3Execute(validated.data)
+  return tq3Execute(validated.data, callerUserId)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -581,24 +555,10 @@ export async function threadQuery(
 // parameters, forwarded onto the constructed ThreadQueryInput. Existing callers
 // pass neither — additive-optional, backward-compatible, no callsite sweep.
 
-export async function readStateChange(
-  position: PositionRef,
-): Promise<Result<StateChangeRecord | null>> {
-  return readByPosition(position)
-}
-
-export async function iterateAxis(
-  start: PositionRef,
-  direction: 'forward' | 'backward',
-  count: number,
-): Promise<Result<StateChangeRecord[]>> {
-  return iterateAxisRows(start, direction, count)
-}
-
 // readScope: the canonical scope-ordered substrate read — every
 // StateChangeRecord for a userId, position ASC. First-class (F10): the core
 // loop's read step and the export route both consume it. userId-scoped — the
-// substrate isolation floor; never iterateAxis (unscoped).
+// substrate isolation floor (user_id bound through the one builder scopeClause).
 //
 // contentclass-coreloop: optional contentClass filter, threaded to
 // readIsolatedRows. Mirrors the TQ3 contentClass filter on the thread primitives
@@ -610,24 +570,11 @@ export async function readScope(
   contentClass?: ContentClass,
   scopeSet?: string[],
 ): Promise<Result<StateChangeRecord[]>> {
-  // READ-ADMIT — the read face's substrate_read gate (mirror of admitWrite). The reader is the
-  // principal (this is always `mine`). Permissive today; Wave 2/3 fills the check.
-  admitRead(Array.isArray(principals) ? principals[0] : principals)
   // the relational read is always `mine` (isolation) — principals is a single id or the reader's
   // alias-set (the principal-set fold, user_id = ANY). scopeSet (the readableScopesFor producer's
   // data, when provided) bounds the read to the reader's readable scopes via source_scope = ANY.
   // readIsolatedRows builds the WHERE through the one builder (scopeClause).
   return readIsolatedRows(principals, contentClass, scopeSet)
-}
-
-// ── admitRead — the READ face's authority gate (F-009 read side) ─────────────────
-// Mirror of admitWrite: gather/readScope admit the READER before the read, IN FRONT of the
-// builder + floors (HR-LM1 — the store stays dumb). substrate_read is the token (owner+member,
-// viewer excluded — permissions-config.ts:62-63/95), the symmetric twin of substrate_write.
-// Permissive today (admits); Wave 2/3 fills the check from the reader's connect-time identity —
-// exactly as admitWrite's substrate_write fill. One read-admit, never scattered.
-export function admitRead(_readerUserId: string): void {
-  // Wave 2/3 fills the substrate_read check HERE. Today: admit.
 }
 
 // ── gather — the one scope-resolving cognition read (the scope un-weld) ──────────
@@ -644,25 +591,10 @@ export type ReadScope = ScopeSpec
 // This is the v2 §4 fill-point. Every product read (present, search, core-loop) fetches through
 // here; the public relaxation appears ONLY via the one builder, audited, never scattered.
 export async function gather(scope: ReadScope): Promise<RawTurn[]> {
-  // READ-ADMIT in front of EVERY read (mirror of admitWrite) — mine AND public. readerOf carries
-  // the reader (the principal for mine, the session user for public), so F-forum's public read
-  // (Wave 4) INHERITS this gate at the seam — it never re-adds it. Permissive today.
-  admitRead(readerOf(scope))
+  // The one scope-resolving read: hand the scope DIAL to the one builder (scopeClause). 'mine' binds
+  // user_id (single id or the alias-set); 'public' drops it for source_scope='public' (the forum's
+  // cross-author read). Visibility is the wall's only memory-access decision — no authority token.
   return readTranscript(scope)
-}
-
-// ── admitWrite — the WRITE face of the one wall (F-009) ──────────────────────────
-// F-memory R2 is THE ONE WALL: gather/readScope admits READS by scope; admitWrite admits WRITES
-// by authority; the isolation floor is shared. One audited home, both faces. The gate sits IN
-// FRONT OF the substrate primitives (writeRawTurn / writeStateChange→commitStateChange), never
-// inside them — the substrate stays a dumb store (HR-LM1: authority is the perimeter's, not the
-// store's). substrate_write is enforced ONCE, here. 1e: the SEAM lands and every write routes
-// through it (pure indirection — admits today, behavior unchanged); the per-deployment
-// substrate_write FILL is connect-time identity (Wave 2/3), exactly as the read side's scope-fill.
-// The writer's id is received now; only the permission check is deferred — never scattered.
-export function admitWrite(_writerUserId: string): void {
-  // Wave 2/3 fills the substrate_write check HERE (Permissions-Standard token), resolved from the
-  // writer's connect-time identity. Today: admit (no provider wired → permissive, like the gate).
 }
 
 // EntitlementFloorError — the tier floor's fail-closed throw (honest, typed). A denied cognition
@@ -682,7 +614,8 @@ export class EntitlementFloorError extends Error {
 // floor is grantAdmits at the write's region (regionOfScope(scope) — the one producer), fail-closed:
 // a denied tier THROWS, the write never lands. `grantKey` is REQUIRED (compile-enforced no-bypass) —
 // the perimeter-resolved key handed down; the floor RE-RESOLVES NOTHING (region from scope, key from
-// the door). substrate_write (the permission token) stays at admitWrite (shared, permissive).
+// the door). The tier floor is the ONLY write-face decision — the writer's identity is the
+// perimeter's, and visibility is the scope value at the wall; there is no separate authority token.
 export async function admitWriteRaw(
   input: { who: Who; words: RawWord[]; userId: string; scope: string; grantKey: GrantKey },
 ): Promise<number> {
@@ -690,12 +623,12 @@ export async function admitWriteRaw(
   if (!grantAdmits(input.grantKey, region, 'write')) {
     throw new EntitlementFloorError(region)
   }
-  admitWrite(input.userId)
   return writeRawTurn({ who: input.who, words: input.words, userId: input.userId, scope: input.scope })
 }
 
 export async function identityRecurrence(
-  anchor: IdentityRef,
+  anchor:       IdentityRef,
+  callerUserId: string,
   scope?: ScopeRef,
   limit?: number,
   contentClass?: ContentClass,
@@ -708,12 +641,13 @@ export async function identityRecurrence(
     limit,
     contentClass,
     asOfPosition,
-  })
+  }, callerUserId)
 }
 
 export async function rolePattern(
-  anchor: IdentityRef,
-  role: RoleRef,
+  anchor:       IdentityRef,
+  role:         RoleRef,
+  callerUserId: string,
   scope?: ScopeRef,
   limit?: number,
   contentClass?: ContentClass,
@@ -727,12 +661,13 @@ export async function rolePattern(
     limit,
     contentClass,
     asOfPosition,
-  })
+  }, callerUserId)
 }
 
 export async function adjacency(
-  anchor: PositionRef,
-  window: number,
+  anchor:       PositionRef,
+  window:       number,
+  callerUserId: string,
   scope?: ScopeRef,
   limit?: number,
   contentClass?: ContentClass,
@@ -746,7 +681,7 @@ export async function adjacency(
     limit,
     contentClass,
     asOfPosition,
-  })
+  }, callerUserId)
 }
 
 // ═══════════════════════════════════════════════════════════════

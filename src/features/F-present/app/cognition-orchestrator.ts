@@ -102,6 +102,7 @@ import type { PresentBundle }                            from '@/features/F-pres
 import { PRESENT_BUNDLES }                                from '@/features/F-present/config/read-engine-types'
 import { createDbPresentMarkStore }                      from '@/features/F-present/exec/present-mark-store-db'
 import { gather, mine }                                  from '@/features/F-memory/contract/substrate-contract'
+import { aliasesOf }                                     from '@/features/F-identity/contract/auth-contract'
 import { registerReplyComposer, registerContextReader } from '@/core/domain/cognition-seam'
 import type { ReplyComposer, ContextReader }             from '@/core/domain/cognition-seam'
 
@@ -189,7 +190,7 @@ export const composeAndWrite: ReplyComposer = async (input) => {
 // A section is a PresentView (assignment + render spec) consumed by two fixed mechanisms:
 // pivot(view.assignment, …) → Grid ; renderGrid(grid, view.render) → text.
 export async function presentContext(userId: string, bundle: PresentBundle = PRESENT_BUNDLES.native): Promise<string> {
-  const transcript = await gather(mine(userId))   // scope dial — 'mine' = user_id bound, same rows
+  const transcript = await gather(mine(await aliasesOf(userId)))   // alias-fold → user_id = ANY($1); empty table → [self], same rows
   const store      = await createDbPresentMarkStore().read(userId)
 
   const rows = buildFactTable(transcript, store)

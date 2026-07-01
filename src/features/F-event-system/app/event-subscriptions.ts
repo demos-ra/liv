@@ -13,7 +13,6 @@
 //   W-ATOM  EVENTS                 F-event-system/R0 (event-schema)
 //   W-ATOM  LivEvent               core/R0 (primitives)
 //   W-HOOK  destroySessionForUser  F-identity/R3 (auth-contract)
-//   W-HOOK  assignDefaultRole      F-permissions/R3 (permissions-contract)
 //   W-HOOK  upsertProfileForUser   F-user-profile/R3 (user-profile-contract)
 // wires-out:
 //   W-HOOK  registerAllSubscriptions  →  core/startup.ts
@@ -22,7 +21,6 @@
 //   R0  @/core/types/primitives
 //   R3  ../contract/event-bus
 //   R3  @/features/F-identity/contract/auth-contract
-//   R3  @/features/F-permissions/contract/permissions-contract
 //   R3  @/features/F-user-profile/contract/user-profile-contract
 // validated:  pending
 //
@@ -74,15 +72,6 @@ subscribeToEvent(EVENTS.IDENTITY.USER_SIGNED_OUT, async (event: LivEvent) => {
 subscribeToEvent(EVENTS.SESSION.SESSION_EXPIRED, async (event: LivEvent) => {
   const { userId, sessionId } = event.payload as { userId: string; sessionId: string }
   await destroySessionForUser(userId, sessionId)
-})
-
-// ─── F-permissions ────────────────────────────────────────────────────────────
-
-import { assignDefaultRole } from '@/features/F-permissions/contract/permissions-contract'
-
-subscribeToEvent(EVENTS.IDENTITY.USER_AUTHENTICATED, async (event: LivEvent) => {
-  const { userId } = event.payload as { userId: string }
-  await assignDefaultRole(userId)
 })
 
 // ─── F-user-profile ───────────────────────────────────────────────────────────

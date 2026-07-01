@@ -129,8 +129,7 @@ async function runS1(
       const threadResult = await threadQuery({
         threadKind: 'identity-recurrence',
         anchor:     priorAnchorKey,
-        scope:      input.projectId as ScopeRef,
-      })
+      }, input.userId)
       if (threadResult.ok && threadResult.data.records.length > 0) {
         const last = threadResult.data.records[threadResult.data.records.length - 1]
         // Anchor identity stored with 'anchor' role in the artifact-emitted relation

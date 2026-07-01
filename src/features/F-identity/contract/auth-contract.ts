@@ -55,5 +55,15 @@ export async function getUserEmail(userId: string): Promise<string | null> {
   return result.data.email
 }
 
-// ─── aliasesOf (Wave-2 keystone — the principal-set producer; DATA, not a decision) ───────────
-export { aliasesOf } from '../app/principal-aliases'
+// ─── aliasesOf (the principal-set producer; DATA, not a decision) ─────────────────────────────
+// R3 supplies the live resolve adapter — aliasPrincipalSet over the auth DB (A2: R3 wires R4; R2's
+// aliasesOf only declares the port, never touches the DB). Activation: every `mine`-reader folds
+// through this; an empty auth_user_aliases table → [reader] (fail-safe in aliasesOf), behavior-
+// preserving until a reconcile appends an alias.
+import { aliasesOf as aliasesOfImpl } from '../app/principal-aliases'
+
+const liveAliasResolve = async (reader: string): Promise<string[]> => {
+  const res = await createAuthDb(taggedDb(db)).aliasPrincipalSet(reader)
+  return res.success ? res.data : [reader]
+}
+export const aliasesOf = (reader: string): Promise<string[]> => aliasesOfImpl(reader, liveAliasResolve)

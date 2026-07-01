@@ -12,30 +12,22 @@
 //     reproduces the wrapped span). Op is the musical word; targets parse (names → strings, who:sc:pos
 //     → Coord). Malformed tag / unknown op / unclosed clause → MarkSurfaceError, loud, naming the span.
 //
-// Load note: warm the F-present R3 graph first (db client is lazy), then import coin-score.
 // Run: npx tsx --test src/features/F-present/domain/__tests__/inline-marking.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cs: any
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')          // warm the graph
-  cs = await import('@/features/F-present/domain/coin-score')
-})
+import { test } from 'node:test'
+import * as cs from '@/features/F-present/domain/coin-score'
 
 // ── PROJECTION — the inline situation omits replyMarks; keeps priorMarks; teaches `reply` ──
 test('inline projection omits replyMarks, keeps priorMarks, teaches the form on reply', () => {
   const s = cs.projectEmissionSchema({ includeWearerText: true, demand: 'all-present', replyMarking: 'inline' })
-  assert.deepEqual(Object.keys(s.properties), ['wearerText', 'reply', 'priorMarks'], 'NO replyMarks field; priorMarks intact')
-  assert.equal(s.properties.replyMarks, undefined, 'replyMarks is omitted entirely under inline')
-  assert.ok(typeof s.properties.reply.description === 'string' && s.properties.reply.description.includes('[['),
+  assert.deepEqual(Object.keys(s.properties!), ['wearerText', 'reply', 'priorMarks'], 'NO replyMarks field; priorMarks intact')
+  assert.equal(s.properties!.replyMarks, undefined, 'replyMarks is omitted entirely under inline')
+  assert.ok(typeof s.properties!.reply.description === 'string' && s.properties!.reply.description.includes('[['),
     'the reply field carries the inline-form teaching')
   // priorMarks is the SAME shared mark geometry as today — the prior side is unchanged.
-  assert.equal(s.properties.priorMarks.items, cs.SCORE_SCHEMA.properties.priorMarks.items, 'priorMarks rides the one shared mark item')
-  assert.equal(s.properties.priorMarks.type, 'array')
+  assert.equal(s.properties!.priorMarks.items, cs.SCORE_SCHEMA.properties!.priorMarks.items, 'priorMarks rides the one shared mark item')
+  assert.equal(s.properties!.priorMarks.type, 'array')
   // required follows demand over the PRESENT fields (replyMarks is not present, so not required).
   assert.deepEqual(s.required, ['wearerText', 'reply', 'priorMarks'])
   assert.equal(s.additionalProperties, false)
@@ -45,14 +37,14 @@ test('separate / absent replyMarking is byte-identical to today (the SpanMark[] 
   const absent = cs.projectEmissionSchema({ includeWearerText: true, demand: 'all-present' })
   const separate = cs.projectEmissionSchema({ includeWearerText: true, demand: 'all-present', replyMarking: 'separate' })
   assert.deepEqual(absent, separate, 'absent ≡ separate')
-  assert.deepEqual(Object.keys(absent.properties), ['wearerText', 'reply', 'replyMarks', 'priorMarks'], 'replyMarks present on separate')
+  assert.deepEqual(Object.keys(absent.properties!), ['wearerText', 'reply', 'replyMarks', 'priorMarks'], 'replyMarks present on separate')
   // native MIGRATED to inline (Touch 3 native-first): NATIVE_SITUATION.replyMarking === 'inline',
   // so its projection now OMITS replyMarks and rides the inline teaching on `reply`. SCORE_SCHEMA
   // still IS the native projection (deterministic). The SEPARATE (SpanMark[]) path survives for the wire.
   assert.equal(cs.NATIVE_SITUATION.replyMarking, 'inline', 'native migrated to inline')
   assert.deepEqual(cs.SCORE_SCHEMA, cs.projectEmissionSchema(cs.NATIVE_SITUATION))
-  assert.deepEqual(Object.keys(cs.SCORE_SCHEMA.properties), ['reply', 'priorMarks'], 'native inline omits replyMarks')
-  assert.ok(typeof cs.SCORE_SCHEMA.properties.reply.description === 'string', 'native inline rides the inline teaching on reply')
+  assert.deepEqual(Object.keys(cs.SCORE_SCHEMA.properties!), ['reply', 'priorMarks'], 'native inline omits replyMarks')
+  assert.ok(typeof cs.SCORE_SCHEMA.properties!.reply.description === 'string', 'native inline rides the inline teaching on reply')
 })
 
 // ── PARSER — round-trip: strip then the clean text reproduces the spans, offsets land right ──
@@ -103,7 +95,7 @@ test('a span with note+tie homes BOTH marks at one pos through locateInlineMarks
   const located = cs.locateInlineMarks(marks, cells)
   // ONE home (the span "Kyoto") carrying TWO engine marks: identity (note) + IDENTIFY (tie).
   const wc = cs.wordCells(cells)
-  const kyotoPos = wc.find((c: { word: string }) => c.word === 'Kyoto').pos
+  const kyotoPos = wc.find((c: { word: string }) => c.word === 'Kyoto')!.pos
   const entry = located.find((l: { pos: number }) => l.pos === kyotoPos)
   assert.ok(entry, 'the span homes once at "Kyoto"')
   assert.equal(entry.marks.length, 2, 'both marks ride the one home')
@@ -161,13 +153,13 @@ test('inline expression homes through locateInlineMarks as a QUALIFY with { colo
   const cells = cs.cutReply(clean).cells
   const located = cs.locateInlineMarks(marks, cells)
   // ONE located mark: a QUALIFY (engine op for expression) carrying BOTH coloring and target.
-  const quals = located.flatMap((l: { marks: { op: string }[] }) => l.marks).filter((m: { op: string }) => m.op === 'QUALIFY')
+  const quals = located.flatMap((l: { marks: { op: string; coloring?: string; target?: unknown }[] }) => l.marks).filter((m: { op: string }) => m.op === 'QUALIFY')
   assert.equal(quals.length, 1, 'the expression now passes the gate and HOMES (it dropped before, missing coloring)')
   assert.equal(quals[0].coloring, 'vivid')
   assert.deepEqual(quals[0].target, 'Tokyo')
   // it homes on the wrapped span "Kyoto".
   const wc = cs.wordCells(cells)
-  const kyotoPos = wc.find((c: { word: string }) => c.word === 'Kyoto').pos
+  const kyotoPos = wc.find((c: { word: string }) => c.word === 'Kyoto')!.pos
   assert.ok(located.some((l: { pos: number; marks: { op: string }[] }) => l.pos === kyotoPos && l.marks.some((m: { op: string }) => m.op === 'QUALIFY')))
 })
 

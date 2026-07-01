@@ -14,22 +14,13 @@
 //       written or placed (atomic) — the loud rejection precedes every write.
 //   (E) empty reply → honest non-write.
 //
-// Load note (mirrors reply-render-fidelity): warm the F-present R3 graph first.
 // Run: npx tsx --test src/features/F-present/app/__tests__/scored-turn-recorder.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let recordScoredTurn: any, cutReply: any, emissionFromStructured: any, wordCells: any, MarkSurfaceError: any
-let cutCells: (t: string) => { pos: number; word: string }[]
-
-before(async () => {
-  await import('@/features/F-present/contract/present-contract')        // warm the graph
-  ;({ recordScoredTurn } = await import('@/features/F-present/app/scored-turn-recorder'))
-  ;({ cutReply, emissionFromStructured, wordCells, MarkSurfaceError } = await import('@/features/F-present/domain/coin-score'))
-  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-})
+import { test } from 'node:test'
+import { recordScoredTurn } from '@/features/F-present/app/scored-turn-recorder'
+import { cutReply, emissionFromStructured, wordCells, MarkSurfaceError } from '@/features/F-present/domain/coin-score'
+import { cutCells } from '@/features/F-memory/exec/raw-turn-write'
 
 // A DB-free deps seam: empty prior state, a capturing store, a COUNTING cutReply delegating
 // to the real one, and the real cutCells. writeRawTurn returns wearerSc for a wearer write,

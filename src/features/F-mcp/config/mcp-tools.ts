@@ -11,8 +11,8 @@
 // wires-in:
 //   W-ATOM   McpToolDescriptor  F-mcp/config mcp-protocol
 // wires-out:
-//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP   F-mcp/R1 tool-registry, R3 contract
-//   W-ATOM   TURN_ARGS   F-mcp/R1 tool-registry   (the write-door's extras allow-list — the four wire arg names)
+//   W-ATOM   MCP_TOOLS / TOOL_PRESENT / TOOL_TURN / TOOL_LOOKUP / TOOL_PUBLISH   F-mcp/R1 tool-registry, R3 contract
+//   W-ATOM   TURN_ARGS / PUBLISH_ARGS   F-mcp/R1 tool-registry   (the write-doors' extras allow-lists)
 // validated:  pending
 
 import type { McpToolDescriptor } from './mcp-protocol'
@@ -52,6 +52,13 @@ export const TOOL_PRESENT = 'summary' as const
 export const TOOL_TURN = 'compose' as const
 export const TOOL_LOOKUP = 'search' as const
 
+// TOOL_PUBLISH — surface a turn to the PUBLIC forum. Publishing AUTHORS NOTHING new: it is the
+// NORMAL marked compose (the SAME four fields, the SAME marking) stamped source_scope='public'
+// instead of the connection scope, behind a wearer confirm. The forum is a network of public
+// REFERENCE, not an authored store. Like `compose`, its emission schema is DERIVED at R3 (the one
+// core contract, projected) + the `confirmed` phase flag — never re-declared at config.
+export const TOOL_PUBLISH = 'publish' as const
+
 // TOOL_CAPTURE — the submit-capture primitive (the capture un-weld, 1d). Capture is
 // its OWN op now, no longer a job riding the read (summary's wearerText branch). It is
 // DISPATCHABLE but NOT advertised in MCP_TOOLS — the lifecycle hook fires it at the
@@ -67,6 +74,11 @@ export const TOOL_CAPTURE = 'capture' as const
 // the advertised shape can never disagree. Config owns the arg NAMES (wire-hygiene); the
 // emission SHAPE is the core contract's, projected at R3 (cognition-turn contract).
 export const TURN_ARGS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
+
+// The `publish` write-door's arg names — EXACTLY the compose args (the marked-turn payload, reused
+// verbatim — no new vocabulary) plus `confirmed`, the two-phase flag (absent/false = phase one,
+// surface the confirm; true = phase two, write public). The door rejects extras against this list.
+export const PUBLISH_ARGS = [...TURN_ARGS, 'confirmed'] as const
 
 // (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
 // is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
@@ -93,6 +105,15 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     // all four required, additionalProperties:false, the full mark shape. Config owns the
     // arg NAMES only (TURN_ARGS, above), not the emission shape. Transport-safety (flat
     // object, no top-level oneOf/anyOf/allOf) is the projector's invariant, pinned by test.
+  },
+  {
+    name: TOOL_PUBLISH,
+    description:
+      "Publish this turn to the public forum — the SAME marked turn you offer with compose, but stamped public so anyone can reference it. The forum authors nothing of its own; publishing IS your normal compose, made public. Two steps: call publish once to receive the wearer's confirm prompt (surface it verbatim and wait), then call again with confirmed:true to write it. Mark exactly as you do for compose.",
+    // NO inputSchema here — like compose, publish's emission shape is a DERIVED view projected at R3
+    // (mcp-contract): projectEmissionSchema(MCP_SITUATION) + the `confirmed` phase flag. Config owns
+    // the arg NAMES only (PUBLISH_ARGS = the compose args + confirmed); the emission shape stays the
+    // one core contract, never re-declared here.
   },
   {
     name: TOOL_LOOKUP,

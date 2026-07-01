@@ -20,23 +20,13 @@
 // Run: npx tsx --test src/features/F-mcp/domain/__tests__/wire-turn.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
 import { planToolCall } from '../tool-registry'
 import { TURN_ARGS } from '../../config/mcp-tools'
-
-// R3-surface pieces (warmed so the F-memory R3 barrel resolves cleanly under tsx).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let recordScoredTurn: any, emissionFromStructured: any, MarkSurfaceError: any, wordCells: any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let presentOrDegraded: any, projectEmissionSchema: any, MCP_SITUATION: any
-let cutCells: (t: string) => { pos: number; word: string }[]
-
-before(async () => {
-  ;({ recordScoredTurn, emissionFromStructured, MarkSurfaceError, projectEmissionSchema, presentOrDegraded } = await import('@/features/F-present/contract/present-contract'))
-  ;({ wordCells } = await import('@/features/F-present/domain/coin-score'))
-  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ MCP_SITUATION } = await import('@/features/F-mcp/contract/mcp-contract'))
-})
+import { recordScoredTurn, emissionFromStructured, MarkSurfaceError, projectEmissionSchema, presentOrDegraded } from '@/features/F-present/contract/present-contract'
+import { wordCells } from '@/features/F-present/domain/coin-score'
+import { cutCells } from '@/features/F-memory/exec/raw-turn-write'
+import { MCP_SITUATION } from '@/features/F-mcp/contract/mcp-contract'
 
 const WEARER = 'I toured Kyoto'
 const REPLY = 'Kyoto truly rivals Tokyo.'
@@ -87,18 +77,18 @@ test('projectEmissionSchema(MCP_SITUATION): all-four required, wearerText, zero 
   const { SCORE_SCHEMA } = await import('@/features/F-present/domain/coin-score') as any
   const s = projectEmissionSchema(MCP_SITUATION)
   assert.equal(s.type, 'object')
-  assert.deepEqual(Object.keys(s.properties), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
+  assert.deepEqual(Object.keys(s.properties!), ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.deepEqual(s.required, ['wearerText', 'reply', 'replyMarks', 'priorMarks'])
   assert.equal(s.additionalProperties, false)
   // FIELD HINTS ARE ZERO: the schema enforces structure silently; no per-field description rides.
   for (const f of ['wearerText', 'reply', 'replyMarks', 'priorMarks']) {
-    assert.equal(s.properties[f].description, undefined, `${f} carries no field hint (zero — the manual teaches)`)
+    assert.equal(s.properties![f].description, undefined, `${f} carries no field hint (zero — the manual teaches)`)
   }
   // DRIFT GONE: the wire's mark item is the SAME geometry the core advertises. Native is now
   // inline (no replyMarks of its own), so the shared-item proof rides priorMarks — the prior
   // side is named-span in EVERY situation, so SCORE_SCHEMA.priorMarks.items is the one geometry.
-  assert.deepEqual(s.properties.replyMarks.items, SCORE_SCHEMA.properties.priorMarks.items)
-  assert.deepEqual(s.properties.priorMarks.items, s.properties.replyMarks.items)
+  assert.deepEqual(s.properties!.replyMarks.items, SCORE_SCHEMA.properties.priorMarks.items)
+  assert.deepEqual(s.properties!.priorMarks.items, s.properties!.replyMarks.items)
 })
 
 test('transport-safe: the projected turn schema is a flat object, no top-level oneOf/anyOf/allOf', () => {
@@ -109,7 +99,7 @@ test('transport-safe: the projected turn schema is a flat object, no top-level o
 })
 
 test('TURN_ARGS === the projected schema property keys (the door cannot diverge from the advertisement)', () => {
-  assert.deepEqual([...TURN_ARGS], Object.keys(projectEmissionSchema(MCP_SITUATION).properties))
+  assert.deepEqual([...TURN_ARGS], Object.keys(projectEmissionSchema(MCP_SITUATION).properties!))
 })
 
 // the R3 WIRING end-to-end: tools/list injects the PROJECTED inputSchema (not a config copy)
@@ -161,7 +151,9 @@ test('a well-formed turn lands both turns and its marks; scope is the stamped se
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
+  // recordScoredTurn returns the discriminated WriteAck; this turn lands. (any — same loose binding the deferred-import dodge gave it.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recorded: any = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
 
   assert.equal(recorded.sc, 12)
   // both turns written: wearer THEN reply; scope stamped = sessionId, never sent.
@@ -211,7 +203,9 @@ test('a non-string wearerText is absorbed at the core (empty wearer; reply recor
     reply: plan.intention.reply, replyMarks: plan.intention.replyMarks, priorMarks: plan.intention.priorMarks,
   })
   const seam = stubDeps(12, 11)
-  const recorded = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
+  // recordScoredTurn returns the discriminated WriteAck; this turn lands. (any — same loose binding the deferred-import dodge gave it.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recorded: any = await recordScoredTurn(emission, 'llm', 'user-1', 'sess-1', 'paid', { text: plan.intention.wearerText }, 'separate', seam.deps)
   assert.equal(recorded.sc, 12, 'the reply still records — the non-string wearerText did not throw')
   assert.equal(seam.placed.length, 1, 'only the reply mark lands; the wearer turn is empty (graceful)')
   assert.equal(seam.placed[0].home.who, 'llm')
@@ -245,7 +239,7 @@ const WIRE_BUNDLE = { transcript: false, structure: true, state: true } as const
 // the WriteAck handed to the unit (§1a): a LANDED turn carries { landed:true, sc, text }; a dropped
 // no-op is { landed:false }. Persistence is read from `landed`, never from `sc`'s value.
 const PERSISTED = { landed: true, sc: 12, text: 'x' }
-const NO_WRITE = { landed: false }
+const NO_WRITE = { landed: false } as const
 test('A2.2: presentOrDegraded passes the present through on success; on render failure returns the named degraded payload', async () => {
   // success → the render passes straight through (no envelope).
   const ok = await presentOrDegraded('user-1', WIRE_BUNDLE, PERSISTED, { readPresent: async () => 'PRESENT-TEXT' })

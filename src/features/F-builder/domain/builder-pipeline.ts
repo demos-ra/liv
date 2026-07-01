@@ -255,6 +255,7 @@ export async function runPipeline(
       }),
     }
     const adapter   = createAdapterPort(deps.ai, job.userId)
+    const jobUserId = job.userId   // captured for the resolvePlan closure (job is a nullable let)
 
     // b1-final-shot-3: PlanResolutionPort backed by substrate threadQuery.
     // Artifact payload written by createArtifact S3 includes artifact-content:{JSON}
@@ -267,7 +268,7 @@ export async function runPipeline(
             threadKind: 'identity-recurrence',
             anchor:     planAnchorNodeId as unknown as IdentityRef,
             limit:      1,
-          } as ThreadQueryInput)
+          } as ThreadQueryInput, jobUserId)
           if (!result.ok || result.data.records.length === 0) return null
           const record = result.data.records[result.data.records.length - 1]
           const contentIdentity = record.content.identities.find(

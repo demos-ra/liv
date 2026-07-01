@@ -6,28 +6,19 @@
 // Run: npx tsx --test src/features/F-present/app/__tests__/search-text-pivot.test.ts
 
 import assert from 'node:assert/strict'
-import { test, before } from 'node:test'
+import { test } from 'node:test'
+import { search, parseSearchSpec, recordScoredTurn, emissionFromStructured, projectManual } from '@/features/F-present/contract/present-contract'
+import { cutCells } from '@/features/F-memory/exec/raw-turn-write'
+import { wordCells, NATIVE_SITUATION, projectEmissionSchema } from '@/features/F-present/domain/coin-score'
+import { handleMcpRequest } from '@/features/F-mcp/contract/mcp-contract'
+import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-let search: any, parseSearchSpec: any, recordScoredTurn: any, emissionFromStructured: any, projectManual: any
-let NATIVE_SITUATION: any, projectEmissionSchema: any, COIN_MANUAL: string
-let handleMcpRequest: any
-let cutCells: (t: string) => { pos: number; word: string }[]
-let wordCells: (cells: any[]) => { pos: number }[]
-
-before(async () => {
-  ;({ search, parseSearchSpec, recordScoredTurn, emissionFromStructured, projectManual } =
-    await import('@/features/F-present/contract/present-contract'))
-  ;({ cutCells } = await import('@/features/F-memory/exec/raw-turn-write'))
-  ;({ wordCells, NATIVE_SITUATION, projectEmissionSchema } = await import('@/features/F-present/domain/coin-score'))
-  ;({ handleMcpRequest } = await import('@/features/F-mcp/contract/mcp-contract'))
-  // the native rendering (the manual the compose path rides) — built the way the caller builds it:
-  // primitives from native's situation + its own projected schema fields (coin-manual is an R0 leaf).
-  COIN_MANUAL = projectManual({
-    inline: NATIVE_SITUATION.replyMarking === 'inline',
-    includeWearerText: NATIVE_SITUATION.includeWearerText,
-    fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
-  })
+// the native rendering (the manual the compose path rides) — built the way the caller builds it:
+// primitives from native's situation + its own projected schema fields (coin-manual is an R0 leaf).
+const COIN_MANUAL: string = projectManual({
+  inline: NATIVE_SITUATION.replyMarking === 'inline',
+  includeWearerText: NATIVE_SITUATION.includeWearerText,
+  fields: Object.keys(projectEmissionSchema(NATIVE_SITUATION).properties ?? {}),
 })
 
 // ── an in-memory substrate (DB-free): the recorder writes here; search reads here ──
@@ -70,17 +61,19 @@ async function seedKyoto(h: ReturnType<typeof harness>) {
 
 // ── parseSearchSpec — the one validator (region × lens) ────────────────────────────
 test('parseSearchSpec: region defaults to all; lens is required; bad zones are named', () => {
-  assert.deepEqual(parseSearchSpec({ lens: { view: 'raw' } }).spec.region, { kind: 'all' })
+  // parseSearchSpec is a discriminated { ok, spec } | { ok, message } union; assert.ok narrows it on
+  // the `ok` discriminant (asserts-signature), so each site reads its branch with real types.
+  const def = parseSearchSpec({ lens: { view: 'raw' } });  assert.ok(def.ok)
+  assert.deepEqual(def.spec.region, { kind: 'all' })
   assert.equal(parseSearchSpec({}).ok, false)                                   // lens required
-  assert.match(parseSearchSpec({ lens: { view: 'bogus' } }).message, /view must be raw \| table/)
-  assert.match(parseSearchSpec({ lens: { view: 'table', rows: 'xyz' } }).message, /rows: lineage \| time/)
-  assert.match(parseSearchSpec({ region: { kind: 'turn', who: 'nope', sc: 1 }, lens: { view: 'raw' } }).message, /who must be wearer \| llm/)
-  // a full pivot spec round-trips to a typed spec.
-  // the PUBLIC value is `table`; parseSearchSpec translates it to the internal `pivot` lens —
-  // so the input says table, the parsed result reads pivot (the one translation, proven here).
-  const ok = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'table', rows: 'time', focus: 'Kyoto', sort: 'id', filter: { colorings: { hide: ['truly'] } } } })
-  assert.equal(ok.ok, true)
-  assert.equal(ok.spec.lens.view, 'pivot')
+  const badView = parseSearchSpec({ lens: { view: 'bogus' } });  assert.ok(!badView.ok);  assert.match(badView.message, /view must be raw \| table/)
+  const badRows = parseSearchSpec({ lens: { view: 'table', rows: 'xyz' } });  assert.ok(!badRows.ok);  assert.match(badRows.message, /rows: lineage \| time/)
+  const badWho = parseSearchSpec({ region: { kind: 'turn', who: 'nope', sc: 1 }, lens: { view: 'raw' } });  assert.ok(!badWho.ok);  assert.match(badWho.message, /who must be wearer \| llm/)
+  // a full pivot spec round-trips to a typed spec. The PUBLIC value is `table`; parseSearchSpec
+  // translates it to the internal `pivot` lens — input says table, the parsed result reads pivot.
+  const okSpec = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'table', rows: 'time', focus: 'Kyoto', sort: 'id', filter: { colorings: { hide: ['truly'] } } } })
+  assert.ok(okSpec.ok)
+  assert.equal(okSpec.spec.lens.view, 'pivot')
 })
 
 // ── region × lens orthogonality (compose; neither is a second way to do the other) ──
@@ -88,15 +81,15 @@ test('region × lens: raw selects cells; pivot renders a grid; turn|span|thing a
   const h = harness(); await seedKyoto(h)
   // raw × all → every cell
   const rawAll = await search('u', { region: { kind: 'all' }, lens: { view: 'raw' } }, h.lookDeps)
-  assert.equal(rawAll.ok && rawAll.view === 'raw', true)
+  assert.ok(rawAll.ok);  assert.ok(rawAll.view === 'raw')
   assert.ok(rawAll.cells.length >= 4)
   // raw × thing → the thing's cells (turn|span|thing are REGION shorthands, not a parallel path)
   const rawThing = await search('u', { region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'raw' } }, h.lookDeps)
-  assert.equal(rawThing.ok, true)
-  assert.ok(rawThing.cells.every((c: any) => c.word === 'Kyoto'))
+  assert.ok(rawThing.ok);  assert.ok(rawThing.view === 'raw')
+  assert.ok(rawThing.cells.every((c) => c.word === 'Kyoto'))
   // pivot × all (lineage) → the structure grid (the summary default table)
   const piv = await search('u', { region: { kind: 'all' }, lens: { view: 'pivot', rows: 'lineage' } }, h.lookDeps)
-  assert.equal(piv.ok && piv.view === 'pivot', true)
+  assert.ok(piv.ok);  assert.ok(piv.view === 'pivot')
   assert.match(piv.text, /Kyoto/)
 })
 
@@ -111,8 +104,13 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
   const log = (...a: any[]) => console.log(...a)
 
   // ── MODEL-VISIBLE TEXT — the real tools/list (search region×lens schema; compose's manual) ──
-  const listed: any = await handleMcpRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { userId: 'u', sessionId: 'sess' } as any)
-  const tool = (n: string) => listed.result.tools.find((t: any) => t.name === n)
+  // handleMcpRequest returns the JSON-RPC response union; `'result' in listed` narrows to the result
+  // branch. The JSON-RPC result is generically typed, so the tools/list shape is a precise cast here
+  // (not a blanket any). The session arg is an input stub — tools/list reads no session field.
+  const listed = await handleMcpRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { userId: 'u', sessionId: 'sess' } as unknown as PerimeterSession)
+  assert.ok(listed);  assert.ok('result' in listed)
+  const tools = (listed.result as { tools: { name: string; description: string; inputSchema?: { properties: Record<string, unknown> } }[] }).tools
+  const tool = (n: string) => { const t = tools.find((tt) => tt.name === n); assert.ok(t, `tool ${n} present`); return t }
   log('\n=========== MODEL-VISIBLE TOOL TEXT (tools/list) ===========')
   for (const n of ['summary', 'search', 'compose']) {
     const t = tool(n)
@@ -123,39 +121,39 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
   // the search description names its two axes — where (region) × how (lens), the Part 4 voice;
   // the SCHEMA still carries both as `region` and `lens` (the structural axes are unchanged).
   assert.match(tool('search').description, /where[\s\S]*how|how[\s\S]*where/i)
-  assert.deepEqual(Object.keys(tool('search').inputSchema.properties).sort(), ['lens', 'region'])
+  assert.deepEqual(Object.keys(tool('search').inputSchema!.properties).sort(), ['lens', 'region'])
 
   // ── (a) read the default present  ≡ search(all, pivot lineage) — the structure table ──
-  const aSpec = parseSearchSpec({ lens: { view: 'table', rows: 'lineage' } })       // region defaults to all
-  assert.equal(aSpec.ok, true)
+  const aSpec = parseSearchSpec({ lens: { view: 'table', rows: 'lineage' } });  assert.ok(aSpec.ok)   // region defaults to all
   const present = await search('u', aSpec.spec, h.lookDeps)
-  assert.equal(present.ok && present.view === 'pivot', true)   // public `table` → internal `pivot`
+  assert.ok(present.ok);  assert.ok(present.view === 'pivot')   // public `table` → internal `pivot`
   log('\n=========== (a) default present — search { lens:{view:table,rows:lineage} } ===========\n' + present.text)
   assert.match(present.text, /Kyoto/)
 
   // ── (b) call up a DIFFERENT table — focus Kyoto, lineage→time, hide a coloring, sort ──
-  const bSpec = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto' } })
+  const bSpec = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto' } });  assert.ok(bSpec.ok)
   const timeline = await search('u', bSpec.spec, h.lookDeps)
-  assert.equal(timeline.ok && timeline.view === 'pivot', true)
+  assert.ok(timeline.ok);  assert.ok(timeline.view === 'pivot')
   log('\n=========== (b) focus Kyoto, lineage→time — search { lens:{view:table,rows:time,focus:Kyoto} } ===========\n' + timeline.text)
-  const bHide = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto', filter: { colorings: { hide: ['truly'] } }, sort: 'id' } })
+  const bHide = parseSearchSpec({ lens: { view: 'table', rows: 'time', focus: 'Kyoto', filter: { colorings: { hide: ['truly'] } }, sort: 'id' } });  assert.ok(bHide.ok)
   const hidden = await search('u', bHide.spec, h.lookDeps)
-  assert.equal(hidden.ok, true)
+  assert.ok(hidden.ok);  assert.ok(hidden.view === 'pivot')
   log('\n=========== (b′) hide a coloring + sort — filter:{colorings:{hide:[truly]}}, sort:id ===========\n' + hidden.text)
   assert.notEqual(hidden.text, timeline.text)   // hiding a coloring changed the table
 
   // ── (c) search RAW to read a coordinate off a cell ──
-  const cSpec = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'raw' } })
+  const cSpec = parseSearchSpec({ region: { kind: 'thing', name: 'Kyoto' }, lens: { view: 'raw' } });  assert.ok(cSpec.ok)
   const raw = await search('u', cSpec.spec, h.lookDeps)
-  assert.equal(raw.ok && raw.view === 'raw', true)
+  assert.ok(raw.ok);  assert.ok(raw.view === 'raw')
   log('\n=========== (c) raw cells — search { region:{kind:thing,name:Kyoto}, lens:{view:raw} } ===========\n' + JSON.stringify(raw.cells))
-  const cell = raw.cells.find((c: any) => c.who === 'wearer' && c.word === 'Kyoto')
+  const cell = raw.cells.find((c) => c.who === 'wearer' && c.word === 'Kyoto')
   assert.ok(cell, 'a Kyoto coordinate is readable off a raw cell')
   const pin = { who: cell.who, sc: cell.sc, pos: cell.pos }
   log(`\npicked coordinate to pin → ${JSON.stringify(pin)}`)
 
   // ── (d) pin the coordinate into a mark + (e) compose ──
   const before = h.placed.length
+  // recordScoredTurn returns the discriminated WriteAck; this WALK lands → assert.ok(recorded.landed) narrows it.
   const recorded = await recordScoredTurn(
     emissionFromStructured({
       reply: 'Kyoto stays central.',
@@ -164,8 +162,8 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
     }),
     'llm', 'u', 'sess', 'paid', { text:'more on Kyoto' }, 'separate', h.recDeps,
   )
+  assert.ok(recorded.landed)   // the R3 door returns the WriteAck (§1a); landed → { landed:true, sc, text }
   log('\n=========== (d+e) compose — pin the coordinate in a tie mark ===========')
-  // the R3 door returns the WriteAck (§1a): landed → { landed:true, sc, text } (markCount dropped).
   log(`compose recorded: landed=${recorded.landed}, sc=${recorded.sc}, text=${JSON.stringify(recorded.text)}`)
   assert.ok(recorded.sc > 0, 'the turn recorded')
   // the pinned coordinate survived M4 — a tie (IDENTIFY) homed this turn, targeting the pinned coord.
