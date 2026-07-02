@@ -22,12 +22,13 @@
 //   W-ATOM  PerimeterSession  @/features/F-identity/contract/perimeter-consultation
 //   W-ATOM  RawTurn / Coord   @/core/types/substrate-raw.types
 //   W-FN    parseForumRef     ../domain/forum-logic  (the network read's per-word edge decode)
-//   W-ATOM  FORUM_ROOT / ForumNode  ../config/forum-types  (root marker re-export + the edge shape)
+//   W-FN    renderForumThreads ../domain/forum-logic  (the browse view — folds the network into boards of threads)
+//   W-ATOM  FORUM_ROOT_URN / ForumNode / ForumThread / ForumBoard  ../config/forum-types  (root target URN re-export + the network + rendered shapes)
 //   W-FN    publishToForum    ../app/forum-workflow  (the R2 two-phase workflow — aliased)
 //   W-ATOM  ForumComposePort / PublishOutcome / ForumDraft  ../app/forum-workflow
 // wires-out:
-//   W-FN    publishToForum / readForum / readForumNetwork  →  F-mcp (publish tool + forum read) / app callers (A2-thin)
-//   W-ATOM  PublishOutcome / ForumDraft / ForumComposePort / ForumReadPort / ForumNode / FORUM_ROOT  →  re-exported surface
+//   W-FN    publishToForum / readForum / readForumNetwork / renderForumThreads  →  F-mcp (publish tool + forum read/browse) / app callers (A2-thin)
+//   W-ATOM  PublishOutcome / ForumDraft / ForumComposePort / ForumReadPort / ForumNode / ForumThread / ForumBoard / FORUM_ROOT_URN  →  re-exported surface
 // deps:
 //   R0  ../config/forum-types
 //   R1  ../domain/forum-logic  (parseForumRef — the format's home; the network read composes on it)
@@ -58,12 +59,14 @@ import type { ForumComposePort, PublishOutcome, ForumDraft } from '../app/forum-
 import { parseForumRef } from '../domain/forum-logic'
 import type { ForumNode } from '../config/forum-types'
 
-// Re-export the publish vocabulary so callers import everything from this one R3 door (A6). FORUM_ROOT
-// (the root-post marker) and ForumNode (the network edge shape) ride out here too — a caller composing
-// a top post or walking the network reaches them through this one door.
+// Re-export the publish vocabulary so callers import everything from this one R3 door (A6).
+// FORUM_ROOT_URN (the root-post target URN) and ForumNode (the network edge shape) ride out here too —
+// a caller composing a top post or walking the network reaches them through this one door. The browse
+// view (renderForumThreads + ForumThread/ForumBoard) rides out for the F-mcp wire's look·public.
 export type { PublishOutcome, ForumDraft, ForumComposePort } from '../app/forum-workflow'
-export type { ForumNode } from '../config/forum-types'
-export { FORUM_PUBLISH_PROMPT, FORUM_ROOT } from '../config/forum-types'
+export type { ForumNode, ForumThread, ForumBoard } from '../config/forum-types'
+export { FORUM_PUBLISH_PROMPT, FORUM_ROOT_URN } from '../config/forum-types'
+export { renderForumThreads } from '../domain/forum-logic'
 
 // The live compose port — recordWireTurn bound with its defaults (submit-captured capture, 'separate'
 // reply-marking), EXACTLY the connection-scope compose. publishToForum stamps PUBLIC_SCOPE into the
@@ -111,11 +114,12 @@ export async function readForum(
   return read(scope)
 }
 
-// A payload's outbound edge — its FIRST forum-ref word (the leading handle publish prepends). A body
-// carries at most one ref; scanning first-match keeps a stray ref-shaped word later in the body from
-// masking the real leading edge. null when no word parses as a ref (a payload published before the
-// completing half, or malformed). F-forum owns this decode; nothing in F-present/F-memory reads it.
-function edgeOf(node: RawTurn): Coord | null {
+// A payload's outbound edge — its FIRST forum-ref word (the leading handle publish prepends): a
+// coordinate parent Coord, the 'root' marker (a top post), or null. A body carries at most one ref;
+// scanning first-match keeps a stray ref-shaped word later in the body from masking the real leading
+// edge. null when no word parses as a ref (a payload published before the completing half, or
+// malformed). F-forum owns this decode; nothing in F-present/F-memory reads it.
+function edgeOf(node: RawTurn): Coord | 'root' | null {
   for (const w of node.words) {
     const ref = parseForumRef(w.word)
     if (ref !== null) return ref

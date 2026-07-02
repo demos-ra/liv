@@ -15,6 +15,7 @@ import { test } from 'node:test'
 import { readForum, readForumNetwork, publishToForum, type ForumReadPort } from '../forum-contract'
 import { FORUM_PUBLISH_PROMPT } from '../../config/forum-types'
 import { buildForumRef } from '../../domain/forum-logic'
+import { cutCells } from '@/features/F-memory/contract/substrate-contract'
 import type { RawTurn } from '@/core/types/substrate-raw.types'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
 
@@ -38,7 +39,7 @@ test('readForum asks gather for the public scope dial (the cross-author forum fe
 test('publishToForum phase one returns the wearer confirm without composing (no substrate reached)', async () => {
   // a minimal session slice — phase one never reads userId/grantKey into a compose, so a stub suffices.
   const session = { userId: 'u-1', grantKey: 'free' } as unknown as PerimeterSession
-  const draft = { wearerText: 'w', reply: 'going public', replyMarks: [], priorMarks: [], target: { who: 'wearer' as const, sc: 2, pos: 1 } }
+  const draft = { wearerText: 'w', reply: 'going public', replyMarks: [], priorMarks: [], target: buildForumRef({ who: 'wearer', sc: 2, pos: 1 }) }
 
   const out = await publishToForum(session, draft /* confirmed omitted → phase one */)
 
@@ -62,4 +63,33 @@ test('readForumNetwork pairs each public node with its parsed outbound edge (the
   assert.deepEqual(net[0].ref, { who: 'wearer', sc: 7, pos: 3 })   // the outbound edge, decoded
   assert.deepEqual(net[1].node, feed[1])
   assert.equal(net[1].ref, null)                                   // no ref word → null edge
+})
+
+test('the un-weld: a reply whose target is a coordinate URN round-trips — publish\'s prepended words decode back to the parent Coord', async () => {
+  // exactly what publish composes for a reply: the coordinate-URN target prepended verbatim ahead of
+  // the body (withRefPrepended), then cut into words by the substrate the way recordWireTurn does.
+  const parentCoord = { who: 'wearer' as const, sc: 7, pos: 3 }
+  const composedReply = `${buildForumRef(parentCoord)} a genuine reply, not a top post`
+  const words = cutCells(composedReply).map((c, i) => ({ pos: i + 1, word: c.word }))
+  const feed: RawTurn[] = [{ sc: 9, who: 'llm', words, scope: 'public' }]
+  const fakeGather: ForumReadPort = async () => feed
+
+  const net = await readForumNetwork('reader-1', fakeGather)
+
+  // the un-weld is real: the network read pairs the reply node with its PARENT Coord, so the reply
+  // edge is walkable from gather(public) alone — replies are now possible, not welded to root.
+  assert.equal(net.length, 1)
+  assert.deepEqual(net[0].ref, parentCoord)
+})
+
+test('a top post carrying the root resource URN decodes to the root marker (no parent, edge = root)', async () => {
+  const composedReply = 'urn:liv:forum a top post with no parent'
+  const words = cutCells(composedReply).map((c, i) => ({ pos: i + 1, word: c.word }))
+  const feed: RawTurn[] = [{ sc: 1, who: 'wearer', words, scope: 'public' }]
+  const fakeGather: ForumReadPort = async () => feed
+
+  const net = await readForumNetwork('reader-1', fakeGather)
+
+  assert.equal(net.length, 1)
+  assert.equal(net[0].ref, 'root')   // a top post — its edge is the root marker, not a Coord
 })

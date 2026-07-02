@@ -11,14 +11,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { publishToForum, type PublishAuthority, type ForumComposePort, type ForumDraft } from '../forum-workflow'
-import { FORUM_PUBLISH_PROMPT, FORUM_ROOT } from '../../config/forum-types'
-import { buildForumRef } from '../../domain/forum-logic'
-import { PUBLIC_SCOPE } from '@/features/F-memory/contract/substrate-contract'
+import { FORUM_PUBLISH_PROMPT, FORUM_ROOT_URN, FORUM_CONFIRMED_URN } from '../../config/forum-types'
+import { buildForumRef, parseForumRef, parseForumMotivation } from '../../domain/forum-logic'
+import { PUBLIC_SCOPE, cutCells } from '@/features/F-memory/contract/substrate-contract'
 import type { WireTurnInput, WireTurnIdentity } from '@/features/F-present/contract/present-contract'
 
 const authority: PublishAuthority = { userId: 'u-1', grantKey: 'free' }
-// a reply draft: the required target is a parent forum payload's Coord.
-const draft: ForumDraft = { wearerText: 'w', reply: 'hello forum', replyMarks: [], priorMarks: [], target: { who: 'wearer', sc: 7, pos: 3 } }
+// a reply draft: the required target is a parent forum payload's coordinate URN (the model supplies it).
+const draft: ForumDraft = { wearerText: 'w', reply: 'hello forum', replyMarks: [], priorMarks: [], target: buildForumRef({ who: 'wearer', sc: 7, pos: 3 }) }
 
 // A spy compose port — records each call and returns a fixed 'present' outcome.
 function spyCompose() {
@@ -57,9 +57,11 @@ test('phase two (confirmed:true) prepends the target ref, composes stamped PUBLI
   assert.equal(calls[0].identity.userId, 'u-1')         // the author's OWN substrate
   assert.equal(calls[0].identity.grantKey, 'free')      // perimeter-resolved key, handed down
 
-  // the REQUIRED ref rides as the payload's LEADING content, ahead of the body — the completing half.
-  const handle = buildForumRef(draft.target)
-  assert.equal(calls[0].input.reply, `${handle} hello forum`)
+  // the REQUIRED ref rides as the payload's LEADING content, ahead of the body — the completing half —
+  // and the recorded 'confirmed' motivation TRAILS it (the un-weld: consent stamped as auditable data).
+  // the target is ALREADY the handle (the URN string the model supplies) — prepended verbatim.
+  const handle = draft.target
+  assert.equal(calls[0].input.reply, `${handle} hello forum ${FORUM_CONFIRMED_URN}`)
   // target is CONSUMED here — it is not a compose field; the body's marking rides through untouched.
   assert.deepEqual(calls[0].input.replyMarks, [])
   assert.deepEqual(calls[0].input.priorMarks, [])
@@ -70,13 +72,60 @@ test('phase two (confirmed:true) prepends the target ref, composes stamped PUBLI
   assert.deepEqual(out, { kind: 'present', present: 'fresh-present' })
 })
 
-test('a root post (target = FORUM_ROOT) prepends the root marker ref as leading content', async () => {
+test('a top post (target = FORUM_ROOT_URN) prepends the root resource URN as leading content', async () => {
   const { port, calls } = spyCompose()
-  const rootDraft: ForumDraft = { wearerText: 'w', reply: 'a top post', replyMarks: [], priorMarks: [], target: FORUM_ROOT }
+  const rootDraft: ForumDraft = { wearerText: 'w', reply: 'a top post', replyMarks: [], priorMarks: [], target: FORUM_ROOT_URN }
 
   await publishToForum(authority, rootDraft, true, PUBLIC_SCOPE, port)
 
-  assert.equal(calls[0].input.reply, `${buildForumRef(FORUM_ROOT)} a top post`)
+  assert.equal(calls[0].input.reply, `${FORUM_ROOT_URN} a top post ${FORUM_CONFIRMED_URN}`)
+  // the leading cell survives the cutter as ONE word and decodes back to the root marker (a top post).
+  const cells = cutCells(calls[0].input.reply as string)
+  assert.equal(cells[0].word, FORUM_ROOT_URN)
+  assert.equal(parseForumRef(cells[0].word), 'root')
+})
+
+test('phase two RECORDS the confirm: the payload trails the reserved confirmed motivation as its own word-cell', async () => {
+  const { port, calls } = spyCompose()
+
+  await publishToForum(authority, draft, true, PUBLIC_SCOPE, port)
+
+  // the un-weld: the wearer's OK is DATA in the memory, not a vanished flag. The confirmed marker rides
+  // as the payload's TRAILING word-cell — one append, no new store/field — and survives the cutter whole.
+  const cells = cutCells(calls[0].input.reply as string)
+  const last = cells[cells.length - 1]
+  assert.equal(last.word, FORUM_CONFIRMED_URN)
+  assert.equal(parseForumMotivation(last.word), 'confirmed')   // the auditable consent, read back
+  // the leading target edge is UNTOUCHED by the trailing motivation — non-overlapping decoders.
+  assert.deepEqual(parseForumRef(cells[0].word), { who: 'wearer', sc: 7, pos: 3 })
+  assert.equal(parseForumMotivation(cells[0].word), null)      // the target is not a motivation
+  assert.equal(parseForumRef(last.word), null)                 // the motivation is not a target edge
+})
+
+test('a body-less draft still records the confirm: [target-cell, confirmed-cell], no empty body word', async () => {
+  const { port, calls } = spyCompose()
+  const bodyless: ForumDraft = { wearerText: 'w', reply: '', replyMarks: [], priorMarks: [], target: FORUM_ROOT_URN }
+
+  await publishToForum(authority, bodyless, true, PUBLIC_SCOPE, port)
+
+  assert.equal(calls[0].input.reply, `${FORUM_ROOT_URN} ${FORUM_CONFIRMED_URN}`)
+  // no empty body word: the payload is just the target cell then the confirmed cell (the cutter also
+  // emits the separating space as its own cell, so length > 2 — the load-bearing facts are the edges).
+  const cells = cutCells(calls[0].input.reply as string)
+  assert.equal(parseForumRef(cells[0].word), 'root')                          // leading target edge
+  assert.equal(parseForumMotivation(cells[cells.length - 1].word), 'confirmed') // trailing consent
+})
+
+test('an explicit coordinate-URN target is prepended as the leading word and survives the cutter as ONE cell', async () => {
+  const { port, calls } = spyCompose()
+
+  await publishToForum(authority, draft, true, PUBLIC_SCOPE, port)
+
+  // the prepended reply cut into cells — the leading cell is the whole coordinate URN, unfragmented,
+  // and decodes back to the parent Coord (the reply edge is walkable from the public words alone).
+  const cells = cutCells(calls[0].input.reply as string)
+  assert.equal(cells[0].word, draft.target)
+  assert.deepEqual(parseForumRef(cells[0].word), { who: 'wearer', sc: 7, pos: 3 })
 })
 
 test('the compose port outcome is relayed unchanged (locked / degraded / invalid-testimony pass through)', async () => {

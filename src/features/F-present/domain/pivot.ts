@@ -18,13 +18,19 @@
 // DESCENDANTS only — the ancestor chain to the wearer is taken whole (L0-2). `filter` is the
 // Selection (mark-ops / colorings) — never a hardcoded class list; the engine drops nothing on
 // its own.
+//
+// #REF! (R12 save-and-flag — the read never drops, it surfaces): a VALID mark whose reference
+// resolves to null (a MISSING target) is NOT filtered out. brokenMarksOf extracts each dangling
+// ref carrying its coordinate; lineColumns appends the synthetic REF_ERROR column when any exist,
+// timeRows gives each an sc row, and marksCell fills a `kind:'ref'` cell there. Clean grids stay
+// byte-unchanged (no dangling ⇒ no #REF! column); the model reads the coordinate and self-corrects.
 
 import type { Mark } from '@/features/F-present/config/mark-types'
 import type {
   Dimension, FactRow, ThingId, Selection, PivotConfig, PivotSort, RowAxis, ColAxis, ValueField,
   ColKey, RowKey, Grid, GridRow, GridCell, MarkEntry, Thread, PresentView,
 } from '@/features/F-present/config/read-engine-types'
-import { VALUE_COL, DEFAULT_LINEAGE_TOP, DEFAULT_TIMELINE_LEVEL } from '@/features/F-present/config/read-engine-types'
+import { VALUE_COL, REF_ERROR, DEFAULT_LINEAGE_TOP, DEFAULT_TIMELINE_LEVEL } from '@/features/F-present/config/read-engine-types'
 
 const ALL_OPS: Mark['op'][] = ['identity', 'RELATE', 'QUALIFY', 'IDENTIFY']
 
@@ -77,9 +83,39 @@ function comparator(sort: PivotSort | undefined, weightOf: (id: ThingId) => numb
   return (a: ThingId, b: ThingId) => weightOf(b) - weightOf(a) || (a < b ? -1 : 1)
 }
 
-// distinct resolved peers of a RELATE row (Rule 5 lives at the relation site)
+// distinct RESOLVED peers of a RELATE row (Rule 5 lives at the relation site). A peer that
+// resolves to null is NOT silently lost here — it is a dangling reference, surfaced separately
+// as a #REF! cell by brokenMarksOf (R12: save-and-flag replaces dropping). This function keeps
+// returning only the resolved peers because the column/thread logic joins on real things; the
+// broken ones are threaded through the #REF! synthetic column, carrying their coordinate.
 function distinctPeers(dim: Dimension, refs: FactRow['refs']): ThingId[] {
   return [...new Set(refs.map(dim.resolveRef).filter((p): p is ThingId => p !== null))]
+}
+
+// ── #REF! extraction (R12) — every VALID mark whose reference resolves to null ─────
+// A dangling ref names a MISSING target (resolveRef → null); instead of vanishing, each becomes
+// a MarkEntry carrying the mark's home coordinate + the ref it named, so the renderer can print
+// `#REF!` with the coordinate the model needs to self-correct. Selection-gated (same lens as the
+// cells): a #REF! only surfaces for an op/coloring that is in play. RELATE emits one broken entry
+// per unresolved peer; QUALIFY/IDENTIFY emit their single dangling target. identity cannot dangle
+// (its home is what the dimension is built FROM), so it is never scanned here.
+function brokenMarksOf(dim: Dimension, rows: FactRow[], lens: Lens): MarkEntry[] {
+  const out: MarkEntry[] = []
+  for (const r of rows) {
+    if (!lens.opOK(r.op)) continue
+    if (r.op === 'QUALIFY') {
+      if (r.value !== null && !lens.colorOK(r.value)) continue
+      if (r.refs[0] !== undefined && dim.resolveRef(r.refs[0]) === null)
+        out.push({ op: 'QUALIFY', value: r.value, ref: r.refs[0], home: r.home })
+    } else if (r.op === 'IDENTIFY') {
+      if (r.refs[0] !== undefined && dim.resolveRef(r.refs[0]) === null)
+        out.push({ op: 'IDENTIFY', value: null, ref: r.refs[0], home: r.home })
+    } else if (r.op === 'RELATE') {
+      for (const p of r.refs) if (dim.resolveRef(p) === null)
+        out.push({ op: 'RELATE', value: r.surface, ref: p, home: r.home })
+    }
+  }
+  return out
 }
 
 // ── Concentric rings — depth from the wearer-core + the ring-local keep predicate ──
@@ -170,6 +206,9 @@ function timeRows(dim: Dimension, rows: FactRow[], _config: PivotConfig, columns
       if (t && colSet.has(t)) note(r.home.sc)
     }
   }
+  // a dangling-ref mark hits no real column — but its sc still owns a row so the #REF! cell has
+  // somewhere to land (R12: surfaced, not dropped). Only when the #REF! column is present.
+  if (colSet.has(REF_ERROR)) for (const b of brokenMarksOf(dim, rows, lens)) note(b.home.sc)
   scs.sort((a, b) => a - b)
   return scs.map(sc => ({ key: sc, label: `sc${sc}`, depth: 0, parent: null, cells: {} }))
 }
@@ -179,7 +218,7 @@ const singleColumn = (): ColKey[] => [VALUE_COL]
 
 // the slicer's direct line: ancestors (WHOLE — never `top`-trimmed; L0-2) | focus | descendants
 // (BFS, `top`-trimmed, `sort`-ordered). `level` bounds both spans.
-function lineColumns(dim: Dimension, _rows: FactRow[], config: PivotConfig): ColKey[] {
+function lineColumns(dim: Dimension, rows: FactRow[], config: PivotConfig): ColKey[] {
   const things = dim.things
   const focus = config.slicer
   if (!focus || !things.has(focus)) return []
@@ -206,7 +245,10 @@ function lineColumns(dim: Dimension, _rows: FactRow[], config: PivotConfig): Col
     if (next.length === 0) break
     frontier = next
   }
-  return [...ancestors, focus, ...descendants]
+  const line: ColKey[] = [...ancestors, focus, ...descendants]
+  // append the synthetic #REF! column iff a lens-passed mark has a dangling reference (R12) — so
+  // clean grids stay byte-unchanged (no dangling ⇒ no extra column), and a #REF! surfaces in place.
+  return brokenMarksOf(dim, rows, makeLens(config.filter)).length > 0 ? [...line, REF_ERROR] : line
 }
 
 // ── Cell fillers (the value-zone, selected by config.values) ──────────────────────
@@ -227,6 +269,11 @@ function weightCell(rowKey: RowKey, _colKey: ColKey, dim: Dimension, _rows: Fact
 // RELATE / IDENTIFY / QUALIFY all land on the thing they score, at the home sc; Selection-gated.
 function marksCell(rowKey: RowKey, colKey: ColKey, dim: Dimension, rows: FactRow[], _config: PivotConfig, lens: Lens): GridCell {
   const sc = rowKey as number
+  // the synthetic #REF! column collects this row's dangling-ref marks (R12: surfaced, not dropped).
+  // A branch on the column KEY (not on the table) — the same shape as VALUE_COL's synthetic key.
+  if (colKey === REF_ERROR) {
+    return { kind: 'ref', marks: brokenMarksOf(dim, rows, lens).filter(m => m.home.sc === sc) }
+  }
   const thing = colKey as ThingId
   const marks: MarkEntry[] = []
   for (const r of rows) {

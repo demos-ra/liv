@@ -16,8 +16,11 @@
 // The cells render the RAW marks only (never a synthesized state), re-skinned to the MUSICAL
 // register (note · tie · chord · expression) at this outbound boundary via engineOpToMusical (R9);
 // the engine's own technical vocabulary (identity · RELATE · QUALIFY · IDENTIFY) stays inside the
-// gate. Branching on a cell's own `kind` (weight vs marks) is presentation on the cell's own data
-// — legal; it is not a branch on table.
+// gate. Branching on a cell's own `kind` (weight · marks · ref) is presentation on the cell's own
+// data — legal; it is not a branch on table. The `ref` kind is the #REF! cell (R12 save-and-flag):
+// a mark whose target resolved to null, rendered as the `#REF!` token + its broken coordinate so
+// the model can self-correct — surfaced in place, never dropped. On the transcript, a flag='fail'
+// row wears a small capture-integrity marker; clean rows stay byte-pure (3R).
 //
 // sprint-wire-cognition Shot 3R (L0 ruling — coordinates are fetched, never rendered, never
 // counted): the TRANSCRIPT renders PLAIN joined text — the wearer's byte-pure record carries NO
@@ -25,6 +28,7 @@
 // state grid (which renders each mark's home @pos — teaching the coordinate format from real marks).
 
 import type { Ref } from '@/features/F-present/config/mark-types'
+import { REF_ERROR } from '@/features/F-present/config/read-engine-types'
 import type { Grid, GridRow, GridCell, MarkEntry, ColKey, RenderSpec, Thread } from '@/features/F-present/config/read-engine-types'
 import type { RawTurn } from '@/core/types/substrate-raw.types'
 import { joinCells } from '@/features/F-memory/contract/substrate-contract'
@@ -32,15 +36,23 @@ import { engineOpToMusical } from '@/features/F-present/config/register-map'   /
 
 const refText = (r: Ref): string => (typeof r === 'string' ? r : `${r.who}:${r.sc}:${r.pos}`)
 
+// the capture-integrity marker for a flag='fail' transcript row (R12 save-and-flag). A row whose
+// bytes could not be cleanly captured wears this small trailing marker; a 'pass'/undefined row
+// renders byte-identically to before (no positional markup — the 3R byte-pure ruling on clean rows).
+export const FLAG_FAIL_MARK = '⚠fail'
+
 // ── Transcript (the raw line) — plain, byte-pure (3R.1) ─────────────────────────
 // The transcript is the wearer's record: `[sc] (who): joinCells(words)`, nothing more.
 // joinCells is the sole text authority; there is no positional markup — positions are
 // obtained from structural surfaces (lookup / state grid), never counted from this prose.
+// The ONLY addition is the flag marker on a 'fail' row (R12): the row could not be cleanly
+// captured, so it is SAVED and FLAGGED rather than blanking the present; clean rows are untouched.
 export function renderTranscript(turns: RawTurn[]): string {
   const out: string[] = ['TRANSCRIPT (turns in position order):']
   for (const t of turns) {
     const who = t.who === 'wearer' ? '—' : t.who           // '—' the person
-    out.push(`[${t.sc}] (${who}): ${joinCells(t.words)}`)
+    const line = `[${t.sc}] (${who}): ${joinCells(t.words)}`
+    out.push(t.flag === 'fail' ? `${line}  ${FLAG_FAIL_MARK}` : line)   // clean rows byte-identical
   }
   return out.join('\n')
 }
@@ -75,15 +87,32 @@ function renderRow(r: GridRow, columns: ColKey[], layout: RenderSpec['cellLayout
   const lines = [`${r.label}:`]
   for (const c of columns) {
     const cell = r.cells[c]
-    if (!cell || (cell.kind === 'marks' && cell.marks.length === 0)) continue   // sparse — skip untouched
-    lines.push(`  ${c}: ${renderCell(cell)}`)
+    if (!cell || isEmptyMarksCell(cell)) continue                     // sparse — skip untouched
+    // a #REF! cell is self-labeling (the token IS the header), so it skips the column prefix;
+    // branching on the cell's own `kind` is presentation on its own data — legal, never a table branch.
+    lines.push(cell.kind === 'ref' ? `  ${renderCell(cell)}` : `  ${c}: ${renderCell(cell)}`)
   }
   return lines.join('\n')
 }
 
+// a marks/ref cell with nothing in it — skipped in the sparse matrix (untouched intersection).
+const isEmptyMarksCell = (cell: GridCell): boolean =>
+  (cell.kind === 'marks' || cell.kind === 'ref') && cell.marks.length === 0
+
 // one cell to text — the only place a cell's `kind` is read (presentation; the engine never reads it).
 function renderCell(cell: GridCell): string {
-  return cell.kind === 'weight' ? `[w=${cell.weight}]` : renderMarks(cell.marks)
+  if (cell.kind === 'weight') return `[w=${cell.weight}]`
+  if (cell.kind === 'ref') return renderRefCell(cell.marks)
+  return renderMarks(cell.marks)
+}
+
+// the #REF! cell (R12): the token + each dangling mark's BROKEN COORDINATE — the ref it named
+// (name or who:sc:pos) and the mark's own home coordinate (who:sc:pos). The coordinate is the
+// whole point: it is what the model reads to locate and re-point the mark on a future turn.
+function renderRefCell(marks: MarkEntry[]): string {
+  return marks
+    .map(m => `${REF_ERROR}(${m.ref ? refText(m.ref) : ''})@${m.home.who}:${m.home.sc}:${m.home.pos}`)
+    .join(' ')
 }
 
 // split a cell's raw marks by op into typed sub-groups (organized, never a dump). 3R.3: each op

@@ -32,7 +32,11 @@ export type RawWord = { pos: number; word: string }
 // carries its own visibility. Optional: only the substrate read (Floor A) populates
 // it; constructors that predate it stay valid. Wave 2's bounded public read selects
 // on it (source_scope='public'); 1c does not yet read it (scope='mine' only).
-export type RawTurn = { sc: number; who: Who; words: RawWord[]; scope?: string }
+// `flag` is the state_flag the row carries (migration 029, R12 save-and-flag) — an
+// intrinsic capture-integrity bit ('pass' = clean first-hand, 'fail' = could-not-
+// cleanly-capture / reconstructed). Like `scope` it is populated by the substrate
+// read, optional so predating constructors stay valid; the present read surfaces it.
+export type RawTurn = { sc: number; who: Who; words: RawWord[]; scope?: string; flag?: 'pass' | 'fail' }
 
 // The substrate = an ordered transcript of turns. Nothing relational.
 export type Transcript = RawTurn[]

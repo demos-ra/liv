@@ -75,10 +75,12 @@ export const TOOL_CAPTURE = 'capture' as const
 // emission SHAPE is the core contract's, projected at R3 (cognition-turn contract).
 export const TURN_ARGS = ['wearerText', 'reply', 'replyMarks', 'priorMarks'] as const
 
-// The `publish` write-door's arg names — EXACTLY the compose args (the marked-turn payload, reused
-// verbatim — no new vocabulary) plus `confirmed`, the two-phase flag (absent/false = phase one,
-// surface the confirm; true = phase two, write public). The door rejects extras against this list.
-export const PUBLISH_ARGS = [...TURN_ARGS, 'confirmed'] as const
+// The `publish` write-door's arg names — the compose args (the marked-turn payload, reused verbatim —
+// no new vocabulary), plus `target`, the reference URN the model supplies (a coordinate URN for a
+// reply parent, or absent → defaulted to the forum-root URN at R3 = a top post), plus `confirmed`, the
+// two-phase flag (absent/false = phase one, surface the confirm; true = phase two, write public). The
+// door rejects extras against this list.
+export const PUBLISH_ARGS = [...TURN_ARGS, 'target', 'confirmed'] as const
 
 // (sprint-wire-economy) WHO_VALUES is GONE: the `turn` door carries no `who` axis — a turn
 // is inherently a wearer+llm pair (the reply authors as 'llm', the wearer is wearerText).
@@ -121,11 +123,21 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
     // substrate; lens (how) returns raw numbered cells (to copy a coordinate) or the rendered
     // table (its zones as fields). The advertisement (the Host voice) names those axes — where to
     // look (turn|span|thing|all) × how it returns (raw|table). WP5: the verbatim manager string.
+    // look·public FORK: `scope` picks the SUBSTRATE the look reads — 'mine' (default, absent) is
+    // your own present (the region × lens read, untouched); 'public' turns the same verb outward,
+    // reading the forum — the public network of published turns, rendered as threads. `focus` (a
+    // URN) scopes a public browse to one thread's subtree. lens is no longer top-level required:
+    // it is the mine-read's shape (the core still demands it there), and a public browse needs none.
     description:
-      "Search your present — name where to look (a turn, a span, a thing, or all) and how it returns (the raw numbered cells, or shaped as a table). Copy a coordinate from it to point back at an exact past word, or read the table to see the shape of what's held.",
+      "Look — name where to look (a turn, a span, a thing, or all) and how it returns (the raw numbered cells, or shaped as a table). Copy a coordinate from it to point back at an exact past word, or read the table to see the shape of what's held. By default you look at what's held for you (your present). Set scope:'public' to read the forum instead — the public network of turns anyone has published, rendered as threads; pass focus with a thread's URN to open just that thread and its replies.",
     inputSchema: {
       type: 'object',
       properties: {
+        // the look·public fork (top-level, both optional). scope selects the substrate the look
+        // reads (mine = your present, the default; public = the forum browse); focus scopes a
+        // public browse to one thread's URN subtree. Read door → the core / R3 branch validates.
+        scope: { type: 'string', enum: ['mine', 'public'] },
+        focus: { type: 'string' },
         region: {
           // zero field hints (4b): the schema enforces shape silently; the manual teaches
           // the where-axis (LOOKING AROUND), and the search advertisement names it warmly.
@@ -160,7 +172,9 @@ export const MCP_TOOLS: readonly McpToolDescriptor[] = [
           additionalProperties: true,
         },
       },
-      required: ['lens'],
+      // lens is NOT top-level required — it is the mine-read's shape (parseSearchSpec, the core, is
+      // its sole validator and demands it there with a named INVALID_PARAMS), while a public browse
+      // (scope:'public') carries none. Advertising it as required would lie to the public fork.
       additionalProperties: true,
     },
   },

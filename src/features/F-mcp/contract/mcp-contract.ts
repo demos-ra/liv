@@ -22,6 +22,9 @@
 //   W-ATOM   PRESENT_BUNDLES    F-present/R3 present-contract   (R7 — the wire bundle: tables only; the present-read path)
 //   W-ATOM   PerimeterSession   F-identity/R3 perimeter-consultation
 //   W-FN     publishToForum     F-forum/R3 forum-contract   (publish tool — the public-forum write; the NORMAL marked compose stamped public, behind a wearer confirm)
+//   W-FN     readForumNetwork   F-forum/R3 forum-contract   (search·public — the public reference-graph read: nodes + parsed edges)
+//   W-FN     renderForumThreads F-forum/R3 forum-contract   (search·public — folds the network into boards of threads for the browse view)
+//   W-FN     joinCells          F-memory/R3 substrate-contract  (search·public — renders a node's words to text in the browse render)
 //   W-ATOM   TOOL_PUBLISH       F-mcp/config mcp-tools      (publish schema-injection target at tools/list)
 // wires-out:
 //   W-FN     handleMcpRequest   → src/app/api/mcp/route.ts (R4)
@@ -31,7 +34,8 @@
 //   config  ../config/mcp-protocol
 //   R3  @/features/F-present/contract/present-contract  (A1 — recordWireTurn folds in the WP1 entitlement gate; F-mcp no longer imports F-entitlement directly)
 //   R3  @/features/F-identity/contract/perimeter-consultation
-//   R3  @/features/F-forum/contract/forum-contract  (publish tool → the forum's public write-orchestration)
+//   R3  @/features/F-forum/contract/forum-contract  (publish tool → the forum's public write-orchestration; search·public → readForumNetwork + renderForumThreads, the public browse read)
+//   R3  @/features/F-memory/contract/substrate-contract  (joinCells — render a node's words to text in the search·public browse view)
 // amended:    inline-marking Touch 3 (wire delivery wired to the R0-leaf manual): the COIN_MANUAL
 //             import becomes projectManual(opts); tools/list computes the schema ONCE and feeds
 //             BOTH the `turn` inputSchema AND the manual opts (inline?, includeWearerText, the
@@ -52,7 +56,9 @@ import {
 import { readPresent, search, parseSearchSpec, PRESENT_BUNDLES, recordWireTurn, captureWearerTurn, projectManual, projectEmissionSchema } from '@/features/F-present/contract/present-contract'
 import type { MarkingSituation } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
-import { publishToForum, FORUM_ROOT } from '@/features/F-forum/contract/forum-contract'
+import { publishToForum, FORUM_ROOT_URN, readForumNetwork, renderForumThreads } from '@/features/F-forum/contract/forum-contract'
+import type { ForumThread, ForumBoard } from '@/features/F-forum/contract/forum-contract'
+import { joinCells } from '@/features/F-memory/contract/substrate-contract'
 
 // R3 — the slice's sole public boundary and orchestration site. handleMcpRequest
 // parses the JSON-RPC envelope (R1), dispatches the method, plans the tool call
@@ -68,6 +74,47 @@ import { publishToForum, FORUM_ROOT } from '@/features/F-forum/contract/forum-co
 
 function toolText(text: string): McpToolResult {
   return { content: [{ type: 'text', text }] }
+}
+
+// ── the search·public BROWSE view — the forum rendered as readable indented threads ──────────────
+// PURE + deterministic (no I/O — it takes the already-read boards). Composition only: the network
+// read (readForumNetwork) and the tree fold (renderForumThreads) are F-forum's; this is the wire's
+// PRESENTATION of that tree — the Host-facing text. Each thread prints its node's words (joinCells,
+// F-memory) plus its own URN (the address a reply targets), children indented two spaces under it.
+// `focus` (a URN) opens ONE thread's subtree (the walk finds it anywhere in the forest); a miss is
+// stated plainly, never thrown. An empty forum is stated, not blank.
+function renderForumThread(thread: ForumThread, depth: number, lines: string[]): void {
+  const indent = '  '.repeat(depth)
+  lines.push(`${indent}- ${joinCells(thread.node.words)}  [${thread.urn}]`)
+  for (const child of thread.children) renderForumThread(child, depth + 1, lines)
+}
+
+// find a thread by its URN anywhere in the forest (depth-first) — the focus scope's subtree root.
+function findThread(boards: ForumBoard[], urn: string): ForumThread | null {
+  const walk = (thread: ForumThread): ForumThread | null => {
+    if (thread.urn === urn) return thread
+    for (const child of thread.children) { const hit = walk(child); if (hit) return hit }
+    return null
+  }
+  for (const board of boards) for (const thread of board.threads) { const hit = walk(thread); if (hit) return hit }
+  return null
+}
+
+export function renderForumBrowse(boards: ForumBoard[], focus?: string): string {
+  if (typeof focus === 'string' && focus.length > 0) {
+    const root = findThread(boards, focus)
+    if (root === null) return `No forum thread found at ${focus}.`
+    const lines: string[] = []
+    renderForumThread(root, 0, lines)
+    return lines.join('\n')
+  }
+  if (boards.length === 0) return 'The forum is empty — nothing published yet.'
+  const lines: string[] = []
+  for (const board of boards) {
+    lines.push(`# ${board.board}`)
+    for (const thread of board.threads) renderForumThread(thread, 0, lines)
+  }
+  return lines.join('\n')
 }
 
 // MCP_SITUATION — the wire's choices about the ONE emission contract (cognition-turn
@@ -124,10 +171,13 @@ export async function handleMcpRequest(
           fields: Object.keys(schema.properties ?? {}),
         })
         // publish's advertisement is DERIVED the same way compose's is — the one core emission schema,
-        // projected, PLUS the `confirmed` phase flag (the two-phase confirm). Same mark shape as
-        // compose (no drift); the marking manual rides compose's description (a once-channel), so it
-        // is NOT re-attached here — publish's own description points the model back to compose.
-        const publishSchema = { ...schema, properties: { ...schema.properties, confirmed: { type: 'boolean' } } }
+        // projected, PLUS `target` (the reference URN — a coordinate URN to reply to; absent → the
+        // forum-root URN, a top post) and the `confirmed` phase flag (the two-phase confirm). Both are
+        // OPTIONAL (not added to `required`, which stays the four present body fields), so the base
+        // additionalProperties:false still admits them. Same mark shape as compose (no drift); the
+        // marking manual rides compose's description (a once-channel), so it is NOT re-attached here —
+        // publish's own description points the model back to compose.
+        const publishSchema = { ...schema, properties: { ...schema.properties, target: { type: 'string' }, confirmed: { type: 'boolean' } } }
         return buildResult(id, {
           tools: listTools().map(t => {
             if (t.name === TOOL_TURN) return { ...t, description: `${t.description}\n\n${manual}`, inputSchema: schema }
@@ -183,6 +233,17 @@ export async function handleMcpRequest(
         // (coordinates render inside it — navigation and coordinate-fetch are one verb); a raw
         // lens returns the numbered cells as JSON (the coordinate-fetch path).
         if (intention.tool === 'lookup') {
+          // look·public FORK — the SAME verb, turned outward. scope selects the substrate the look
+          // reads: 'public' → the forum browse (cross-slice composition HERE at the R3 door — the
+          // public reference-graph read + the tree fold, both F-forum's, rendered to indented text);
+          // 'mine' / absent → the EXISTING F-present region × lens read, byte-unchanged. focus (a URN)
+          // scopes a public browse to one thread's subtree. The read door is transport: scope/focus
+          // rode through in `raw`; this branch reads them (a read carries no testimony — extras ignored).
+          if (intention.raw.scope === 'public') {
+            const focus = typeof intention.raw.focus === 'string' ? intention.raw.focus : undefined
+            const boards = renderForumThreads(await readForumNetwork(session.userId))
+            return buildResult(id, toolText(renderForumBrowse(boards, focus)))
+          }
           const parsed = parseSearchSpec(intention.raw)
           if (!parsed.ok) return buildError(id, JSONRPC_INVALID_PARAMS, parsed.message)
           const result = await search(session.userId, parsed.spec)
@@ -211,9 +272,10 @@ export async function handleMcpRequest(
             reply:      intention.reply,
             replyMarks: intention.replyMarks,
             priorMarks: intention.priorMarks,
-            // the REQUIRED forum target: FORUM_ROOT — every publish is a top post until a reply-target
-            // arg is threaded through the tool schema (transport follow-up; the ref mechanism is whole).
-            target:     FORUM_ROOT,
+            // the REQUIRED forum target: the model-supplied reference URN (a coordinate URN → a reply),
+            // defaulted to FORUM_ROOT_URN when absent/not a string (→ a top post). The un-weld: target
+            // is now a recorded field value, not a hardcoded root — this is what makes replies real.
+            target:     typeof intention.target === 'string' ? intention.target : FORUM_ROOT_URN,
           }, intention.confirmed === true)
           switch (result.kind) {
             case 'confirm-required':
@@ -270,7 +332,12 @@ export async function handleMcpRequest(
         if (isNotification) return null
         return buildError(id, JSONRPC_METHOD_NOT_FOUND, `method not found: ${method}`)
     }
-  } catch {
+  } catch (err) {
+    // OBSERVABLE, not swallowed: a thrown handler is LOGGED server-side (the method + the error) so a
+    // failure is visible in the server's own record — the silent catch is gone. The CLIENT still
+    // receives the SAME non-leaky envelope (no internal detail crosses the wire): fail-closed to a
+    // generic internal-error. Observability is a server concern; non-leak is the wire's.
+    console.error(`[mcp] handler threw for method "${method}":`, err)
     if (isNotification) return null
     return buildError(id, JSONRPC_INTERNAL_ERROR, 'internal error')
   }

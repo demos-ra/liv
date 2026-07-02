@@ -19,8 +19,10 @@ import type { Coord, RawTurn } from '@/core/types/substrate-raw.types'
 // wires-out:
 //   W-ATOM  FORUM_PUBLISH_PROMPT  →  F-forum/R1 forum-logic (the verbatim confirm payload)
 //   W-ATOM  FORUM_REF_SCHEME      →  F-forum/R1 forum-logic (the ONE scheme literal — build/parse home)
-//   W-ATOM  FORUM_ROOT            →  F-forum/R2 forum-workflow (the root-post marker Coord)
+//   W-ATOM  FORUM_ROOT_URN        →  F-mcp/R3 (via forum-contract re-export) (the root-post target URN default)
+//   W-ATOM  FORUM_CONFIRMED_URN   →  F-forum/R1 forum-logic (the reserved 'confirmed' MOTIVATION marker — build/parse home)
 //   W-ATOM  ForumRef / ForumNode  →  F-forum/R1/R3 (the handle-string alias + the network edge shape)
+//   W-ATOM  ForumThread / ForumBoard →  F-forum/R1/R3 (the rendered reference tree — thread + board shapes)
 // deps:
 //   R5  @/core/types/substrate-raw.types  (TYPE-ONLY — Coord / RawTurn, the substrate's intrinsic
 //        facts the ref points at + the node it rides on; the forum invents no substrate vocabulary)
@@ -48,30 +50,51 @@ export const FORUM_PUBLISH_PROMPT =
 // livbyte:// payload handle rides in a payload cell's `word`. recordWireTurn composes it forum-blind;
 // readForum parses it back out.
 //
-// FORUM_REF_SCHEME — the ONE scheme literal (the only place `forumref` appears; R1 build/parse read
-// it, never re-typing it). URI-shaped but SINGLE-COLON + DOT-separated by DESIGN, not aesthetics: the
-// substrate cutter (cutCells / shapeAwareCut) keeps a token whole only while every internal
-// punctuation is a SINGLE char flanked by word-chars on both sides. A livbyte:// handle survives as
-// one cell ONLY because content-signature classifies it as a payload region (coalesced) — a bound we
-// must NOT touch. A bare `forumref://…` would cut into `forumref` · `://` · `…` (three cells) and be
-// unparseable per-word. `forumref:who.sc.pos` (colon flanked by word-chars, dots flanked by digits/
-// letters) survives as ONE word-cell — so it round-trips through the cut as a single RawWord, which is
-// exactly what parseForumRef(word) needs. The scheme owns the format; nothing else re-types it.
-export const FORUM_REF_SCHEME = 'forumref:' as const
+// FORUM_REF_SCHEME — the ONE scheme literal (the only place the URN prefix appears; R1 build/parse
+// read it, never re-typing it). URN-shaped (RFC 8141) by the forum reference standard v1, and
+// SINGLE-COLON + DOT-separated by DESIGN, not aesthetics: the substrate cutter (cutCells /
+// shapeAwareCut) keeps a token whole only while every internal punctuation is a SINGLE char flanked
+// by word-chars on both sides. A URL form (`liv://…`, slashes) would shatter into three cells and be
+// unparseable per-word. `urn:liv:who.sc.pos` — every `:` and `.` a single char flanked by word-chars
+// (`n:l`, `v:w`, `r.5`, `5.1`) — survives as ONE word-cell, so it round-trips through the cut as a
+// single RawWord, which is exactly what parseForumRef(word) needs. The scheme owns the format; nothing
+// else re-types it. URN, not URL, by design.
+export const FORUM_REF_SCHEME = 'urn:liv:' as const
 
-// FORUM_ROOT — the root-post marker. A REQUIRED ref means every published payload names a target; a
-// top post has no reply parent to name, so it references this sentinel (chosen over self-reference,
-// which is impossible pre-write: a payload cannot cite its own sc before the write assigns it).
-// { who:'program', sc:0, pos:0 } is a natural sentinel — the substrate never emits a real payload at
-// pos 0 (positions are 1-based; the cut starts at pos 1), so a reader tells root from reply by ref.sc.
-export const FORUM_ROOT: Coord = { who: 'program', sc: 0, pos: 0 }
+// FORUM_ROOT_URN — the root RESOURCE name (RFC 8141), a top post's target. A published payload always
+// names a target; a top post has no reply parent to name, so it references this reserved resource URN
+// (not a coordinate — `forum` is a name, not a who.sc.pos triple). The model supplies it as a value
+// (or it is defaulted at the tool layer when absent); parseForumRef decodes it back to the 'root'
+// marker so a reader tells a top post from a reply by its edge.
+export const FORUM_ROOT_URN = `${FORUM_REF_SCHEME}forum` as const
+
+// FORUM_CONFIRMED_URN — the reserved 'confirmed' MOTIVATION marker (the Web Annotation motivation slot,
+// forum-reference-standard §2). The wearer's publish-confirm becomes RECORDED data, not a throwaway
+// transport boolean: phase two of publish STAMPS this marker into the payload's words, so the consent
+// lives IN the memory (auditable forever), one append, no new store/field. Built on the ONE scheme
+// (FORUM_REF_SCHEME, reused — never re-typed): `urn:liv:confirmed` is a reserved RESOURCE name (not a
+// coordinate — 'confirmed' is a name, not a who.sc.pos triple), so it survives the substrate cutter as
+// ONE word-cell (`n:l`, `v:c` — every internal punctuation single-char, flanked by word-chars) exactly
+// like FORUM_ROOT_URN, and parseForumRef returns null for it (it is not a target edge) — the leading
+// target and the trailing consent are read by DIFFERENT, non-overlapping decoders.
+export const FORUM_CONFIRMED_URN = `${FORUM_REF_SCHEME}confirmed` as const
 
 // ForumRef — a built handle string (`${FORUM_REF_SCHEME}${who}.${sc}.${pos}`). A plain string alias:
 // it rides as content (a RawWord.word), never a new atom; the alias only names the intent at the seam.
 export type ForumRef = string
 
-// ForumNode — the network read's element: a public forum payload PLUS its parsed outbound edge (the
-// Coord it points at, or null for a payload carrying no ref). readForum's raw node-read stays a
-// RawTurn[]; the network read composes this edge on top, so the graph is walkable from the public
-// read alone.
-export type ForumNode = { node: RawTurn; ref: Coord | null }
+// ForumNode — the network read's element: a public forum payload PLUS its parsed outbound edge — a
+// coordinate parent Coord, the 'root' marker (a top post targeting FORUM_ROOT_URN), or null for a
+// payload carrying no ref. readForum's raw node-read stays a RawTurn[]; the network read composes this
+// edge on top, so the graph is walkable from the public read alone.
+export type ForumNode = { node: RawTurn; ref: Coord | 'root' | null }
+
+// ForumThread — a rendered node in the reference tree: the public payload carried through unchanged, its
+// OWN URN (the address a reply targets), and its replies nested recursively (the walkable thread).
+export type ForumThread = { urn: ForumRef; node: RawTurn; children: ForumThread[] }
+
+// ForumBoard — a reserved target URN (a board — today `urn:liv:forum`; tomorrow a subboard URN) with the
+// top posts that point at it. renderForumThreads (R1) folds a flat ForumNode[] into ForumBoard[] by
+// following edges; boards are just target URNs owned by no node, so a FUTURE board needs only a new
+// reserved URN, never a renderer rebuild.
+export type ForumBoard = { board: ForumRef; threads: ForumThread[] }

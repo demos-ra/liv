@@ -100,6 +100,15 @@ export type ColKey = string                     // a ThingId, or VALUE_COL (sing
 export type RowKey = ThingId | number           // lineage → ThingId ; time → sc
 export const VALUE_COL: ColKey = '__value__'  // synthetic single-value column; never printed (columnsLine:false)
 
+// ── The #REF! representation (R12 save-and-flag — surface, never silently drop) ────
+// A VALID mark whose reference resolves to a MISSING target (resolveRef → null) is the
+// Excel #REF! case: it must be SURFACED carrying the broken coordinate, not filtered out —
+// the coordinate is what lets the model self-correct on a future turn. REF_ERROR is BOTH the
+// render token AND a synthetic column that collects the dangling-ref marks at a row (appended
+// only when a row actually has one, so clean grids are byte-unchanged — like VALUE_COL, it is
+// engine-internal geometry, not a stored thing).
+export const REF_ERROR: ColKey = '#REF!'
+
 // One mark placed at an intersection — `home` is the mark's home coordinate (Shot 3R: the
 // state grid teaches the coordinate format from real marks — render shows @home.pos; the sc
 // is the row key, the column the context, so only the position prints per mark).
@@ -107,7 +116,13 @@ export type MarkEntry = { op: Mark['op']; value: string | null; ref?: Ref; home:
 
 // The Values-zone payload — a typed union, declared for honesty at the type boundary. The
 // ENGINE never reads the tag (L0-3, the heart); only the renderer does (presentation, legal).
-export type GridCell = { kind: 'weight'; weight: number } | { kind: 'marks'; marks: MarkEntry[] }
+// The 'ref' arm is the #REF! cell (R12): marks whose target resolved to null, each carrying its
+// broken coordinate (the mark's home + the ref it named) so the renderer can print `#REF!` in
+// place — surfaced, not dropped. Reuses MarkEntry: a broken mark is just one whose ref dangles.
+export type GridCell =
+  | { kind: 'weight'; weight: number }
+  | { kind: 'marks'; marks: MarkEntry[] }
+  | { kind: 'ref';   marks: MarkEntry[] }
 export type GridRow  = { key: RowKey; label: string; depth: number; parent: RowKey | null; cells: Record<ColKey, GridCell> }
 // `threads` is an EPHEMERAL read-time overlay (lateral RELATE relations) derived every read,
 // generically, from the marks — persisted nowhere. Store-nothing = persist nothing to the

@@ -17,8 +17,9 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pivot, lineageConfig, lineageView } from '../pivot'
-import type { Dimension, ThingId, Grid } from '../../config/read-engine-types'
+import { pivot, lineageConfig, lineageView, timelineConfig } from '../pivot'
+import type { Dimension, ThingId, Grid, FactRow } from '../../config/read-engine-types'
+import { REF_ERROR } from '../../config/read-engine-types'
 import { renderGrid } from '../render-present'
 
 // build a Dimension from a flat spec (id, label, weight, parent). resolveRef by name.
@@ -82,6 +83,30 @@ test('top=0 keeps the whole ring; sort=id orders children by id', () => {
   assert.deepEqual(topChildren(byId), ['a', 'b'])   // id order (not weight)
   const byWeight = pivot(lineageConfig({ top: 0 }), dim, [])
   assert.deepEqual(topChildren(byWeight), ['a', 'b'])   // weight order: a(100) before b(1)
+})
+
+// ── #REF! (R12) — a dangling ref is SURFACED as a ref cell, never filtered out ─────
+test('a dangling ref lands a kind:ref cell carrying its broken coordinate; clean grids have no #REF! column', () => {
+  const dim = mkDim([{ id: 'k', label: 'Kyoto', weight: 10, parent: null }])
+
+  // a QUALIFY whose target 'ghost' resolves to null (never an identity) — a dangling reference.
+  const rows: FactRow[] = [
+    { home: { who: 'wearer', sc: 9, pos: 4 }, surface: 'shiny', op: 'QUALIFY', value: 'shiny', refs: ['ghost'] },
+  ]
+  const g = pivot(timelineConfig('k' as ThingId), dim, rows)
+  assert.ok(g.columns.includes(REF_ERROR), 'the synthetic #REF! column is appended when a ref dangles')
+
+  const scRow = g.rows.find(r => r.key === 9)
+  assert.ok(scRow, 'the dangling mark still owns an sc row (surfaced, not dropped)')
+  const cell = scRow!.cells[REF_ERROR]
+  assert.ok(cell && cell.kind === 'ref', 'a kind:ref cell lands at the dangling sc')
+  if (cell.kind !== 'ref') return
+  assert.equal(cell.marks[0].home.pos, 4, 'it carries the mark home coordinate (who:sc:pos)')
+  assert.equal(cell.marks[0].ref, 'ghost', 'it carries the ref it named')
+
+  // no dangling ref ⇒ no #REF! column — clean grids stay byte-unchanged.
+  const clean = pivot(timelineConfig('k' as ThingId), dim, [])
+  assert.ok(!clean.columns.includes(REF_ERROR), 'a clean grid has no #REF! column')
 })
 
 // ── default lineage render is byte-equal to a golden (header terse + token-free; body = HEAD) ─

@@ -25,7 +25,7 @@ import { weighDimension } from '../chain-ping'
 import { currentFocus } from '../session-window'
 import { pivot, lineageView, timelineView } from '../pivot'
 import { transcript as travelTranscript, store as travelStore } from '../__fixtures__/travel-store'
-import { renderTranscript, renderGrid } from '@/features/F-present/domain/render-present'
+import { renderTranscript, renderGrid, FLAG_FAIL_MARK } from '@/features/F-present/domain/render-present'
 import { joinCells, cutCells } from '@/features/F-memory/exec/raw-turn-write'
 
 // ── (3R.1) transcript is byte-pure — no positional markup ───────────────────────
@@ -53,6 +53,45 @@ test('llm turns render who = llm; wearer renders the dash', () => {
   ]).split('\n')
   assert.equal(r[1], '[1] (—): hi')
   assert.equal(r[2], '[2] (llm): hello')
+})
+
+// ── R12 save-and-flag — a flag='fail' row is SURFACED, clean rows stay byte-pure ──
+test('a flag=fail transcript row wears the capture marker; pass/undefined rows are byte-identical', () => {
+  const r = renderTranscript([
+    { sc: 1, who: 'wearer', words: cutCells('all good'), flag: 'pass' },
+    { sc: 2, who: 'llm',    words: cutCells('recovered'), flag: 'fail' },
+    { sc: 3, who: 'wearer', words: cutCells('plain') },                    // undefined flag — a clean row
+  ]).split('\n')
+  assert.equal(r[1], '[1] (—): all good', 'a pass row renders EXACTLY as before (byte-identical)')
+  assert.equal(r[3], '[3] (—): plain',    'an undefined-flag row renders EXACTLY as before')
+  assert.ok(r[2].startsWith('[2] (llm): recovered'), 'the fail row keeps its content')
+  assert.ok(r[2].includes(FLAG_FAIL_MARK), 'the fail row wears the capture-integrity marker')
+  assert.ok(!r[1].includes(FLAG_FAIL_MARK) && !r[3].includes(FLAG_FAIL_MARK), 'no marker on clean rows')
+})
+
+// ── R12 #REF! — a valid mark whose target resolves to null is SURFACED with its coordinate ──
+test('a dangling QUALIFY renders a #REF! cell carrying its broken coordinate, not dropped', () => {
+  const cells = cutCells('Kyoto looks broken')
+  const turn: RawTurn = { sc: 9, who: 'wearer', words: cells }
+  const kyotoPos  = cells.find(c => c.word === 'Kyoto')!.pos
+  const brokenPos = cells.find(c => c.word === 'broken')!.pos
+  const store: PresentStore = [
+    { home: { who: 'wearer', sc: 9, pos: kyotoPos },  mark: { op: 'identity' } },                            // Kyoto is a thing (the focus)
+    { home: { who: 'wearer', sc: 9, pos: brokenPos }, mark: { op: 'QUALIFY', coloring: 'shiny', target: 'ghost' } }, // target 'ghost' never exists → dangling
+  ]
+  const rows = buildFactTable([turn], store)
+  const dim = resolveDimension(rows)
+  weighDimension(dim, rows)
+  const focus = currentFocus(dim)
+  assert.equal(focus, 'kyoto')
+
+  const tv = timelineView(focus!)
+  const grid = pivot(tv.assignment, dim, rows)
+  assert.ok(grid.columns.includes('#REF!'), 'the synthetic #REF! column surfaces the dangling ref (never filtered out)')
+
+  const render = renderGrid(grid, tv.render)
+  assert.ok(render.includes('#REF!(ghost)'), `#REF! carries the ref it named:\n${render}`)
+  assert.ok(render.includes(`@wearer:9:${brokenPos}`), `#REF! carries the broken coordinate (who:sc:pos):\n${render}`)
 })
 
 // ── (3R.3) the state grid teaches @pos from real marks ──────────────────────────

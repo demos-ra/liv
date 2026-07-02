@@ -119,9 +119,10 @@ test('WALK: a model navigates to a new table and uses it through compose, from t
   }
   log('\n--- compose rides the fill manual (excerpt) ---\n' + String(COIN_MANUAL).split('\n').slice(0, 6).join('\n') + '\n…')
   // the search description names its two axes — where (region) × how (lens), the Part 4 voice;
-  // the SCHEMA still carries both as `region` and `lens` (the structural axes are unchanged).
+  // the SCHEMA carries the mine-read axes (`region`, `lens`, structurally unchanged) PLUS the
+  // look·public fork (`scope`, `focus`) the wire now advertises so the model discovers the browse.
   assert.match(tool('search').description, /where[\s\S]*how|how[\s\S]*where/i)
-  assert.deepEqual(Object.keys(tool('search').inputSchema!.properties).sort(), ['lens', 'region'])
+  assert.deepEqual(Object.keys(tool('search').inputSchema!.properties).sort(), ['focus', 'lens', 'region', 'scope'])
 
   // ── (a) read the default present  ≡ search(all, pivot lineage) — the structure table ──
   const aSpec = parseSearchSpec({ lens: { view: 'table', rows: 'lineage' } });  assert.ok(aSpec.ok)   // region defaults to all

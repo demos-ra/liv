@@ -199,7 +199,7 @@ export interface PerimeterSession {
   // build-spec-part5: the entitlement attribute resolved at proxy.ts from the
   // swappable seam (F-entitlement) and stamped. Carried downstream so a crossing
   // decision can read it without re-resolving (PA-I); the deny decision itself is
-  // not made here. 'trial' on an absent/unknown stamp (permissive).
+  // not made here. Absent/unknown stamp resolves to 'free' — FAIL-CLOSED.
   grantKey: GrantKey
 }
 

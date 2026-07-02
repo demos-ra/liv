@@ -74,11 +74,13 @@ export type ToolIntention =
   | { tool: 'capture'; wearerText: unknown }
   | { tool: 'turn'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown }
   // publish (the public-forum write-door) — the SAME marked-turn payload as compose (carried through
-  // unchanged; the core recordWireTurn is the sole shape validator) plus `confirmed`, the two-phase
-  // flag. TRANSPORT + WIRE-HYGIENE only: extras rejected against PUBLISH_ARGS, the fields pass as
-  // unknown. R3 maps it to F-forum's publishToForum (phase one surfaces the confirm; phase two writes
-  // public). userId/grantKey are injected at R3 from the session; scope is stamped PUBLIC at R3.
-  | { tool: 'publish'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown; confirmed: unknown }
+  // unchanged; the core recordWireTurn is the sole shape validator) plus `target`, the reference URN
+  // (a coordinate URN for a reply parent; absent → defaulted to the forum-root URN at R3 = a top post),
+  // plus `confirmed`, the two-phase flag. TRANSPORT + WIRE-HYGIENE only: extras rejected against
+  // PUBLISH_ARGS, the fields pass as unknown. R3 maps it to F-forum's publishToForum (phase one
+  // surfaces the confirm; phase two writes public). userId/grantKey are injected at R3 from the
+  // session; scope is stamped PUBLIC at R3.
+  | { tool: 'publish'; wearerText: unknown; reply: unknown; replyMarks: unknown; priorMarks: unknown; target: unknown; confirmed: unknown }
   // search (the text-pivot) — region × lens. The door is TRANSPORT: it carries the raw args
   // through; the CORE (parseSearchSpec, F-present) is the sole validator (region defaults to
   // all, lens required, bad zones named) — symmetric with compose. R1 stays pure: no F-present
@@ -152,7 +154,7 @@ export function planToolCall(name: unknown, args: unknown): PlanResult {
     }
     const extra = firstUnknownField(args, PUBLISH_ARGS)
     if (extra) return unknownFieldReject('publish', extra)
-    return { ok: true, intention: { tool: 'publish', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, confirmed: args.confirmed } }
+    return { ok: true, intention: { tool: 'publish', wearerText: args.wearerText, reply: args.reply, replyMarks: args.replyMarks, priorMarks: args.priorMarks, target: args.target, confirmed: args.confirmed } }
   }
 
   if (name === TOOL_LOOKUP) {

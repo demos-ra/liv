@@ -17,9 +17,8 @@
 // wires-in:
 //   W-ATOM  WireTurnInput / WireTurnIdentity / WireTurnOutcome  @/features/F-present/contract/present-contract  (type-only — the compose port's shape)
 //   W-ATOM  PerimeterSession  @/features/F-identity/contract/perimeter-consultation  (author = a slice of the session)
-//   W-ATOM  Coord             @/core/types/substrate-raw.types  (TYPE-ONLY — the draft's required target)
 //   W-FN    decidePublish     ../domain/forum-logic
-//   W-FN    buildForumRef     ../domain/forum-logic  (the ref handle prepended as leading content)
+//   W-FN    buildConfirmedRef ../domain/forum-logic  (the recorded-consent motivation the un-weld stamps)
 //   W-ATOM  PublishDecision   ../domain/forum-logic
 // wires-out:
 //   W-FN    publishToForum    →  F-forum/R3 forum-contract
@@ -29,7 +28,6 @@
 //        the live recordWireTurn is bound once at R3, never value-imported here, so this module loads
 //        without dragging the cognition graph in — DI, mirroring F-inbox's SubstratePort)
 //   R3  @/features/F-identity/contract/perimeter-consultation  (TYPE-ONLY — the author slice)
-//   R5  @/core/types/substrate-raw.types  (TYPE-ONLY — Coord, the required target)
 //   R1  ../domain/forum-logic
 // validated:  pending
 
@@ -42,8 +40,7 @@
 
 import type { WireTurnInput, WireTurnIdentity, WireTurnOutcome } from '@/features/F-present/contract/present-contract'
 import type { PerimeterSession } from '@/features/F-identity/contract/perimeter-consultation'
-import type { Coord } from '@/core/types/substrate-raw.types'
-import { decidePublish, buildForumRef } from '../domain/forum-logic'
+import { decidePublish, buildConfirmedRef } from '../domain/forum-logic'
 
 // The author authority — a SLICE of the perimeter session (PA-I: resolved once at the perimeter,
 // carried, never re-derived here). userId is the wearer's own substrate (an agent cannot publish to
@@ -52,11 +49,12 @@ import { decidePublish, buildForumRef } from '../domain/forum-logic'
 export type PublishAuthority = Pick<PerimeterSession, 'userId' | 'grantKey'>
 
 // The draft = the wire's marked-compose payload (the four cognition-turn fields) PLUS the REQUIRED
-// forum target — the Coord of the forum payload this one points at (its reply parent, or FORUM_ROOT
-// for a top post). The four body fields ride through untouched (recordWireTurn is the SOLE shape
-// validator); `target` never reaches the compose port — it is consumed HERE, encoded to the ref
-// handle prepended ahead of the body, so the network is readable from gather(public) alone.
-export type ForumDraft = WireTurnInput & { target: Coord }
+// forum target — the URN STRING the model supplies for the forum payload this one points at (a
+// coordinate URN for its reply parent, or FORUM_ROOT_URN for a top post). It is already the handle
+// (the URN codec's own output form). The four body fields ride through untouched (recordWireTurn is
+// the SOLE shape validator); `target` never reaches the compose port — it is consumed HERE, prepended
+// verbatim ahead of the body, so the network is readable from gather(public) alone.
+export type ForumDraft = WireTurnInput & { target: string }
 
 // The compose PORT — recordWireTurn's exact call shape (input + identity → outcome). The DI seam
 // (default real bound at R3, tests inject a spy) EXACTLY like F-inbox's SubstratePort: this layer
@@ -91,10 +89,12 @@ export async function publishToForum(
   }
   // phase two — the NORMAL marked compose, stamped PUBLIC. userId/grantKey are the perimeter-sliced
   // author; scope is the injected PUBLIC scope (vs the connection scope a normal compose stamps). The
-  // required target is encoded to a ref handle and PREPENDED as the payload's leading content, so
-  // recordWireTurn composes [ref-handle-cell, ...body] as one public marked turn (forum-blind — the
-  // handle is just content it cuts). The body's marking is unchanged: replyMarks/priorMarks name
-  // spans BY SURFACE and the handle is a single opaque word-cell, colliding with no named body span.
+  // required target URN is PREPENDED verbatim as the payload's leading content AND the reserved
+  // 'confirmed' motivation marker is APPENDED as its trailing content (the un-weld: the wearer's OK,
+  // recorded as DATA in the memory, auditable — not a vanishing transport flag), so recordWireTurn
+  // composes [target-cell, ...body, confirmed-cell] as one public marked turn (forum-blind — both are
+  // just content it cuts). The body's marking is unchanged: replyMarks/priorMarks name spans BY SURFACE
+  // and each ref is a single opaque word-cell, colliding with no named body span.
   return compose(withRefPrepended(decision.draft), {
     userId:   authority.userId,
     scope:    publicScope,
@@ -102,13 +102,19 @@ export async function publishToForum(
   })
 }
 
-// Prepend the target's ref handle ahead of the body, returning the four-field WireTurnInput the
-// compose port takes (target consumed — it is not a compose field). The reply is `unknown` at this
-// core (the door sheds shape-validation); a non-string body absorbs to empty, so the ref still leads
-// on its own. A single space separates the handle cell from the first body cell.
+// Prepend the target URN verbatim ahead of the body and APPEND the recorded 'confirmed' motivation
+// after it, returning the four-field WireTurnInput the compose port takes (target consumed — it is not
+// a compose field). The target is already the handle (the URN codec's own output form); the confirmed
+// marker comes from the codec (buildConfirmedRef — the ONE home), so consent is stamped as auditable
+// DATA in the payload, one append, no new store/field. The reply is `unknown` at this core (the door
+// sheds shape-validation); a non-string body absorbs to empty, so the target still leads and the
+// motivation still trails on their own. Single spaces separate the ref cells from the body cells; both
+// refs survive the substrate cutter as single word-cells (leading target read by parseForumRef, trailing
+// consent read by parseForumMotivation — non-overlapping decoders).
 function withRefPrepended(draft: ForumDraft): WireTurnInput {
-  const handle = buildForumRef(draft.target)
+  const handle = draft.target
+  const confirmed = buildConfirmedRef()
   const body = typeof draft.reply === 'string' ? draft.reply : ''
-  const reply = body.length > 0 ? `${handle} ${body}` : handle
+  const reply = body.length > 0 ? `${handle} ${body} ${confirmed}` : `${handle} ${confirmed}`
   return { wearerText: draft.wearerText, reply, replyMarks: draft.replyMarks, priorMarks: draft.priorMarks }
 }

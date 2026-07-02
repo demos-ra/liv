@@ -320,6 +320,33 @@ test('turn: a sent scope is rejected as an unknown field', () => {
   assert.match(r.message, /unknown field "scope"/)
 })
 
+// ── (F′) publish — the target un-weld (reply becomes possible) ────────────────────
+// The publish door carries the model-supplied `target` (a reference URN) through as unknown,
+// alongside the compose payload + `confirmed`. Absent target → intention.target is undefined
+// (R3 defaults it to the forum-root URN = a top post). A supplied coordinate URN rides through
+// so R3 prepends it and the reply edge becomes real.
+test('publish: a coordinate-URN target rides through the door (the un-weld — replies possible)', () => {
+  const r = planToolCall('publish', { ...goodArgs(), target: 'urn:liv:wearer.7.3', confirmed: true })
+  assert.equal(r.ok, true)
+  if (!r.ok || r.intention.tool !== 'publish') return
+  assert.equal(r.intention.target, 'urn:liv:wearer.7.3', 'the reference URN is carried through as testimony')
+  assert.equal(r.intention.confirmed, true)
+})
+
+test('publish: an absent target plans as undefined (R3 defaults it to the forum-root URN = a top post)', () => {
+  const r = planToolCall('publish', { ...goodArgs(), confirmed: true })
+  assert.equal(r.ok, true)
+  if (!r.ok || r.intention.tool !== 'publish') return
+  assert.equal(r.intention.target, undefined, 'no target at the door → R3 supplies the root default')
+})
+
+test('publish: an unknown field is rejected against PUBLISH_ARGS (write-door hygiene)', () => {
+  const r = planToolCall('publish', { ...goodArgs(), target: 'urn:liv:forum', bogus: true })
+  assert.equal(r.ok, false)
+  if (r.ok) return
+  assert.match(r.message, /unknown field "bogus"/)
+})
+
 // ── (D) the search read door is TRANSPORT (region × lens) ─────────────────────────
 // The door no longer validates the selector — search is region × lens and the CORE
 // (parseSearchSpec, exercised in search-text-pivot.test) is the sole validator. The door
