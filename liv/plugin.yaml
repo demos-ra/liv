@@ -1,6 +1,6 @@
 name: liv
-version: 0.1.0
-description: "Keeps every turn word for word, with an index of what the agent writes about each turn, nested and counted, as plain files in a memory for each directory worked in."
+version: 0.1.1
+description: "The first real stateful memory for AI agents: a knowledge graph above the raw transcript, every word kept as plain text tables, local and yours."
 hooks:
   - system_prompt_block
   - prefetch

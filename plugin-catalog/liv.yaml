@@ -2,11 +2,11 @@ name: liv
 repo: https://github.com/demos-ra/liv
 sha: ‹sha at push›
 subdir: liv
-description: Keeps every turn word for word, with an index of what the agent writes about each turn, nested and counted, as plain files in a memory for each directory worked in.
+description: "The first real stateful memory for AI agents: a knowledge graph above the raw transcript, every word kept as plain text tables, local and yours."
 maintainer: demos-ra
 tier: community
 category: memory
-version: "0.1.0"
+version: "0.1.1"
 capabilities:
   provides_tools: []
   provides_hooks: []

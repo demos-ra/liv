@@ -17,7 +17,7 @@ class TestFiles(unittest.TestCase):
         self.assertEqual(
             (
                 "name: liv" in lines,
-                "version: 0.1.0" in lines,
+                "version: 0.1.1" in lines,
                 'description: "' + provider.PLUGIN_YAML_DESCRIPTION + '"' in lines,
                 lines[lines.index("hooks:") + 1:],
             ),

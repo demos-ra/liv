@@ -13,7 +13,7 @@ from . import store
 from . import xsd
 
 PROVIDER_NAME = "liv"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 REPOSITORY = "https://github.com/demos-ra/liv"
 MAINTAINER = "demos-ra"
 WRITE_TOOL = "liv_write"
@@ -71,10 +71,10 @@ OFFSET_DESCRIPTION = " ".join([
     "The rows to skip, from 0; 0 where not given.",
 ])
 PLUGIN_YAML_DESCRIPTION = " ".join([
-    "Keeps every turn word for word, with an index of what the agent writes about each turn, nested and counted, as plain files in a memory for each directory worked in.",
+    "The first real stateful memory for AI agents: a knowledge graph above the raw transcript, every word kept as plain text tables, local and yours.",
 ])
 README = " ".join([
-    "LIV is a memory provider for Hermes: it keeps every turn word for word, and the statements the agent writes about each turn, nested and counted.",
+    "LIV is the first real stateful memory for AI agents: it keeps everything the human and their agent say, a knowledge graph above the raw transcript below, as plain text tables on your machine.",
     "Put this directory in $HERMES_HOME/plugins/liv/, and select LIV by setting memory.provider to liv.",
     "LIV gives the agent two tools: liv_write, to write a turn's statements as Turtle, and liv_find, to read the memory by overview, zoom, filter and details-on-demand.",
     "The memory toolset must be on for the two tools and LIV's system prompt to reach the agent; without it, the overview still arrives before each turn.",

@@ -59,7 +59,7 @@ Details
 
 * Format: [MTSV, an IETF Internet-Draft](https://github.com/demos-ra/mtsv-spec)
 * Requirements: Hermes Agent, tested with v0.23.1; Python's standard library only
-* Version: 0.1.0
+* Version: 0.1.1
 * Tests: `python3 -m unittest discover -s tests`, run from this folder with Hermes Agent's source on PYTHONPATH; one test per requirement
 * Layout: [liv/](liv/), the plugin; [tests/](tests/), its tests; [plugin-catalog/liv.yaml](plugin-catalog/liv.yaml), the Hermes catalog entry
 * License: [GPLv2](LICENSE)
