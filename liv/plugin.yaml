@@ -1,0 +1,8 @@
+name: liv
+version: 0.1.0
+description: "Keeps every turn word for word, with an index of what the agent writes about each turn, nested and counted, as plain files in a memory for each directory worked in."
+hooks:
+  - system_prompt_block
+  - prefetch
+  - sync_turn
+  - on_turn_start
