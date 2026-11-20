@@ -1,17 +1,18 @@
 import re
 
-from . import xsd
+from .types import STRING_LITERAL_QUOTE, XSD, XSD_INTEGER, transform_references, unescape
 
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 RDF_TYPE = RDF + "type"
 RDF_LANG_STRING = RDF + "langString"
-XSD_STRING = xsd.XSD + "string"
-XSD_DECIMAL = xsd.XSD + "decimal"
-XSD_DOUBLE = xsd.XSD + "double"
-XSD_BOOLEAN = xsd.XSD + "boolean"
 RDF_NIL = RDF + "nil"
 RDF_FIRST = RDF + "first"
 RDF_REST = RDF + "rest"
+XSD_STRING = XSD + "string"
+XSD_DECIMAL = XSD + "decimal"
+XSD_DOUBLE = XSD + "double"
+XSD_BOOLEAN = XSD + "boolean"
+TRIPLES_NAME = "triples"
 TRIPLES = [
     ("subject", "term"),
     ("predicate", "iri"),
@@ -19,10 +20,9 @@ TRIPLES = [
     ("datatype IRI", "iri"),
     ("language tag", "string"),
 ]
-TRIPLES_NAME = "triples"
 TRIPLES_KEY = ["subject", "predicate", "object", "datatype IRI", "language tag"]
 
-# /format/turtle parse 1
+# /interface/turtle parse 1
 # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
 # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
 # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26
@@ -52,7 +52,6 @@ EXPONENT = "[eE][+-]?[0-9]+"
 INTEGER = "[+-]?[0-9]+"
 DECIMAL = "[+-]?[0-9]*[.][0-9]+"
 DOUBLE = "[+-]?(?:[0-9]+[.][0-9]*" + EXPONENT + "|[.][0-9]+" + EXPONENT + "|[0-9]+" + EXPONENT + ")"
-STRING_LITERAL_QUOTE = "\"(?:[^\\x22\\x5C\\x0A\\x0D]|" + ECHAR + "|" + UCHAR + ")*\""
 STRING_LITERAL_SINGLE_QUOTE = "'(?:[^\\x27\\x5C\\x0A\\x0D]|" + ECHAR + "|" + UCHAR + ")*'"
 STRING_LITERAL_LONG_SINGLE_QUOTE = "'''(?:(?:'|'')?(?:[^'\\\\]|" + ECHAR + "|" + UCHAR + "))*'''"
 STRING_LITERAL_LONG_QUOTE = "\"\"\"(?:(?:\"|\"\")?(?:[^\"\\\\]|" + ECHAR + "|" + UCHAR + "))*\"\"\""
@@ -96,54 +95,51 @@ STRINGS = {
 }
 IRIS = ("IRIREF", "PNAME_LN", "PNAME_NS")
 VERBS = ("a",) + IRIS
-PREFIX_ID = "@prefix"
+
+# /interface/turtle parse 3
+# RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
+# RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/2 to /6. Turtle Grammar/6.3 IRI References/2
 BASE = "@base"
+# /interface/turtle parse 4
+# RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
+# RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/4 to /7. Parsing/7.2 RDF Term Constructors/4
+PREFIX_ID = "@prefix"
 
-# /format/turtle parse 9
-# RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
-# RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
-# RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1 to /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1
-BLANK_NODE_PREFIX = "_:"
-
-# /format/turtle parse 3
+# /interface/turtle parse 5
 # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/3 to /7. Parsing/7.2 RDF Term Constructors/3
 # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/1 to /6. Turtle Grammar/6.3 IRI References/1
-# RFC3986 /5. Reference Resolution/5.2. Relative Resolution/1 to /5. Reference Resolution/5.3. Component Recomposition/27
-# RFC3986 /Appendix B. Parsing a URI Reference with a Regular Expression/1 to /Appendix B. Parsing a URI Reference with a Regular Expression/23
 NUMERIC_ESCAPE = re.compile(UCHAR)
-URI_REFERENCE = re.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?", re.DOTALL)
 
-# /format/turtle parse 4
+# /interface/turtle parse 7
 # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/5 to /7. Parsing/7.2 RDF Term Constructors/6
 # RDF11-TURTLE /6. Turtle Grammar/6.4 Escape Sequences/18 to /6. Turtle Grammar/6.4 Escape Sequences/22
 RESERVED_ESCAPE = re.compile(PN_LOCAL_ESC)
 
-# /format/turtle parse 5
+# /interface/turtle parse 8
 # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/6 to /7. Parsing/7.2 RDF Term Constructors/6
 NO_NAMESPACE = "no namespace"
 
-# /format/turtle parse 6
+# /interface/turtle parse 9
 # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/7 to /7. Parsing/7.2 RDF Term Constructors/12
 # RDF11-TURTLE /6. Turtle Grammar/6.4 Escape Sequences/1 to /6. Turtle Grammar/6.4 Escape Sequences/17
 STRING_ESCAPE = re.compile(ECHAR + "|" + UCHAR)
-ECHARS = {"t": "\t", "b": "\b", "n": "\n", "r": "\r", "f": "\f", "\"": "\"", "'": "'", "\\": "\\"}
 
-# /format/turtle parse 7
+# /interface/turtle parse 10
 # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/13 to /7. Parsing/7.2 RDF Term Constructors/16
 NUMERIC = {
-    "INTEGER": xsd.XSD_INTEGER,
+    "INTEGER": XSD_INTEGER,
     "DECIMAL": XSD_DECIMAL,
     "DOUBLE": XSD_DOUBLE,
     "true": XSD_BOOLEAN,
     "false": XSD_BOOLEAN,
 }
 
-# /format/turtle parse 11
+# /interface/turtle parse 2
 # RDF11-TURTLE /5. Conformance/9 to /5. Conformance/9
 LINE_BREAK = re.compile("\r\n|\n|\r")
 NOT_TURTLE = "not Turtle"
 
-# /format/turtle parse 12
+# /interface/turtle parse 6
 # RDF11-CONCEPTS /3. RDF Graphs/3.2 IRIs/1 to /3. RDF Graphs/3.2 IRIs/2
 # RFC3987 /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/1 to /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/102
 # RFC5234 /2. Rule Definition/2.3. Terminal Values/1 to /Appendix B. Core ABNF of ABNF/B.1. Core Rules/25
@@ -198,15 +194,25 @@ IRI = re.compile(SCHEME + ":" + IHIER_PART + "(?:\\?" + IQUERY + ")?(?:#" + IFRA
 NOT_AN_ABSOLUTE_IRI = "not an absolute IRI"
 
 
+def _string_escape(escape):
+    # /interface/turtle parse 9
+    # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/7 to /7. Parsing/7.2 RDF Term Constructors/12
+    # RDF11-TURTLE /6. Turtle Grammar/6.4 Escape Sequences/1 to /6. Turtle Grammar/6.4 Escape Sequences/17
+    text = escape.group()
+    if text[1] in "uU":
+        return chr(int(text[2:], 16))
+    return unescape(text)
+
+
 def parse(document):
     triples = []
 
-    # /format/turtle parse 11
+    # /interface/turtle parse 2
     # RDF11-TURTLE /5. Conformance/9 to /5. Conformance/9
     def number(position):
         return 1 + len(LINE_BREAK.findall(document, 0, position))
 
-    # /format/turtle parse 1
+    # /interface/turtle parse 1
     # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
     # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
     # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26
@@ -222,15 +228,10 @@ def parse(document):
             match = terminal.match(document, position)
             if match is not None and (longest is None or match.end() > longest[1].end()):
                 longest = (kind, match)
-        # /format/turtle parse 11
+        # /interface/turtle parse 2
         # RDF11-TURTLE /5. Conformance/9 to /5. Conformance/9
         if longest is None:
             raise ValueError(NOT_TURTLE + " " + str(number(position)))
-        # /format/turtle parse 1
-        # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
-        # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
-        # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26
-        # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/10 to /6. Turtle Grammar/6.5 Grammar/10
         tokens.append((longest[0], longest[1].group(), number(position)))
         position = longest[1].end()
     tokens.append(("end", "", number(position)))
@@ -242,26 +243,23 @@ def parse(document):
     def take(*kinds):
         nonlocal at
         kind, text, line = tokens[at]
-        # /format/turtle parse 11
+        # /interface/turtle parse 2
         # RDF11-TURTLE /5. Conformance/9 to /5. Conformance/9
         if kind not in kinds:
             raise ValueError(NOT_TURTLE + " " + str(line))
-        # /format/turtle parse 1
-        # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
-        # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
-        # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26
-        # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/10 to /6. Turtle Grammar/6.5 Grammar/10
         at += 1
         return text, line
 
-    # /format/turtle parse 2
+    # /interface/turtle parse 3
     # RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
     # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/2 to /6. Turtle Grammar/6.3 IRI References/2
     base = None
+    # /interface/turtle parse 4
+    # RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
+    # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/4 to /7. Parsing/7.2 RDF Term Constructors/4
     namespaces = {}
 
-    # /format/turtle parse 9
-    # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+    # /interface/turtle parse 12
     # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
     # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1 to /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1
     used = {text for kind, text, line in tokens if kind == "BLANK_NODE_LABEL"}
@@ -270,75 +268,11 @@ def parse(document):
     def novel():
         nonlocal count
         count += 1
-        while BLANK_NODE_PREFIX + "b" + str(count) in used:
+        while "_:" + "b" + str(count) in used:
             count += 1
-        return BLANK_NODE_PREFIX + "b" + str(count)
+        return "_:" + "b" + str(count)
 
-    # /format/turtle parse 3
-    # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/3 to /7. Parsing/7.2 RDF Term Constructors/3
-    # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/1 to /6. Turtle Grammar/6.3 IRI References/1
-    # RFC3986 /5. Reference Resolution/5.2. Relative Resolution/1 to /5. Reference Resolution/5.3. Component Recomposition/27
-    # RFC3986 /Appendix B. Parsing a URI Reference with a Regular Expression/1 to /Appendix B. Parsing a URI Reference with a Regular Expression/23
-    def remove_dot_segments(path):
-        output = ""
-        while path:
-            if path.startswith("../"):
-                path = path[3:]
-            elif path.startswith("./"):
-                path = path[2:]
-            elif path.startswith("/./"):
-                path = "/" + path[3:]
-            elif path == "/.":
-                path = "/"
-            elif path.startswith("/../") or path == "/..":
-                path = "/" + path[4:]
-                output = output[:max(output.rfind("/"), 0)]
-            elif path in (".", ".."):
-                path = ""
-            else:
-                end = path.find("/", 1)
-                end = len(path) if end == -1 else end
-                output += path[:end]
-                path = path[end:]
-        return output
-
-    def resolve(reference):
-        if base is None:
-            return reference
-        scheme, authority, path, query, fragment = URI_REFERENCE.match(reference).group(2, 4, 5, 7, 9)
-        base_scheme, base_authority, base_path, base_query, base_fragment = URI_REFERENCE.match(base).group(2, 4, 5, 7, 9)
-        if scheme is not None:
-            authority, path = authority, remove_dot_segments(path)
-        else:
-            if authority is not None:
-                path = remove_dot_segments(path)
-            else:
-                if path == "":
-                    path = base_path
-                    query = query if query is not None else base_query
-                elif path.startswith("/"):
-                    path = remove_dot_segments(path)
-                else:
-                    if base_authority is not None and base_path == "":
-                        path = "/" + path
-                    else:
-                        path = base_path[:base_path.rfind("/") + 1] + path
-                    path = remove_dot_segments(path)
-                authority = base_authority
-            scheme = base_scheme
-        result = ""
-        if scheme is not None:
-            result += scheme + ":"
-        if authority is not None:
-            result += "//" + authority
-        result += path
-        if query is not None:
-            result += "?" + query
-        if fragment is not None:
-            result += "#" + fragment
-        return result
-
-    # /format/turtle parse 12
+    # /interface/turtle parse 6
     # RDF11-CONCEPTS /3. RDF Graphs/3.2 IRIs/1 to /3. RDF Graphs/3.2 IRIs/2
     # RFC3987 /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/1 to /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/102
     # RFC5234 /2. Rule Definition/2.3. Terminal Values/1 to /Appendix B. Core ABNF of ABNF/B.1. Core Rules/25
@@ -349,15 +283,20 @@ def parse(document):
             raise ValueError(NOT_AN_ABSOLUTE_IRI + " " + str(line))
         return iri
 
-    def iri_reference():
+    def iri_reference(directive=False):
         text, line = take("IRIREF")
-        # /format/turtle parse 3
+        # /interface/turtle parse 5
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/3 to /7. Parsing/7.2 RDF Term Constructors/3
         # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/1 to /6. Turtle Grammar/6.3 IRI References/1
-        # RFC3986 /5. Reference Resolution/5.2. Relative Resolution/1 to /5. Reference Resolution/5.3. Component Recomposition/27
-        # RFC3986 /Appendix B. Parsing a URI Reference with a Regular Expression/1 to /Appendix B. Parsing a URI Reference with a Regular Expression/23
-        iri = resolve(NUMERIC_ESCAPE.sub(lambda escape: chr(int(escape.group()[2:], 16)), text[1:-1]))
-        # /format/turtle parse 12
+        iri = NUMERIC_ESCAPE.sub(lambda escape: chr(int(escape.group()[2:], 16)), text[1:-1])
+        if not directive and base is not None and re.match(SCHEME + ":", iri) is None:
+            iri = transform_references(iri, base)
+        # /interface/turtle parse 3
+        # RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
+        # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/2 to /6. Turtle Grammar/6.3 IRI References/2
+        if directive and base is not None:
+            iri = transform_references(iri, base)
+        # /interface/turtle parse 6
         # RDF11-CONCEPTS /3. RDF Graphs/3.2 IRIs/1 to /3. RDF Graphs/3.2 IRIs/2
         # RFC3987 /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/1 to /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/102
         # RFC5234 /2. Rule Definition/2.3. Terminal Values/1 to /Appendix B. Core ABNF of ABNF/B.1. Core Rules/25
@@ -370,15 +309,15 @@ def parse(document):
             return iri_reference()
         text, line = take("PNAME_LN", "PNAME_NS")
         prefix, local = text.split(":", 1)
-        # /format/turtle parse 5
+        # /interface/turtle parse 8
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/6 to /7. Parsing/7.2 RDF Term Constructors/6
         if prefix not in namespaces:
             raise ValueError(NO_NAMESPACE + " " + prefix)
-        # /format/turtle parse 4
+        # /interface/turtle parse 7
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/5 to /7. Parsing/7.2 RDF Term Constructors/6
         # RDF11-TURTLE /6. Turtle Grammar/6.4 Escape Sequences/18 to /6. Turtle Grammar/6.4 Escape Sequences/22
         iri = namespaces[prefix] + RESERVED_ESCAPE.sub(lambda escape: escape.group()[1], local)
-        # /format/turtle parse 12
+        # /interface/turtle parse 6
         # RDF11-CONCEPTS /3. RDF Graphs/3.2 IRIs/1 to /3. RDF Graphs/3.2 IRIs/2
         # RFC3987 /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/1 to /2. IRI Syntax/2.2. ABNF for IRI References and IRIs/102
         # RFC5234 /2. Rule Definition/2.3. Terminal Values/1 to /Appendix B. Core ABNF of ABNF/B.1. Core Rules/25
@@ -386,7 +325,7 @@ def parse(document):
         # RFC3986 /5. Reference Resolution/5.1. Establishing a Base URI/1 to /5. Reference Resolution/5.1. Establishing a Base URI/5.1.4. Default Base URI/2
         return absolute(iri, line)
 
-    # /format/turtle parse 8
+    # /interface/turtle parse 14
     # RDF11-TURTLE /7. Parsing/7.1 Parser State/5 to /7. Parsing/7.1 Parser State/6
     # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/1 to /7. Parsing/7.3 RDF Triples Constructors/1
     def emit(subject, predicate, object, datatype="", language=""):
@@ -398,7 +337,7 @@ def parse(document):
             "language tag": language,
         })
 
-    # /format/turtle parse 10
+    # /interface/turtle parse 13
     # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/20 to /7. Parsing/7.2 RDF Term Constructors/21
     # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Collections/1 to /7. Parsing/7.3 RDF Triples Constructors/Collections/1
     def members(node):
@@ -423,16 +362,18 @@ def parse(document):
         kind = peek()
         if kind in IRIS:
             return iri()
+        # /interface/turtle parse 11
+        # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+        # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
         if kind == "BLANK_NODE_LABEL":
             return take(kind)[0]
-        # /format/turtle parse 9
-        # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+        # /interface/turtle parse 12
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1 to /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1
         if kind == "ANON":
             take(kind)
             return novel()
-        # /format/turtle parse 10
+        # /interface/turtle parse 13
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/20 to /7. Parsing/7.2 RDF Term Constructors/21
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Collections/1 to /7. Parsing/7.3 RDF Triples Constructors/Collections/1
         if kind == "(":
@@ -440,21 +381,23 @@ def parse(document):
             if filled:
                 members(node)
             return node
-        # /format/turtle parse 11
+        # /interface/turtle parse 2
         # RDF11-TURTLE /5. Conformance/9 to /5. Conformance/9
         return iri()
 
     def object(subject, predicate):
         kind = peek()
-        # /format/turtle parse 8
+        # /interface/turtle parse 14
         # RDF11-TURTLE /7. Parsing/7.1 Parser State/5 to /7. Parsing/7.1 Parser State/6
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/1 to /7. Parsing/7.3 RDF Triples Constructors/1
         if kind in IRIS:
             emit(subject, predicate, iri())
+        # /interface/turtle parse 11
+        # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+        # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
         elif kind == "BLANK_NODE_LABEL":
             emit(subject, predicate, take(kind)[0])
-        # /format/turtle parse 9
-        # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+        # /interface/turtle parse 12
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1 to /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1
         elif kind == "ANON":
@@ -466,7 +409,7 @@ def parse(document):
             emit(subject, predicate, node)
             predicate_object_list(node)
             take("]")
-        # /format/turtle parse 10
+        # /interface/turtle parse 13
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/20 to /7. Parsing/7.2 RDF Term Constructors/21
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Collections/1 to /7. Parsing/7.3 RDF Triples Constructors/Collections/1
         elif kind == "(":
@@ -474,15 +417,12 @@ def parse(document):
             emit(subject, predicate, node)
             if filled:
                 members(node)
-        # /format/turtle parse 6
+        # /interface/turtle parse 9
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/7 to /7. Parsing/7.2 RDF Term Constructors/12
         # RDF11-TURTLE /6. Turtle Grammar/6.4 Escape Sequences/1 to /6. Turtle Grammar/6.4 Escape Sequences/17
         elif kind in STRINGS:
             text, line = take(kind)
-            lexical = STRING_ESCAPE.sub(
-                lambda escape: ECHARS[escape.group()[1]] if len(escape.group()) == 2 else chr(int(escape.group()[2:], 16)),
-                text[STRINGS[kind]:-STRINGS[kind]],
-            )
+            lexical = STRING_ESCAPE.sub(_string_escape, text[STRINGS[kind]:-STRINGS[kind]])
             if peek() == "LANGTAG":
                 emit(subject, predicate, lexical, RDF_LANG_STRING, take("LANGTAG")[0][1:])
             elif peek() == "^^":
@@ -490,7 +430,7 @@ def parse(document):
                 emit(subject, predicate, lexical, iri())
             else:
                 emit(subject, predicate, lexical, XSD_STRING)
-        # /format/turtle parse 7
+        # /interface/turtle parse 10
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/13 to /7. Parsing/7.2 RDF Term Constructors/16
         else:
             text, line = take(*NUMERIC)
@@ -498,7 +438,7 @@ def parse(document):
 
     def predicate_object_list(subject):
         while True:
-            # /format/turtle parse 8
+            # /interface/turtle parse 14
             # RDF11-TURTLE /7. Parsing/7.1 Parser State/5 to /7. Parsing/7.1 Parser State/6
             # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/1 to /7. Parsing/7.3 RDF Triples Constructors/1
             if peek() == "a":
@@ -510,7 +450,7 @@ def parse(document):
             while peek() == ",":
                 take(",")
                 object(subject, predicate)
-            # /format/turtle parse 1
+            # /interface/turtle parse 1
             # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
             # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
             # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26
@@ -524,22 +464,24 @@ def parse(document):
 
     while peek() != "end":
         kind, text, line = tokens[at]
-        # /format/turtle parse 2
+        # /interface/turtle parse 4
         # RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
-        # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/2 to /6. Turtle Grammar/6.3 IRI References/2
+        # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/4 to /7. Parsing/7.2 RDF Term Constructors/4
         if (kind, text) == ("LANGTAG", PREFIX_ID) or kind == "PREFIX":
             take(kind)
             prefix = take("PNAME_NS")[0][:-1]
             namespaces[prefix] = iri_reference()
             if kind == "LANGTAG":
                 take(".")
+        # /interface/turtle parse 3
+        # RDF11-TURTLE /7. Parsing/7.1 Parser State/2 to /7. Parsing/7.1 Parser State/3
+        # RDF11-TURTLE /6. Turtle Grammar/6.3 IRI References/2 to /6. Turtle Grammar/6.3 IRI References/2
         elif (kind, text) == ("LANGTAG", BASE) or kind == "BASE":
             take(kind)
-            base = iri_reference()
+            base = iri_reference(directive=True)
             if kind == "LANGTAG":
                 take(".")
-        # /format/turtle parse 9
-        # RDF11-TURTLE /7. Parsing/7.1 Parser State/4 to /7. Parsing/7.1 Parser State/4
+        # /interface/turtle parse 12
         # RDF11-TURTLE /7. Parsing/7.2 RDF Term Constructors/17 to /7. Parsing/7.2 RDF Term Constructors/19
         # RDF11-TURTLE /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1 to /7. Parsing/7.3 RDF Triples Constructors/Property Lists/1
         elif kind == "[":
@@ -550,7 +492,7 @@ def parse(document):
             if peek() != ".":
                 predicate_object_list(node)
             take(".")
-        # /format/turtle parse 1
+        # /interface/turtle parse 1
         # RDF11-TURTLE /5. Conformance/6 to /5. Conformance/6
         # RDF11-TURTLE /6. Turtle Grammar/1 to /6. Turtle Grammar/6.2 Comments/1
         # RDF11-TURTLE /6. Turtle Grammar/6.5 Grammar/1 to /6. Turtle Grammar/6.5 Grammar/Productions for terminals/26

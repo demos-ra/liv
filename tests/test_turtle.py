@@ -6,79 +6,73 @@ RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 XSD = "http://www.w3.org/2001/XMLSchema#"
 
 
+def triple(subject, predicate, object, datatype="", language=""):
+    return {"subject": subject, "predicate": predicate, "object": object, "datatype IRI": datatype, "language tag": language}
+
+
 class TestTurtle(unittest.TestCase):
     def refusal(self, document):
-        with self.assertRaises(ValueError) as refusal:
+        with self.assertRaises(ValueError) as refused:
             turtle.parse(document)
-        return str(refusal.exception)
+        return str(refused.exception)
 
     def test_parse_1(self):
-        self.assertEqual(
-            turtle.parse('<http://a> <http://p> "x" .'),
-            [{"subject": "http://a", "predicate": "http://p", "object": "x", "datatype IRI": XSD + "string", "language tag": ""}],
-        )
+        self.assertEqual(turtle.parse('<http://a> <http://p> "x" .'), [triple("http://a", "http://p", "x", XSD + "string")])
 
     def test_parse_2(self):
-        self.assertEqual(
-            [(t["subject"], t["predicate"], t["object"]) for t in turtle.parse("@prefix ex: <http://e/> . ex:a ex:p ex:o .")],
-            [("http://e/a", "http://e/p", "http://e/o")],
-        )
+        self.assertEqual(self.refusal("<http://a> <http://p> ."), "not Turtle 1")
 
     def test_parse_3(self):
-        self.assertEqual(
-            [(t["subject"], t["object"]) for t in turtle.parse("@base <http://e/a/b> . <../c> <http://p> <d> .")],
-            [("http://e/c", "http://e/a/d")],
-        )
+        triples = turtle.parse("@base <http://e/> . BASE <a/> <b> <http://p> <c> .")
+        self.assertEqual([triples[0]["subject"], triples[0]["object"]], ["http://e/a/b", "http://e/a/c"])
 
     def test_parse_4(self):
-        self.assertEqual(
-            [t["subject"] for t in turtle.parse("@prefix : <http://e/> . :a\\.b :p :o .")],
-            ["http://e/a.b"],
-        )
+        self.assertEqual(turtle.parse("@prefix ex: <http://e/> . ex:a ex:p ex:o ."), [triple("http://e/a", "http://e/p", "http://e/o")])
 
     def test_parse_5(self):
-        self.assertEqual(self.refusal("x:a <http://p> <http://o> ."), "no namespace x")
+        triples = turtle.parse("@base <http://e/a/b> . <../c> <http://p> <d> .")
+        self.assertEqual([triples[0]["subject"], triples[0]["object"]], ["http://e/c", "http://e/a/d"])
 
     def test_parse_6(self):
-        self.assertEqual(
-            [(t["object"], t["datatype IRI"], t["language tag"]) for t in turtle.parse('<http://a> <http://p> """x\\ny"""@en .')],
-            [("x\ny", RDF + "langString", "en")],
-        )
+        self.assertEqual(self.refusal("<p> <http://p> <http://o> ."), "not an absolute IRI 1")
 
     def test_parse_7(self):
+        self.assertEqual(turtle.parse("@prefix : <http://e/> . :a\\.b :p :o .")[0]["subject"], "http://e/a.b")
+
+    def test_parse_8(self):
+        self.assertEqual(self.refusal("x:a <http://p> <http://o> ."), "no namespace x")
+
+    def test_parse_9(self):
+        triples = turtle.parse('<http://a> <http://p> """x\\ny"""@en .')
+        self.assertEqual(triples, [triple("http://a", "http://p", "x\ny", RDF + "langString", "en")])
+
+    def test_parse_10(self):
+        triples = turtle.parse("<http://a> <http://p> 4, 4.5, true .")
         self.assertEqual(
-            [(t["object"], t["datatype IRI"]) for t in turtle.parse("<http://a> <http://p> 4, 4.5, true .")],
+            [(row["object"], row["datatype IRI"]) for row in triples],
             [("4", XSD + "integer"), ("4.5", XSD + "decimal"), ("true", XSD + "boolean")],
         )
 
-    def test_parse_8(self):
-        triples = turtle.parse("<http://a> a <http://C> ; <http://p> <http://o>, <http://q> .")
-        self.assertEqual(
-            ([t["subject"] for t in triples], triples[0]["predicate"]),
-            (["http://a", "http://a", "http://a"], RDF + "type"),
-        )
-
-    def test_parse_9(self):
-        triples = turtle.parse("_:b <http://p> [ <http://q> <http://o> ] .")
-        node = [t["object"] for t in triples if t["subject"] == "_:b"][0]
-        self.assertEqual(
-            (sorted((t["subject"], t["predicate"], t["object"]) for t in triples), node[:2], node != "_:b"),
-            (sorted([("_:b", "http://p", node), (node, "http://q", "http://o")]), "_:", True),
-        )
-
-    def test_parse_10(self):
-        triples = turtle.parse("<http://a> <http://p> ( <http://x> ) .")
-        node = [t["object"] for t in triples if t["subject"] == "http://a"][0]
-        self.assertEqual(
-            (sorted((t["subject"], t["predicate"], t["object"]) for t in triples), node[:2]),
-            (
-                sorted([("http://a", "http://p", node), (node, RDF + "first", "http://x"), (node, RDF + "rest", RDF + "nil")]),
-                "_:",
-            ),
-        )
-
     def test_parse_11(self):
-        self.assertEqual(self.refusal("<http://a> <http://p> ."), "not Turtle 1")
+        self.assertEqual(turtle.parse("_:b <http://p> _:b ."), [triple("_:b", "http://p", "_:b")])
 
     def test_parse_12(self):
-        self.assertEqual(self.refusal("<p> <http://p> <http://o> ."), "not an absolute IRI 1")
+        triples = turtle.parse("_:b <http://p> [ <http://q> <http://o> ] .")
+        node = triples[0]["object"]
+        self.assertEqual(
+            sorted(map(lambda row: tuple(row.values()), triples)),
+            sorted([("_:b", "http://p", node, "", ""), (node, "http://q", "http://o", "", "")]),
+        )
+        self.assertNotEqual(node, "_:b")
+
+    def test_parse_13(self):
+        triples = turtle.parse("<http://a> <http://p> ( <http://x> ) .")
+        node = triples[0]["object"]
+        self.assertEqual(
+            sorted(map(lambda row: tuple(row.values()), triples)),
+            sorted([("http://a", "http://p", node, "", ""), (node, RDF + "first", "http://x", "", ""), (node, RDF + "rest", RDF + "nil", "", "")]),
+        )
+
+    def test_parse_14(self):
+        triples = turtle.parse("<http://a> a <http://C> ; <http://p> <http://o>, <http://q> .")
+        self.assertEqual([len(triples), {row["subject"] for row in triples}, triples[0]["predicate"]], [3, {"http://a"}, RDF + "type"])

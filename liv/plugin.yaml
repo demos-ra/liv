@@ -1,6 +1,6 @@
 name: liv
-version: 0.1.1
-description: "The first real stateful memory for AI agents: a knowledge graph above the raw transcript, every word kept as plain text tables, local and yours."
+version: 0.2.0
+description: "The first real stateful memory for AI agents: a knowledge graph of concepts above a word-for-word transcript, kept as plain text tables locally."
 hooks:
   - system_prompt_block
   - prefetch

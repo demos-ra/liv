@@ -2,11 +2,13 @@ name: liv
 repo: https://github.com/demos-ra/liv
 sha: ‹sha at push›
 subdir: liv
-description: "The first real stateful memory for AI agents: a knowledge graph above the raw transcript, every word kept as plain text tables, local and yours."
+description: "The first real stateful memory for AI agents: a knowledge graph of concepts above a word-for-word transcript, kept as plain text tables locally."
 maintainer: demos-ra
 tier: community
 category: memory
-version: "0.1.1"
+version: "0.2.0"
+title: LIV
+image: https://raw.githubusercontent.com/demos-ra/liv/‹sha at push›/assets/banner.webp
 capabilities:
   provides_tools: []
   provides_hooks: []
